@@ -43,6 +43,43 @@ void main() {
   });
 
   group('undo and redo', () {
+    testWidgets('replace, remove and insert are one step each, and keep the z-order', (tester) async {
+      final store = MemoryBoardStore();
+      final id = addUntitled(store);
+      final c = await _container(store, id);
+      final n = c.read(notebookProvider(id).notifier);
+      final pageId = c.read(notebookProvider(id)).pages[0].id;
+      List<Item> items() => c.read(notebookProvider(id)).pages[0].items;
+      final a = _line(10), b = _line(20), d = _line(30);
+      for (final s in [a, b, d]) {
+        n.addStroke(pageId, s);
+      }
+
+      // Move two strokes at once; they stay where they were in the z-order.
+      n.replaceItems(pageId, [a.copyWith(color: tokens.inkDefaults[2]), d.copyWith(width: 9)]);
+      expect(items().map((i) => i.id), [a.id, b.id, d.id]);
+      expect((items()[0] as StrokeItem).color, tokens.inkDefaults[2]);
+      expect((items()[2] as StrokeItem).width, 9);
+      n.undo(pageId);
+      expect((items()[0] as StrokeItem).color, a.color);
+      expect((items()[2] as StrokeItem).width, a.width);
+      n.redo(pageId);
+      expect((items()[2] as StrokeItem).width, 9);
+
+      // Removing the first and last, then undoing, puts both back in place.
+      n.removeItems(pageId, [a.id, d.id]);
+      expect(items().map((i) => i.id), [b.id]);
+      n.undo(pageId);
+      expect(items().map((i) => i.id), [a.id, b.id, d.id]);
+
+      final copy = strokeFrom(const [Offset(0, 90), Offset(40, 90)]);
+      n.insertItems(pageId, [copy]);
+      expect(items().last.id, copy.id);
+      n.undo(pageId);
+      expect(items(), hasLength(3));
+      await tester.pump(const Duration(seconds: 1));
+    });
+
     testWidgets('strokes undo and redo per page', (tester) async {
       final store = MemoryBoardStore();
       final id = addUntitled(store);

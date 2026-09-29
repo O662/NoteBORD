@@ -16,7 +16,9 @@ import '../lock/lock_dialog.dart';
 import '../lock/unlock.dart';
 import '../routes.dart';
 import '../templates/templates_dialog.dart';
+import '../../canvas/selection.dart';
 import 'color_tray.dart';
+import 'gesture_status.dart';
 import 'left_rail.dart';
 import 'panels.dart';
 import 'pen_popover.dart';
@@ -26,7 +28,12 @@ const toolHints = {
   CanvasTool.pen: 'Tap the pen again for colors and thickness',
   CanvasTool.marker: 'Tap the marker again for colors and thickness',
   CanvasTool.eraser: 'Erase whole strokes · hold the S Pen button to erase from any tool',
+  CanvasTool.select: 'Tap anything to select it · drag to move · pinch to resize',
+  CanvasTool.lasso: 'Circle ink, shapes or stickies to select them together',
+  CanvasTool.laser: 'Laser fades after a second · it’s never saved to the page',
 };
+
+const rulerHint = 'Two fingers rotate the ruler · the pen snaps to its edge';
 
 /// What the ⋯ menu items open, until their screens exist.
 const _moreFeatures = {
@@ -49,17 +56,56 @@ void handleMoreItem(BuildContext context, Pane pane, MoreItem item, ValueChanged
   }
 }
 
-/// Handles a rail menu choice for [pane] (shared with Split view).
-void handleRailItem(BuildContext context, WidgetRef ref, Pane pane, RailItem item, ValueChanged<String> comingSoon) {
+/// Handles a rail menu choice for [pane] (shared with Split view). [hint]
+/// shows a tool's hint where the screen has one.
+void handleRailItem(
+  BuildContext context,
+  WidgetRef ref,
+  Pane pane,
+  RailItem item,
+  ValueChanged<String> comingSoon, {
+  ValueChanged<String>? hint,
+}) {
+  final settings = ref.read(settingsProvider.notifier);
+  void useTool(CanvasTool tool) => settings.apply((s) => s.copyWith(tool: tool));
   switch (item.label) {
     case 'Templates':
       showTemplatesDialog(context, pane: pane);
     case 'Split view':
       openSplitView(context, ref, pane);
+    case 'Ruler':
+      // Picking it again puts it away.
+      if (pane.ruler.visible) {
+        pane.ruler.hide();
+        return;
+      }
+      pane.ruler.show(pane.view.size);
+      if (!ref.read(settingsProvider).tool.inks) useTool(CanvasTool.pen);
+      hint?.call(rulerHint);
+    case 'Laser pointer':
+      useTool(CanvasTool.laser);
+      hint?.call(toolHints[CanvasTool.laser]!);
+    case 'Need to remember' || 'Convert to text':
+      // Until their own screens exist, both start a lasso whose toolbar
+      // leads with that action (RememberMark.png, Convert.png).
+      final convert = item.label == 'Convert to text';
+      pane.selection.menu = convert ? SelectionMenu.convert : SelectionMenu.remember;
+      useTool(CanvasTool.lasso);
+      hint?.call(convert ? 'Circle the handwriting to convert' : 'Circle what you need to remember');
     default:
-      // Tool items will switch the active tool once those tools exist (Phase 3).
       comingSoon(item.feature);
   }
+}
+
+/// Picks a tool from the tool pill. Tapping the active pen or marker again
+/// calls [onPopover] instead; Select and Lasso lead with Convert to text.
+void pickCanvasTool(WidgetRef ref, Pane pane, CanvasTool tool, {required VoidCallback onPopover}) {
+  if (ref.read(settingsProvider).tool == tool && tool.inks) {
+    onPopover();
+    return;
+  }
+  if (tool.selects) pane.selection.menu = SelectionMenu.convert;
+  ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: tool));
 }
 
 /// Opens Split view with [pane] on the left and, on the right, the most
@@ -158,19 +204,19 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
       });
 
   void _pickTool(CanvasTool tool) {
-    final s = ref.read(settingsProvider);
-    if (s.tool == tool && tool != CanvasTool.eraser) {
+    var toggled = false;
+    pickCanvasTool(ref, pane, tool, onPopover: () => toggled = true);
+    if (toggled) {
       setState(() => _popover = !_popover);
       return;
     }
-    ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: tool));
     setState(() => _popover = false);
     _showHint(toolHints[tool]);
   }
 
   void _togglePopover() {
     final settings = ref.read(settingsProvider.notifier);
-    if (ref.read(settingsProvider).tool == CanvasTool.eraser) {
+    if (!ref.read(settingsProvider).tool.inks) {
       settings.apply((s) => s.copyWith(tool: CanvasTool.pen));
     }
     setState(() => _popover = !_popover);
@@ -205,7 +251,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
 
   void _pickRailItem(RailItem item) {
     _closeMenus();
-    handleRailItem(context, ref, pane, item, _comingSoon);
+    handleRailItem(context, ref, pane, item, _comingSoon, hint: _showHint);
   }
 
   void _toggleMore() => setState(() {
@@ -268,6 +314,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
           const SingleActivator(LogicalKeyboardKey.keyY, control: true): () => notebook.redo(pageId),
           const SingleActivator(LogicalKeyboardKey.escape): () {
             _closeMenus();
+            pane.selection.clear();
             setState(() => _popover = false);
           },
         },
@@ -279,7 +326,16 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
                 onPointerDown: (_) {
                   if (_popover) setState(() => _popover = false);
                 },
-                child: InkCanvas(pane: pane),
+                child: InkCanvas(
+                  pane: pane,
+                  // Clear of the rail, the top pills (and the color tray), and the pages rail.
+                  chrome: EdgeInsets.fromLTRB(
+                    80,
+                    tools && (settings.trayOpen || settings.tool == CanvasTool.laser) ? 128 : 84,
+                    chrome && settings.pagesOpen ? 124 : 60,
+                    16,
+                  ),
+                ),
               ),
             ),
             if (sealed)
@@ -320,7 +376,9 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
                         onComingSoon: _comingSoon,
                       ),
                     ),
-                  if (tools && settings.trayOpen && !_popover)
+                  if (tools && settings.tool == CanvasTool.laser && !_popover)
+                    const Positioned(top: 74, left: 0, right: 0, child: Center(child: LaserColors()))
+                  else if (tools && settings.trayOpen && !_popover)
                     const Positioned(top: 70, left: 0, right: 0, child: Center(child: ColorTray())),
                   if (chrome)
                     Positioned(
@@ -328,8 +386,15 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
                       top: 84,
                       child: PagesRail(pane: pane, maxHeight: box.maxHeight - 84 - (mapShown ? 250 : 80)),
                     ),
-                  if (hintShown)
-                    Positioned(left: 0, right: 0, bottom: 20, child: Center(child: HintPill(text: _hint!))),
+                  if (!sealed && !blocking)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 20,
+                      child: Center(
+                        child: GestureStatus(pane: pane, orElse: hintShown ? HintPill(text: _hint!) : null),
+                      ),
+                    ),
                   if (!sealed)
                     Positioned(
                       right: 14,

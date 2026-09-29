@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart' show immutable;
+
 /// The `.board` storage model (docs/BOARD_FORMAT.md).
 ///
 /// Known fields are typed; everything else is kept in `extra` (or, for item
@@ -100,6 +102,39 @@ enum InkTool { pen, marker }
 
 enum PenType { ballpoint, fountain, pencil }
 
+/// Arrowhead drawings (Arrows.dc.html): open chevron, filled triangle, or a
+/// chevron with the stroke's own pressure taper.
+enum ArrowStyle { open, filled, ink }
+
+/// Arrowheads on a stroke's first and/or last point.
+@immutable
+class ArrowHeads {
+  const ArrowHeads({this.start = false, this.end = false, this.style = ArrowStyle.open});
+
+  final bool start;
+  final bool end;
+  final ArrowStyle style;
+
+  Json toJson() => {if (start) 'start': true, if (end) 'end': true, 'style': style.name};
+
+  static ArrowHeads? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final heads = ArrowHeads(
+      start: json['start'] == true,
+      end: json['end'] == true,
+      style: ArrowStyle.values.firstWhere((s) => s.name == json['style'], orElse: () => ArrowStyle.open),
+    );
+    return heads.start || heads.end ? heads : null;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ArrowHeads && other.start == start && other.end == end && other.style == style;
+
+  @override
+  int get hashCode => Object.hash(start, end, style);
+}
+
 /// Everything on a page is an item with a stable id.
 sealed class Item {
   Item({
@@ -168,6 +203,8 @@ class StrokeItem extends Item {
     required this.width,
     required this.points,
     this.usePressure = true,
+    this.arrow,
+    this.straightened,
   });
 
   /// Builds a stroke from page-space points, storing them relative to the
@@ -182,13 +219,10 @@ class StrokeItem extends Item {
     required double width,
     required bool usePressure,
     required List<InkPoint> pagePoints,
+    ArrowHeads? arrow,
+    String? straightened,
   }) {
-    var minX = double.infinity, minY = double.infinity;
-    for (final p in pagePoints) {
-      if (p.x < minX) minX = p.x;
-      if (p.y < minY) minY = p.y;
-    }
-    final ox = round1(minX), oy = round1(minY);
+    final (ox, oy, points) = _relative(pagePoints);
     return StrokeItem(
       id: id,
       x: ox,
@@ -200,11 +234,59 @@ class StrokeItem extends Item {
       color: color,
       width: width,
       usePressure: usePressure,
-      points: [
-        for (final p in pagePoints) InkPoint(round1(p.x - ox), round1(p.y - oy), round3(p.pressure), p.t),
-      ],
+      arrow: arrow,
+      straightened: straightened,
+      points: points,
     );
   }
+
+  static (double, double, List<InkPoint>) _relative(List<InkPoint> pagePoints) {
+    var minX = double.infinity, minY = double.infinity;
+    for (final p in pagePoints) {
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+    }
+    final ox = round1(minX), oy = round1(minY);
+    return (
+      ox,
+      oy,
+      [for (final p in pagePoints) InkPoint(round1(p.x - ox), round1(p.y - oy), round3(p.pressure), p.t)],
+    );
+  }
+
+  /// The same stroke (same id, z and metadata) with changes. [pagePoints]
+  /// replaces the points (page space); [shape] sets or clears `straightened`.
+  StrokeItem copyWith({
+    List<InkPoint>? pagePoints,
+    Color? color,
+    double? width,
+    ArrowHeads? Function()? arrow,
+    String? Function()? shape,
+  }) {
+    final (ox, oy, pts) = pagePoints == null ? (x, y, points) : _relative(pagePoints);
+    return StrokeItem(
+      id: id,
+      x: ox,
+      y: oy,
+      rotation: rotation,
+      z: z,
+      createdAt: createdAt,
+      author: author,
+      remember: remember,
+      extra: extra,
+      tool: tool,
+      penType: penType,
+      color: color ?? this.color,
+      width: width ?? this.width,
+      points: pts,
+      usePressure: usePressure,
+      arrow: arrow == null ? this.arrow : arrow(),
+      straightened: shape == null ? straightened : shape(),
+    );
+  }
+
+  /// Points in page space, with pressure and time.
+  List<InkPoint> get pageInk => [for (final p in points) InkPoint(x + p.x, y + p.y, p.pressure, p.t)];
 
   final InkTool tool;
   final PenType penType;
@@ -214,6 +296,13 @@ class StrokeItem extends Item {
   final double width;
   final List<InkPoint> points;
   final bool usePressure;
+
+  /// Arrowheads made by a flick back at either end, or null.
+  final ArrowHeads? arrow;
+
+  /// The shape a hold turned this stroke into (`line`, `circle`, `ellipse`,
+  /// `rect`, `triangle`), or null for freehand ink.
+  final String? straightened;
 
   @override
   String get type => 'stroke';
@@ -231,7 +320,9 @@ class StrokeItem extends Item {
       if (p.x > maxX) maxX = p.x;
       if (p.y > maxY) maxY = p.y;
     }
-    return Rect.fromLTRB(x, y, x + maxX, y + maxY).inflate(maxWidth / 2 + 1);
+    // Arrowheads reach up to their length past the end points.
+    final pad = arrow == null ? maxWidth / 2 + 1 : arrowHeadLength(width) + maxWidth / 2 + 1;
+    return Rect.fromLTRB(x, y, x + maxX, y + maxY).inflate(pad);
   }();
 
   @override
@@ -242,6 +333,8 @@ class StrokeItem extends Item {
         'color': colorToHex(color),
         'width': width,
         'usePressure': usePressure,
+        if (arrow != null) 'arrow': arrow!.toJson(),
+        if (straightened != null) 'straightened': straightened,
         'points': [
           for (final p in points) [p.x, p.y, p.pressure, p.t],
         ],
@@ -275,6 +368,9 @@ class UnknownItem extends Item {
   @override
   Json toJson() => raw;
 }
+
+/// Length of an arrowhead's sides for a stroke of [width].
+double arrowHeadLength(double width) => (10 + width * 4).clamp(14, 48).toDouble();
 
 double round1(double v) => (v * 10).roundToDouble() / 10;
 

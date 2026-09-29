@@ -40,6 +40,16 @@ class RemoveStep extends EditStep {
   EditStep get inverse => InsertStep(at, item);
 }
 
+/// A new version of an item with the same id (moved, recolored, straightened…).
+class ReplaceStep extends EditStep {
+  const ReplaceStep(super.at, super.item, this.before);
+
+  final Item before;
+
+  @override
+  EditStep get inverse => ReplaceStep(at, before, item);
+}
+
 class Command {
   const Command(this.pageId, this.steps);
 
@@ -229,6 +239,8 @@ class NotebookNotifier extends Notifier<NotebookState> {
           page.insert(s.item, s.at);
         case RemoveStep():
           page.remove(s.item.id);
+        case ReplaceStep():
+          page.replace(s.item);
       }
     }
   }
@@ -252,6 +264,50 @@ class NotebookNotifier extends Notifier<NotebookState> {
     final page = _pageById(pageId);
     if (page == null || state.isSealed(pageId)) return;
     final c = Command(page.id, [InsertStep(page.items.length, stroke)]);
+    _apply(c);
+    _push(c);
+    _changed(page.id);
+  }
+
+  bool _editable(String pageId) => _pageById(pageId) != null && !state.isSealed(pageId);
+
+  /// Replaces items with new versions of themselves, as one undo step.
+  void replaceItems(String pageId, Iterable<Item> updated) {
+    if (!_editable(pageId)) return;
+    final page = _pageById(pageId)!;
+    final steps = <EditStep>[
+      for (final item in updated)
+        if (page[item.id] case final before?) ReplaceStep(page.items.indexOf(before), item, before),
+    ];
+    _commit(page, steps);
+  }
+
+  /// Removes items, as one undo step.
+  void removeItems(String pageId, Iterable<String> ids) {
+    if (!_editable(pageId)) return;
+    final page = _pageById(pageId)!;
+    final wanted = ids.toSet();
+    // Highest index first, so each recorded position is right when replayed.
+    final steps = <EditStep>[
+      for (final (i, item) in page.items.indexed.toList().reversed)
+        if (wanted.contains(item.id)) RemoveStep(i, item),
+    ];
+    _commit(page, steps);
+  }
+
+  /// Adds items on top of the page, as one undo step.
+  void insertItems(String pageId, Iterable<Item> items) {
+    if (!_editable(pageId)) return;
+    final page = _pageById(pageId)!;
+    final steps = <EditStep>[
+      for (final (i, item) in items.indexed) InsertStep(page.items.length + i, item),
+    ];
+    _commit(page, steps);
+  }
+
+  void _commit(PageRuntime page, List<EditStep> steps) {
+    if (steps.isEmpty) return;
+    final c = Command(page.id, steps);
     _apply(c);
     _push(c);
     _changed(page.id);

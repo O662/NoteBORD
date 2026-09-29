@@ -187,3 +187,91 @@ double segmentDistance(Offset a1, Offset a2, Offset b1, Offset b2) {
     _pointSegment(b2, a1, a2),
   ].reduce(math.min);
 }
+
+// Arrowheads (Arrows.dc.html): sides about 30° off the line, as long as
+// arrowHeadLength(width), pointing along the last stretch of the line so
+// curves keep their curve.
+
+const _headHalfAngle = 30 * math.pi / 180;
+
+/// Fill paths for a stroke's arrowheads in page space (empty without arrows).
+List<Path> arrowHeadPaths(StrokeItem s) {
+  final heads = s.arrow;
+  if (heads == null) return const [];
+  final pts = s.pagePoints.toList();
+  if (pts.length < 2) return const [];
+  final len = arrowHeadLength(s.width);
+  final out = <Path>[];
+  if (heads.end) out.addAll(_head(s, pts.last, _pointBack(pts.reversed, len * 0.8), len, heads.style));
+  if (heads.start) out.addAll(_head(s, pts.first, _pointBack(pts, len * 0.8), len, heads.style));
+  return out;
+}
+
+/// The point [dist] along the path from its first point (or its last one).
+Offset _pointBack(Iterable<Offset> fromTip, double dist) {
+  Offset? prev;
+  var run = 0.0;
+  for (final p in fromTip) {
+    if (prev != null) {
+      final seg = (p - prev).distance;
+      if (run + seg >= dist && seg > 0) return Offset.lerp(prev, p, (dist - run) / seg)!;
+      run += seg;
+    }
+    prev = p;
+  }
+  return prev!;
+}
+
+List<Path> _head(StrokeItem s, Offset tip, Offset from, double len, ArrowStyle style) {
+  final d = tip - from;
+  if (d.distance == 0) return const [];
+  final back = -d / d.distance;
+  Offset rot(Offset v, double a) => Offset(v.dx * math.cos(a) - v.dy * math.sin(a), v.dx * math.sin(a) + v.dy * math.cos(a));
+  final b1 = tip + rot(back, _headHalfAngle) * len;
+  final b2 = tip + rot(back, -_headHalfAngle) * len;
+  List<Offset> dense(Offset a, Offset b) =>
+      [for (var i = 0; i <= 8; i++) Offset.lerp(a, b, i / 8)!];
+  Path outline(List<Offset> pts, List<double> pressures, {bool pressure = false}) => strokeOutline(
+        points: pts,
+        pressures: pressures,
+        width: s.width,
+        penType: s.tool == InkTool.marker ? PenType.ballpoint : s.penType,
+        usePressure: pressure,
+      );
+
+  switch (style) {
+    case ArrowStyle.open:
+      final pts = [...dense(b1, tip), ...dense(tip, b2).skip(1)];
+      return [outline(pts, List.filled(pts.length, 0.5))];
+    case ArrowStyle.filled:
+      final tri = Path()
+        ..moveTo(tip.dx, tip.dy)
+        ..lineTo(b1.dx, b1.dy)
+        ..lineTo(b2.dx, b2.dy)
+        ..close();
+      final edge = [...dense(b1, tip), ...dense(tip, b2).skip(1), ...dense(b2, b1).skip(1)];
+      return [tri, outline(edge, List.filled(edge.length, 0.5))];
+    case ArrowStyle.ink:
+      // Like a quick hand-drawn chevron: slightly bowed sides that taper
+      // from the tip, in the stroke's own pen.
+      Offset bow(Offset a, Offset b) {
+        final m = Offset.lerp(a, b, 0.5)!;
+        final n = Offset(-(b - a).dy, (b - a).dx) / (b - a).distance;
+        final side = (n.dx * (tip - m).dx + n.dy * (tip - m).dy) > 0 ? -1.0 : 1.0;
+        return m + n * (side * len * 0.08);
+      }
+      List<Offset> quad(Offset a, Offset c, Offset b) => [
+            for (var i = 0; i <= 10; i++)
+              a * math.pow(1 - i / 10, 2).toDouble() + c * (2 * (1 - i / 10) * (i / 10)) + b * math.pow(i / 10, 2).toDouble(),
+          ];
+      final pts = [...quad(b1, bow(b1, tip), tip), ...quad(tip, bow(tip, b2), b2).skip(1)];
+      final n = pts.length;
+      final pressures = [for (var i = 0; i < n; i++) 0.3 + 0.45 * (1 - ((i - n / 2).abs() / (n / 2)))];
+      return [outline(pts, pressures, pressure: true)];
+  }
+}
+
+final _heads = Expando<List<Path>>('arrowHeads');
+
+/// Cached arrowhead paths; strokes are immutable so they're built once.
+List<Path> cachedArrowHeads(StrokeItem s) => _heads[s] ??= arrowHeadPaths(s);

@@ -1,6 +1,9 @@
 import 'package:flutter/widgets.dart';
 
+import 'canvas_status.dart';
 import 'canvas_view.dart';
+import 'ruler.dart';
+import 'selection.dart';
 
 /// One view onto a notebook: which notebook, which page, and its pan/zoom.
 /// The Canvas screen has one; Split view has two, which may show two pages
@@ -14,6 +17,15 @@ class Pane extends ChangeNotifier {
   int _page;
   final CanvasView view;
 
+  /// What's selected on the page shown (cleared when the page changes).
+  final selection = Selection();
+
+  /// The ruler over this view.
+  final ruler = Ruler();
+
+  /// A status or "… · Undo" message from a pen gesture, shown at the bottom.
+  final status = ValueNotifier<CanvasStatus?>(null);
+
   String get notebookId => _notebookId;
 
   /// Index of the page shown.
@@ -22,6 +34,7 @@ class Pane extends ChangeNotifier {
   void goTo(int page) {
     if (page == _page) return;
     _page = page;
+    selection.clear();
     view.reset();
     notifyListeners();
   }
@@ -33,6 +46,7 @@ class Pane extends ChangeNotifier {
     if (notebookId == _notebookId && page == _page) return;
     _notebookId = notebookId;
     _page = page;
+    selection.clear();
     view.reset();
     notifyListeners();
   }
@@ -40,6 +54,9 @@ class Pane extends ChangeNotifier {
   @override
   void dispose() {
     view.dispose();
+    selection.dispose();
+    ruler.dispose();
+    status.dispose();
     super.dispose();
   }
 }

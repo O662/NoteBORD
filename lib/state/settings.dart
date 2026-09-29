@@ -5,10 +5,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../board/model.dart';
 import '../board/store.dart';
+import '../canvas/gestures.dart' show ScribbleLevel;
 import '../canvas/pens.dart';
 import '../theme/tokens.g.dart' as tokens;
 
-enum CanvasTool { pen, marker, eraser }
+enum CanvasTool {
+  pen,
+  marker,
+  eraser,
+  select,
+  lasso,
+  laser;
+
+  /// The pen or marker: tools that put ink down.
+  bool get inks => this == pen || this == marker;
+
+  /// Select and lasso.
+  bool get selects => this == select || this == lasso;
+}
 
 enum LibraryView { grid, list }
 
@@ -29,6 +43,9 @@ class AppSettings {
     this.snap = true,
     this.scribble = true,
     this.arrows = true,
+    this.arrowStyle = ArrowStyle.open,
+    this.scribbleLevel = ScribbleLevel.normal,
+    this.laserColor = 0,
     List<Color>? extraColors,
     this.trayOpen = true,
     this.pagesOpen = true,
@@ -51,10 +68,19 @@ class AppSettings {
   final PenType penType;
   final bool pressure;
 
-  // Stored now; the features behind them arrive in Phase 3.
+  /// Hold at the end of a stroke to straighten it.
   final bool snap;
+
+  /// Scribble over ink to erase it.
   final bool scribble;
+
+  /// Flick back at the end of a line to make an arrow.
   final bool arrows;
+  final ArrowStyle arrowStyle;
+  final ScribbleLevel scribbleLevel;
+
+  /// Laser pointer color: 0 red, 1 green, 2 blue.
+  final int laserColor;
 
   /// The "More colors" tray, up to [tokens.extraInkMax].
   final List<Color> extraColors;
@@ -92,6 +118,9 @@ class AppSettings {
     bool? snap,
     bool? scribble,
     bool? arrows,
+    ArrowStyle? arrowStyle,
+    ScribbleLevel? scribbleLevel,
+    int? laserColor,
     List<Color>? extraColors,
     bool? trayOpen,
     bool? pagesOpen,
@@ -114,6 +143,9 @@ class AppSettings {
         snap: snap ?? this.snap,
         scribble: scribble ?? this.scribble,
         arrows: arrows ?? this.arrows,
+        arrowStyle: arrowStyle ?? this.arrowStyle,
+        scribbleLevel: scribbleLevel ?? this.scribbleLevel,
+        laserColor: laserColor ?? this.laserColor,
         extraColors: extraColors ?? this.extraColors,
         trayOpen: trayOpen ?? this.trayOpen,
         pagesOpen: pagesOpen ?? this.pagesOpen,
@@ -137,6 +169,9 @@ class AppSettings {
         'snap': snap,
         'scribble': scribble,
         'arrows': arrows,
+        'arrowStyle': arrowStyle.name,
+        'scribbleLevel': scribbleLevel.name,
+        'laserColor': laserColor,
         'extraColors': [for (final c in extraColors) colorToHex(c)],
         'trayOpen': trayOpen,
         'pagesOpen': pagesOpen,
@@ -154,7 +189,11 @@ class AppSettings {
         values.firstWhere((v) => v.name == name, orElse: () => fallback);
     int size(Object? v) => ((v as num?)?.toInt() ?? 1).clamp(0, penSizes.length - 1);
     return AppSettings(
-      tool: pick(CanvasTool.values, j['tool'], CanvasTool.pen),
+      // The laser is for a moment; the app always reopens on a real tool.
+      tool: switch (pick(CanvasTool.values, j['tool'], CanvasTool.pen)) {
+        CanvasTool.laser => CanvasTool.pen,
+        final t => t,
+      },
       penColor: j['penColor'] is String ? colorFromHex(j['penColor'] as String) : null,
       markerColor: j['markerColor'] is String ? colorFromHex(j['markerColor'] as String) : null,
       penSize: size(j['penSize']),
@@ -164,6 +203,9 @@ class AppSettings {
       snap: j['snap'] as bool? ?? true,
       scribble: j['scribble'] as bool? ?? true,
       arrows: j['arrows'] as bool? ?? true,
+      arrowStyle: pick(ArrowStyle.values, j['arrowStyle'], ArrowStyle.open),
+      scribbleLevel: pick(ScribbleLevel.values, j['scribbleLevel'], ScribbleLevel.normal),
+      laserColor: ((j['laserColor'] as num?)?.toInt() ?? 0).clamp(0, 2),
       extraColors: (j['extraColors'] as List?)
           ?.whereType<String>()
           .map(colorFromHex)
@@ -190,9 +232,12 @@ final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(Setting
 
 class SettingsNotifier extends Notifier<AppSettings> {
   Timer? _saveTimer;
+  late BoardStore _store;
 
   @override
   AppSettings build() {
+    // Read now: a save still pending at dispose can't use ref any more.
+    _store = ref.read(boardStoreProvider);
     ref.onDispose(() {
       if (_saveTimer?.isActive ?? false) {
         _saveTimer!.cancel();
@@ -208,13 +253,14 @@ class SettingsNotifier extends Notifier<AppSettings> {
     _saveTimer = Timer(const Duration(milliseconds: 500), _save);
   }
 
-  void _save() => ref.read(boardStoreProvider).saveSettings(state.toJson());
+  void _save() => _store.saveSettings(state.toJson());
 
-  /// Picks a color for the pen or marker; from the eraser it switches to the pen.
+  /// Picks a color for the pen or marker; from any other tool it switches
+  /// to the pen.
   void pickColor(Color c) => apply((s) => switch (s.tool) {
         CanvasTool.marker => s.copyWith(markerColor: c),
         CanvasTool.pen => s.copyWith(penColor: c),
-        CanvasTool.eraser => s.copyWith(penColor: c, tool: CanvasTool.pen),
+        _ => s.copyWith(penColor: c, tool: CanvasTool.pen),
       });
 
   void pickSize(int i) => apply((s) => s.tool == CanvasTool.marker ? s.copyWith(markerSize: i) : s.copyWith(penSize: i));

@@ -2,6 +2,7 @@ import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
 import 'package:endless/state/settings.dart';
 import 'package:endless/theme/tokens.g.dart' as tokens;
+import 'package:endless/ui/canvas/canvas_screen.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -273,7 +274,9 @@ void main() {
     await tester.tap(find.text('Laser pointer'));
     await tester.pump();
     expect(find.text('RULER, LASER & VIEW'), findsNothing);
-    expect(find.text('The laser pointer is coming soon'), findsOneWidget);
+    // The laser is a tool now: its hint and colors show.
+    expect(find.text(toolHints[CanvasTool.laser]!), findsOneWidget);
+    expect(find.bySemanticsLabel('Red laser'), findsOneWidget);
 
     // The close button in a pinned menu.
     await tester.tap(byLabel('Writing help'));

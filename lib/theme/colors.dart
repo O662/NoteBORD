@@ -54,6 +54,11 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
     required this.paperMargin,
     required this.scrim,
     required this.frost,
+    required this.laserRed,
+    required this.laserGreen,
+    required this.laserBlue,
+    required this.scribbleMark,
+    required this.onStar,
   });
 
   final Color text;
@@ -131,6 +136,17 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
 
   /// Over a locked page.
   final Color frost;
+
+  /// Laser pointer trail colors (Tools.dc.html).
+  final Color laserRed;
+  final Color laserGreen;
+  final Color laserBlue;
+
+  /// Ink that a scribble is about to erase (Scribble.dc.html).
+  final Color scribbleMark;
+
+  /// Text and icons on the yellow star (the Remember button).
+  final Color onStar;
 
   /// Floating pill shadow: `0 6px 18px -12px shadow`.
   List<BoxShadow> get pillShadow => [
@@ -223,6 +239,11 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
       paperMargin: l(paperMargin, other.paperMargin),
       scrim: l(scrim, other.scrim),
       frost: l(frost, other.frost),
+      laserRed: l(laserRed, other.laserRed),
+      laserGreen: l(laserGreen, other.laserGreen),
+      laserBlue: l(laserBlue, other.laserBlue),
+      scribbleMark: l(scribbleMark, other.scribbleMark),
+      onStar: l(onStar, other.onStar),
     );
   }
 }

@@ -44,7 +44,7 @@ app.*.map.json
 
 
 /CLAUDE.md
-/design/tokens.json
+/design/tokens.json #
 /Updates/
 /tool/
 

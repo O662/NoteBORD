@@ -3,8 +3,10 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'dart:ui' show PointMode;
 
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,11 +17,19 @@ import '../state/settings.dart';
 import '../templates/templates.dart';
 import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
+import '../ui/canvas/selection_toolbar.dart';
+import '../ui/common.dart';
+import 'canvas_status.dart';
+import 'canvas_view.dart';
+import 'gesture_overlay.dart';
+import 'gestures.dart';
+import 'laser.dart';
 import 'page_runtime.dart';
 import 'pane.dart';
 import 'pens.dart';
+import 'ruler.dart';
+import 'selection.dart';
 import 'stroke_geometry.dart';
-import 'canvas_view.dart';
 
 /// Eraser radius in screen px.
 const eraserRadius = 10.0;
@@ -28,12 +38,43 @@ const eraserRadius = 10.0;
 /// treated as the palm and ignored.
 const palmWindow = Duration(milliseconds: 600);
 
+/// The pen counts as held still while it stays within this many screen px.
+const holdSlop = 4.0;
+
+/// Held still this long, the ring and a dashed preview of the shape appear…
+const holdPreview = Duration(milliseconds: 150);
+
+/// …and this long, the stroke snaps to the shape.
+const holdSnap = Duration(milliseconds: 500);
+
+/// How long "Line straightened · Undo" and friends stay up.
+const toastDuration = Duration(seconds: 4);
+
+/// Handles on the selection outline are this easy to hit (screen px).
+const handleReach = 22.0;
+
+/// What the drawing pointer (pen, mouse, or a drawing finger) is doing.
+enum _Drag { none, ink, erase, laser, lasso, marquee, move, resize, rotate }
+
+/// What the fingers are doing.
+enum _Touch { navigate, ruler, selection }
+
 /// The endless page. Routes raw pointers: the stylus draws, fingers pan and
 /// zoom, and touches while the stylus is near are rejected as the palm.
 /// A mouse draws with the left button and pans with the others, so the app
 /// can be tried on a desktop.
+///
+/// Pen gestures (docs/SPEC.md Phase 3) live here too: hold to straighten,
+/// flick back for an arrow, scribble to erase, select and lasso, the ruler
+/// and the laser pointer.
 class InkCanvas extends ConsumerStatefulWidget {
-  const InkCanvas({super.key, required this.pane, this.writable = true, this.onActivate});
+  const InkCanvas({
+    super.key,
+    required this.pane,
+    this.writable = true,
+    this.onActivate,
+    this.chrome = const EdgeInsets.fromLTRB(12, 84, 12, 12),
+  });
 
   final Pane pane;
 
@@ -42,40 +83,82 @@ class InkCanvas extends ConsumerStatefulWidget {
   final bool writable;
   final VoidCallback? onActivate;
 
+  /// How far the floating chrome reaches in from each edge. The selection
+  /// toolbar stays inside, going below the selection when the top is taken.
+  final EdgeInsets chrome;
+
   @override
   ConsumerState<InkCanvas> createState() => InkCanvasState();
 }
 
-class InkCanvasState extends ConsumerState<InkCanvas> {
+class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMixin {
   final active = ActiveStroke();
   final _hover = ValueNotifier<Offset?>(null);
   Timer? _hoverTimer;
 
+  /// Repaints the gesture overlay (and the ink layer's hidden items).
+  final _overlay = GestureOverlayState();
+
   final _touches = <int, Offset>{};
   final _ignored = <int>{};
+  _Touch _touch = _Touch.navigate;
+  Similarity _touchTransform = Similarity.identity;
   int? _drawPointer;
+  _Drag _drag = _Drag.none;
   bool _fingerDrawing = false;
-  bool _erasing = false;
   Offset? _lastErase;
   Duration _strokeStart = Duration.zero;
   Duration? _lastStylus;
   bool _stylusDown = false;
   double _panZoomScale = 1;
 
-  CanvasView get _vp => widget.pane.view;
+  // Hold to straighten.
+  Timer? _holdTimer;
+  Offset _holdAnchor = Offset.zero;
+  late final AnimationController _hold = AnimationController(vsync: this, duration: holdSnap)
+    ..addListener(_overlay.ping)
+    ..addStatusListener((s) {
+      if (s == AnimationStatus.completed) _snap();
+    });
 
-  NotebookNotifier get _notebook => ref.read(notebookProvider(widget.pane.notebookId).notifier);
+  /// A stroke started on the ruler's edge follows it.
+  RulerEdge? _rulerEdge;
+  int _samples = 0;
 
-  PageRuntime get _page => ref.read(notebookProvider(widget.pane.notebookId)).pageAt(widget.pane.page);
+  // Selection drags, in page coordinates.
+  Offset _dragFrom = Offset.zero;
+  Offset _dragPivot = Offset.zero;
+  bool _colorsOpen = false;
+
+  final _laser = LaserTrail();
+  late final Ticker _laserTicker = createTicker((elapsed) {
+    _laser.tick(elapsed);
+    if (_laser.isEmpty && !_laser.down) _laserTicker.stop();
+  });
+
+  Timer? _statusTimer;
+
+  Pane get pane => widget.pane;
+  CanvasView get _vp => pane.view;
+  Selection get _selection => pane.selection;
+
+  /// Page px per screen px.
+  double get _unit => 1 / _vp.scale;
+
+  NotebookNotifier get _notebook => ref.read(notebookProvider(pane.notebookId).notifier);
+
+  NotebookState get _nb => ref.read(notebookProvider(pane.notebookId));
+
+  PageRuntime get _page => _nb.pageAt(pane.page);
 
   /// Ink can go on the page: it is writable and not locked.
-  bool get _canInk =>
-      widget.writable && !ref.read(notebookProvider(widget.pane.notebookId)).isSealed(_page.id);
+  bool get _canInk => widget.writable && !_nb.isSealed(_page.id);
 
   @override
   void initState() {
     super.initState();
-    widget.pane.addListener(_paneChanged);
+    pane.addListener(_paneChanged);
+    _selection.addListener(_overlay.ping);
   }
 
   @override
@@ -83,23 +166,60 @@ class InkCanvasState extends ConsumerState<InkCanvas> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.pane != widget.pane) {
       oldWidget.pane.removeListener(_paneChanged);
+      oldWidget.pane.selection.removeListener(_overlay.ping);
       widget.pane.addListener(_paneChanged);
+      widget.pane.selection.addListener(_overlay.ping);
     }
   }
 
   void _paneChanged() {
     if (_drawPointer != null) _cancelInput();
+    _laser.clear();
     setState(() {});
   }
 
   @override
   void dispose() {
-    widget.pane.removeListener(_paneChanged);
+    pane.removeListener(_paneChanged);
+    _selection.removeListener(_overlay.ping);
     _hoverTimer?.cancel();
+    _holdTimer?.cancel();
+    _statusTimer?.cancel();
+    _hold.dispose();
+    _laserTicker.dispose();
+    _laser.dispose();
     active.dispose();
     _hover.dispose();
+    _overlay.dispose();
     super.dispose();
   }
+
+  // Status and "… · Undo" messages.
+
+  void _status(String? text) {
+    _statusTimer?.cancel();
+    pane.status.value = text == null ? null : CanvasStatus(text);
+  }
+
+  void _toast(String text, {bool undo = true}) {
+    _statusTimer?.cancel();
+    final s = CanvasStatus(text, undoPageId: undo ? _page.id : null);
+    pane.status.value = s;
+    _statusTimer = Timer(toastDuration, () {
+      if (pane.status.value == s) pane.status.value = null;
+      _overlay.glow = null;
+    });
+  }
+
+  /// A new edit makes an old "Undo" mean something else, so it goes.
+  void _dismissToast() {
+    if (pane.status.value == null) return;
+    _statusTimer?.cancel();
+    pane.status.value = null;
+    _overlay.glow = null;
+  }
+
+  // Raw pointers.
 
   static bool _isStylus(PointerEvent e) =>
       e.kind == PointerDeviceKind.stylus || e.kind == PointerDeviceKind.invertedStylus;
@@ -125,7 +245,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> {
     if (_isStylus(e)) {
       _lastStylus = e.timeStamp;
       _stylusDown = true;
-      _touches.clear(); // the palm often lands before the pen
+      _endTouches(); // the palm often lands before the pen
       if (_drawPointer != null) _cancelInput();
       final sideButton = e.buttons & (kPrimaryStylusButton | kSecondaryStylusButton) != 0;
       final erase = settings.tool == CanvasTool.eraser || e.kind == PointerDeviceKind.invertedStylus || sideButton;
@@ -136,6 +256,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> {
       if (e.buttons & kPrimaryMouseButton != 0) {
         _startInput(e, erase: settings.tool == CanvasTool.eraser);
       } else {
+        _touch = _Touch.navigate;
         _touches[e.pointer] = e.localPosition;
       }
       return;
@@ -149,11 +270,23 @@ class InkCanvasState extends ConsumerState<InkCanvas> {
       final first = _drawPointer!;
       final at = active.lastScreen ?? e.localPosition;
       _cancelInput();
+      _touch = _Touch.navigate;
       _touches[first] = at;
-    } else if (settings.fingerDraws && _canInk && _touches.isEmpty && _drawPointer == null) {
-      _fingerDrawing = true;
-      _startInput(e, erase: settings.tool == CanvasTool.eraser);
-      return;
+    } else if (_touches.isEmpty && _drawPointer == null) {
+      // The first finger decides what the fingers move.
+      final page = _vp.toPage(e.localPosition);
+      if (pane.ruler.contains(e.localPosition)) {
+        _touch = _Touch.ruler;
+      } else if (_canInk && _selection.isNotEmpty && _inSelection(page)) {
+        _touch = _Touch.selection;
+        _touchTransform = Similarity.identity;
+      } else if (settings.fingerDraws && _canInk) {
+        _fingerDrawing = true;
+        _startInput(e, erase: settings.tool == CanvasTool.eraser);
+        return;
+      } else {
+        _touch = _Touch.navigate;
+      }
     }
     _touches[e.pointer] = e.localPosition;
   }
@@ -163,7 +296,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> {
     if (e.pointer == _drawPointer) {
       _addSample(e);
     } else if (_touches.containsKey(e.pointer)) {
-      _navigate(e.pointer, e.localPosition);
+      _moveTouch(e.pointer, e.localPosition);
     }
   }
 
@@ -173,14 +306,14 @@ class InkCanvasState extends ConsumerState<InkCanvas> {
       _lastStylus = e.timeStamp;
     }
     if (e.pointer == _drawPointer) _finishInput();
-    _touches.remove(e.pointer);
+    _liftTouch(e.pointer);
     _ignored.remove(e.pointer);
   }
 
   void _onCancel(PointerCancelEvent e) {
     if (_isStylus(e)) _stylusDown = false;
     if (e.pointer == _drawPointer) _cancelInput();
-    _touches.remove(e.pointer);
+    _liftTouch(e.pointer);
     _ignored.remove(e.pointer);
   }
 
@@ -205,60 +338,144 @@ class InkCanvasState extends ConsumerState<InkCanvas> {
     }
   }
 
-  // Two-finger pan and pinch zoom (one finger pans too).
-  void _navigate(int pointer, Offset to) {
-    final before = _centroidAndSpread();
+  // Fingers: pan and pinch the page (one finger pans too), or move and
+  // rotate the ruler, or move, pinch and turn the selection.
+
+  void _moveTouch(int pointer, Offset to) {
+    final before = _touchFrame();
     _touches[pointer] = to;
-    final after = _centroidAndSpread();
+    final after = _touchFrame();
     final factor = before.$2 > 0 && after.$2 > 0 ? after.$2 / before.$2 : 1.0;
-    _vp.transform(fromFocal: before.$1, toFocal: after.$1, factor: factor);
+    final turn = _touches.length >= 2 ? _wrap(after.$3 - before.$3) : 0.0;
+    switch (_touch) {
+      case _Touch.navigate:
+        _vp.transform(fromFocal: before.$1, toFocal: after.$1, factor: factor);
+      case _Touch.ruler:
+        pane.ruler.moveBy(after.$1 - before.$1);
+        if (turn != 0) pane.ruler.rotateAbout(after.$1, turn);
+      case _Touch.selection:
+        final from = _vp.toPage(before.$1), to = _vp.toPage(after.$1);
+        final step = Similarity.about(from, scale: factor, rotation: turn).then(Similarity.translate(to - from));
+        _touchTransform = _touchTransform.then(step);
+        _selection.live = _touchTransform;
+    }
   }
 
-  (Offset, double) _centroidAndSpread() {
+  void _liftTouch(int pointer) {
+    if (_touches.remove(pointer) == null) return;
+    if (_touches.isEmpty && _touch == _Touch.selection) {
+      _land(_touchTransform);
+      _touchTransform = Similarity.identity;
+    }
+    if (_touches.isEmpty) _touch = _Touch.navigate;
+  }
+
+  /// Drops every finger (the pen came down), landing a selection pinch.
+  void _endTouches() {
+    if (_touch == _Touch.selection && _touches.isNotEmpty) _land(_touchTransform);
+    _touches.clear();
+    _touch = _Touch.navigate;
+    _touchTransform = Similarity.identity;
+  }
+
+  static double _wrap(double a) => math.atan2(math.sin(a), math.cos(a));
+
+  /// Centroid, mean spread and the angle between the first two touches.
+  (Offset, double, double) _touchFrame() {
     var sum = Offset.zero;
     for (final p in _touches.values) {
       sum += p;
     }
     final c = sum / _touches.length.toDouble();
-    if (_touches.length < 2) return (c, 0);
+    if (_touches.length < 2) return (c, 0, 0);
     var spread = 0.0;
     for (final p in _touches.values) {
       spread += (p - c).distance;
     }
-    return (c, spread / _touches.length);
+    final two = _touches.values.take(2).toList();
+    final d = two[1] - two[0];
+    return (c, spread / _touches.length, math.atan2(d.dy, d.dx));
   }
+
+  // The drawing pointer.
 
   void _startInput(PointerDownEvent e, {required bool erase}) {
     final settings = ref.read(settingsProvider);
     _drawPointer = e.pointer;
     _strokeStart = e.timeStamp;
     _hover.value = null;
+    _dismissToast();
     final page = _vp.toPage(e.localPosition);
     if (erase) {
-      _erasing = true;
+      _drag = _Drag.erase;
       _lastErase = page;
       _notebook.beginErase(_page.id);
       _eraseTo(page);
-    } else {
-      active.begin(
-        tool: settings.inkTool,
-        penType: settings.penType,
-        color: settings.color,
-        width: settings.strokeWidth,
-        usePressure: settings.pressure,
-      );
-      active.add(page, e.localPosition, _pressure(e), 0);
+      return;
+    }
+    switch (settings.tool) {
+      case CanvasTool.laser:
+        _drag = _Drag.laser;
+        if (!_laserTicker.isActive) {
+          _laser.now = Duration.zero;
+          _laserTicker.start();
+        }
+        _laser.start(page);
+      case CanvasTool.select || CanvasTool.lasso:
+        _startSelectionDrag(e.localPosition, page, lasso: settings.tool == CanvasTool.lasso);
+      case CanvasTool.pen || CanvasTool.marker || CanvasTool.eraser:
+        _selection.clear();
+        _drag = _Drag.ink;
+        _samples = 0;
+        _rulerEdge = pane.ruler.edgeNear(e.localPosition);
+        active.begin(
+          tool: settings.inkTool,
+          penType: settings.penType,
+          color: settings.color,
+          width: settings.strokeWidth,
+          usePressure: settings.pressure,
+        );
+        active.add(_inkPoint(e.localPosition), e.localPosition, _pressure(e), 0);
+        _holdAnchor = e.localPosition;
+        _restartHold();
     }
   }
 
   void _addSample(PointerEvent e) {
     final page = _vp.toPage(e.localPosition);
-    if (_erasing) {
-      _eraseTo(page);
-    } else {
-      active.add(page, e.localPosition, _pressure(e), (e.timeStamp - _strokeStart).inMilliseconds);
+    switch (_drag) {
+      case _Drag.erase:
+        _eraseTo(page);
+      case _Drag.laser:
+        _laser.add(page);
+      case _Drag.ink:
+        _inkSample(e);
+      case _Drag.lasso:
+        if ((page - _overlay.lasso.last).distance > 2 * _unit) {
+          _overlay.lasso.add(page);
+          _overlay.ping();
+        }
+      case _Drag.marquee:
+        _overlay.marquee = Rect.fromPoints(_dragFrom, page);
+      case _Drag.move:
+        _selection.live = Similarity.translate(page - _dragFrom);
+      case _Drag.resize:
+        final from = (_dragFrom - _dragPivot).distance;
+        if (from > 0) {
+          final s = ((page - _dragPivot).distance / from).clamp(0.05, 20.0);
+          _selection.live = Similarity.about(_dragPivot, scale: s);
+        }
+      case _Drag.rotate:
+        var a = _wrap(_angle(page - _dragPivot) - _angle(_dragFrom - _dragPivot));
+        final quarter = (a / (math.pi / 2)).round() * (math.pi / 2);
+        if ((a - quarter).abs() < 4 * math.pi / 180) a = quarter;
+        _selection.live = Similarity.about(_dragPivot, rotation: a);
+      case _Drag.none:
+        break;
     }
   }
+
+  static double _angle(Offset d) => math.atan2(d.dy, d.dx);
 
   void _eraseTo(Offset page) {
     final from = _lastErase ?? page;
@@ -274,85 +491,540 @@ class InkCanvasState extends ConsumerState<InkCanvas> {
   }
 
   void _finishInput() {
-    final notifier = _notebook;
-    if (_erasing) {
-      notifier.endErase();
-    } else if (active.isActive) {
-      final page = _page;
-      notifier.addStroke(page.id, active.toItem(z: page.nextZ));
-      active.clear();
+    switch (_drag) {
+      case _Drag.erase:
+        _notebook.endErase();
+      case _Drag.laser:
+        _laser.end();
+      case _Drag.ink:
+        _finishInk();
+      case _Drag.lasso:
+        _finishLasso();
+      case _Drag.marquee:
+        _finishMarquee();
+      case _Drag.move || _Drag.resize || _Drag.rotate:
+        _land(_selection.live);
+      case _Drag.none:
+        break;
     }
     _resetInput();
   }
 
   void _cancelInput() {
-    if (_erasing) {
-      _notebook.endErase();
+    switch (_drag) {
+      case _Drag.erase:
+        _notebook.endErase();
+      case _Drag.laser:
+        _laser.end();
+      case _Drag.move || _Drag.resize || _Drag.rotate:
+        _selection.live = null;
+      default:
+        break;
     }
     active.clear();
+    if (pane.status.value?.undoPageId == null) _status(null);
     _resetInput();
   }
 
   void _resetInput() {
     _drawPointer = null;
-    _erasing = false;
+    _drag = _Drag.none;
     _lastErase = null;
     _fingerDrawing = false;
+    _rulerEdge = null;
+    _holdTimer?.cancel();
+    _hold.reset();
+    _overlay
+      ..holdFit = null
+      ..snapped = null
+      ..scribble = const {}
+      ..lasso = []
+      ..marquee = null;
+  }
+
+  // Ink and its gestures.
+
+  /// Where ink lands for a pen at [screen]: on the ruler's edge if the
+  /// stroke started there.
+  Offset _inkPoint(Offset screen) {
+    final edge = _rulerEdge;
+    if (edge == null) return _vp.toPage(screen);
+    final gap = active.width * _vp.scale / 2 + 1;
+    return _vp.toPage(edge.snap(screen, gap));
+  }
+
+  void _inkSample(PointerEvent e) {
+    final snapped = _overlay.snapped;
+    if (snapped != null) {
+      // After the snap, a line's end follows the pen; other shapes stay put.
+      if (snapped.kind == ShapeKind.line) {
+        final start = snapped.points.first;
+        final end = snapLineEnd(start, _vp.toPage(e.localPosition));
+        final fit = ShapeFit(ShapeKind.line, linePoints(start, end), angle: lineAngle(start, end).round());
+        _overlay.snapped = fit;
+        active.shape = fit.points;
+      }
+      return;
+    }
+    active.add(_inkPoint(e.localPosition), e.localPosition, _pressure(e), (e.timeStamp - _strokeStart).inMilliseconds);
+    _samples++;
+    if (_rulerEdge != null) return;
+    if ((e.localPosition - _holdAnchor).distance > holdSlop) {
+      _holdAnchor = e.localPosition;
+      _restartHold();
+    }
+    if (_samples % 3 == 0) _checkScribble();
+  }
+
+  /// The pen moved: start timing a new hold.
+  void _restartHold() {
+    _holdTimer?.cancel();
+    if (_hold.value > 0 || _overlay.holdFit != null) {
+      _hold.reset();
+      _overlay.holdFit = null;
+      active.opacity = 1;
+      _status(null);
+    }
+    if (!ref.read(settingsProvider).snap || _rulerEdge != null) return;
+    _holdTimer = Timer(holdPreview, _holdBegan);
+  }
+
+  void _holdBegan() {
+    if (_drag != _Drag.ink || _overlay.scribble.isNotEmpty) return;
+    final fit = fitShape(active.points, unit: _unit);
+    if (fit == null) return;
+    _overlay.holdFit = fit;
+    active.opacity = 0.45;
+    _status('Hold to straighten…');
+    _hold.forward(from: holdPreview.inMilliseconds / holdSnap.inMilliseconds);
+  }
+
+  void _snap() {
+    final fit = _overlay.holdFit;
+    if (_drag != _Drag.ink || fit == null) return;
+    _overlay
+      ..snapped = fit
+      ..holdFit = null;
+    active
+      ..shape = fit.points
+      ..opacity = 1;
+    _status(null);
+    HapticFeedback.selectionClick();
+  }
+
+  void _checkScribble() {
+    final settings = ref.read(settingsProvider);
+    // A scribble is quick and compact; a long line of writing isn't one, and
+    // re-checking it every few samples would get slow.
+    if (!settings.scribble || active.points.length < 8 || active.points.length > 1500) return;
+    var ids = const <String>{};
+    if (looksLikeScribble(active.points, settings.scribbleLevel, unit: _unit)) {
+      final page = _page;
+      final area = _boundsOf(active.points).inflate(8 * _unit);
+      final candidates = [
+        for (final id in page.index.query(area))
+          if (page[id] case final StrokeItem s) s,
+      ];
+      ids = {for (final s in scribbleTargets(active.points, candidates, unit: _unit)) s.id};
+    }
+    if (setEquals(ids, _overlay.scribble)) return;
+    _overlay.scribble = ids;
+    active.opacity = ids.isEmpty ? 1 : 0.25;
+    if (ids.isNotEmpty) {
+      _holdTimer?.cancel();
+      _hold.reset();
+      _overlay.holdFit = null;
+    }
+    _status(ids.isEmpty ? null : 'Lift the pen to erase ${_strokes(ids.length)}');
+  }
+
+  static String _strokes(int n) => n == 1 ? '1 stroke' : '$n strokes';
+
+  static Rect _boundsOf(List<Offset> pts) {
+    var r = Rect.fromPoints(pts.first, pts.first);
+    for (final p in pts) {
+      r = r.expandToInclude(Rect.fromPoints(p, p));
+    }
+    return r;
+  }
+
+  void _finishInk() {
+    if (!active.isActive) return;
+    final settings = ref.read(settingsProvider);
+    final notifier = _notebook;
+    final page = _page;
+    final snapped = _overlay.snapped;
+    final scribble = _overlay.scribble;
+    _status(null);
+
+    if (scribble.isNotEmpty) {
+      // The scribble itself is never kept.
+      notifier.removeItems(page.id, scribble);
+      _toast('Erased ${_strokes(scribble.length)}');
+    } else if (snapped != null) {
+      // Two steps: the ink as drawn, then the shape. Undo gives the ink back.
+      final raw = active.toItem(z: page.nextZ);
+      notifier.addStroke(page.id, raw);
+      notifier.replaceItems(page.id, [raw.copyWith(pagePoints: active.snappedInk(), shape: () => snapped.kind.name)]);
+      _toast('${_shapeName(snapped.kind)} straightened');
+      if (snapped.kind == ShapeKind.line) _overlay.glow = snapped;
+    } else {
+      final raw = active.toItem(z: page.nextZ);
+      notifier.addStroke(page.id, raw);
+      final flicks = settings.arrows && _rulerEdge == null
+          ? detectFlicks(active.points, times: active.times, unit: _unit)
+          : null;
+      if (flicks != null) {
+        final heads = ArrowHeads(start: flicks.start, end: flicks.end, style: settings.arrowStyle);
+        notifier.replaceItems(page.id, [
+          raw.copyWith(pagePoints: raw.pageInk.sublist(flicks.from, flicks.to + 1), arrow: () => heads),
+        ]);
+        _toast('Made an arrow');
+      }
+    }
+    active.clear();
+  }
+
+  static String _shapeName(ShapeKind k) => switch (k) {
+        ShapeKind.line => 'Line',
+        ShapeKind.circle => 'Circle',
+        ShapeKind.ellipse => 'Oval',
+        ShapeKind.rect => 'Rectangle',
+        ShapeKind.triangle => 'Triangle',
+      };
+
+  // Select and lasso.
+
+  List<StrokeItem> get _selected => [
+        for (final id in _selection.ids)
+          if (_page[id] case final StrokeItem s) s,
+      ];
+
+  /// The selection's outline in page space: the lasso loop while it still
+  /// fits, otherwise a rounded box around the items.
+  Path? _outline() {
+    final items = _selected;
+    if (items.isEmpty) return null;
+    final loop = _selection.outlineAt(_nb.revision);
+    if (loop != null) return loop;
+    var r = items.first.bounds;
+    for (final s in items) {
+      r = r.expandToInclude(s.bounds);
+    }
+    return Path()..addRRect(RRect.fromRectAndRadius(r.inflate(8 * _unit), Radius.circular(10 * _unit)));
+  }
+
+  bool _inSelection(Offset page) => _outline()?.getBounds().inflate(4 * _unit).contains(page) ?? false;
+
+  /// The outline's box on screen.
+  Rect? _screenBox() {
+    final b = _outline()?.getBounds();
+    return b == null ? null : Rect.fromPoints(_vp.toScreen(b.topLeft), _vp.toScreen(b.bottomRight));
+  }
+
+  void _startSelectionDrag(Offset screen, Offset page, {required bool lasso}) {
+    _dragFrom = page;
+    final box = _selection.isEmpty ? null : _screenBox();
+    if (box != null) {
+      final corners = [box.topLeft, box.topRight, box.bottomRight, box.bottomLeft];
+      for (var i = 0; i < 4; i++) {
+        if ((screen - corners[i]).distance <= handleReach) {
+          _drag = _Drag.resize;
+          _dragPivot = _vp.toPage(corners[(i + 2) % 4]);
+          return;
+        }
+      }
+      if ((screen - rotateHandle(box)).distance <= handleReach) {
+        _drag = _Drag.rotate;
+        _dragPivot = _vp.toPage(box.center);
+        return;
+      }
+      if (_inSelection(page)) {
+        _drag = _Drag.move;
+        return;
+      }
+    }
+    _selection.clear();
+    _colorsOpen = false;
+    if (lasso) {
+      _drag = _Drag.lasso;
+      _overlay.lasso = [page];
+    } else {
+      _drag = _Drag.marquee;
+      _overlay.marquee = Rect.fromPoints(page, page);
+    }
+  }
+
+  void _finishLasso() {
+    final loop = _overlay.lasso;
+    if (loop.length < 3 || pathLength(loop) < 20 * _unit) return;
+    final page = _page;
+    final area = _boundsOf(loop);
+    final near = [
+      for (final id in page.index.query(area))
+        if (page[id] case final StrokeItem s) s,
+    ];
+    final picked = itemsInPolygon(loop, near);
+    if (picked.isEmpty) return;
+    _selection.select(
+      [for (final i in picked) i.id],
+      outline: Path()..addPolygon(loop, true),
+      revision: _nb.revision,
+    );
+  }
+
+  void _finishMarquee() {
+    final rect = _overlay.marquee;
+    if (rect == null) return;
+    final page = _page;
+    if (rect.longestSide < 6 * _unit) {
+      // A tap: the topmost stroke under the pen.
+      final at = rect.center;
+      final r = 10 * _unit;
+      final ids = page.index.query(Rect.fromCircle(center: at, radius: r));
+      for (final item in page.items.reversed) {
+        if (ids.contains(item.id) && item is StrokeItem && strokeHit(item, at, at, r)) {
+          _selection.select([item.id]);
+          return;
+        }
+      }
+      return;
+    }
+    final near = [
+      for (final id in page.index.query(rect))
+        if (page[id] case final StrokeItem s) s,
+    ];
+    final picked = itemsInPolygon([rect.topLeft, rect.topRight, rect.bottomRight, rect.bottomLeft], near);
+    if (picked.isNotEmpty) _selection.select([for (final i in picked) i.id]);
+  }
+
+  /// Puts a dragged move, resize or rotation onto the page (one undo step).
+  void _land(Similarity? t) {
+    if (t == null || t.isIdentity || _selected.isEmpty) {
+      _selection.live = null;
+      return;
+    }
+    _notebook.replaceItems(_page.id, [for (final s in _selected) t.applyTo(s)]);
+    _selection.landed(t, _nb.revision);
+  }
+
+  void _onAction(SelectionAction action) {
+    final pageId = _page.id;
+    final items = _selected;
+    switch (action) {
+      case SelectionAction.convert:
+        showComingSoon(context, 'Convert to text');
+      case SelectionAction.remember:
+        showComingSoon(context, 'Need to remember');
+      case SelectionAction.flashcard:
+        showComingSoon(context, 'Flashcards');
+      case SelectionAction.color:
+        setState(() => _colorsOpen = !_colorsOpen);
+      case SelectionAction.copy:
+        // A copy lands just below and right of the original, selected.
+        final t = Similarity.translate(Offset(24, 24) * _unit);
+        final z = _page.nextZ;
+        final now = DateTime.now().toUtc();
+        final copies = [
+          for (final (i, s) in items.indexed)
+            StrokeItem.fromPagePoints(
+              id: newId('it'),
+              z: z + i,
+              createdAt: now,
+              tool: s.tool,
+              penType: s.penType,
+              color: s.color,
+              width: s.width,
+              usePressure: s.usePressure,
+              pagePoints: t.applyTo(s).pageInk,
+              arrow: s.arrow,
+              straightened: s.straightened,
+            ),
+        ];
+        final loop = _selection.outlineAt(_nb.revision)?.transform(t.matrix.storage);
+        _notebook.insertItems(pageId, copies);
+        _selection.select([for (final c in copies) c.id], outline: loop, revision: _nb.revision);
+      case SelectionAction.straighten:
+        final unit = _unit;
+        final straightened = [
+          for (final s in items)
+            if (s.straightened == null)
+              if (fitShape(s.pagePoints.toList(), unit: unit) case final fit?)
+                s.copyWith(
+                  pagePoints: shapeInk(fit.points, [for (final p in s.points) p.pressure], s.points.last.t),
+                  shape: () => fit.kind.name,
+                  arrow: () => null,
+                ),
+        ];
+        if (straightened.isEmpty) {
+          _toast('Nothing here to straighten', undo: false);
+          return;
+        }
+        final loop = _selection.outlineAt(_nb.revision);
+        _notebook.replaceItems(pageId, straightened);
+        _selection.select(_selection.ids, outline: loop, revision: _nb.revision);
+        _toast(straightened.length == 1 ? 'Straightened 1 stroke' : 'Straightened ${straightened.length} strokes');
+      case SelectionAction.delete:
+        _notebook.removeItems(pageId, [for (final s in items) s.id]);
+        _selection.clear();
+        _colorsOpen = false;
+    }
+  }
+
+  void _recolor(Color color) {
+    final loop = _selection.outlineAt(_nb.revision);
+    _notebook.replaceItems(_page.id, [for (final s in _selected) s.copyWith(color: color)]);
+    _selection.select(_selection.ids, outline: loop, revision: _nb.revision);
+    setState(() => _colorsOpen = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final notebook = ref.watch(notebookProvider(widget.pane.notebookId));
+    final notebook = ref.watch(notebookProvider(pane.notebookId));
     final settings = ref.watch(settingsProvider);
     final colors = context.colors;
     final brightness = Theme.of(context).brightness;
-    final page = notebook.pageAt(widget.pane.page);
+    final page = notebook.pageAt(pane.page);
     final layout = layoutPicture(page.page.template, colors);
+
+    // Leaving select and lasso (or an undo removing items) updates the selection.
+    if (_selection.isNotEmpty) {
+      final keep = settings.tool.selects && widget.writable;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (!keep) {
+          _selection.clear();
+          _colorsOpen = false;
+        } else {
+          _selection.retain((id) => _page[id] != null);
+        }
+      });
+    }
+    if (settings.tool != CanvasTool.laser && !_laser.isEmpty && _drag != _Drag.laser) _laser.clear();
+
+    final hoverRing = switch (settings.tool) {
+      CanvasTool.eraser => (eraserRadius * 2, colors.textMuted),
+      CanvasTool.pen || CanvasTool.marker =>
+        ((settings.strokeWidth * 2 + 8).roundToDouble(), displayInk(settings.color, brightness)),
+      _ => null,
+    };
+    final laserColor = [colors.laserRed, colors.laserGreen, colors.laserBlue][settings.laserColor];
 
     return LayoutBuilder(builder: (context, constraints) {
       _vp.size = constraints.biggest;
-      return Listener(
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: _onDown,
-        onPointerMove: _onMove,
-        onPointerUp: _onUp,
-        onPointerCancel: _onCancel,
-        onPointerHover: _onHover,
-        onPointerSignal: _onSignal,
-        onPointerPanZoomStart: (_) => _panZoomScale = 1,
-        onPointerPanZoomUpdate: (e) {
-          _vp.zoomAt(e.localPosition, e.scale / _panZoomScale);
-          _panZoomScale = e.scale;
-          _vp.panBy(e.panDelta);
-        },
-        child: Stack(fit: StackFit.expand, children: [
-          RepaintBoundary(
-            child: CustomPaint(painter: PaperPainter(_vp, page.page.paper, colors)),
-          ),
-          if (layout != null) RepaintBoundary(child: CustomPaint(painter: LayoutPainter(_vp, layout))),
-          RepaintBoundary(
-            child: CustomPaint(
-              painter: InkLayerPainter(_vp, page, notebook.revision, brightness, colors),
+      return Stack(fit: StackFit.expand, children: [
+        Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: _onDown,
+          onPointerMove: _onMove,
+          onPointerUp: _onUp,
+          onPointerCancel: _onCancel,
+          onPointerHover: _onHover,
+          onPointerSignal: _onSignal,
+          onPointerPanZoomStart: (_) => _panZoomScale = 1,
+          onPointerPanZoomUpdate: (e) {
+            _vp.zoomAt(e.localPosition, e.scale / _panZoomScale);
+            _panZoomScale = e.scale;
+            _vp.panBy(e.panDelta);
+          },
+          child: Stack(fit: StackFit.expand, children: [
+            RepaintBoundary(
+              child: CustomPaint(painter: PaperPainter(_vp, page.page.paper, colors)),
             ),
-          ),
-          RepaintBoundary(
-            child: CustomPaint(painter: ActiveStrokePainter(active, _vp, brightness)),
-          ),
-          if (_canInk)
-            IgnorePointer(
+            if (layout != null) RepaintBoundary(child: CustomPaint(painter: LayoutPainter(_vp, layout))),
+            RepaintBoundary(
               child: CustomPaint(
-                painter: HoverRingPainter(
-                  _hover,
-                  settings.tool == CanvasTool.eraser
-                      ? (eraserRadius * 2, colors.textMuted)
-                      : ((settings.strokeWidth * 2 + 8).roundToDouble(), displayInk(settings.color, brightness)),
+                painter: InkLayerPainter(_vp, page, notebook.revision, brightness, colors, hidden: _hidden, repaint: _overlay),
+              ),
+            ),
+            RepaintBoundary(
+              child: CustomPaint(
+                painter: GestureOverlayPainter(
+                  overlay: _overlay,
+                  vp: _vp,
+                  page: page,
+                  selection: _selection,
+                  outline: _outline,
+                  hold: _hold,
+                  holdAt: () => active.lastScreen,
+                  inkColor: displayInk(active.isActive ? active.color : settings.color, brightness),
+                  brightness: brightness,
+                  colors: colors,
                 ),
               ),
             ),
-        ]),
-      );
+            RepaintBoundary(
+              child: CustomPaint(painter: ActiveStrokePainter(active, _vp, brightness)),
+            ),
+            if (settings.tool == CanvasTool.laser || !_laser.isEmpty)
+              IgnorePointer(child: CustomPaint(painter: LaserPainter(_laser, _vp, laserColor))),
+            IgnorePointer(child: CustomPaint(painter: RulerPainter(pane.ruler, colors))),
+            if (_canInk && hoverRing != null)
+              IgnorePointer(child: CustomPaint(painter: HoverRingPainter(_hover, hoverRing))),
+          ]),
+        ),
+        if (_canInk) _toolbar(),
+      ]);
     });
   }
+
+  /// Items drawn by the overlay instead of the ink layer: a selection being
+  /// dragged, or strokes a scribble is about to erase.
+  Set<String> _hidden() {
+    if (_selection.live != null) return _selection.ids;
+    return _overlay.scribble;
+  }
+
+  Widget _toolbar() => ListenableBuilder(
+        listenable: Listenable.merge([_selection, _vp]),
+        builder: (context, _) {
+          final box = _selection.isEmpty || _selection.live != null ? null : _screenBox();
+          if (box == null) return const SizedBox.shrink();
+          return CustomSingleChildLayout(
+            delegate: _ToolbarLayout(box, widget.chrome),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 8,
+              children: [
+                SelectionToolbar(menu: _selection.menu, colorsOpen: _colorsOpen, onAction: _onAction),
+                if (_colorsOpen) SelectionColors(onPick: _recolor),
+              ],
+            ),
+          );
+        },
+      );
+}
+
+/// Where the rotate handle sits under a selection's screen box.
+Offset rotateHandle(Rect box) => box.bottomCenter + const Offset(0, 30);
+
+/// Puts the selection toolbar 12 px above the selection, left-aligned with
+/// it (Convert.dc.html), or below it (RememberMark.dc.html) when the top
+/// chrome is in the way.
+class _ToolbarLayout extends SingleChildLayoutDelegate {
+  _ToolbarLayout(this.box, this.chrome);
+
+  final Rect box;
+  final EdgeInsets chrome;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) => constraints.loosen();
+
+  @override
+  Offset getPositionForChild(Size size, Size child) {
+    final left = box.left.clamp(chrome.left, math.max(chrome.left, size.width - child.width - chrome.right)).toDouble();
+    // The bar itself is 46 px; the color swatches hang below it.
+    var top = box.top - 12 - 46;
+    if (top < chrome.top) {
+      // Below, clear of the rotate handle.
+      top = math.min(rotateHandle(box).dy + handleReach + 12, size.height - child.height - chrome.bottom);
+    }
+    return Offset(left, top);
+  }
+
+  @override
+  bool shouldRelayout(_ToolbarLayout old) => old.box != box || old.chrome != chrome;
 }
 
 /// The stroke being drawn. Only this layer repaints while the pen moves.
@@ -368,6 +1040,24 @@ class ActiveStroke extends ChangeNotifier {
   Offset? lastScreen;
   DateTime? _startedAt;
   Path? _path;
+  List<Offset>? _shape;
+  double _opacity = 1;
+
+  /// After hold to straighten: the shape shown (and kept) instead of the ink.
+  List<Offset>? get shape => _shape;
+  set shape(List<Offset>? v) {
+    _shape = v;
+    _path = null;
+    notifyListeners();
+  }
+
+  /// Faded while a scribble is about to erase.
+  double get opacity => _opacity;
+  set opacity(double v) {
+    if (v == _opacity) return;
+    _opacity = v;
+    notifyListeners();
+  }
 
   bool get isActive => points.isNotEmpty;
 
@@ -388,6 +1078,8 @@ class ActiveStroke extends ChangeNotifier {
     pressures.clear();
     times.clear();
     _path = null;
+    _shape = null;
+    _opacity = 1;
   }
 
   void add(Offset page, Offset screen, double pressure, int tMs) {
@@ -400,12 +1092,15 @@ class ActiveStroke extends ChangeNotifier {
   }
 
   Path get path => _path ??= strokeOutline(
-        points: points,
-        pressures: pressures,
+        points: _shape ?? points,
+        pressures: _shape == null ? pressures : List.filled(_shape!.length, 0.5),
         width: width,
         penType: tool == InkTool.marker ? PenType.ballpoint : penType,
-        usePressure: usePressure && tool == InkTool.pen,
+        usePressure: usePressure && tool == InkTool.pen && _shape == null,
       );
+
+  /// The snapped [shape] as ink points.
+  List<InkPoint> snappedInk() => shapeInk(_shape ?? points, pressures, times.isEmpty ? 0 : times.last);
 
   StrokeItem toItem({required int z}) => StrokeItem.fromPagePoints(
         id: newId('it'),
@@ -427,6 +1122,8 @@ class ActiveStroke extends ChangeNotifier {
     times.clear();
     lastScreen = null;
     _path = null;
+    _shape = null;
+    _opacity = 1;
     notifyListeners();
   }
 }
@@ -525,7 +1222,16 @@ class LayoutPainter extends CustomPainter {
 /// Committed ink. Records the items near the view into a picture once, then
 /// replays it at the current pan and zoom.
 class InkLayerPainter extends CustomPainter {
-  InkLayerPainter(this.vp, this.page, this.revision, this.brightness, this.colors) : super(repaint: vp);
+  InkLayerPainter(
+    this.vp,
+    this.page,
+    this.revision,
+    this.brightness,
+    this.colors, {
+    Set<String> Function()? hidden,
+    Listenable? repaint,
+  })  : hidden = hidden ?? _none,
+        super(repaint: repaint == null ? vp : Listenable.merge([vp, repaint]));
 
   final CanvasView vp;
   final PageRuntime page;
@@ -533,10 +1239,15 @@ class InkLayerPainter extends CustomPainter {
   final Brightness brightness;
   final EndlessColors colors;
 
+  /// Items an overlay draws instead (being dragged, or about to be erased).
+  final Set<String> Function() hidden;
+
+  static Set<String> _none() => const {};
+
   @override
   void paint(Canvas canvas, Size size) {
     if (page.isEmpty) return;
-    final picture = page.regionPicture(vp.visiblePage, brightness, colors);
+    final picture = page.regionPicture(vp.visiblePage, brightness, colors, hidden: hidden());
     canvas
       ..save()
       ..translate(vp.translation.dx, vp.translation.dy)
@@ -566,7 +1277,9 @@ class ActiveStrokePainter extends CustomPainter {
       ..scale(vp.scale)
       ..drawPath(
         stroke.path,
-        Paint()..color = displayInk(stroke.color, brightness).withValues(alpha: inkOpacity(stroke.tool, stroke.penType)),
+        Paint()
+          ..color = displayInk(stroke.color, brightness)
+              .withValues(alpha: inkOpacity(stroke.tool, stroke.penType) * stroke.opacity),
       )
       ..restore();
   }

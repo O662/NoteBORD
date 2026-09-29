@@ -10,7 +10,9 @@ const _notebookKeys = {
 };
 const _pageKeys = {'id', 'title', 'paper', 'template', 'locked', 'items'};
 const _itemKeys = {'id', 'type', 'x', 'y', 'rotation', 'z', 'createdAt', 'author', 'remember'};
-const _strokeKeys = {..._itemKeys, 'tool', 'penType', 'color', 'width', 'points', 'usePressure'};
+const _strokeKeys = {
+  ..._itemKeys, 'tool', 'penType', 'color', 'width', 'points', 'usePressure', 'arrow', 'straightened', //
+};
 
 Json _unknown(Json json, Set<String> known) => {
       for (final e in json.entries)
@@ -106,6 +108,8 @@ Item decodeItem(Json json) {
         color: colorFromHex(json['color'] as String),
         width: (json['width'] as num).toDouble(),
         usePressure: json['usePressure'] as bool? ?? true,
+        arrow: ArrowHeads.fromJson(json['arrow']),
+        straightened: json['straightened'] as String?,
         points: [
           for (final p in json['points'] as List)
             InkPoint(

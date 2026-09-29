@@ -12,6 +12,7 @@ import '../../theme/tokens.g.dart' as tokens;
 import '../../theme/tokens.g.dart' show Radii, TypeScale;
 import '../common.dart';
 import '../icons.dart';
+import 'pen_settings.dart';
 
 /// Title · tools · Share/⋯, floating over the page (Canvas.dc.html header).
 class TopBar extends StatelessWidget {
@@ -223,7 +224,7 @@ class ToolPill extends ConsumerWidget {
       width: 36,
       selected: false,
       onPressed: () => ref.read(settingsProvider.notifier).pickColor(color),
-      child: ColorDot(color: displayInk(color, brightness), selected: s.tool != CanvasTool.eraser && s.color == color),
+      child: ColorDot(color: displayInk(color, brightness), selected: s.tool.inks && s.color == color),
     );
 
     return Semantics(
@@ -247,8 +248,18 @@ class ToolPill extends ConsumerWidget {
               onPressed: () => notebook.redo(pageId),
             ),
             const PillDivider(),
-            ChromeButton(label: 'Select', icon: EIcons.select, onPressed: () => onComingSoon('Select')),
-            ChromeButton(label: 'Lasso select', icon: EIcons.lasso, onPressed: () => onComingSoon('Lasso select')),
+            ChromeButton(
+              label: 'Select',
+              icon: EIcons.select,
+              selected: s.tool == CanvasTool.select,
+              onPressed: () => onPickTool(CanvasTool.select),
+            ),
+            ChromeButton(
+              label: 'Lasso select',
+              icon: EIcons.lasso,
+              selected: s.tool == CanvasTool.lasso,
+              onPressed: () => onPickTool(CanvasTool.lasso),
+            ),
             const PillDivider(),
             CompositedTransformTarget(
               link: penLink,
@@ -477,7 +488,8 @@ class MoreMenu extends StatelessWidget {
   }
 }
 
-/// Stand-in for the Settings screen: the two settings Phase 1 needs.
+/// Stand-in for the Settings screen: mode, name, finger drawing and the
+/// pen gesture settings.
 Future<void> showQuickSettings(BuildContext context) =>
     showDialog<void>(context: context, builder: (context) => const _QuickSettings());
 
@@ -497,8 +509,8 @@ class _QuickSettings extends ConsumerWidget {
         side: BorderSide(color: c.line),
       ),
       child: SizedBox(
-        width: 380,
-        child: Padding(
+        width: 460,
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -545,6 +557,10 @@ class _QuickSettings extends ConsumerWidget {
                 value: s.fingerDraws,
                 onChanged: (v) => settings.apply((st) => st.copyWith(fingerDraws: v)),
               ),
+              Text('PEN & S PEN', style: TypeScale.sectionLabel.copyWith(color: c.textMuted)),
+              const QuickArrowSettings(),
+              Divider(color: c.lineSoft, height: 8),
+              const ScribbleSettings(),
               Text('The full Settings screen is coming soon.', style: TextStyle(fontSize: 13, color: c.textFaint)),
             ],
           ),

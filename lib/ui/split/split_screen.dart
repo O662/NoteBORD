@@ -10,7 +10,8 @@ import '../../state/notebook.dart';
 import '../../state/settings.dart';
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart';
-import '../canvas/canvas_screen.dart' show handleMoreItem, handleRailItem;
+import '../canvas/canvas_screen.dart' show handleMoreItem, handleRailItem, pickCanvasTool;
+import '../canvas/gesture_status.dart';
 import '../canvas/left_rail.dart';
 import '../canvas/pen_popover.dart';
 import '../canvas/top_bar.dart';
@@ -139,17 +140,13 @@ class _SplitScreenState extends ConsumerState<SplitScreen> {
   }
 
   void _pickTool(CanvasTool tool) {
-    final s = ref.read(settingsProvider);
-    if (s.tool == tool && tool != CanvasTool.eraser) {
-      setState(() => _popover = !_popover);
-      return;
-    }
-    ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: tool));
-    setState(() => _popover = false);
+    var toggled = false;
+    pickCanvasTool(ref, _active, tool, onPopover: () => toggled = true);
+    setState(() => _popover = toggled && !_popover);
   }
 
   void _togglePopover() {
-    if (ref.read(settingsProvider).tool == CanvasTool.eraser) {
+    if (!ref.read(settingsProvider).tool.inks) {
       ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: CanvasTool.pen));
     }
     setState(() => _popover = !_popover);
@@ -521,6 +518,7 @@ class _SplitPane extends ConsumerWidget {
                 ),
               ),
               Positioned(right: 12, bottom: 12, child: _PageNav(pane: pane, count: nb.pages.length)),
+              Positioned(left: 0, right: 0, bottom: 72, child: Center(child: GestureStatus(pane: pane))),
             ]);
           },
         ),

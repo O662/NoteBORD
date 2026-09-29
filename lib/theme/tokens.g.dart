@@ -53,6 +53,11 @@ const paperLight = EndlessColors(
   paperMargin: Color(0x80C45446),
   scrim: Color(0x6B1E1C19),
   frost: Color(0x8CF6F1E7),
+  laserRed: Color(0xFFE0312B),
+  laserGreen: Color(0xFF2E9E4F),
+  laserBlue: Color(0xFF2F6FD6),
+  scribbleMark: Color(0xFFC44A3C),
+  onStar: Color(0xFF1E1C19),
 );
 
 const paperDark = EndlessColors(
@@ -103,6 +108,11 @@ const paperDark = EndlessColors(
   paperMargin: Color(0x80E07A6E),
   scrim: Color(0x99000000),
   frost: Color(0x8C1C1A17),
+  laserRed: Color(0xFFFF5A4F),
+  laserGreen: Color(0xFF4CC46E),
+  laserBlue: Color(0xFF5B93F0),
+  scribbleMark: Color(0xFFE07A6E),
+  onStar: Color(0xFF1E1C19),
 );
 
 const inkDefaults = <Color>[

@@ -78,6 +78,12 @@ abstract final class EIcons {
     const IconPart('M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z',
         fill: true, fillTint: IconTint.star, tint: IconTint.gold),
   ], strokeWidth: 1.6);
+  /// The Remember button's star (RememberMark.dc.html): solid, current color.
+  static final starSolid = EIconData([
+    const IconPart('M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z', stroke: false, fill: true),
+  ]);
+  /// "T" on Convert to text (Convert.dc.html).
+  static final convertText = EIconData([_p('M4 7V4h16v3M12 4v16M9 20h6')], strokeWidth: 2);
   /// ∑, drawn so it doesn't depend on the serif font having the glyph.
   static final sigma = EIconData([_p('M17 5H7l6 7-6 7h10')]);
   static final cap = EIconData([_p('M2 9l10-5 10 5-10 5z M6 11v5c3 2.5 9 2.5 12 0v-5 M22 9v6')]);

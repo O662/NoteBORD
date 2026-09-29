@@ -31,7 +31,7 @@ Not yet checked there: how the pen feels, latency, and palm rejection.
 | Item | Status | Notes |
 |---|---|---|
 | Canvas chrome matching `Canvas.png` | Done | Title pill, tool pill, Share/Export/⋯, left rail, pages rail, map, zoom pill, hint pill, More colors tray, pen popover. Icons use the exact SVG paths from `Canvas.dc.html` |
-| Buttons not wired yet | "… is coming soon" snackbar | Select, Lasso, Shapes, Text, rail menu items, Search, Share, ⋯ items except Settings, Back to library, Custom color |
+| Buttons not wired yet | "… is coming soon" snackbar | Shapes, Text, most rail menu items, Search, Share, ⋯ items except Settings and Password protect, Custom color. (Select and Lasso work since Phase 3a.) |
 | Endless page, dot background | Done | Lines, grid and blank papers are implemented; no UI to choose them until Templates |
 | Stylus drawing with pressure | Done | Variable-width outline from S Pen pressure (`lib/canvas/stroke_geometry.dart`) |
 | Pen types | Ballpoint, Fountain (more pressure range), Pencil (softer, 85% opacity) | |
@@ -40,7 +40,7 @@ Not yet checked there: how the pen feels, latency, and palm rejection.
 | S Pen side button held = temporary eraser | Done | Also the S Pen's eraser end (`invertedStylus`) if present. Not yet configurable (Settings screen) |
 | 3 quick colors + More colors tray (up to 10) | Done | + adds the next unused color, edit mode removes colors, n/10 counter |
 | Pen popover | Done | Pen type, 9 colors (+ custom: coming soon), 5 thicknesses, preview, 4 toggles, S Pen tip. Pen and marker keep their own color and size |
-| Popover toggles "snap shapes", "scribble to erase", "flick for arrows" | Saved, not active yet | Those features are Phase 3 |
+| Popover toggles "snap shapes", "scribble to erase", "flick for arrows" | Active since Phase 3a | Each turns its gesture on or off |
 | Undo / redo | Done, per page, 200 steps | Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z on a keyboard |
 | Two-finger pan and pinch zoom | Done | One finger pans too. Mouse wheel pans, Ctrl+wheel zooms, trackpad pinch works |
 | Zoom pill | Done | −, % (tap = 100%), +, whole board (fit to ink), full screen |
@@ -62,7 +62,7 @@ Not yet checked there: how the pen feels, latency, and palm rejection.
 |---|---|---|
 | Compact left rail: Insert, Study & math, Writing help, Ruler/laser/view, divider, Search | Done, with the corner tick on group buttons | `lib/ui/canvas/left_rail.dart` (`railGroups`) |
 | Rail menus: hover (S Pen hover or mouse) previews, tap pins ("Pinned" + ×) | Done. Pinned menus close on a tap outside (which doesn't draw), a re-tap, the ×, Esc, or picking an item | `LeftRail`, `CanvasScreen` |
-| Menu items | "Coming soon" for now. Tool items (sticky, frame, image, ruler, laser) will switch the tool once those tools exist (Phase 3) | |
+| Menu items | Ruler, Laser pointer, Templates and Split view work; "Need to remember" and "Convert to text" start a lasso (Phase 3a). The rest are "coming soon" | |
 | Top right: dark Share + ⋯ | Done; Export button and top-bar spell check removed | `ActionsPill` |
 | ⋯ menu: Export, Import, Print, Password protect, Page & paper, Version history, Settings | Done. Settings opens a small stand-in (Light/Dark/Match tablet, Draw with finger); the rest are "coming soon" | `MoreMenu`, `showQuickSettings` |
 | Share dialog "Export a copy" row | Waits for the Share dialog (Phase 9) | |
@@ -105,6 +105,33 @@ The app now opens on the Start page. Start → Library → a notebook → Canvas
 - Library covers show the page this tablet last had open (or else the first page with ink). The small Recent cards show the notebook's color only, as in the design.
 - New notebooks are called "Untitled note" / "Untitled notebook"; tap the title in the canvas to rename.
 
+## Phase 3a: pen gestures and canvas tools — built, needs a check on the tablet
+
+The first half of Phase 3: selection and the pen gestures. Shapes, text boxes, stickies, frames and the Insert menu are Phase 3b.
+
+| Item | Status | Where |
+|---|---|---|
+| Undo for item edits | Done. `ReplaceStep` joins insert and remove, so move, resize, rotate, recolor and straighten are one undo step each and keep the item's id and place in the z-order. Straightening and arrows are two steps: the ink as drawn, then the change, so Undo turns a shape back into your ink | `lib/state/notebook.dart` (`replaceItems`, `removeItems`, `insertItems`) |
+| Gesture recognizers | Pure functions with unit tests. Thresholds are in screen px, so they behave the same at any zoom | `lib/canvas/gestures.dart` |
+| Hold to straighten (`Tools.png`) | Done. The pen held still (within 4 px) for 150 ms shows a ring, a dashed preview and "Hold to straighten…" while the ink fades; at 500 ms it snaps to a line, circle, oval, rectangle or triangle. Lines snap to 0°, 45° and 90° within 3°; rectangles square up to the page within 6°. After the snap a line's end follows the pen, with its end circles, a dashed level line and the angle. Lifting shows "Line straightened · Undo". Stored as `straightened` on the stroke | `fitShape`, `InkCanvas` |
+| Flick back for an arrow (`Arrows.png`) | Done for either end or both, on straight lines and curves. The hook must be short (≤ 45 screen px and ≤ 30% of the line), quick (≤ 350 ms), fold back within 60° (50° at the start), and follow a smooth stretch, so zig-zags, check marks and long strokes back stay ink. The hook is trimmed and the stroke gets `arrow: {start, end, style}`. Heads are drawn from the stroke's color and width: Open, Filled or Like my ink (a tapered, slightly bowed chevron in the same pen). "Made an arrow · Undo" | `detectFlicks`, `arrowHeadPaths` |
+| Connectors that snap to shapes | Not yet: needs shape items (Phase 3b) | |
+| Scribble to erase (`Scribble.png`) | Done for the pen and marker. Counts sharp back-and-forth turns (Light 3, Normal 5, Firm 7 plus a denser path) and only acts when there is ink under it: a stroke goes only if the scribble touches it and at least half of it lies in the scribbled area, so long lines it clips and shading on empty paper are safe. While scribbling, what will go turns faded red with "Lift the pen to erase N strokes"; the scribble itself is never kept. "Erased N strokes · Undo" (the design's "word" needs handwriting recognition, Phase 5) | `looksLikeScribble`, `scribbleTargets` |
+| Select and Lasso (`Convert.png`, `RememberMark.png`) | Done for ink. Select: tap a stroke or drag a box. Lasso: circle strokes (half their points inside). The dashed outline has corner handles (uniform resize; the pen width scales too) and a rotate knob (settles on 0/90/180/270° within 4°). Drag inside with the pen, or one finger, to move; two fingers on the selection pinch and turn it. Page and tool changes, Esc and an empty tap clear it | `lib/canvas/selection.dart`, `InkCanvas` |
+| Selection toolbar | Done, 12 px above the selection (below it when the top chrome is in the way). Leads with **Convert to text** (Copy · Color · Straighten lines · Delete), or with **Remember** (To text · Flashcard · Copy · Delete) when started from the rail's "Need to remember". Copy duplicates 24 px down-right and selects the copy; Color offers the 9 pen colors; Straighten lines fits each selected stroke. Convert to text, Remember and Flashcard are "coming soon" (Phases 5 and 7) | `lib/ui/canvas/selection_toolbar.dart` |
+| Ruler (`Tools.png`) | Done. Rail → Ruler, 620 × 72, level across the lower middle; pick it again to put it away. One finger drags it, two fingers move and turn it (settles on multiples of 45° within 2°), and its chip shows the angle. A pen stroke that starts on it or within 28 px of an edge is laid along the nearer edge, just outside it. It lives in screen space, so it stays put while the page pans | `lib/canvas/ruler.dart` |
+| Laser pointer (`Tools.png`) | Done. Rail → Laser pointer makes it the tool; red, green or blue under the tool pill. The trail lives in page space, each point fades over 1 s, and nothing touches the notebook (no undo step, no save). The app never reopens on the laser | `lib/canvas/laser.dart` |
+| Settings | Arrowhead (Open / Filled / Like my ink) and scribble sensitivity (Light / Normal / Firm), plus the two switches, in the stand-in Settings dialog, styled like the "Settings › Pen & S Pen" panels until the Settings screen exists | `lib/ui/canvas/pen_settings.dart` |
+| Status and Undo toasts | Shown at the bottom center, in place of the tool hint. They last 4 s, and the next edit dismisses them, so their Undo always means that gesture. Split view shows them per pane | `lib/ui/canvas/gesture_status.dart` |
+| Tokens | Added `laserRed`, `laserGreen`, `laserBlue`, `scribbleMark` and `onStar` (light and dark) | `design/tokens.json` |
+
+### Not done yet / known limits
+- **Not yet tried on the tablet.** Thresholds (the 4 px hold slop, flick length and angle, scribble counts) were tuned on synthetic strokes; expect to adjust them after real S Pen use.
+- Selection works on ink only. Other item types (when they arrive in Phase 3b) need their own transforms.
+- Tapping a different stroke inside an existing selection's box moves the selection instead of selecting that stroke; tap outside first.
+- Rotating bakes the rotation into the points (`rotation` stays 0 for strokes).
+- The selection toolbar buttons are 40 px tall, as in the design (under the 44 dp target).
+
 ## Storage layout
 
 ```
@@ -123,13 +150,13 @@ The app now opens on the Start page. Start → Library → a notebook → Canvas
 
 `flutter test` runs:
 - `test/board`: `.board` round trips, unknown item types and fields preserved, rounding, atomic file writes, sealed pages and lock.json, library.json, templates; real Argon2id + AES-GCM (with cheap test parameters), wrong passwords, page and notebook locks, fingerprint unlock, removing a lock.
-- `test/canvas`: stroke geometry and pressure, eraser hit testing, spatial index, pan/zoom math.
+- `test/canvas`: stroke geometry and pressure, eraser hit testing, spatial index, pan/zoom math; the gesture recognizers (shapes, flicks, scribbles and sensitivity, lasso), selection transforms, and arrow/straightened round trips.
 - `test/library`: the drift index (round trip, refresh from files, deleted notebooks, 30-day Trash), cover thumbnails, notebook and folder operations, Continue writing / Pinned / Recent, templates, date wording.
-- `test/state`: loading, undo/redo per page, eraser undo, adding pages with a template, autosave timing, a library rename while the notebook is open, settings.
-- `test/ui`: the Canvas screen (as before); Start and Library (labels, Start → Library → notebook → back, New note, grid/list, sort, new folder, rename, pin, trash, restore, delete forever, folder rename and delete); Templates (categories, new page, save as template, new notebook from Start); Password protect (mismatch, lock, wrong password, fingerprint, remove, a locked notebook); Split view (focus, the pen only writing in the focused side, undo, page arrows, Same/Other note, swap, closing a side, opening from Start).
-- `test/golden`: Canvas at 1280×800 in 8 states, plus Start, Library (grid and list), Templates, Password protect, a locked notebook and Split view, using the design's sample library (`test/sample_library.dart`). Goldens were rendered on Windows; regenerate with `flutter test --update-goldens test/golden` after an intended visual change.
+- `test/state`: loading, undo/redo per page, replace/remove/insert as single steps, eraser undo, adding pages with a template, autosave timing, a library rename while the notebook is open, settings.
+- `test/ui`: the Canvas screen (as before); pen gestures end to end with S Pen and finger events (hold to straighten and its Undo, arrows, scribble and sensitivity, the popover toggles, lasso and Select, move/resize/rotate/pinch, copy/recolor/straighten/delete, the Remember toolbar, the ruler, the laser); Start and Library (labels, Start → Library → notebook → back, New note, grid/list, sort, new folder, rename, pin, trash, restore, delete forever, folder rename and delete); Templates (categories, new page, save as template, new notebook from Start); Password protect (mismatch, lock, wrong password, fingerprint, remove, a locked notebook); Split view (focus, the pen only writing in the focused side, undo, page arrows, Same/Other note, swap, closing a side, opening from Start).
+- `test/golden`: Canvas at 1280×800 in 8 states; the pen gestures in 8 (`gestures_*.png`: lasso, remember, hold, straightened, scribble, arrows, ruler and laser, settings); plus Start, Library (grid and list), Templates, Password protect, a locked notebook and Split view, using the design's sample library (`test/sample_library.dart`). Goldens were rendered on Windows; regenerate with `flutter test --update-goldens test/golden` after an intended visual change.
 - `test/tokens_sync_test.dart`: generated tokens match `design/tokens.json`.
 
 ## Next
-- Try Phases 1 and 2 on the tablet: ink feel, latency and palm rejection; the library; locking with a fingerprint; Split view with the S Pen.
-- Then Phase 3: shapes, text, stickies, frames (which also turns on "Use for: Frame" in Templates), selection and the rest of the canvas tools.
+- Try Phases 1–3a on the tablet: ink feel, latency and palm rejection; the library; locking with a fingerprint; Split view with the S Pen; and the pen gestures (tune their thresholds).
+- Then Phase 3b: shapes (and connectors that snap to them), text boxes, stickies and stacks, frames (which also turns on "Use for: Frame" in Templates), the Insert menu and the whole-board view.
