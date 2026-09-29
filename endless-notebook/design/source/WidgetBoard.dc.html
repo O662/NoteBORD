@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Widgets on the canvas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; overflow: hidden; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.3px, transparent 1.4px); background-size: 26px 26px; background-position: 13px 13px; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<div style="position: absolute; left: 110px; top: 96px; font-family: Caveat, 'Segoe Print', cursive; font-size: 46px; font-weight: 600; color: #2B5A8C; line-height: 1">Midterm prep — this week</div>
+
+<div role="toolbar" aria-label="Calendar widget options" style="position: absolute; left: 110px; top: 150px; display: flex; gap: 2px; padding: 3px; background: #1E1C19; border-radius: 12px; box-shadow: 0 6px 18px -8px rgba(30,28,25,0.5)">
+<button aria-pressed="true" style="height: 38px; padding: 0 11px; border: 0; border-radius: 9px; background: #3D3830; color: #FFFDF8; font-size: 13px; font-weight: 600">Month</button>
+<button aria-pressed="false" style="height: 38px; padding: 0 11px; border: 0; border-radius: 9px; background: transparent; color: #FFFDF8; font-size: 13px; font-weight: 500">Agenda</button>
+<button style="height: 38px; padding: 0 11px; border: 0; border-radius: 9px; background: transparent; color: #FFFDF8; font-size: 13px; font-weight: 500">Calendars</button>
+<a href="Calendar.dc.html" style="display: flex; align-items: center; height: 38px; padding: 0 11px; border-radius: 9px; color: #FFFDF8; font-size: 13px; font-weight: 500">Open full view</a>
+</div>
+
+<section aria-label="Calendar widget" style="position: absolute; left: 110px; top: 202px; width: 370px; box-sizing: border-box; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; outline: 2px solid #2B5A8C; outline-offset: 4px; box-shadow: 0 14px 28px -18px rgba(30,28,25,0.45)">
+<div style="display: flex; align-items: center; gap: 8px">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#214A75" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>
+<span style="flex-grow: 1; font-size: 15px; font-weight: 700">September</span>
+<span style="font-size: 11px; font-weight: 600; color: #5E574C">Google + Outlook · live</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 2px; text-align: center">
+<sc-for list="{{ dows }}" as="w" hint-placeholder-count="7">
+<span style="font-size: 10px; font-weight: 700; color: #5E574C; padding-bottom: 4px">{{ w }}</span>
+</sc-for>
+<sc-for list="{{ month }}" as="d" hint-placeholder-count="35">
+<span style="height: 34px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px">
+<span style="width: 24px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 999px; background: {{ d.bg }}; color: {{ d.fg }}; font-size: 12px; font-weight: {{ d.weight }}">{{ d.n }}</span>
+<span style="display: flex; gap: 2px; height: 5px"><span style="width: 5px; height: 5px; border-radius: 999px; background: {{ d.dot1 }}"></span><span style="width: 5px; height: 5px; border-radius: 999px; background: {{ d.dot2 }}"></span></span>
+</span>
+</sc-for>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid #EAE3D5">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: #5E574C">TODAY · FRI 25</span>
+<span style="display: flex; align-items: center; gap: 8px; font-size: 13px"><span style="width: 8px; height: 8px; border-radius: 3px; background: #2B5A8C"></span>10:00 Physics lecture</span>
+<span style="display: flex; align-items: center; gap: 8px; font-size: 13px"><span style="width: 8px; height: 8px; border-radius: 3px; background: #2B5A8C"></span>2:00 Study group</span>
+</div>
+<div aria-hidden="true" style="position: absolute; left: -11px; top: -11px; width: 12px; height: 12px; background: #FFFDF8; border: 2px solid #2B5A8C; border-radius: 3px"></div>
+<div aria-hidden="true" style="position: absolute; right: -11px; top: -11px; width: 12px; height: 12px; background: #FFFDF8; border: 2px solid #2B5A8C; border-radius: 3px"></div>
+<div aria-hidden="true" style="position: absolute; left: -11px; bottom: -11px; width: 12px; height: 12px; background: #FFFDF8; border: 2px solid #2B5A8C; border-radius: 3px"></div>
+<div aria-hidden="true" style="position: absolute; right: -11px; bottom: -11px; width: 12px; height: 12px; background: #FFFDF8; border: 2px solid #2B5A8C; border-radius: 3px"></div>
+</section>
+
+<section aria-label="Planner widget" style="position: absolute; left: 512px; top: 160px; width: 450px; height: 380px; box-sizing: border-box; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 14px 28px -18px rgba(30,28,25,0.45)">
+<div style="display: flex; align-items: center; gap: 8px">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2F5D3A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/><path d="M8 2v4M16 2v4"/></svg>
+<span style="flex-grow: 1; font-size: 15px; font-weight: 700">Planner</span>
+<div role="radiogroup" aria-label="Planner range" style="display: flex; padding: 3px; gap: 2px; background: #EEE7D8; border-radius: 10px">
+<sc-for list="{{ ranges }}" as="r" hint-placeholder-count="3">
+<button role="radio" aria-checked="{{ r.on }}" onClick="{{ r.pick }}" style="height: 34px; padding: 0 10px; border: 0; border-radius: 8px; background: {{ r.bg }}; color: #1E1C19; font-size: 12px; font-weight: {{ r.weight }}">{{ r.label }}</button>
+</sc-for>
+</div>
+</div>
+
+<sc-if value="{{ isToday }}" hint-placeholder-val="{{ true }}">
+<div style="flex-grow: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: #5E574C">SCHEDULE</span>
+<sc-for list="{{ blocks }}" as="b" hint-placeholder-count="5">
+<div style="display: flex; gap: 8px; align-items: stretch">
+<span style="width: 38px; flex-shrink: 0; font-size: 11px; color: #5E574C; padding-top: 5px">{{ b.t }}</span>
+<span style="flex-grow: 1; padding: 5px 8px; border-radius: 7px; background: {{ b.bg }}; color: {{ b.fg }}; font-size: 12px; font-weight: 600; border: {{ b.border }}">{{ b.label }}</span>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: #5E574C">TO-DO</span>
+<sc-for list="{{ todos }}" as="t" hint-placeholder-count="4">
+<label style="display: flex; align-items: center; gap: 8px; min-height: 36px; font-size: 13px">
+<input type="checkbox" checked="{{ t.done }}" onChange="{{ t.toggle }}" style="width: 18px; height: 18px; margin: 0; accent-color: #2B5A8C">
+<span style="text-decoration: {{ t.deco }}; color: {{ t.color }}">{{ t.label }}</span>
+</label>
+</sc-for>
+<span style="margin-top: 4px; padding: 8px; border: 1.5px dashed #CFC5B1; border-radius: 8px; font-family: Caveat, cursive; font-size: 20px; color: #5E574C">write a task…</span>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isThree }}" hint-placeholder-val="{{ false }}">
+<div style="flex-grow: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{ three }}" as="d" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column; gap: 5px; padding: 8px; border-radius: 10px; background: {{ d.bg }}">
+<span style="font-size: 12px; font-weight: 700">{{ d.name }}</span>
+<sc-for list="{{ d.items }}" as="it" hint-placeholder-count="3">
+<span style="padding: 4px 6px; border-radius: 6px; background: {{ it.bg }}; color: {{ it.fg }}; font-size: 11px; font-weight: 600">{{ it.label }}</span>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ isWeek }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 10px; background: #F6F1E7">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: #5E574C">WEEK GOALS</span>
+<span style="font-family: Caveat, cursive; font-size: 22px; line-height: 1.1">finish ch. 9 · lab report draft · 30 cards/day</span>
+</div>
+<div style="flex-grow: 1; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px">
+<sc-for list="{{ week }}" as="d" hint-placeholder-count="7">
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 6px 4px; border-radius: 8px; background: {{ d.bg }}">
+<span style="font-size: 11px; font-weight: 700; text-align: center">{{ d.name }}</span>
+<sc-for list="{{ d.items }}" as="it" hint-placeholder-count="2">
+<span style="height: 8px; border-radius: 3px; background: {{ it.dot }}"></span>
+</sc-for>
+<span style="font-size: 10px; color: #5E574C; text-align: center">{{ d.count }}</span>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<a href="Planner.dc.html" style="align-self: flex-end; display: flex; align-items: center; height: 32px; font-size: 13px; font-weight: 600">Open planner</a>
+</section>
+
+<section aria-label="Flashcards widget" style="position: absolute; left: 994px; top: 160px; width: 250px; box-sizing: border-box; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 14px 28px -18px rgba(30,28,25,0.45)">
+<div style="display: flex; align-items: center; gap: 8px">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8E4220" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="14" height="12" rx="2"/><path d="M7 5h12a2 2 0 0 1 2 2v9"/></svg>
+<span style="flex-grow: 1; font-size: 14px; font-weight: 700">Momentum</span>
+<span style="padding: 2px 8px; border-radius: 999px; background: #F6E1D6; color: #8E4220; font-size: 11px; font-weight: 700">{{ dueLabel }}</span>
+</div>
+<button aria-label="{{ cardAria }}" onClick="{{ flip }}" style="height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 1px solid #E4DCCB; border-radius: 12px; background-color: #F6F1E7; background-image: radial-gradient(#E0D8C6 1px, transparent 1.1px); background-size: 14px 14px; color: #1E1C19">
+<span style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: {{ sideColor }}">{{ side }}</span>
+<span style="font-family: Caveat, 'Segoe Print', cursive; font-size: {{ cardSize }}px; font-weight: 600; color: {{ cardColor }}; line-height: 1">{{ cardText }}</span>
+</button>
+<sc-if value="{{ flipped }}" hint-placeholder-val="{{ false }}">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px">
+<button onClick="{{ next }}" style="height: 44px; border: 1px solid #E9C3AE; border-radius: 10px; background: #F6E1D6; color: #8E4220; font-size: 13px; font-weight: 700">Again</button>
+<button onClick="{{ next }}" style="height: 44px; border: 1px solid #BCCDE2; border-radius: 10px; background: #E1E9F3; color: #214A75; font-size: 13px; font-weight: 700">Got it</button>
+</div>
+</sc-if>
+<sc-if value="{{ notFlipped }}" hint-placeholder-val="{{ true }}">
+<a href="Study.dc.html" style="display: flex; align-items: center; justify-content: center; height: 44px; border-radius: 10px; background: #1E1C19; color: #FFFDF8; font-size: 13px; font-weight: 600">Study all</a>
+</sc-if>
+</section>
+
+<section aria-label="Need to remember widget" style="position: absolute; left: 700px; top: 562px; width: 544px; box-sizing: border-box; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 14px 28px -18px rgba(30,28,25,0.45)">
+<div style="display: flex; align-items: center; gap: 8px">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="#E8B730" stroke="#8A6400" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z"/></svg>
+<span style="flex-grow: 1; font-size: 15px; font-weight: 700">Need to remember</span>
+<span style="font-size: 12px; color: #5E574C">School · 5</span>
+<a href="Remember.dc.html" style="display: flex; align-items: center; height: 32px; padding: 0 4px; font-size: 13px; font-weight: 600">See all</a>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<a href="Remember.dc.html" style="display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 10px; background: #FBF5E3; border: 1px solid #EFDFAE; color: #1E1C19">
+<span style="font-family: Caveat, 'Segoe Print', cursive; font-size: 21px; line-height: 1.05">total momentum is conserved</span>
+<span style="font-size: 11px; font-weight: 600; color: #6B4E00">Before midterm · Oct 14</span>
+</a>
+<a href="Remember.dc.html" style="display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 10px; background: #FBF5E3; border: 1px solid #EFDFAE; color: #1E1C19">
+<span style="font-size: 13px; font-weight: 600; line-height: 1.3">Lab report due Sep 30, 11:59 PM — submit as PDF</span>
+<span style="font-size: 11px; font-weight: 600; color: #6B4E00">Tue · 6 PM</span>
+</a>
+<a href="Remember.dc.html" style="display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 10px; background: #FBF5E3; border: 1px solid #EFDFAE; color: #1E1C19">
+<span style="font-family: Caveat, 'Segoe Print', cursive; font-size: 24px; line-height: 1">J = F · Δt = Δp</span>
+<span style="font-size: 11px; color: #5E574C">Physics · p. 3</span>
+</a>
+</div>
+</section>
+
+<div style="position: absolute; left: 110px; top: 560px; width: 190px; height: 150px; box-sizing: border-box; padding: 14px; background: #F6DE7A; transform: rotate(-2deg); box-shadow: 0 10px 18px -12px rgba(30,28,25,0.55); font-family: Caveat, 'Segoe Print', cursive; font-size: 26px; line-height: 1.1">Midterm Oct 14 — start ch. 9 review Monday</div>
+<div style="position: absolute; left: 340px; top: 590px; font-family: Caveat, 'Segoe Print', cursive; font-size: 34px; color: #1E1C19; line-height: 1.25">Sunday = rest day :)<br>ask Maya about lab data</div>
+<div style="position: absolute; left: 1000px; top: 470px; font-family: Caveat, 'Segoe Print', cursive; font-size: 30px; color: #B5532A; line-height: 1.1">do these on<br>the bus!</div>
+<svg width="80" height="60" viewBox="0 0 80 60" fill="none" style="position: absolute; left: 1060px; top: 406px" aria-hidden="true"><path d="M8 54 C 20 30, 40 20, 60 10 M50 8 L61 9 L56 19" stroke="#B5532A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+
+<header style="position: absolute; left: 0; top: 0; width: 1280px; height: 72px; box-sizing: border-box; padding: 0 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px">
+<div style="justify-self: start; display: flex; align-items: center; gap: 4px; padding: 4px 16px 4px 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<a href="Main.dc.html" aria-label="Back to library" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+<div style="display: flex; flex-direction: column; gap: 1px">
+<span style="font-size: 16px; font-weight: 600; white-space: nowrap">Study plan</span>
+<span style="font-size: 13px; color: #5E574C; white-space: nowrap">Page 1 · Saved</span>
+</div>
+</div>
+<div role="toolbar" aria-label="Writing tools" style="display: flex; align-items: center; gap: 2px; padding: 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<button aria-label="Undo" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+<button aria-label="Redo" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
+<div style="width: 1px; height: 28px; background: #DDD4C2; margin: 0 4px"></div>
+<button aria-label="Select" aria-pressed="true" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: #1E1C19; color: #FFFDF8"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l12 8-5.5 1.2L10 18z"/></svg></button>
+<button aria-label="Lasso select" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4c5 0 8 2.4 8 5.4S16.5 15 12 15s-8-2.6-8-5.6S7 4 12 4z" stroke-dasharray="3 2.6"/><path d="M7.5 13.5c-1 2.2.2 4.5 2.5 5.5"/></svg></button>
+<div style="width: 1px; height: 28px; background: #DDD4C2; margin: 0 4px"></div>
+<button aria-label="Pen" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg></button>
+<button aria-label="Marker" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 15l-4 4h5l2-2"/><path d="M9 15l8-10 3 3-10 8z"/><path d="M13 21h8"/></svg></button>
+<button aria-label="Eraser" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16l9-9 6 6-6 6H7z"/><path d="M13 19h8"/></svg></button>
+<button aria-label="Shapes" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="9" height="9" rx="1"/><circle cx="16" cy="8" r="5"/></svg></button>
+<button aria-label="Text" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7V4h14v3M12 4v16M9 20h6"/></svg></button>
+<div style="width: 1px; height: 28px; background: #DDD4C2; margin: 0 4px"></div>
+<button aria-label="Quick color: Ink black" style="width: 36px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent"><span style="width: 22px; height: 22px; border-radius: 999px; background: #1E1C19"></span></button>
+<button aria-label="Quick color: Deep blue" style="width: 36px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent"><span style="width: 22px; height: 22px; border-radius: 999px; background: #2B5A8C; box-shadow: 0 0 0 3px #FFFDF8, 0 0 0 5px #2B5A8C"></span></button>
+<button aria-label="Quick color: Terracotta" style="width: 36px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent"><span style="width: 22px; height: 22px; border-radius: 999px; background: #B5532A"></span></button>
+<button aria-label="Color and thickness" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: #EEE7D8"><span style="width: 6px; height: 6px; border-radius: 999px; background: #2B5A8C"></span></button>
+</div>
+<div style="justify-self: end; display: flex; align-items: center; gap: 4px; padding: 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<a href="Share.dc.html" style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px 0 14px; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 15px; font-weight: 600">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c.8-3.4 3.2-5 6-5s5.2 1.6 6 5M18 8v6M15 11h6"/></svg>
+Share
+</a>
+<button aria-label="More options" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+</div>
+</header>
+
+<nav aria-label="Page tools" style="position: absolute; left: 12px; top: 170px; width: 58px; box-sizing: border-box; padding: 6px; display: flex; flex-direction: column; align-items: center; gap: 2px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 18px; box-shadow: 0 10px 28px -14px rgba(30,28,25,0.45)">
+<button aria-label="Insert" aria-haspopup="menu" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: #2B5A8C; color: #FFFDF8"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span aria-hidden="true" style="position: absolute; right: 4px; bottom: 4px; width: 0; height: 0; border-left: 5px solid transparent; border-bottom: 5px solid rgba(255,253,248,0.75)"></span></button>
+<button aria-label="Study &amp; math" aria-haspopup="menu" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9l10-5 10 5-10 5z M6 11v5c3 2.5 9 2.5 12 0v-5 M22 9v6"/></svg><span aria-hidden="true" style="position: absolute; right: 4px; bottom: 4px; width: 0; height: 0; border-left: 5px solid transparent; border-bottom: 5px solid #8A8274"></span></button>
+<button aria-label="Writing help" aria-haspopup="menu" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14l3.5-9 3.5 9M4.3 11h4.4 M13 13l3 3 6-7"/><path d="M3 19c1.5-1.2 3-1.2 4.5 0s3 1.2 4.5 0 3-1.2 4.5 0" stroke="#B3382C"/></svg><span aria-hidden="true" style="position: absolute; right: 4px; bottom: 4px; width: 0; height: 0; border-left: 5px solid transparent; border-bottom: 5px solid #8A8274"></span></button>
+<button aria-label="Ruler, laser &amp; view" aria-haspopup="menu" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16L16 3l5 5L8 21z M7 12l2 2M10 9l2 2M13 6l2 2"/></svg><span aria-hidden="true" style="position: absolute; right: 4px; bottom: 4px; width: 0; height: 0; border-left: 5px solid transparent; border-bottom: 5px solid #8A8274"></span></button>
+<div style="width: 28px; height: 1px; background: #DDD4C2; margin: 4px 0"></div>
+<a href="Search.dc.html" aria-label="Search" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { range: 'today', done: { a: true }, flipped: false, due: 5 };
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var blue = { bg: '#E1E9F3', fg: '#214A75' }, green = { bg: '#E3ECE4', fg: '#2F5D3A' }, plum = { bg: '#EDE3EC', fg: '#5F3A59' }, clay = { bg: '#F6E1D6', fg: '#8E4220' };
+    var month = [];
+    var firstOffset = 2;
+    for (var k = 0; k < 35; k++) {
+      var n = k - firstOffset + 1;
+      var inMonth = n >= 1 && n <= 30;
+      var today = n === 25;
+      var ev = { 21: ['#2B5A8C', '#B5532A'], 22: ['#2B5A8C', ''], 23: ['#2B5A8C', ''], 24: ['#2B5A8C', '#3E7B4F'], 25: ['#2B5A8C', ''], 26: ['#3E7B4F', ''], 27: ['#7A4E73', ''], 28: ['#2B5A8C', ''], 30: ['#7A4E73', '#2B5A8C'], 14: ['#2B5A8C', ''], 16: ['#2B5A8C', '#B5532A'] }[n] || ['', ''];
+      month.push({ n: inMonth ? n : '', bg: today ? '#2B5A8C' : 'transparent', fg: today ? '#FFFDF8' : '#1E1C19', weight: today ? 700 : 500, dot1: inMonth && ev[0] ? ev[0] : 'transparent', dot2: inMonth && ev[1] ? ev[1] : 'transparent' });
+    }
+    var ranges = [{ id: 'today', label: 'Today' }, { id: 'three', label: '3 days' }, { id: 'week', label: 'Week' }].map(function (r) {
+      var on = st.range === r.id;
+      return { label: r.label, on: on ? 'true' : 'false', bg: on ? '#FFFDF8' : 'transparent', weight: on ? 700 : 500, pick: function () { self.setState({ range: r.id }); } };
+    });
+    var mk = function (label, c, t, planned) { return { label: label, t: t || '', bg: planned ? '#FFFDF8' : c.bg, fg: c.fg, border: planned ? '1.5px dashed ' + c.fg : '1.5px solid transparent' }; };
+    var blocks = [mk('Physics lecture', blue, '10:00'), mk('Review flashcards · 20 min', clay, '11:30', true), mk('Lunch', green, '12:30'), mk('Study group', blue, '2:00'), mk('Lab report draft', plum, '3:30', true)];
+    var todoDefs = [{ id: 'a', label: 'Read ch. 9 (p. 214–230)' }, { id: 'b', label: 'Problem set 4, Q1–5' }, { id: 'c', label: 'Email lab partner' }, { id: 'd', label: 'Print formula sheet' }];
+    var todos = todoDefs.map(function (t) {
+      var d = !!st.done[t.id];
+      return { label: t.label, done: d, deco: d ? 'line-through' : 'none', color: d ? '#5E574C' : '#1E1C19', toggle: function () { var x = Object.assign({}, st.done); x[t.id] = !d; self.setState({ done: x }); } };
+    });
+    var three = [
+      { name: 'Fri 25 · today', bg: 'rgba(43,90,140,0.07)', items: [{ label: 'Physics lecture', bg: blue.bg, fg: blue.fg }, { label: 'Study group', bg: blue.bg, fg: blue.fg }, { label: 'Lab report draft', bg: plum.bg, fg: plum.fg }] },
+      { name: 'Sat 26', bg: '#F6F1E7', items: [{ label: 'Garden', bg: green.bg, fg: green.fg }, { label: 'Flashcards 20 min', bg: clay.bg, fg: clay.fg }] },
+      { name: 'Sun 27', bg: '#F6F1E7', items: [{ label: 'Problem set 4 due', bg: plum.bg, fg: plum.fg }, { label: 'Rest day', bg: green.bg, fg: green.fg }] }
+    ];
+    var weekDefs = [['Mon', [blue, clay]], ['Tue', [blue, clay, blue]], ['Wed', [blue, blue]], ['Thu', [blue, green]], ['Fri', [blue, clay, plum]], ['Sat', [green]], ['Sun', [plum]]];
+    var week = weekDefs.map(function (w, i) {
+      return { name: w[0], bg: i === 4 ? 'rgba(43,90,140,0.08)' : '#F6F1E7', items: w[1].map(function (c) { return { dot: c.fg }; }), count: w[1].length + ' items' };
+    });
+    var f = st.flipped;
+    return {
+      dows: ['S', 'M', 'T', 'W', 'T', 'F', 'S'], month: month,
+      ranges: ranges, isToday: st.range === 'today', isThree: st.range === 'three', isWeek: st.range === 'week',
+      blocks: blocks, todos: todos, three: three, week: week,
+      dueLabel: st.due + ' due',
+      flipped: f, notFlipped: !f,
+      side: f ? 'BACK' : 'FRONT', sideColor: f ? '#8E4220' : '#214A75',
+      cardText: f ? 'J = F · Δt' : 'Impulse', cardSize: f ? 36 : 44, cardColor: f ? '#1E1C19' : '#2B5A8C',
+      cardAria: f ? 'Card back, tap to flip' : 'Card front, tap to flip',
+      flip: function () { self.setState({ flipped: !f }); },
+      next: function () { self.setState({ flipped: false, due: Math.max(0, st.due - 1) }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

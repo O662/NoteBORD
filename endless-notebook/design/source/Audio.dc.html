@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Audio recording and transcript</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; overflow: hidden; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.3px, transparent 1.4px); background-size: 26px 26px; background-position: 13px 13px; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<div style="position: absolute; left: 110px; top: 120px; font-family: Caveat, 'Segoe Print', cursive; font-size: 48px; font-weight: 600; color: #2B5A8C; line-height: 1; opacity: {{ dimOther }}">Lecture 3 — Momentum</div>
+<div style="position: absolute; left: 124px; top: 190px; padding: 2px 6px; border-radius: 8px; font-family: Caveat, 'Segoe Print', cursive; font-size: 42px; font-weight: 600; line-height: 1; opacity: {{ ink0.op }}; box-shadow: {{ ink0.glow }}">p = m · v</div>
+<div style="position: absolute; left: 112px; top: 262px; width: 470px; height: 88px; border-radius: 10px; box-shadow: {{ ink2.glow }}"></div>
+<div style="position: absolute; left: 118px; top: 268px; width: 350px; height: 34px; background: rgba(240,210,90,0.55); border-radius: 4px 10px 6px 12px; opacity: {{ ink2.op }}"></div>
+<div style="position: absolute; left: 124px; top: 264px; font-family: Caveat, 'Segoe Print', cursive; font-size: 36px; line-height: 1.2; opacity: {{ ink2.op }}">total momentum is conserved<br>in a closed system</div>
+<sc-if value="{{ ink2.on }}" hint-placeholder-val="{{ true }}">
+<span style="position: absolute; left: 470px; top: 244px; padding: 3px 9px; border-radius: 999px; background: #2B5A8C; color: #FFFDF8; font-size: 12px; font-weight: 700">written at 12:40</span>
+</sc-if>
+<div style="position: absolute; left: 124px; top: 372px; font-family: Caveat, 'Segoe Print', cursive; font-size: 34px; line-height: 1.2; color: #1E1C19; opacity: {{ ink4.op }}">cart A: 1 kg·m/s → after?</div>
+<div style="position: absolute; left: 124px; top: 420px; font-family: Caveat, 'Segoe Print', cursive; font-size: 34px; line-height: 1.2; color: #B5532A; opacity: {{ ink5.op }}">still 1 kg·m/s total!</div>
+
+<sc-if value="{{ recording }}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: 0; right: 0; top: 70px; display: flex; justify-content: center; pointer-events: none">
+<div role="status" style="pointer-events: auto; display: flex; align-items: center; gap: 10px; padding: 3px 4px 3px 14px; background: #FFFDF8; border: 1px solid #E9C3AE; border-radius: 14px; box-shadow: 0 8px 18px -12px rgba(30,28,25,0.5)">
+<span style="width: 10px; height: 10px; border-radius: 999px; background: #C23B2E; box-shadow: 0 0 0 4px rgba(194,59,46,0.18)"></span>
+<span style="font-size: 14px; font-weight: 700; color: #8E2A20; font-variant-numeric: tabular-nums">Recording · 0:42</span>
+<svg width="70" height="20" viewBox="0 0 70 20" aria-hidden="true"><path d="M2 10v0M8 6v8M14 3v14M20 7v6M26 4v12M32 8v4M38 2v16M44 6v8M50 9v2M56 5v10M62 7v6M68 10v0" stroke="#C23B2E" stroke-width="3" stroke-linecap="round"/></svg>
+<button aria-label="Pause recording" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 10px; background: #F6E1D6; color: #8E2A20"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+<button onClick="{{ stopRec }}" style="display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 14px; border: 0; border-radius: 10px; background: #C23B2E; color: #FFFDF8; font-size: 14px; font-weight: 700"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop</button>
+</div>
+</div>
+</sc-if>
+
+<section aria-label="Audio: Lecture 3 recording" style="position: absolute; left: 110px; top: 520px; width: 560px; box-sizing: border-box; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 16px 30px -20px rgba(30,28,25,0.5)">
+<div style="display: flex; align-items: center; gap: 10px">
+<span aria-hidden="true" style="color: #BFB49E; font-size: 16px; letter-spacing: -2px">⋮⋮</span>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8E4220" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+<span style="flex-grow: 1; font-size: 14px; font-weight: 700">Lecture 3 recording</span>
+<span style="font-size: 12px; color: #5E574C">Fri · 48:20</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<button aria-label="{{ playLabel }}" onClick="{{ togglePlay }}" style="width: 48px; height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 999px; background: #1E1C19; color: #FFFDF8">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="{{ playIcon }}"/></svg>
+</button>
+<svg width="330" height="40" viewBox="0 0 330 40" aria-label="Waveform, {{ timeNow }} of 48:20 played" style="flex-shrink: 0">
+<sc-for list="{{ bars }}" as="b" hint-placeholder-count="60">
+<rect x="{{ b.x }}" y="{{ b.y }}" width="3" height="{{ b.h }}" rx="1.5" fill="{{ b.c }}"/>
+</sc-for>
+<rect x="{{ headX }}" y="0" width="2" height="40" fill="#2B5A8C"/>
+</svg>
+<span style="font-size: 12px; font-weight: 600; color: #3D3830; font-variant-numeric: tabular-nums; white-space: nowrap">{{ timeNow }}</span>
+</div>
+<div style="display: flex; align-items: center; gap: 8px">
+<button style="height: 36px; padding: 0 12px; border: 1px solid #CFC5B1; border-radius: 999px; background: transparent; color: #1E1C19; font-size: 13px; font-weight: 700">1×</button>
+<button aria-label="Back 10 seconds" style="height: 36px; padding: 0 10px; border: 1px solid #CFC5B1; border-radius: 999px; background: transparent; color: #1E1C19; font-size: 13px; font-weight: 600">−10 s</button>
+<button aria-label="Forward 10 seconds" style="height: 36px; padding: 0 10px; border: 1px solid #CFC5B1; border-radius: 999px; background: transparent; color: #1E1C19; font-size: 13px; font-weight: 600">+10 s</button>
+<span style="flex-grow: 1"></span>
+<button aria-pressed="{{ transStr }}" onClick="{{ toggleTrans }}" style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: {{ transBg }}; color: {{ transFg }}; font-size: 13px; font-weight: 700">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 11h16M4 16h10"/></svg>Transcript</button>
+</div>
+</section>
+
+<sc-if value="{{ hasMemo }}" hint-placeholder-val="{{ false }}">
+<div aria-label="Audio: Voice note, 0:42" style="position: absolute; left: 470px; top: 410px; display: flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; background: #FFFDF8; border: 2px solid #2B5A8C; border-radius: 999px; box-shadow: 0 12px 24px -16px rgba(30,28,25,0.5)">
+<button aria-label="Play voice note" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 999px; background: #1E1C19; color: #FFFDF8"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+<span style="font-size: 13px; font-weight: 700">Voice note · 0:42</span>
+<span style="font-size: 12px; color: #2B5A8C; font-weight: 600">drag to place</span>
+</div>
+</sc-if>
+
+<sc-if value="{{ transOpen }}" hint-placeholder-val="{{ true }}">
+<aside aria-label="Transcript" style="position: absolute; right: 14px; top: 84px; bottom: 16px; width: 420px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 18px; box-shadow: 0 20px 40px -24px rgba(30,28,25,0.5)">
+<div style="display: flex; align-items: center; gap: 8px">
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px">
+<span style="font-family: Newsreader, Georgia, serif; font-size: 22px">Transcript</span>
+<span style="font-size: 12px; color: #5E574C">Lecture 3 recording · English · made on this tablet</span>
+</div>
+<button aria-label="Search transcript" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 10px; background: transparent; color: #1E1C19"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
+<button aria-label="Close transcript" onClick="{{ toggleTrans }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 10px; background: transparent; color: #5E574C"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</div>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px; overflow: hidden">
+<sc-for list="{{ segments }}" as="s" hint-placeholder-count="6">
+<button aria-current="{{ s.current }}" onClick="{{ s.seek }}" style="display: flex; gap: 12px; padding: 10px 12px; border: 0; border-radius: 12px; background: {{ s.bg }}; text-align: left; color: #1E1C19">
+<span style="width: 40px; flex-shrink: 0; font-size: 12px; font-weight: 700; color: {{ s.timeColor }}; font-variant-numeric: tabular-nums; padding-top: 2px">{{ s.t }}</span>
+<span style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 11px; font-weight: 700; color: #5E574C">{{ s.who }}</span>
+<span style="font-size: 15px; line-height: 1.45; font-weight: {{ s.weight }}">{{ s.text }}</span>
+</span>
+</button>
+</sc-for>
+</div>
+<div style="display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid #EAE3D5">
+<button style="flex-grow: 1; height: 44px; border: 0; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 14px; font-weight: 700">Add to page as text</button>
+<button style="height: 44px; padding: 0 14px; border: 1px solid #CFC5B1; border-radius: 12px; background: transparent; color: #1E1C19; font-size: 14px; font-weight: 600">Copy</button>
+<button style="height: 44px; padding: 0 14px; border: 1px solid #CFC5B1; border-radius: 12px; background: transparent; color: #1E1C19; font-size: 14px; font-weight: 600">Export</button>
+</div>
+</aside>
+</sc-if>
+
+<sc-if value="{{ replayHint }}" hint-placeholder-val="{{ true }}">
+<div role="status" style="position: absolute; left: 110px; bottom: 20px; display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px; background: #1E1C19; color: #FFFDF8; font-size: 13px">Your ink lights up as the recording reaches it · tap any ink to jump there</div>
+</sc-if>
+
+<header style="position: absolute; left: 0; top: 0; width: 1280px; height: 72px; box-sizing: border-box; padding: 0 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px">
+<div style="justify-self: start; display: flex; align-items: center; gap: 4px; padding: 4px 16px 4px 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<a href="Canvas.dc.html" aria-label="Back" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+<div style="display: flex; flex-direction: column; gap: 1px">
+<span style="font-size: 16px; font-weight: 600; white-space: nowrap">Physics — Lecture notes</span>
+<span style="font-size: 13px; color: #5E574C; white-space: nowrap">Page 3 of 12 · 1 recording</span>
+</div>
+</div>
+<div role="toolbar" aria-label="Writing tools" style="display: flex; align-items: center; gap: 2px; padding: 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<button aria-label="Undo" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+<button aria-label="Redo" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
+<div style="width: 1px; height: 28px; background: #DDD4C2; margin: 0 4px"></div>
+<button aria-label="Pen" aria-pressed="true" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: #1E1C19; color: #FFFDF8"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg></button>
+<button aria-label="Marker" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 15l-4 4h5l2-2"/><path d="M9 15l8-10 3 3-10 8z"/><path d="M13 21h8"/></svg></button>
+<button aria-label="Eraser" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16l9-9 6 6-6 6H7z"/><path d="M13 19h8"/></svg></button>
+<button aria-label="Text" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7V4h14v3M12 4v16M9 20h6"/></svg></button>
+<div style="width: 1px; height: 28px; background: #DDD4C2; margin: 0 4px"></div>
+<button aria-label="Quick color: Ink black" style="width: 36px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent"><span style="width: 22px; height: 22px; border-radius: 999px; background: #1E1C19; box-shadow: 0 0 0 3px #FFFDF8, 0 0 0 5px #1E1C19"></span></button>
+<button aria-label="Quick color: Deep blue" style="width: 36px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent"><span style="width: 22px; height: 22px; border-radius: 999px; background: #2B5A8C"></span></button>
+<button aria-label="Quick color: Terracotta" style="width: 36px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent"><span style="width: 22px; height: 22px; border-radius: 999px; background: #B5532A"></span></button>
+</div>
+<div style="justify-self: end; display: flex; align-items: center; gap: 4px; padding: 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<a href="Share.dc.html" style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px 0 14px; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 15px; font-weight: 600">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c.8-3.4 3.2-5 6-5s5.2 1.6 6 5M18 8v6M15 11h6"/></svg>
+Share
+</a>
+<button aria-label="More options" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+</div>
+</header>
+
+<nav aria-label="Page tools" style="position: absolute; left: 12px; top: 84px; width: 58px; box-sizing: border-box; padding: 6px; display: flex; flex-direction: column; align-items: center; gap: 2px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 18px; box-shadow: 0 10px 28px -14px rgba(30,28,25,0.45)">
+<button aria-label="Insert" aria-haspopup="menu" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: #2B5A8C; color: #FFFDF8"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span aria-hidden="true" style="position: absolute; right: 4px; bottom: 4px; width: 0; height: 0; border-left: 5px solid transparent; border-bottom: 5px solid rgba(255,253,248,0.75)"></span></button>
+<button aria-label="Study &amp; math" aria-haspopup="menu" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9l10-5 10 5-10 5z M6 11v5c3 2.5 9 2.5 12 0v-5 M22 9v6"/></svg><span aria-hidden="true" style="position: absolute; right: 4px; bottom: 4px; width: 0; height: 0; border-left: 5px solid transparent; border-bottom: 5px solid #8A8274"></span></button>
+<button aria-label="Writing help" aria-haspopup="menu" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14l3.5-9 3.5 9M4.3 11h4.4 M13 13l3 3 6-7"/><path d="M3 19c1.5-1.2 3-1.2 4.5 0s3 1.2 4.5 0 3-1.2 4.5 0" stroke="#B3382C"/></svg><span aria-hidden="true" style="position: absolute; right: 4px; bottom: 4px; width: 0; height: 0; border-left: 5px solid transparent; border-bottom: 5px solid #8A8274"></span></button>
+<button aria-label="Ruler, laser &amp; view" aria-haspopup="menu" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16L16 3l5 5L8 21z M7 12l2 2M10 9l2 2M13 6l2 2"/></svg><span aria-hidden="true" style="position: absolute; right: 4px; bottom: 4px; width: 0; height: 0; border-left: 5px solid transparent; border-bottom: 5px solid #8A8274"></span></button>
+<div style="width: 28px; height: 1px; background: #DDD4C2; margin: 4px 0"></div>
+<a href="Search.dc.html" aria-label="Search" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { playing: true, seg: 2, trans: true, rec: false, memo: false };
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var segDefs = [
+      { t: '12:02', who: 'Professor', text: 'Okay, so last time we defined momentum as mass times velocity.', sec: 722 },
+      { t: '12:25', who: 'Professor', text: 'Today the key idea: in a closed system, nothing from outside pushes on it.', sec: 745 },
+      { t: '12:40', who: 'Professor', text: 'So the total momentum is conserved — the same before and after the collision.', sec: 760 },
+      { t: '13:05', who: 'Professor', text: 'Let’s check that with the two carts from the lab.', sec: 785 },
+      { t: '13:30', who: 'Student', text: 'If cart A has one kilogram meter per second before, what about after?', sec: 810 },
+      { t: '14:02', who: 'Professor', text: 'Right — the two carts together still have one kilogram meter per second.', sec: 842 }
+    ];
+    var segments = segDefs.map(function (s, i) {
+      var cur = st.seg === i;
+      return { t: s.t, who: s.who, text: s.text, current: cur ? 'true' : 'false', bg: cur ? '#E1E9F3' : 'transparent', timeColor: cur ? '#214A75' : '#5E574C', weight: cur ? 600 : 400, seek: function () { self.setState({ seg: i }); } };
+    });
+    var total = 2900, now = segDefs[st.seg].sec, frac = now / total;
+    var bars = [];
+    for (var i = 0; i < 60; i++) {
+      var h = 8 + Math.abs(Math.sin(i * 1.7) * 14 + Math.sin(i * 0.53) * 10);
+      h = Math.min(36, h);
+      bars.push({ x: i * 5.5, y: 20 - h / 2, h: h, c: (i / 60) <= frac ? '#2B5A8C' : '#CFC5B1' });
+    }
+    var fmt = function (s) { var m = Math.floor(s / 60), r = s % 60; return m + ':' + (r < 10 ? '0' + r : r); };
+    var linked = { 0: 0, 2: 2, 4: 4, 5: 5 };
+    var inkState = function (idx) {
+      var on = st.playing && linked[st.seg] === idx;
+      return { on: on, op: st.playing ? (on ? 1 : 0.4) : 1, glow: on ? '0 0 0 3px rgba(43,90,140,0.35)' : 'none' };
+    };
+    return {
+      segments: segments, bars: bars, headX: Math.round(frac * 330),
+      timeNow: fmt(now) + ' / 48:20',
+      playLabel: st.playing ? 'Pause' : 'Play', playIcon: st.playing ? 'M7 5h3v14H7zM14 5h3v14h-3z' : 'M8 5v14l11-7z',
+      togglePlay: function () { self.setState({ playing: !st.playing }); },
+      ink0: inkState(0), ink2: inkState(2), ink4: inkState(4), ink5: inkState(5),
+      dimOther: st.playing ? 0.4 : 1,
+      transOpen: st.trans, transStr: st.trans ? 'true' : 'false',
+      transBg: st.trans ? '#1E1C19' : '#EEE7D8', transFg: st.trans ? '#FFFDF8' : '#1E1C19',
+      toggleTrans: function () { self.setState({ trans: !st.trans }); },
+      recording: st.rec, recStr: st.rec ? 'true' : 'false',
+      micLabel: st.rec ? 'Stop recording' : 'Record audio',
+      micBg: st.rec ? '#C23B2E' : 'transparent', micFg: st.rec ? '#FFFDF8' : '#B83A3A',
+      toggleRec: function () { if (st.rec) { self.setState({ rec: false, memo: true }); } else { self.setState({ rec: true, playing: false }); } },
+      stopRec: function () { self.setState({ rec: false, memo: true }); },
+      hasMemo: st.memo,
+      replayHint: st.playing && !st.rec
+    };
+  }
+}
+</script>
+</body>
+</html>

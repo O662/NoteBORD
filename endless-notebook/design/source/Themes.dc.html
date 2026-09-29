@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Themes and dark mode</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; display: flex; background: #F6F1E7; overflow: hidden; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<nav aria-label="Settings" style="width: 272px; flex-shrink: 0; box-sizing: border-box; padding: 22px 16px; background: #EEE7D8; border-right: 1px solid #DDD4C2; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 6px; margin-bottom: 14px">
+<a href="Main.dc.html" aria-label="Back to library" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+<span style="font-family: Newsreader, Georgia, serif; font-size: 26px">Settings</span>
+</div>
+<button style="height: 46px; padding: 0 14px; border: 0; border-radius: 10px; background: transparent; text-align: left; font-size: 15px; color: #1E1C19">Account</button>
+<button style="height: 46px; padding: 0 14px; border: 0; border-radius: 10px; background: transparent; text-align: left; font-size: 15px; color: #1E1C19">Pen &amp; S Pen</button>
+<button style="height: 46px; padding: 0 14px; border: 0; border-radius: 10px; background: transparent; text-align: left; font-size: 15px; color: #1E1C19">Handwriting &amp; search</button>
+<a href="Sync.dc.html" style="display: flex; align-items: center; height: 46px; padding: 0 14px; border-radius: 10px; font-size: 15px; color: #1E1C19">Sync &amp; backup</a>
+<a href="Themes.dc.html" aria-current="page" style="display: flex; align-items: center; height: 46px; padding: 0 14px; border-radius: 10px; background: #E0D6C2; font-size: 15px; font-weight: 600; color: #1E1C19">Themes &amp; dark mode</a>
+<button style="height: 46px; padding: 0 14px; border: 0; border-radius: 10px; background: transparent; text-align: left; font-size: 15px; color: #1E1C19">About</button>
+</nav>
+
+<main style="flex-grow: 1; box-sizing: border-box; padding: 28px 40px; display: flex; gap: 32px; min-width: 0">
+<div style="width: 520px; flex-shrink: 0; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 36px; font-weight: 400; letter-spacing: -0.02em">Themes &amp; dark mode</h1>
+<p style="margin: 0; font-size: 14px; color: #5E574C">Changes apply everywhere: library, pages, widgets and menus.</p>
+</div>
+
+<section style="display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C">MODE</h2>
+<div role="radiogroup" aria-label="Mode" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; padding: 3px; background: #EEE7D8; border-radius: 12px">
+<sc-for list="{{ modes }}" as="m" hint-placeholder-count="3">
+<button role="radio" aria-checked="{{ m.on }}" onClick="{{ m.pick }}" style="height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 9px; background: {{ m.bg }}; color: #1E1C19; font-size: 14px; font-weight: {{ m.weight }}; box-shadow: {{ m.shadow }}">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ m.icon }}"/></svg>{{ m.label }}</button>
+</sc-for>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C">THEME</h2>
+<div role="radiogroup" aria-label="Theme" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{ themes }}" as="t" hint-placeholder-count="6">
+<button role="radio" aria-checked="{{ t.on }}" onClick="{{ t.pick }}" style="display: flex; flex-direction: column; gap: 6px; padding: 6px; border: {{ t.border }}; border-radius: 14px; background: #FFFDF8; text-align: left; color: #1E1C19">
+<span style="position: relative; display: block; height: 58px; border-radius: 9px; background: {{ t.bg }}; overflow: hidden">
+<span style="position: absolute; left: 0; top: 0; bottom: 0; width: 22px; background: {{ t.side }}"></span>
+<span style="position: absolute; left: 30px; top: 10px; width: 56px; height: 14px; border-radius: 4px; background: {{ t.surface }}"></span>
+<span style="position: absolute; left: 30px; top: 32px; width: 36px; height: 6px; border-radius: 3px; background: {{ t.text }}"></span>
+<span style="position: absolute; right: 8px; bottom: 8px; width: 14px; height: 14px; border-radius: 999px; background: {{ t.accent }}"></span>
+</span>
+<span style="font-size: 13px; font-weight: 600; padding: 0 2px">{{ t.label }}</span>
+</button>
+</sc-for>
+<button style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 96px; border: 1.5px dashed #BFB49E; border-radius: 14px; background: transparent; color: #1E1C19; font-size: 13px; font-weight: 600">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Make my own</button>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C">ACCENT COLOR</h2>
+<div role="radiogroup" aria-label="Accent color" style="display: flex; gap: 6px">
+<sc-for list="{{ accents }}" as="a" hint-placeholder-count="8">
+<button role="radio" aria-checked="{{ a.on }}" aria-label="{{ a.label }}" onClick="{{ a.pick }}" style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent">
+<span style="width: 30px; height: 30px; border-radius: 999px; background: {{ a.fill }}; box-shadow: {{ a.ring }}; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #FFFDF8">{{ a.mark }}</span>
+</button>
+</sc-for>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C">DEFAULT PAPER</h2>
+<div role="radiogroup" aria-label="Paper" style="display: flex; gap: 8px">
+<sc-for list="{{ papers }}" as="pp" hint-placeholder-count="4">
+<button role="radio" aria-checked="{{ pp.on }}" onClick="{{ pp.pick }}" style="height: 44px; padding: 0 16px; border: 1px solid {{ pp.border }}; border-radius: 999px; background: {{ pp.bg }}; color: {{ pp.fg }}; font-size: 14px; font-weight: 600">{{ pp.label }}</button>
+</sc-for>
+</div>
+</section>
+
+<div style="display: flex; align-items: center; gap: 16px; min-height: 56px; padding: 4px 14px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 14px">
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 14px; font-weight: 600">Keep pages light in dark mode</span>
+<span style="font-size: 12px; color: #5E574C">Menus go dark, the paper stays like real paper</span>
+</div>
+<button role="switch" aria-checked="{{ keepStr }}" aria-label="Keep pages light in dark mode" onClick="{{ toggleKeep }}" style="width: 56px; height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; background: transparent">
+<span style="width: 50px; height: 30px; box-sizing: border-box; padding: 3px; display: flex; justify-content: {{ keepSw.justify }}; border-radius: 999px; background: {{ keepSw.track }}"><span style="width: 24px; height: 24px; border-radius: 999px; background: #FFFDF8; box-shadow: 0 1px 2px rgba(0,0,0,0.25)"></span></span>
+</button>
+</div>
+</div>
+
+<section aria-label="Preview" style="flex-grow: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0">
+<div style="display: flex; align-items: baseline; justify-content: space-between">
+<h2 style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C">PREVIEW</h2>
+<span style="font-size: 12px; color: #5E574C">{{ modeNote }}</span>
+</div>
+<div style="position: relative; flex-grow: 1; border-radius: 20px; overflow: hidden; background: {{ p.chrome }}; border: 1px solid {{ p.line }}; box-shadow: 0 24px 40px -26px rgba(30,28,25,0.55)">
+<div style="position: absolute; left: 0; top: 0; right: 0; bottom: 250px; background-color: {{ p.page }}; background-image: {{ p.pattern }}; background-size: {{ p.patternSize }}"></div>
+<span style="position: absolute; left: 12px; top: 12px; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border-radius: 12px; background: {{ p.surface }}; border: 1px solid {{ p.line }}; color: {{ p.text }}; font-size: 12px; font-weight: 600">‹ Physics — Lecture notes</span>
+<span style="position: absolute; right: 12px; top: 12px; display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 6px; border-radius: 12px; background: {{ p.surface }}; border: 1px solid {{ p.line }}">
+<span style="width: 22px; height: 22px; border-radius: 7px; background: {{ p.text }}"></span>
+<span style="width: 14px; height: 14px; border-radius: 999px; background: {{ p.accent }}"></span>
+<span style="width: 14px; height: 14px; border-radius: 999px; background: {{ p.orange }}"></span>
+</span>
+<span style="position: absolute; left: 12px; top: 64px; width: 30px; height: 150px; border-radius: 12px; background: {{ p.surface }}; border: 1px solid {{ p.line }}"></span>
+<span style="position: absolute; left: 12px; top: 66px; width: 30px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: {{ p.accent }}; color: {{ p.onAccent }}; font-size: 16px; font-weight: 700">+</span>
+<div style="position: absolute; left: 62px; top: 66px; font-family: Caveat, 'Segoe Print', cursive; font-size: 34px; font-weight: 600; line-height: 1; color: {{ p.pageAccent }}">Lecture 3 — Momentum</div>
+<div style="position: absolute; left: 70px; top: 112px; font-family: Caveat, 'Segoe Print', cursive; font-size: 30px; font-weight: 600; line-height: 1; color: {{ p.ink }}">p = m · v</div>
+<div style="position: absolute; left: 62px; top: 158px; width: 250px; height: 26px; border-radius: 4px; background: {{ p.highlight }}"></div>
+<div style="position: absolute; left: 66px; top: 154px; font-family: Caveat, 'Segoe Print', cursive; font-size: 26px; line-height: 1.2; color: {{ p.ink }}">total momentum is conserved</div>
+<div style="position: absolute; right: 24px; top: 150px; width: 96px; height: 80px; box-sizing: border-box; padding: 8px; background: {{ p.sticky }}; transform: rotate(3deg); font-family: Caveat, cursive; font-size: 18px; line-height: 1.05; color: #1E1C19">ask in office hours</div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; height: 250px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: {{ p.chrome }}; border-top: 1px solid {{ p.line }}">
+<span style="font-family: Newsreader, Georgia, serif; font-size: 22px; color: {{ p.text }}">Library</span>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+<sc-for list="{{ miniBooks }}" as="b" hint-placeholder-count="3">
+<span style="display: flex; flex-direction: column; gap: 6px">
+<span style="position: relative; display: block; height: 96px; border-radius: 10px; background: {{ p.surface }}; border: 1px solid {{ p.line }}; overflow: hidden"><span style="position: absolute; left: 0; top: 0; bottom: 0; width: 7px; background: {{ b.spine }}"></span></span>
+<span style="font-size: 12px; font-weight: 600; color: {{ p.text }}">{{ b.name }}</span>
+</span>
+</sc-for>
+</div>
+<span style="display: flex; align-items: center; gap: 8px; margin-top: auto; height: 36px; padding: 0 12px; border-radius: 10px; background: {{ p.accent }}; color: {{ p.onAccent }}; font-size: 13px; font-weight: 700; align-self: flex-start">+ New note</span>
+</div>
+</div>
+<span style="font-size: 12px; line-height: 1.45; color: #5E574C">In dark mode, black ink shows as off-white and colors are brightened so they stay readable. Exports and PDFs keep your original colors.</span>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { mode: 'light', theme: 'paper', accent: 'theme', paper: 'dots', keepLight: false };
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var T = {
+      paper: { label: 'Paper', light: { bg: '#F6F1E7', side: '#EEE7D8', surface: '#FFFDF8', line: '#DDD4C2', text: '#1E1C19', dot: '#D6CDBA', accent: '#2B5A8C' }, dark: { bg: '#1C1A17', side: '#24211D', surface: '#2A2723', line: '#3B3731', text: '#EEE8DC', dot: '#3A352E', accent: '#86AEDB' } },
+      midnight: { label: 'Midnight', light: { bg: '#EEF1F5', side: '#E3E8EF', surface: '#FFFFFF', line: '#D3DAE4', text: '#151A22', dot: '#C9D1DC', accent: '#3A5BA0' }, dark: { bg: '#11151C', side: '#171C25', surface: '#1D2330', line: '#2C3445', text: '#E6EBF2', dot: '#283042', accent: '#8FB0F0' } },
+      sage: { label: 'Sage', light: { bg: '#EFF2EA', side: '#E4E9DC', surface: '#FBFCF8', line: '#D2D9C6', text: '#1B2118', dot: '#C8D1BA', accent: '#3E6B45' }, dark: { bg: '#151A14', side: '#1B2119', surface: '#21281F', line: '#313B2E', text: '#E5EBDF', dot: '#2B3428', accent: '#8FC096' } },
+      blush: { label: 'Blush', light: { bg: '#F8EFEE', side: '#F0E3E1', surface: '#FFFBFA', line: '#E6D2CF', text: '#231918', dot: '#E0C9C5', accent: '#A2445A' }, dark: { bg: '#1C1415', side: '#241A1B', surface: '#2B2021', line: '#3E2F30', text: '#F1E4E3', dot: '#3A2B2C', accent: '#E394A7' } },
+      graphite: { label: 'Graphite', light: { bg: '#F2F2F0', side: '#E8E8E5', surface: '#FFFFFF', line: '#D6D6D2', text: '#19191A', dot: '#CFCFCB', accent: '#2F3B52' }, dark: { bg: '#121213', side: '#19191B', surface: '#202022', line: '#333336', text: '#EDEDEE', dot: '#2D2D30', accent: '#C9D3E6' } },
+      contrast: { label: 'High contrast', light: { bg: '#FFFFFF', side: '#F0F0F0', surface: '#FFFFFF', line: '#000000', text: '#000000', dot: '#BDBDBD', accent: '#0040C0' }, dark: { bg: '#000000', side: '#0A0A0A', surface: '#000000', line: '#FFFFFF', text: '#FFFFFF', dot: '#4A4A4A', accent: '#FFD400' } },
+      harbor: { label: 'Harbor', light: { bg: '#EDF3F4', side: '#E1EBEC', surface: '#FAFDFD', line: '#CFDDDF', text: '#122024', dot: '#C3D4D7', accent: '#1F6B75' }, dark: { bg: '#0F181A', side: '#152124', surface: '#1B2A2D', line: '#2A3D41', text: '#E1EDEF', dot: '#243538', accent: '#7CC6CF' } }
+    };
+    var A = [
+      { id: 'theme', label: 'Theme default', l: null, d: null },
+      { id: 'blue', label: 'Blue', l: '#2B5A8C', d: '#86AEDB' },
+      { id: 'clay', label: 'Terracotta', l: '#B5532A', d: '#E6946A' },
+      { id: 'green', label: 'Green', l: '#3E7B4F', d: '#8CCB9A' },
+      { id: 'plum', label: 'Plum', l: '#7A4E73', d: '#D7A2CE' },
+      { id: 'teal', label: 'Teal', l: '#1F6B75', d: '#7CC6CF' },
+      { id: 'gold', label: 'Gold', l: '#8A6400', d: '#E8B730' },
+      { id: 'rose', label: 'Rose', l: '#A2445A', d: '#E394A7' }
+    ];
+    var dark = st.mode === 'dark';
+    var modeIcons = { light: 'M12 4V2M12 22v-2M4 12H2M22 12h-2M5.6 5.6 4.2 4.2M19.8 19.8l-1.4-1.4M5.6 18.4l-1.4 1.4M19.8 4.2l-1.4 1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z', dark: 'M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z', system: 'M4 5h16v11H4zM9 20h6M12 16v4' };
+    var modes = [{ id: 'light', label: 'Light' }, { id: 'dark', label: 'Dark' }, { id: 'system', label: 'Match tablet' }].map(function (m) {
+      var on = st.mode === m.id;
+      return { label: m.label, icon: modeIcons[m.id], on: on ? 'true' : 'false', bg: on ? '#FFFDF8' : 'transparent', weight: on ? 700 : 500, shadow: on ? '0 1px 2px rgba(30,28,25,0.15)' : 'none', pick: function () { self.setState({ mode: m.id }); } };
+    });
+    var themes = Object.keys(T).map(function (k) {
+      var on = st.theme === k, v = T[k][dark ? 'dark' : 'light'];
+      return { label: T[k].label, bg: v.bg, side: v.side, surface: v.surface, text: v.text, accent: v.accent, on: on ? 'true' : 'false', border: on ? '2px solid #2B5A8C' : '1px solid #DDD4C2', pick: function () { self.setState({ theme: k }); } };
+    });
+    var cur = T[st.theme][dark ? 'dark' : 'light'];
+    var curLight = T[st.theme].light;
+    var accDef = A.filter(function (a) { return a.id === st.accent; })[0];
+    var accent = accDef.l ? (dark ? accDef.d : accDef.l) : cur.accent;
+    var accents = A.map(function (a) {
+      var on = st.accent === a.id, fill = a.l ? (dark ? a.d : a.l) : 'conic-gradient(' + T[st.theme].light.accent + ' 0 50%, ' + T[st.theme].dark.accent + ' 50% 100%)';
+      return { label: a.label, fill: fill, mark: a.l ? '' : 'A', on: on ? 'true' : 'false', ring: on ? '0 0 0 3px #F6F1E7, 0 0 0 5px #1E1C19' : 'inset 0 0 0 1px rgba(30,28,25,0.15)', pick: function () { self.setState({ accent: a.id }); } };
+    });
+    var papers = [{ id: 'dots', label: 'Dots' }, { id: 'lines', label: 'Lines' }, { id: 'grid', label: 'Grid' }, { id: 'blank', label: 'Blank' }].map(function (p) {
+      var on = st.paper === p.id;
+      return { label: p.label, on: on ? 'true' : 'false', bg: on ? '#1E1C19' : '#FFFDF8', fg: on ? '#FFFDF8' : '#1E1C19', border: on ? '#1E1C19' : '#CFC5B1', pick: function () { self.setState({ paper: p.id }); } };
+    });
+    var pageSet = dark && st.keepLight ? curLight : cur;
+    var pageDark = dark && !st.keepLight;
+    var dotC = pageSet.dot;
+    var patterns = {
+      dots: ['radial-gradient(' + dotC + ' 1.2px, transparent 1.3px)', '20px 20px'],
+      lines: ['repeating-linear-gradient(180deg, transparent 0 25px, ' + dotC + ' 25px 26px)', '100% 26px'],
+      grid: ['repeating-linear-gradient(180deg, transparent 0 19px, ' + dotC + ' 19px 20px), repeating-linear-gradient(90deg, transparent 0 19px, ' + dotC + ' 19px 20px)', '100% 20px, 20px 100%'],
+      blank: ['none', 'auto']
+    };
+    var pageAccent = pageDark ? accent : (accDef.l || curLight.accent);
+    var p = {
+      chrome: cur.side, surface: cur.surface, line: cur.line, text: cur.text, accent: accent,
+      onAccent: dark ? '#111111' : '#FFFFFF',
+      orange: dark ? '#E6946A' : '#B5532A',
+      page: pageSet.bg, pattern: patterns[st.paper][0], patternSize: patterns[st.paper][1],
+      ink: pageDark ? cur.text : '#1E1C19',
+      highlight: pageDark ? 'rgba(232,183,48,0.30)' : 'rgba(240,210,90,0.55)',
+      sticky: pageDark ? '#D9BF5E' : '#F6DE7A'
+    };
+    p.pageAccent = pageAccent;
+    var miniBooks = [{ name: 'Physics', spine: accent }, { name: 'Calculus II', spine: dark ? '#E6946A' : '#B5532A' }, { name: 'Lab journal', spine: dark ? '#8CCB9A' : '#3E7B4F' }];
+    return {
+      modes: modes, themes: themes, accents: accents, papers: papers, p: p, miniBooks: miniBooks,
+      modeNote: st.mode === 'system' ? 'Following your tablet: light by day, dark after sunset' : (dark ? 'Dark mode' : 'Light mode'),
+      keepStr: st.keepLight ? 'true' : 'false',
+      keepSw: { justify: st.keepLight ? 'flex-end' : 'flex-start', track: st.keepLight ? '#2B5A8C' : '#B8AE9B' },
+      toggleKeep: function () { self.setState({ keepLight: !st.keepLight }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

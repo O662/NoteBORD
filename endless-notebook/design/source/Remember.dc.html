@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Need to remember</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; display: flex; background: #F6F1E7; overflow: hidden; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<nav aria-label="App" style="width: 272px; flex-shrink: 0; box-sizing: border-box; padding: 22px 16px; background: #EEE7D8; border-right: 1px solid #DDD4C2; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 6px">
+<svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="#1E1C19" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15c0-4 3-6 5.5-6S15 15 15 15s3 6 5.5 6S26 19 26 15s-3-6-5.5-6S15 15 15 15s-3 6-5.5 6S4 19 4 15z"/></svg>
+<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 500; letter-spacing: -0.01em">Endless</div>
+</div>
+<a href="Search.dc.html" style="display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; color: #5E574C; font-size: 15px">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+<span>Search notes &amp; handwriting</span>
+</a>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<a href="Start.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>
+<span>Home</span>
+</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h12"/></svg>
+<span style="flex-grow: 1">All notebooks</span><span style="font-size: 13px; color: #5E574C">24</span>
+</a>
+<a href="Calendar.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>
+<span>Calendar</span>
+</a>
+<a href="Study.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="14" height="12" rx="2"/><path d="M7 5h12a2 2 0 0 1 2 2v9"/></svg>
+<span style="flex-grow: 1">Flashcards</span><span style="font-size: 12px; font-weight: 700; color: #FFFDF8; background: #B5532A; padding: 1px 7px; border-radius: 999px">5</span>
+</a>
+<a href="Remember.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; background: #E0D6C2; font-size: 15px; font-weight: 600; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#E8B730" stroke="#8A6400" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z"/></svg>
+<span style="flex-grow: 1">Remember</span><span style="font-size: 12px; font-weight: 700; color: #5A4000; background: #FBEFC4; padding: 1px 7px; border-radius: 999px">8</span>
+</a>
+<button style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border: 0; background: transparent; border-radius: 10px; font-size: 15px; color: #1E1C19; text-align: left">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg>
+<span>Trash</span>
+</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="padding: 0 12px 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C">Folders</span>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#2B5A8C" fill-opacity="0.16" stroke="#2B5A8C" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>School</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#B5532A" fill-opacity="0.16" stroke="#B5532A" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Work</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#4E7A52" fill-opacity="0.16" stroke="#4E7A52" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Personal</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#7A4E73" fill-opacity="0.16" stroke="#7A4E73" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Sketches</a>
+</div>
+<div style="flex-grow: 1"></div>
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="Sync.dc.html" style="flex-grow: 1; display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 12px; box-sizing: border-box; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3B6E47" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z"/><path d="M9.5 13.5l2 2 3.5-3.5"/></svg>
+<span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 14px; font-weight: 600">Synced · Google Drive</span><span style="font-size: 12px; color: #5E574C">2 minutes ago</span></span>
+</a>
+<a href="Sync.dc.html" aria-label="Settings" style="width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+</a>
+</div>
+</nav>
+
+<main style="flex-grow: 1; box-sizing: border-box; padding: 28px 36px; display: flex; flex-direction: column; gap: 18px; min-width: 0">
+<div style="display: flex; align-items: flex-end; gap: 16px">
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; display: flex; align-items: center; gap: 12px; font-family: Newsreader, Georgia, serif; font-size: 40px; font-weight: 400; letter-spacing: -0.02em">
+<svg width="32" height="32" viewBox="0 0 24 24" fill="#E8B730" stroke="#8A6400" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z"/></svg>Need to remember</h1>
+<span style="font-size: 14px; color: #5E574C">{{ countLabel }} · lasso anything and tap Remember, or draw a star next to it</span>
+</div>
+<button onClick="{{ startReview }}" style="display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 20px; border: 0; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 15px; font-weight: 600">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Review all</button>
+</div>
+
+<div role="radiogroup" aria-label="Filter" style="display: flex; gap: 8px">
+<sc-for list="{{ chips }}" as="c" hint-placeholder-count="6">
+<button role="radio" aria-checked="{{ c.on }}" onClick="{{ c.pick }}" style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border: 1px solid {{ c.border }}; border-radius: 999px; background: {{ c.bg }}; color: {{ c.fg }}; font-size: 14px; font-weight: 600">{{ c.label }}<span style="font-size: 12px; opacity: 0.8">{{ c.n }}</span></button>
+</sc-for>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+<sc-for list="{{ items }}" as="it" hint-placeholder-count="8">
+<article style="position: relative; display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; opacity: {{ it.opacity }}">
+<div style="position: relative; height: 104px; box-sizing: border-box; padding: 10px 12px; display: flex; flex-direction: column; justify-content: center; gap: 4px; border-radius: 10px; background-color: #FBF5E3; background-image: radial-gradient(#EADBB2 1px, transparent 1.1px); background-size: 12px 12px; overflow: hidden">
+<sc-if value="{{ it.isInk }}" hint-placeholder-val="{{ true }}">
+<span style="font-family: Caveat, 'Segoe Print', cursive; font-size: {{ it.size }}px; line-height: 1.05; color: {{ it.inkColor }}">{{ it.text }}</span>
+</sc-if>
+<sc-if value="{{ it.isTyped }}" hint-placeholder-val="{{ false }}">
+<span style="font-size: 14px; font-weight: 600; line-height: 1.35">{{ it.text }}</span>
+</sc-if>
+<sc-if value="{{ it.isImage }}" hint-placeholder-val="{{ false }}">
+<span style="display: flex; align-items: center; gap: 10px">
+<span style="width: 70px; height: 56px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background-color: #E6DECD; background-image: repeating-linear-gradient(45deg, rgba(30,28,25,0.06) 0 6px, transparent 6px 12px); color: #5E574C; font-size: 10px">[Photo]</span>
+<span style="font-family: Caveat, 'Segoe Print', cursive; font-size: 24px; line-height: 1">{{ it.text }}</span>
+</span>
+</sc-if>
+</div>
+<button aria-label="{{ it.starLabel }}" aria-pressed="{{ it.starred }}" onClick="{{ it.toggle }}" style="position: absolute; right: 6px; top: 6px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="{{ it.starFill }}" stroke="#8A6400" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z"/></svg>
+</button>
+<sc-if value="{{ it.hasWhy }}" hint-placeholder-val="{{ false }}">
+<span style="font-family: Caveat, 'Segoe Print', cursive; font-size: 19px; line-height: 1.1; color: #5E574C">“{{ it.why }}”</span>
+</sc-if>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-if value="{{ it.hasReminder }}" hint-placeholder-val="{{ false }}">
+<span style="display: flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; background: #FBEFC4; color: #5A4000; font-size: 11px; font-weight: 700"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4"/></svg>{{ it.reminder }}</span>
+</sc-if>
+<sc-if value="{{ it.hasTag }}" hint-placeholder-val="{{ false }}">
+<span style="padding: 3px 8px; border-radius: 999px; background: #EEE7D8; color: #3D3830; font-size: 11px; font-weight: 700">{{ it.tag }}</span>
+</sc-if>
+</div>
+<a href="Canvas.dc.html" style="display: flex; align-items: center; gap: 6px; margin-top: auto; min-height: 32px; font-size: 12px; font-weight: 600; color: #2B5A8C">
+<span style="width: 6px; height: 16px; border-radius: 2px; background: {{ it.spine }}"></span>{{ it.source }}</a>
+</article>
+</sc-for>
+</div>
+
+<sc-if value="{{ reviewing }}" hint-placeholder-val="{{ false }}">
+<div role="dialog" aria-label="Review what to remember" style="position: absolute; left: 272px; top: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgba(246,241,231,0.97)">
+<span style="font-size: 14px; color: #5E574C">{{ reviewPos }}</span>
+<div style="width: 640px; height: 340px; box-sizing: border-box; padding: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background-color: #FBF5E3; background-image: radial-gradient(#EADBB2 1.1px, transparent 1.2px); background-size: 20px 20px; border: 1px solid #EFDFAE; border-radius: 22px; box-shadow: 0 24px 40px -24px rgba(30,28,25,0.45); text-align: center">
+<sc-if value="{{ cur.isTyped }}" hint-placeholder-val="{{ false }}">
+<span style="font-family: Newsreader, Georgia, serif; font-size: 32px; line-height: 1.25">{{ cur.text }}</span>
+</sc-if>
+<sc-if value="{{ cur.notTyped }}" hint-placeholder-val="{{ true }}">
+<span style="font-family: Caveat, 'Segoe Print', cursive; font-size: 56px; line-height: 1.05; color: {{ cur.inkColor }}">{{ cur.text }}</span>
+</sc-if>
+<sc-if value="{{ cur.hasWhy }}" hint-placeholder-val="{{ false }}">
+<span style="font-family: Caveat, 'Segoe Print', cursive; font-size: 26px; color: #5E574C">“{{ cur.why }}”</span>
+</sc-if>
+<span style="font-size: 13px; font-weight: 600; color: #2B5A8C">{{ cur.source }}</span>
+</div>
+<div style="display: flex; gap: 10px">
+<button onClick="{{ prev }}" style="height: 52px; padding: 0 20px; border: 1px solid #CFC5B1; border-radius: 12px; background: #FFFDF8; color: #1E1C19; font-size: 15px; font-weight: 600">Previous</button>
+<button onClick="{{ next }}" style="height: 52px; padding: 0 28px; border: 0; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 15px; font-weight: 600">Next</button>
+<button onClick="{{ stopReview }}" style="height: 52px; padding: 0 20px; border: 1px solid #CFC5B1; border-radius: 12px; background: #FFFDF8; color: #1E1C19; font-size: 15px; font-weight: 600">Done</button>
+</div>
+</div>
+</sc-if>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { filter: 'all', off: {}, review: false, ri: 0 };
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var all = [
+      { id: 1, kind: 'ink', text: 'total momentum is conserved in a closed system', size: 24, inkColor: '#1E1C19', why: 'always on the exam', reminder: 'Before midterm · Oct 14', cat: 'physics', source: 'Physics — Lecture notes · p. 3', spine: '#2B5A8C' },
+      { id: 2, kind: 'ink', text: 'J = F · Δt = Δp', size: 32, inkColor: '#1E1C19', tag: 'Also a flashcard', cat: 'physics', source: 'Physics — Lecture notes · p. 3', spine: '#2B5A8C' },
+      { id: 3, kind: 'image', text: 'track must be level!', cat: 'physics', source: 'Lab journal · p. 2', spine: '#4E7A52' },
+      { id: 4, kind: 'typed', text: 'Lab report due Sep 30, 11:59 PM — submit as PDF', reminder: 'Tue 29 · 6 PM', cat: 'school', source: 'Study plan · p. 1', spine: '#7A4E73' },
+      { id: 5, kind: 'ink', text: '∫ x dx = x²/2 + C', size: 32, inkColor: '#B5532A', cat: 'calculus', source: 'Calculus II · p. 8', spine: '#B5532A' },
+      { id: 6, kind: 'ink', text: 'Δp = m·v₂ − m·v₁', size: 30, inkColor: '#1E1C19', tag: 'Drawn star', cat: 'physics', source: 'Physics — Lecture notes · p. 3', spine: '#2B5A8C' },
+      { id: 7, kind: 'typed', text: 'Send slides before Monday stand-up', reminder: 'Mon · 9 AM', cat: 'work', source: 'Team meeting · Work', spine: '#B5532A' },
+      { id: 8, kind: 'ink', text: 'tomatoes: 6 hrs sun, water at the base', size: 22, inkColor: '#2F5D3A', cat: 'personal', source: 'Garden ideas · Personal', spine: '#4E7A52' }
+    ];
+    var match = function (x, f) {
+      if (f === 'all') return true;
+      if (f === 'reminders') return !!x.reminder;
+      return x.cat === f;
+    };
+    var chipDefs = [{ id: 'all', label: 'All' }, { id: 'reminders', label: 'Has a reminder' }, { id: 'physics', label: 'Physics' }, { id: 'calculus', label: 'Calculus' }, { id: 'work', label: 'Work' }, { id: 'personal', label: 'Personal' }];
+    var chips = chipDefs.map(function (c) {
+      var on = st.filter === c.id;
+      return { label: c.label, n: all.filter(function (x) { return match(x, c.id); }).length, on: on ? 'true' : 'false', bg: on ? '#1E1C19' : '#FFFDF8', fg: on ? '#FFFDF8' : '#1E1C19', border: on ? '#1E1C19' : '#DDD4C2', pick: function () { self.setState({ filter: c.id }); } };
+    });
+    var shown = all.filter(function (x) { return match(x, st.filter); });
+    var items = shown.map(function (x) {
+      var starred = !st.off[x.id];
+      return Object.assign({}, x, {
+        isInk: x.kind === 'ink', isTyped: x.kind === 'typed', isImage: x.kind === 'image',
+        hasWhy: !!x.why, hasReminder: !!x.reminder, hasTag: !!x.tag,
+        starred: starred ? 'true' : 'false', starFill: starred ? '#E8B730' : 'none', opacity: starred ? 1 : 0.5,
+        starLabel: starred ? 'Remove from Need to remember' : 'Add back to Need to remember',
+        toggle: function () { var o = Object.assign({}, st.off); o[x.id] = starred; self.setState({ off: o }); }
+      });
+    });
+    var active = all.filter(function (x) { return !st.off[x.id]; });
+    var c = active.length ? active[st.ri % active.length] : all[0];
+    return {
+      countLabel: active.length + ' things from 5 notebooks',
+      chips: chips, items: items,
+      reviewing: st.review,
+      reviewPos: (st.ri % Math.max(1, active.length) + 1) + ' of ' + active.length,
+      cur: { text: c.text, why: c.why || '', hasWhy: !!c.why, source: c.source, inkColor: c.inkColor || '#1E1C19', isTyped: c.kind === 'typed', notTyped: c.kind !== 'typed' },
+      startReview: function () { self.setState({ review: true, ri: 0 }); },
+      stopReview: function () { self.setState({ review: false }); },
+      next: function () { self.setState({ ri: st.ri + 1 }); },
+      prev: function () { self.setState({ ri: Math.max(0, st.ri - 1) }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

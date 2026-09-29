@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Charts linked to tables</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; overflow: hidden; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.3px, transparent 1.4px); background-size: 26px 26px; background-position: 13px 13px; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<svg width="1280" height="800" viewBox="0 0 1280 800" fill="none" style="position: absolute; left: 0; top: 0" aria-hidden="true">
+<path d="M470 250 C 505 250, 505 250, 540 250" stroke="#2B5A8C" stroke-width="2" stroke-dasharray="6 5"/>
+<path d="M470 600 C 505 600, 505 640, 540 640" stroke="#3E7B4F" stroke-width="2" stroke-dasharray="6 5"/>
+</svg>
+<span aria-label="Linked" style="position: absolute; left: 489px; top: 236px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 999px; background: #FFFDF8; border: 1.5px solid #2B5A8C; color: #2B5A8C"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span>
+<span aria-label="Linked" style="position: absolute; left: 489px; top: 605px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 999px; background: #FFFDF8; border: 1.5px solid #3E7B4F; color: #2F5D3A"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span>
+
+<section aria-label="Imported spreadsheet: Lab data.xlsx" style="position: absolute; left: 40px; top: 96px; width: 430px; box-sizing: border-box; display: flex; flex-direction: column; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 14px; box-shadow: 0 12px 24px -18px rgba(30,28,25,0.4); overflow: hidden">
+<div style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-bottom: 1px solid #EAE3D5">
+<span style="font-size: 10px; font-weight: 800; color: #2F5D3A; background: #E3ECE4; padding: 3px 5px; border-radius: 4px">XLSX</span>
+<span style="flex-grow: 1; font-size: 14px; font-weight: 700">Lab data.xlsx</span>
+<span style="font-size: 12px; color: #3B6E47; font-weight: 600">OneDrive · synced</span>
+</div>
+<div style="display: grid; grid-template-columns: 40px repeat(3, minmax(0, 1fr)); font-size: 13px; font-variant-numeric: tabular-nums">
+<span style="padding: 5px 0; text-align: center; background: #F3EEE3; color: #5E574C; font-size: 11px; border-bottom: 1px solid #E4DCCB"></span>
+<span style="padding: 5px 8px; background: #F3EEE3; color: #5E574C; font-size: 11px; border-bottom: 1px solid #E4DCCB; border-left: 1px solid #E4DCCB">A</span>
+<span style="padding: 5px 8px; background: #E1E9F3; color: #214A75; font-size: 11px; font-weight: 700; border-bottom: 1px solid #E4DCCB; border-left: 1px solid #E4DCCB">B · linked</span>
+<span style="padding: 5px 8px; background: #F6E1D6; color: #8E4220; font-size: 11px; font-weight: 700; border-bottom: 1px solid #E4DCCB; border-left: 1px solid #E4DCCB">C · linked</span>
+<span style="padding: 7px 0; text-align: center; background: #F3EEE3; color: #5E574C; font-size: 11px; border-bottom: 1px solid #EAE3D5">1</span>
+<span style="padding: 7px 8px; font-weight: 700; border-bottom: 1px solid #EAE3D5; border-left: 1px solid #EAE3D5">Trial</span>
+<span style="padding: 7px 8px; font-weight: 700; border-bottom: 1px solid #EAE3D5; border-left: 1px solid #EAE3D5">p before</span>
+<span style="padding: 7px 8px; font-weight: 700; border-bottom: 1px solid #EAE3D5; border-left: 1px solid #EAE3D5">p after</span>
+<sc-for list="{{ rows }}" as="r" hint-placeholder-count="6">
+<span style="padding: 7px 0; text-align: center; background: #F3EEE3; color: #5E574C; font-size: 11px; border-bottom: 1px solid #EAE3D5">{{ r.rowNum }}</span>
+<span style="padding: 7px 8px; border-bottom: 1px solid #EAE3D5; border-left: 1px solid #EAE3D5; background: {{ r.bg }}">{{ r.trial }}</span>
+<span style="padding: 7px 8px; border-bottom: 1px solid #EAE3D5; border-left: 1px solid #EAE3D5; background: {{ r.bg }}">{{ r.before }}</span>
+<span style="padding: 7px 8px; border-bottom: 1px solid #EAE3D5; border-left: 1px solid #EAE3D5; background: {{ r.bg }}">{{ r.after }}</span>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px">
+<button onClick="{{ addRow }}" style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px; border: 1px dashed #BFB49E; border-radius: 10px; background: transparent; color: #1E1C19; font-size: 13px; font-weight: 600">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>{{ addLabel }}</button>
+<span style="font-size: 12px; color: #5E574C">Sheet1 · kg·m/s</span>
+</div>
+</section>
+
+<section aria-label="Table: Study hours" style="position: absolute; left: 40px; top: 486px; width: 430px; box-sizing: border-box; display: flex; flex-direction: column; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 14px; box-shadow: 0 12px 24px -18px rgba(30,28,25,0.4); overflow: hidden">
+<div style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-bottom: 1px solid #EAE3D5">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#214A75" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 9h18M3 14h18M9 4v16"/></svg>
+<span style="flex-grow: 1; font-size: 14px; font-weight: 700">Study hours</span>
+<span style="font-size: 12px; color: #5E574C">Table on this page</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); font-size: 13px; text-align: center">
+<sc-for list="{{ hoursRows }}" as="h" hint-placeholder-count="5">
+<span style="padding: 8px 4px; background: #F3EEE3; font-weight: 700; border-bottom: 1px solid #E4DCCB">{{ h.day }}</span>
+</sc-for>
+<sc-for list="{{ hoursRows }}" as="h" hint-placeholder-count="5">
+<button aria-label="{{ h.aria }}" onClick="{{ h.bump }}" style="height: 48px; border: 0; border-left: 1px solid #EAE3D5; background: #E3ECE4; color: #2F5D3A; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums">{{ h.v }}</button>
+</sc-for>
+</div>
+<span style="padding: 8px 12px; font-size: 12px; color: #5E574C">Tap a number to change it — the chart follows</span>
+</section>
+
+<section aria-label="Chart widget linked to Lab data.xlsx" style="position: absolute; left: 540px; top: 96px; width: 700px; height: 404px; box-sizing: border-box; display: flex; flex-direction: column; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; outline: 2px solid #2B5A8C; outline-offset: 4px; box-shadow: 0 18px 36px -22px rgba(30,28,25,0.5); overflow: hidden">
+<div style="display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 12px 0 16px; border-bottom: 1px solid #EAE3D5">
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0">
+<span style="font-size: 15px; font-weight: 700">Momentum before vs. after</span>
+<span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #214A75; font-weight: 600"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Lab data.xlsx › Sheet1 › {{ range }} · live</span>
+</div>
+<div role="radiogroup" aria-label="Chart type" style="display: flex; padding: 3px; gap: 2px; background: #EEE7D8; border-radius: 10px">
+<sc-for list="{{ types }}" as="t" hint-placeholder-count="4">
+<button role="radio" aria-checked="{{ t.on }}" onClick="{{ t.pick }}" style="height: 38px; padding: 0 12px; border: 0; border-radius: 8px; background: {{ t.bg }}; color: #1E1C19; font-size: 13px; font-weight: {{ t.weight }}; box-shadow: {{ t.shadow }}">{{ t.label }}</button>
+</sc-for>
+</div>
+<button style="height: 40px; padding: 0 12px; border: 1px solid #CFC5B1; border-radius: 10px; background: transparent; color: #1E1C19; font-size: 13px; font-weight: 600">Data</button>
+</div>
+<div style="display: flex; align-items: center; gap: 16px; padding: 10px 16px 0; font-size: 12px; font-weight: 600">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #2B5A8C"></span>{{ legendA }}</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #C2662F"></span>{{ legendB }}</span>
+</div>
+<svg width="700" height="300" viewBox="0 0 700 300" fill="none" aria-label="{{ chartAria }}" style="display: block">
+<g transform="translate(56 16)">
+<path d="{{ gridD }}" stroke="#EAE3D5" stroke-width="1"/>
+<path d="M0 0V250H610" stroke="#8A8274" stroke-width="1.5"/>
+<sc-for list="{{ yTicks }}" as="t" hint-placeholder-count="5">
+<foreignObject x="-10" y="{{ t.y }}" width="1" height="1" style="overflow: visible"><div xmlns="http://www.w3.org/1999/xhtml" style="position: absolute; left: 0; top: 0; transform: translate(-100%, -82%); white-space: nowrap; line-height: 1; font-family: Figtree, sans-serif; font-size: 11px; color: #5E574C">{{ t.label }}</div></foreignObject>
+</sc-for>
+<sc-for list="{{ xTicks }}" as="t" hint-placeholder-count="6">
+<foreignObject x="{{ t.x }}" y="268" width="1" height="1" style="overflow: visible"><div xmlns="http://www.w3.org/1999/xhtml" style="position: absolute; left: 0; top: 0; transform: translate(-50%, -82%); white-space: nowrap; line-height: 1; font-family: Figtree, sans-serif; font-size: 11px; color: #5E574C">{{ t.label }}</div></foreignObject>
+</sc-for>
+<sc-if value="{{ isBar }}" hint-placeholder-val="{{ true }}">
+<sc-for list="{{ bars }}" as="b" hint-placeholder-count="12">
+<rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" rx="3" fill="{{ b.c }}"/>
+</sc-for>
+</sc-if>
+<sc-if value="{{ isArea }}" hint-placeholder-val="{{ false }}">
+<path d="{{ areaA }}" fill="#2B5A8C" fill-opacity="0.18"/>
+<path d="{{ areaB }}" fill="#C2662F" fill-opacity="0.18"/>
+</sc-if>
+<sc-if value="{{ isLineish }}" hint-placeholder-val="{{ false }}">
+<path d="{{ lineA }}" stroke="#2B5A8C" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="{{ lineB }}" stroke="#C2662F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+</sc-if>
+<sc-if value="{{ isScatter }}" hint-placeholder-val="{{ false }}">
+<path d="M0 250L610 0" stroke="#BFB49E" stroke-width="1.5" stroke-dasharray="6 5"/>
+<text x="470" y="44" font-family="Figtree, sans-serif" font-size="11" fill="#5E574C">no loss (after = before)</text>
+</sc-if>
+<sc-for list="{{ dots }}" as="d" hint-placeholder-count="6">
+<circle cx="{{ d.x }}" cy="{{ d.y }}" r="{{ d.r }}" fill="{{ d.c }}" stroke="#FFFDF8" stroke-width="2"/>
+</sc-for>
+</g>
+</svg>
+</section>
+
+<section aria-label="Chart widget linked to the Study hours table" style="position: absolute; left: 540px; top: 530px; width: 700px; height: 232px; box-sizing: border-box; display: flex; flex-direction: column; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 18px 36px -22px rgba(30,28,25,0.5); overflow: hidden">
+<div style="display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 16px; border-bottom: 1px solid #EAE3D5">
+<span style="flex-grow: 1; font-size: 14px; font-weight: 700">Study hours this week</span>
+<span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #2F5D3A; font-weight: 600"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Study hours table · live</span>
+<span style="font-size: 13px; font-weight: 700; color: #1E1C19">Total {{ totalHours }} h</span>
+</div>
+<svg width="700" height="184" viewBox="0 0 700 184" fill="none" aria-label="Bar chart of study hours per day" style="display: block">
+<g transform="translate(56 14)">
+<path d="M0 0H610M0 35H610M0 70H610M0 105H610" stroke="#EAE3D5" stroke-width="1"/>
+<path d="M0 0V140H610" stroke="#8A8274" stroke-width="1.5"/>
+<text x="-10" y="4" font-family="Figtree, sans-serif" font-size="11" fill="#5E574C" text-anchor="end">4 h</text>
+<text x="-10" y="74" font-family="Figtree, sans-serif" font-size="11" fill="#5E574C" text-anchor="end">2 h</text>
+<sc-for list="{{ hourBars }}" as="b" hint-placeholder-count="5">
+<rect x="{{ b.x }}" y="{{ b.y }}" width="64" height="{{ b.h }}" rx="4" fill="#3E7B4F"/>
+<foreignObject x="{{ b.cx }}" y="{{ b.ly }}" width="1" height="1" style="overflow: visible"><div xmlns="http://www.w3.org/1999/xhtml" style="position: absolute; left: 0; top: 0; transform: translate(-50%, -82%); white-space: nowrap; line-height: 1; font-family: Figtree, sans-serif; font-size: 12px; color: #2F5D3A; font-weight: 700">{{ b.v }}</div></foreignObject>
+<foreignObject x="{{ b.cx }}" y="158" width="1" height="1" style="overflow: visible"><div xmlns="http://www.w3.org/1999/xhtml" style="position: absolute; left: 0; top: 0; transform: translate(-50%, -82%); white-space: nowrap; line-height: 1; font-family: Figtree, sans-serif; font-size: 12px; color: #5E574C">{{ b.day }}</div></foreignObject>
+</sc-for>
+</g>
+</svg>
+</section>
+
+<header style="position: absolute; left: 0; top: 0; width: 1280px; height: 72px; box-sizing: border-box; padding: 0 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px">
+<div style="justify-self: start; display: flex; align-items: center; gap: 4px; padding: 4px 16px 4px 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<a href="Canvas.dc.html" aria-label="Back" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+<div style="display: flex; flex-direction: column; gap: 1px">
+<span style="font-size: 16px; font-weight: 600; white-space: nowrap">Lab journal</span>
+<span style="font-size: 13px; color: #5E574C; white-space: nowrap">Page 3 of 5 · Saved</span>
+</div>
+</div>
+<div role="toolbar" aria-label="Chart tools" style="display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 14px; background: #1E1C19; color: #FFFDF8; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.6)">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+<span style="font-size: 15px; font-weight: 600">Chart selected</span>
+<button style="height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: #3D3830; color: #FFFDF8; font-size: 14px; font-weight: 600">Change data</button>
+<button style="height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: #3D3830; color: #FFFDF8; font-size: 14px; font-weight: 600">Colors</button>
+<button style="height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: #3D3830; color: #FFFDF8; font-size: 14px; font-weight: 600">Unlink (snapshot)</button>
+<a href="Canvas.dc.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 12px; background: #FFFDF8; color: #1E1C19; font-size: 14px; font-weight: 700">Done</a>
+</div>
+<div style="justify-self: end; display: flex; align-items: center; gap: 4px; padding: 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<a href="Share.dc.html" style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px 0 14px; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 15px; font-weight: 600">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c.8-3.4 3.2-5 6-5s5.2 1.6 6 5M18 8v6M15 11h6"/></svg>
+Share
+</a>
+<button aria-label="More options" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+</div>
+</header>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { type: 'bar', extra: false, hours: [2, 1.5, 3, 2.5, 1] };
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var data = [[1, 1.00, 0.97], [2, 0.80, 0.78], [3, 1.20, 1.15], [4, 0.90, 0.88], [5, 1.10, 1.06], [6, 1.00, 0.95]];
+    if (st.extra) data.push([7, 1.30, 1.24]);
+    var n = data.length, W = 610, H = 250, r = function (v) { return Math.round(v * 10) / 10; };
+    var ymax = 1.4, ymin = st.type === 'scatter' ? 0.7 : 0;
+    var yScale = function (v) { return H - ((v - ymin) / (ymax - ymin)) * H; };
+    var gw = W / n;
+    var rows = data.map(function (d, i) { return { rowNum: i + 2, trial: d[0], before: d[1].toFixed(2), after: d[2].toFixed(2), bg: (st.extra && i === n - 1) ? '#FBEFC4' : 'transparent' }; });
+    var gridD = '', yTicks = [], k;
+    var step = st.type === 'scatter' ? 0.1 : 0.2;
+    for (k = ymin; k <= ymax + 0.001; k += step) { var yy = r(yScale(k)); gridD += 'M0 ' + yy + 'H' + W + ' '; yTicks.push({ y: yy + 4, label: k.toFixed(1) }); }
+    var xTicks = [], bars = [], dots = [], lineA = '', lineB = '';
+    var BLUE = '#2B5A8C', ORANGE = '#C2662F';
+    if (st.type === 'scatter') {
+      var xs = function (v) { return ((v - 0.7) / 0.7) * W; };
+      for (k = 0.8; k <= 1.41; k += 0.2) xTicks.push({ x: r(xs(k)), label: k.toFixed(1) });
+      data.forEach(function (d) { dots.push({ x: r(xs(d[1])), y: r(yScale(d[2])), r: 7, c: ORANGE }); });
+    } else {
+      data.forEach(function (d, i) {
+        var cx = gw * i + gw / 2;
+        xTicks.push({ x: r(cx), label: 'Trial ' + d[0] });
+        if (st.type === 'bar') {
+          var bw = Math.min(34, gw * 0.3);
+          bars.push({ x: r(cx - bw - 2), y: r(yScale(d[1])), w: r(bw), h: r(H - yScale(d[1])), c: BLUE });
+          bars.push({ x: r(cx + 2), y: r(yScale(d[2])), w: r(bw), h: r(H - yScale(d[2])), c: ORANGE });
+        } else {
+          lineA += (i ? 'L' : 'M') + r(cx) + ' ' + r(yScale(d[1])) + ' ';
+          lineB += (i ? 'L' : 'M') + r(cx) + ' ' + r(yScale(d[2])) + ' ';
+          dots.push({ x: r(cx), y: r(yScale(d[1])), r: 5, c: BLUE });
+          dots.push({ x: r(cx), y: r(yScale(d[2])), r: 5, c: ORANGE });
+        }
+      });
+    }
+    var first = r(gw / 2), last = r(gw * (n - 1) + gw / 2);
+    var areaA = lineA ? lineA + 'L' + last + ' ' + H + ' L' + first + ' ' + H + ' Z' : '';
+    var areaB = lineB ? lineB + 'L' + last + ' ' + H + ' L' + first + ' ' + H + ' Z' : '';
+    var types = [{ id: 'bar', label: 'Bar' }, { id: 'line', label: 'Line' }, { id: 'area', label: 'Area' }, { id: 'scatter', label: 'Scatter' }].map(function (t) {
+      var on = st.type === t.id;
+      return { label: t.label, on: on ? 'true' : 'false', bg: on ? '#FFFDF8' : 'transparent', weight: on ? 700 : 500, shadow: on ? '0 1px 2px rgba(30,28,25,0.15)' : 'none', pick: function () { self.setState({ type: t.id }); } };
+    });
+    var days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    var hoursRows = st.hours.map(function (v, i) {
+      return { day: days[i], v: v, aria: days[i] + ': ' + v + ' hours. Tap to add half an hour', bump: function () { var h = st.hours.slice(); h[i] = h[i] >= 4 ? 0.5 : h[i] + 0.5; self.setState({ hours: h }); } };
+    });
+    var hourBars = st.hours.map(function (v, i) {
+      var cx = 61 + i * 122, h = (v / 4) * 140;
+      return { x: cx - 32, y: r(140 - h), h: r(h), cx: cx, ly: r(140 - h - 6), v: v, day: days[i] };
+    });
+    var total = st.hours.reduce(function (a, b) { return a + b; }, 0);
+    var scatter = st.type === 'scatter';
+    return {
+      rows: rows, types: types, gridD: gridD, yTicks: yTicks, xTicks: xTicks, bars: bars, dots: dots,
+      lineA: lineA, lineB: lineB, areaA: areaA, areaB: areaB,
+      isBar: st.type === 'bar', isArea: st.type === 'area', isLineish: st.type === 'line' || st.type === 'area', isScatter: scatter,
+      legendA: scatter ? 'x = p before' : 'p before (column B)', legendB: scatter ? 'y = p after' : 'p after (column C)',
+      chartAria: 'Chart of momentum before and after for ' + n + ' trials',
+      range: st.extra ? 'A1:C8' : 'A1:C7',
+      addLabel: st.extra ? 'Remove trial 7' : 'Add trial 7',
+      addRow: function () { self.setState({ extra: !st.extra }); },
+      hoursRows: hoursRows, hourBars: hourBars, totalHours: total
+    };
+  }
+}
+</script>
+</body>
+</html>

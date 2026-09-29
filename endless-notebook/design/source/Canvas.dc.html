@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Writing canvas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; overflow: hidden; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.3px, transparent 1.4px); background-size: 26px 26px; background-position: 13px 13px; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<div style="position: absolute; left: 720px; top: 124px; font-family: Caveat, 'Segoe Print', cursive; font-size: 52px; font-weight: 600; color: #2B5A8C; line-height: 1">Lecture 3 — Momentum</div>
+<svg width="380" height="16" viewBox="0 0 380 16" fill="none" style="position: absolute; left: 716px; top: 178px" aria-hidden="true"><path d="M4 9 C 90 3, 200 14, 374 6" stroke="#2B5A8C" stroke-width="3" stroke-linecap="round"/></svg>
+<div style="position: absolute; left: 740px; top: 206px; display: flex; align-items: baseline; gap: 16px; font-family: Caveat, 'Segoe Print', cursive; color: #1E1C19; line-height: 1">
+<span style="font-size: 44px; font-weight: 600">p = m · v</span>
+<span style="font-size: 28px; color: #5E574C">(kg·m/s)</span>
+</div>
+<div style="position: absolute; left: 722px; top: 278px; width: 356px; height: 36px; background: rgba(240,210,90,0.55); border-radius: 4px 10px 6px 12px; transform: rotate(-0.6deg)"></div>
+<div style="position: absolute; left: 730px; top: 272px; font-family: Caveat, 'Segoe Print', cursive; font-size: 36px; color: #1E1C19; line-height: 1.25">total momentum is conserved<br>in a closed system</div>
+
+<svg width="340" height="200" viewBox="0 0 340 200" fill="none" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 716px; top: 382px" aria-label="Diagram: block on an incline">
+<path d="M10 176 L300 176 L300 36 Z" stroke="#1E1C19" stroke-width="2.5"/>
+<rect x="145" y="62" width="52" height="34" stroke="#1E1C19" stroke-width="2.5" transform="rotate(-25.8 170 96)"/>
+<path d="M168 82 L168 156 M161 146 L168 157 L175 146" stroke="#B5532A" stroke-width="2.5"/>
+<path d="M196 70 L252 43 M240 41 L253 43 L246 54" stroke="#2B5A8C" stroke-width="2.5"/>
+<path d="M64 176 A54 54 0 0 0 58 152" stroke="#1E1C19" stroke-width="2"/>
+<text x="178" y="160" font-family="Caveat, cursive" font-size="28" fill="#B5532A" stroke="none">mg</text>
+<text x="258" y="44" font-family="Caveat, cursive" font-size="28" fill="#2B5A8C" stroke="none">F</text>
+<text x="72" y="166" font-family="Caveat, cursive" font-size="26" fill="#1E1C19" stroke="none">θ</text>
+</svg>
+<div style="position: absolute; left: 744px; top: 604px; font-family: Caveat, 'Segoe Print', cursive; font-size: 32px; color: #5E574C; line-height: 1">→ next: collisions</div>
+
+<sc-if value="{{ showImageBar }}" hint-placeholder-val="{{ true }}">
+<div style="position: absolute; left: 110px; top: 100px; display: flex; gap: 2px; padding: 3px; background: #1E1C19; border-radius: 12px; box-shadow: 0 6px 18px -8px rgba(30,28,25,0.5)">
+<button style="height: 38px; padding: 0 11px; border: 0; border-radius: 9px; background: transparent; color: #FFFDF8; font-size: 14px; font-weight: 500">Crop</button>
+<button style="height: 38px; padding: 0 11px; border: 0; border-radius: 9px; background: transparent; color: #FFFDF8; font-size: 14px; font-weight: 500">Replace</button>
+<button style="height: 38px; padding: 0 11px; border: 0; border-radius: 9px; background: transparent; color: #FFFDF8; font-size: 14px; font-weight: 500">Send back</button>
+<button aria-label="Delete image" style="width: 40px; height: 38px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 9px; background: transparent; color: #FFFDF8">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg>
+</button>
+</div>
+</sc-if>
+<div style="position: absolute; left: 110px; top: 158px; width: 210px; height: 148px; outline: 2px solid #2B5A8C; outline-offset: 3px">
+<div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background-color: #E6DECD; background-image: repeating-linear-gradient(45deg, rgba(30,28,25,0.06) 0 8px, transparent 8px 16px); color: #5E574C; font-size: 13px">
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-8 8"/></svg>
+<span>[Photo] lab-setup.jpg</span>
+</div>
+<div style="position: absolute; left: -10px; top: -10px; width: 12px; height: 12px; background: #FFFDF8; border: 2px solid #2B5A8C; border-radius: 3px"></div>
+<div style="position: absolute; right: -10px; top: -10px; width: 12px; height: 12px; background: #FFFDF8; border: 2px solid #2B5A8C; border-radius: 3px"></div>
+<div style="position: absolute; left: -10px; bottom: -10px; width: 12px; height: 12px; background: #FFFDF8; border: 2px solid #2B5A8C; border-radius: 3px"></div>
+<div style="position: absolute; right: -10px; bottom: -10px; width: 12px; height: 12px; background: #FFFDF8; border: 2px solid #2B5A8C; border-radius: 3px"></div>
+</div>
+
+<div style="position: absolute; left: 116px; top: 356px; font-family: Caveat, 'Segoe Print', cursive; font-size: 40px; font-weight: 600; color: #2B5A8C; line-height: 1">Impulse</div>
+<div style="position: absolute; left: 128px; top: 406px; font-family: Caveat, 'Segoe Print', cursive; font-size: 40px; color: #1E1C19; line-height: 1.2">J = F · Δt<br>&nbsp;&nbsp;&nbsp;= Δp</div>
+<div style="position: absolute; left: 120px; top: 542px; width: 170px; height: 64px">
+<svg width="170" height="64" viewBox="0 0 170 64" fill="none" style="position: absolute; left: 0; top: 0" aria-hidden="true"><path d="M20 12 C 70 -2, 160 6, 162 32 C 164 58, 60 66, 18 50 C -4 40, 6 18, 44 10" stroke="#B5532A" stroke-width="2.5" stroke-linecap="round"/></svg>
+<div style="position: absolute; left: 28px; top: 12px; font-family: Caveat, 'Segoe Print', cursive; font-size: 36px; font-weight: 600; color: #B5532A; line-height: 1">on exam!</div>
+</div>
+<div style="position: absolute; left: 124px; top: 680px; font-family: Caveat, 'Segoe Print', cursive; font-size: 40px; color: #1E1C19; line-height: 1">Δp = m·v₂ − m·v₁</div>
+
+<sc-if value="{{ showCursor }}" hint-placeholder-val="{{ true }}">
+<div aria-hidden="true" style="position: absolute; left: 452px; top: 694px; width: {{ ringPx }}px; height: {{ ringPx }}px; border-radius: 999px; border: 1.5px solid {{ color }}; box-sizing: border-box"></div>
+</sc-if>
+
+<sc-if value="{{ isRuler }}" hint-placeholder-val="{{ false }}">
+<div aria-label="Ruler" style="position: absolute; left: 520px; top: 500px; width: 620px; height: 72px; transform: rotate(-12deg); transform-origin: 0 0; box-sizing: border-box; border: 1px solid rgba(30,28,25,0.35); border-radius: 8px; background-color: rgba(255,253,248,0.78); background-image: repeating-linear-gradient(90deg, #1E1C19 0 1px, transparent 1px 10px), repeating-linear-gradient(90deg, #1E1C19 0 1.5px, transparent 1.5px 50px); background-size: 100% 12px, 100% 22px; background-repeat: no-repeat; box-shadow: 0 10px 24px -14px rgba(30,28,25,0.6)">
+<div style="position: absolute; left: 270px; top: 26px; padding: 4px 10px; border-radius: 999px; background: #1E1C19; color: #FFFDF8; font-size: 14px; font-weight: 600">12°</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isLaser }}" hint-placeholder-val="{{ false }}">
+<svg width="520" height="160" viewBox="0 0 520 160" fill="none" stroke-linecap="round" style="position: absolute; left: 700px; top: 160px" aria-label="Laser pointer trail">
+<path d="M20 120 C 80 60, 140 150, 200 100" stroke="#E0312B" stroke-width="5" stroke-opacity="0.15"/>
+<path d="M200 100 C 260 50, 300 140, 360 90" stroke="#E0312B" stroke-width="5" stroke-opacity="0.4"/>
+<path d="M360 90 C 400 56, 430 70, 460 60" stroke="#E0312B" stroke-width="6" stroke-opacity="0.85"/>
+<circle cx="460" cy="60" r="14" fill="#E0312B" fill-opacity="0.25"/>
+<circle cx="460" cy="60" r="7" fill="#E0312B"/>
+</svg>
+</sc-if>
+
+<sc-if value="{{ chrome }}" hint-placeholder-val="{{ true }}">
+<header style="position: absolute; left: 0; top: 0; width: 1280px; height: 72px; box-sizing: border-box; padding: 0 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; background: transparent">
+<div style="justify-self: start; max-width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 4px; min-width: 0; padding: 4px 16px 4px 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<a href="Main.dc.html" aria-label="Back to library" style="width: 44px; height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+<div style="display: flex; flex-direction: column; gap: 1px; min-width: 0">
+<span style="font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Physics — Lecture notes</span>
+<span style="font-size: 13px; color: #5E574C; white-space: nowrap">Page 3 of 12 · Saved</span>
+</div>
+</div>
+
+<div role="toolbar" aria-label="Writing tools" style="display: flex; align-items: center; gap: 2px; padding: 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<button aria-label="Undo" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
+</button>
+<button aria-label="Redo" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>
+</button>
+<div style="width: 1px; height: 28px; background: #DDD4C2; margin: 0 4px"></div>
+<button aria-label="Select" aria-pressed="{{ pressed.select }}" onClick="{{ pickSelect }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: {{ tb.select }}; color: {{ tf.select }}">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l12 8-5.5 1.2L10 18z"/></svg>
+</button>
+<button aria-label="Lasso select" aria-pressed="{{ pressed.lasso }}" onClick="{{ pickLasso }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: {{ tb.lasso }}; color: {{ tf.lasso }}">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4c5 0 8 2.4 8 5.4S16.5 15 12 15s-8-2.6-8-5.6S7 4 12 4z" stroke-dasharray="3 2.6"/><path d="M7.5 13.5c-1 2.2.2 4.5 2.5 5.5"/></svg>
+</button>
+<div style="width: 1px; height: 28px; background: #DDD4C2; margin: 0 4px"></div>
+<button aria-label="Pen" aria-pressed="{{ pressed.pen }}" onClick="{{ pickPen }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: {{ tb.pen }}; color: {{ tf.pen }}">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg>
+</button>
+<button aria-label="Marker" aria-pressed="{{ pressed.highlighter }}" onClick="{{ pickHighlighter }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: {{ tb.highlighter }}; color: {{ tf.highlighter }}">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 15l-4 4h5l2-2"/><path d="M9 15l8-10 3 3-10 8z"/><path d="M13 21h8"/></svg>
+</button>
+<button aria-label="Eraser" aria-pressed="{{ pressed.eraser }}" onClick="{{ pickEraser }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: {{ tb.eraser }}; color: {{ tf.eraser }}">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16l9-9 6 6-6 6H7z"/><path d="M13 19h8"/></svg>
+</button>
+<button aria-label="Shapes" aria-pressed="{{ pressed.shapes }}" onClick="{{ pickShapes }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: {{ tb.shapes }}; color: {{ tf.shapes }}">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="9" height="9" rx="1"/><circle cx="16" cy="8" r="5"/></svg>
+</button>
+<button aria-label="Text" aria-pressed="{{ pressed.text }}" onClick="{{ pickText }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: {{ tb.text }}; color: {{ tf.text }}">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7V4h14v3M12 4v16M9 20h6"/></svg>
+</button>
+<div style="width: 1px; height: 28px; background: #DDD4C2; margin: 0 4px"></div>
+<sc-for list="{{ quick }}" as="q" hint-placeholder-count="3">
+<button aria-label="{{ q.label }}" onClick="{{ q.pick }}" style="width: 36px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent">
+<span style="width: 22px; height: 22px; border-radius: 999px; background: {{ q.hex }}; box-shadow: {{ q.ring }}"></span>
+</button>
+</sc-for>
+<button aria-label="More colors" aria-expanded="{{ trayExpanded }}" onClick="{{ toggleTray }}" style="width: 40px; height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; border: 0; border-radius: 12px; background: {{ trayBtnBg }}">
+<span style="width: 20px; height: 20px; border-radius: 999px; background: conic-gradient(#3E7B4F 0 25%, #B83A3A 0 50%, #D9A21B 0 75%, #7A4E73 0)"></span>
+<svg width="12" height="8" viewBox="0 0 12 8" fill="none" stroke="#5E574C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="transform: {{ chevron }}"><path d="M2 2l4 4 4-4"/></svg>
+</button>
+<button aria-label="Color and thickness" aria-expanded="{{ popExpanded }}" onClick="{{ togglePopover }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: #EEE7D8">
+<span style="width: {{ dotPx }}px; height: {{ dotPx }}px; border-radius: 999px; background: {{ color }}"></span>
+</button>
+</div>
+
+<div style="justify-self: end; display: flex; align-items: center; gap: 4px; padding: 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<a href="Share.dc.html" style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px 0 14px; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 15px; font-weight: 600">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c.8-3.4 3.2-5 6-5s5.2 1.6 6 5M18 8v6M15 11h6"/></svg>
+Share
+</a>
+<button aria-label="More options" aria-haspopup="menu" aria-expanded="{{ moreExpanded }}" onClick="{{ toggleMore }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: {{ moreBg }}; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+</button>
+</div>
+</header>
+</sc-if>
+
+<sc-if value="{{ pinned }}" hint-placeholder-val="{{ false }}">
+<div aria-hidden="true" onClick="{{ closeFly }}" style="position: absolute; left: 0; top: 0; width: 1280px; height: 800px"></div>
+</sc-if>
+<sc-if value="{{ moreOpen }}" hint-placeholder-val="{{ false }}">
+<div aria-hidden="true" onClick="{{ closeMore }}" style="position: absolute; left: 0; top: 0; width: 1280px; height: 800px"></div>
+</sc-if>
+
+<sc-if value="{{ chrome }}" hint-placeholder-val="{{ true }}">
+<div onMouseLeave="{{ leaveRail }}" style="position: absolute; left: 12px; top: 84px">
+<nav aria-label="Page tools" style="width: 58px; box-sizing: border-box; padding: 6px; display: flex; flex-direction: column; align-items: center; gap: 2px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 18px; box-shadow: 0 10px 28px -14px rgba(30,28,25,0.45)">
+<sc-for list="{{ groups }}" as="g" hint-placeholder-count="4">
+<button aria-label="{{ g.label }}" aria-haspopup="menu" aria-expanded="{{ g.expanded }}" onMouseEnter="{{ g.hover }}" onClick="{{ g.click }}" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: {{ g.bg }}; color: {{ g.fg }}">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{ g.sw }}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ g.d }}"/><path d="{{ g.d2 }}" stroke="{{ g.c2 }}"/></svg>
+<span aria-hidden="true" style="position: absolute; right: 4px; bottom: 4px; width: 0; height: 0; border-left: 5px solid transparent; border-bottom: 5px solid {{ g.tick }}"></span>
+</button>
+</sc-for>
+<div style="width: 28px; height: 1px; background: #DDD4C2; margin: 4px 0"></div>
+<a href="Search.dc.html" aria-label="Search" onMouseEnter="{{ leaveRail }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+</a>
+</nav>
+
+<sc-if value="{{ flyOpen }}" hint-placeholder-val="{{ true }}">
+<div style="position: absolute; left: 58px; top: {{ flyTop }}px; padding-left: 8px">
+<section role="menu" aria-label="{{ fly.title }}" style="width: 272px; box-sizing: border-box; padding: 8px; display: flex; flex-direction: column; gap: 2px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 20px 40px -20px rgba(30,28,25,0.5)">
+<div style="display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 4px 4px 10px">
+<span style="flex-grow: 1; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C">{{ fly.title }}</span>
+<sc-if value="{{ pinned }}" hint-placeholder-val="{{ false }}">
+<span style="font-size: 12px; font-weight: 600; color: #2B5A8C">Pinned</span>
+<button aria-label="Close menu" onClick="{{ closeFly }}" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 10px; background: transparent; color: #5E574C"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</sc-if>
+<sc-if value="{{ notPinned }}" hint-placeholder-val="{{ true }}">
+<span style="font-size: 12px; color: #8A8274; padding-right: 6px">Tap to keep open</span>
+</sc-if>
+</div>
+<sc-for list="{{ fly.items }}" as="r" hint-placeholder-count="5">
+<sc-if value="{{ r.isLink }}" hint-placeholder-val="{{ true }}">
+<a role="menuitem" href="{{ r.href }}" style="display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 4px 10px; border-radius: 12px; color: #1E1C19">
+<span style="width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: {{ r.tint }}; color: {{ r.ic }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="{{ r.fill }}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ r.d }}"/></svg></span>
+<span style="display: flex; flex-direction: column; gap: 1px; min-width: 0"><span style="font-size: 15px; font-weight: 600">{{ r.label }}</span><span style="font-size: 12px; color: #5E574C">{{ r.desc }}</span></span>
+</a>
+</sc-if>
+<sc-if value="{{ r.isAct }}" hint-placeholder-val="{{ false }}">
+<button role="menuitem" onClick="{{ r.act }}" style="display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 4px 10px; border: 0; border-radius: 12px; background: {{ r.rowBg }}; color: #1E1C19; text-align: left">
+<span style="width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: {{ r.tint }}; color: {{ r.ic }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="{{ r.fill }}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ r.d }}"/></svg></span>
+<span style="display: flex; flex-direction: column; gap: 1px; min-width: 0"><span style="font-size: 15px; font-weight: 600">{{ r.label }}</span><span style="font-size: 12px; color: #5E574C">{{ r.desc }}</span></span>
+</button>
+</sc-if>
+</sc-for>
+</section>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+
+
+<sc-if value="{{ showTray }}" hint-placeholder-val="{{ true }}">
+<div style="position: absolute; left: 0; right: 0; top: 70px; display: flex; justify-content: center; pointer-events: none">
+<div role="group" aria-label="More colors, {{ extraCount }} of 10" style="pointer-events: auto; display: flex; align-items: center; gap: 0; padding: 2px 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 14px; box-shadow: 0 8px 18px -12px rgba(30,28,25,0.5)">
+<sc-for list="{{ extras }}" as="x" hint-placeholder-count="6">
+<button aria-label="{{ x.label }}" aria-pressed="{{ x.on }}" onClick="{{ x.pick }}" style="width: 40px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 10px; background: transparent">
+<span style="width: 22px; height: 22px; border-radius: 999px; background: {{ x.hex }}; box-shadow: {{ x.ring }}"></span>
+</button>
+</sc-for>
+<sc-if value="{{ canAdd }}" hint-placeholder-val="{{ true }}">
+<button aria-label="Add a color" onClick="{{ addColor }}" style="width: 40px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 10px; background: transparent; color: #5E574C">
+<span style="width: 22px; height: 22px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 1.5px dashed #9A9080; border-radius: 999px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+</button>
+</sc-if>
+<span style="width: 1px; height: 22px; background: #DDD4C2; margin: 0 6px"></span>
+<span style="font-size: 11px; font-weight: 600; color: #5E574C; padding-right: 2px; font-variant-numeric: tabular-nums">{{ extraCount }}/10</span>
+<button aria-label="Edit colors: change or remove" style="width: 40px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 10px; background: transparent; color: #5E574C">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z"/></svg>
+</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ showPopover }}" hint-placeholder-val="{{ false }}">
+<section aria-label="{{ popTitle }} settings" style="position: absolute; left: 483px; top: 72px; width: 340px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 14px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 18px; box-shadow: 0 24px 48px -20px rgba(30,28,25,0.45)">
+<div style="position: absolute; left: {{ caretLeft }}px; top: -7px; width: 12px; height: 12px; background: #FFFDF8; border-left: 1px solid #DDD4C2; border-top: 1px solid #DDD4C2; transform: rotate(45deg)"></div>
+<div style="display: flex; align-items: center; justify-content: space-between">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600">{{ popTitle }}</h2>
+<button aria-label="Close" onClick="{{ closePopover }}" style="width: 44px; height: 44px; margin: -10px -10px -10px 0; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #5E574C">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+</button>
+</div>
+
+<div role="group" aria-label="Pen type" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; padding: 3px; background: #EEE7D8; border-radius: 12px">
+<sc-for list="{{ penTypes }}" as="pt" hint-placeholder-count="3">
+<button aria-pressed="{{ pt.on }}" onClick="{{ pt.pick }}" style="height: 40px; border: 0; border-radius: 9px; background: {{ pt.bg }}; color: #1E1C19; font-size: 14px; font-weight: {{ pt.weight }}; box-shadow: {{ pt.shadow }}">{{ pt.label }}</button>
+</sc-for>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C">Color</span>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px">
+<sc-for list="{{ swatches }}" as="s" hint-placeholder-count="10">
+<button aria-label="{{ s.label }}" aria-pressed="{{ s.on }}" onClick="{{ s.pick }}" style="height: 48px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent">
+<span style="width: 32px; height: 32px; border-radius: 999px; background: {{ s.fill }}; box-shadow: {{ s.ring }}"></span>
+</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; justify-content: space-between; align-items: baseline">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C">Thickness</span>
+<span style="font-size: 14px; font-weight: 600">{{ sizeLabel }}</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px">
+<sc-for list="{{ sizes }}" as="z" hint-placeholder-count="5">
+<button aria-label="{{ z.label }}" aria-pressed="{{ z.on }}" onClick="{{ z.pick }}" style="height: 48px; display: flex; align-items: center; justify-content: center; border: {{ z.border }}; border-radius: 12px; background: {{ z.bg }}">
+<span style="width: {{ z.px }}px; height: {{ z.px }}px; border-radius: 999px; background: #1E1C19"></span>
+</button>
+</sc-for>
+</div>
+</div>
+
+<svg width="306" height="56" viewBox="0 0 306 56" fill="none" style="display: block; background: #F6F1E7; border-radius: 12px" aria-label="Stroke preview">
+<path d="M14 38 C 52 6, 82 52, 122 28 S 196 8, 234 30 S 282 42, 292 20" stroke="{{ color }}" stroke-width="{{ strokeW }}" stroke-opacity="{{ strokeOpacity }}" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+<div style="display: flex; flex-direction: column; gap: 2px">
+<label style="display: flex; align-items: center; gap: 12px; min-height: 40px; font-size: 14px">
+<input type="checkbox" checked="{{ pressure }}" onChange="{{ togglePressure }}" style="width: 20px; height: 20px; margin: 0; accent-color: #2B5A8C">
+<span>Pressure changes thickness</span>
+</label>
+<label style="display: flex; align-items: center; gap: 12px; min-height: 40px; font-size: 14px">
+<input type="checkbox" checked="{{ snap }}" onChange="{{ toggleSnap }}" style="width: 20px; height: 20px; margin: 0; accent-color: #2B5A8C">
+<span>Hold at the end of a stroke to straighten lines and snap shapes</span>
+</label>
+<label style="display: flex; align-items: center; gap: 12px; min-height: 40px; font-size: 14px">
+<input type="checkbox" checked="{{ scribble }}" onChange="{{ toggleScribble }}" style="width: 20px; height: 20px; margin: 0; accent-color: #2B5A8C">
+<span>Scribble over ink to erase it</span>
+</label>
+<label style="display: flex; align-items: center; gap: 12px; min-height: 40px; font-size: 14px">
+<input type="checkbox" checked="{{ arrows }}" onChange="{{ toggleArrows }}" style="width: 20px; height: 20px; margin: 0; accent-color: #2B5A8C">
+<span>Flick back at the end of a line to make an arrow</span>
+</label>
+</div>
+
+<div style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: #EEE7D8; border-radius: 12px; font-size: 13px; line-height: 1.4; color: #3D3830">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 1px"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg>
+<span><strong style="font-weight: 600">S Pen button:</strong> hold while writing to erase. Fingers pan and zoom; only the pen draws.</span>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{ pagesOpen }}" hint-placeholder-val="{{ true }}">
+<nav aria-label="Pages" style="position: absolute; right: 14px; top: 84px; width: 100px; box-sizing: border-box; padding: 6px 10px 10px; display: flex; flex-direction: column; align-items: center; gap: 10px; background: rgba(255,253,248,0.96); border: 1px solid #DDD4C2; border-radius: 16px">
+<button aria-label="Hide pages" aria-expanded="true" onClick="{{ togglePages }}" style="width: 80px; height: 44px; display: flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 10px; background: transparent; color: #3D3830; font-size: 13px; font-weight: 600">3 / 12
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+</button>
+<button aria-label="Page 1" style="width: 78px; height: 58px; padding: 0; border: 1px solid #DDD4C2; border-radius: 8px; background: #FFFDF8; display: flex; align-items: flex-end; justify-content: flex-end; font-size: 11px; color: #5E574C"><span style="padding: 3px 5px">1</span></button>
+<button aria-label="Page 2" style="width: 78px; height: 58px; padding: 0; border: 1px solid #DDD4C2; border-radius: 8px; background: #FFFDF8; display: flex; align-items: flex-end; justify-content: flex-end; font-size: 11px; color: #5E574C"><span style="padding: 3px 5px">2</span></button>
+<button aria-label="Page 3, current" aria-current="page" style="width: 78px; height: 58px; padding: 0; border: 2px solid #2B5A8C; border-radius: 8px; background: #FFFDF8; display: flex; align-items: flex-end; justify-content: flex-end; font-size: 11px; font-weight: 700; color: #2B5A8C"><span style="padding: 3px 5px">3</span></button>
+<button aria-label="Page 4, locked" style="position: relative; width: 78px; height: 58px; padding: 0; border: 1px solid #DDD4C2; border-radius: 8px; background: #EEE7D8; display: flex; align-items: center; justify-content: center; color: #5E574C">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+<span style="position: absolute; right: 5px; bottom: 3px; font-size: 11px">4</span>
+</button>
+<button aria-label="Add page" style="width: 78px; height: 44px; border: 1.5px dashed #BFB49E; border-radius: 8px; background: transparent; display: flex; align-items: center; justify-content: center; color: #5E574C">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+</nav>
+</sc-if>
+<sc-if value="{{ pagesClosed }}" hint-placeholder-val="{{ false }}">
+<button aria-label="Show pages" aria-expanded="false" onClick="{{ togglePages }}" style="position: absolute; right: 0; top: 84px; width: 48px; height: 96px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 1px solid #DDD4C2; border-right: 0; border-radius: 14px 0 0 14px; background: rgba(255,253,248,0.96); color: #3D3830; font-size: 12px; font-weight: 700">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="3" width="13" height="16" rx="1.5"/><path d="M4 7v12.5A1.5 1.5 0 0 0 5.5 21H16"/></svg>
+3/12
+</button>
+</sc-if>
+
+<sc-if value="{{ hasHint }}" hint-placeholder-val="{{ false }}">
+<div role="status" style="position: absolute; left: 440px; bottom: 20px; width: 400px; display: flex; justify-content: center">
+<span style="padding: 10px 16px; border-radius: 999px; background: #1E1C19; color: #FFFDF8; font-size: 14px; box-shadow: 0 10px 24px -12px rgba(30,28,25,0.6)">{{ hint }}</span>
+</div>
+</sc-if>
+
+<sc-if value="{{ moreOpen }}" hint-placeholder-val="{{ false }}">
+<section role="menu" aria-label="More options" style="position: absolute; right: 12px; top: 70px; width: 280px; box-sizing: border-box; padding: 8px; display: flex; flex-direction: column; gap: 2px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 20px 40px -20px rgba(30,28,25,0.5)">
+<sc-for list="{{ moreItems }}" as="m" hint-placeholder-count="7">
+<sc-if value="{{ m.sep }}" hint-placeholder-val="{{ false }}"><div style="height: 1px; margin: 4px 8px; background: #EAE3D5"></div></sc-if>
+<a role="menuitem" href="{{ m.href }}" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 2px 10px; border-radius: 12px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><path d="{{ m.d }}"/></svg>
+<span style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px"><span style="font-size: 15px; font-weight: {{ m.weight }}">{{ m.label }}</span><sc-if value="{{ m.hasDesc }}" hint-placeholder-val="{{ false }}"><span style="font-size: 12px; color: #5E574C">{{ m.desc }}</span></sc-if></span>
+</a>
+</sc-for>
+</section>
+</sc-if>
+
+<div style="position: absolute; right: 14px; bottom: 16px; width: 236px; display: flex; flex-direction: column; gap: 8px">
+<sc-if value="{{ mapOpen }}" hint-placeholder-val="{{ true }}">
+<div style="box-sizing: border-box; padding: 2px 8px 8px; display: flex; flex-direction: column; gap: 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 14px; box-shadow: 0 10px 24px -18px rgba(30,28,25,0.5)">
+<div style="display: flex; align-items: center; justify-content: space-between; padding-left: 4px">
+<span style="font-size: 12px; font-weight: 600; color: #5E574C">Map</span>
+<button aria-label="Hide map" aria-expanded="true" onClick="{{ toggleMap }}" style="width: 44px; height: 36px; margin-right: -6px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 10px; background: transparent; color: #3D3830">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+</button>
+</div>
+<svg width="218" height="112" viewBox="0 0 218 112" fill="none" aria-label="Map: the page has grown right and down; the box shows your view" style="display: block; background: #F6F1E7; border-radius: 8px">
+<rect x="4" y="4" width="210" height="104" rx="4" stroke="#CFC5B1" stroke-dasharray="3 3"/>
+<path d="M16 20h40M16 30h30M16 52h34M16 62h24M94 18h54M96 28h34M96 38h46M102 58l32-16v16zM152 82h34M160 92h24M26 86h32" stroke="#8A8274" stroke-width="2.4" stroke-linecap="round"/>
+<rect x="9" y="9" width="116" height="70" rx="3" stroke="#2B5A8C" stroke-width="2"/>
+</svg>
+</div>
+</sc-if>
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 3px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 14px; box-shadow: 0 10px 24px -18px rgba(30,28,25,0.5)">
+<button aria-label="Zoom out" style="width: 44px; height: 40px; border: 0; border-radius: 10px; background: transparent; color: #1E1C19; display: flex; align-items: center; justify-content: center">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+</button>
+<button aria-label="Zoom level, tap to reset" style="height: 40px; padding: 0 6px; border: 0; border-radius: 10px; background: transparent; color: #1E1C19; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums">100%</button>
+<button aria-label="Zoom in" style="width: 44px; height: 40px; border: 0; border-radius: 10px; background: transparent; color: #1E1C19; display: flex; align-items: center; justify-content: center">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+<span style="width: 1px; height: 24px; background: #DDD4C2"></span>
+<sc-if value="{{ mapClosed }}" hint-placeholder-val="{{ false }}">
+<button aria-label="Show map" aria-expanded="false" onClick="{{ toggleMap }}" style="width: 40px; height: 40px; border: 0; border-radius: 10px; background: transparent; color: #1E1C19; display: flex; align-items: center; justify-content: center">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>
+</button>
+</sc-if>
+<a href="Board.dc.html" aria-label="Zoom out to the whole board" style="width: 40px; height: 40px; border-radius: 10px; color: #1E1C19; display: flex; align-items: center; justify-content: center">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="7" y="9" width="6" height="4" rx="1"/></svg>
+</a>
+<button aria-label="{{ fullLabel }}" aria-pressed="{{ fullPressed }}" onClick="{{ toggleFull }}" style="width: 40px; height: 40px; border: 0; border-radius: 10px; background: {{ fullBg }}; color: {{ fullFg }}; display: flex; align-items: center; justify-content: center">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ fullIcon }}"/></svg>
+</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tool: 'pen', color: '#2B5A8C', size: 1, penType: 'ballpoint', pressure: true, snap: true, scribble: true, arrows: true, popover: false, tray: true, extraColors: ['#3E7B4F', '#B83A3A', '#7A4E73', '#D9A21B', '#3B82C4', '#8A8378'], pages: true, map: true, fly: 'write', pinned: false, more: false, full: false };
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var tools = ['select', 'lasso', 'pen', 'highlighter', 'eraser', 'shapes', 'text', 'sticky', 'frame', 'image', 'ruler', 'laser'];
+    var tb = {}, tf = {}, pressed = {};
+    tools.forEach(function (t) {
+      var on = st.tool === t;
+      tb[t] = on ? '#1E1C19' : 'transparent';
+      tf[t] = on ? '#FFFDF8' : '#1E1C19';
+      pressed[t] = on ? 'true' : 'false';
+    });
+    var pick = function (t) {
+      return function () {
+        var inkTool = t === 'pen' || t === 'highlighter';
+        if (st.tool === t && inkTool) { self.setState({ popover: !st.popover }); }
+        else { self.setState({ tool: t, popover: false }); }
+      };
+    };
+    var hints = {
+      pen: 'Tap the pen again for colors and thickness',
+      select: 'Tap anything to select it · drag to move · pinch to resize',
+      lasso: 'Circle ink, shapes or stickies to select them together',
+      eraser: 'Erase whole strokes · hold the S Pen button to erase from any tool',
+      shapes: 'Draw a rough shape and hold, or pick one from the menu',
+      text: 'Tap where you want to type',
+      sticky: 'Tap to drop a sticky note · drop one on another to stack them',
+      frame: 'Drag to place a lined sheet · write on it like paper',
+      image: 'Tap where the image should go',
+      ruler: 'Two fingers rotate the ruler · the pen snaps to its edge',
+      laser: 'Laser fades after a second · it’s never saved to the page'
+    };
+    var palette = [
+      { hex: '#1E1C19', label: 'Ink black' }, { hex: '#2B5A8C', label: 'Deep blue' }, { hex: '#3B82C4', label: 'Sky blue' },
+      { hex: '#3E7B4F', label: 'Green' }, { hex: '#B5532A', label: 'Terracotta' }, { hex: '#B83A3A', label: 'Red' },
+      { hex: '#7A4E73', label: 'Plum' }, { hex: '#D9A21B', label: 'Amber' }, { hex: '#8A8378', label: 'Graphite' }
+    ];
+    var ringFor = function (hex) { return st.color === hex ? '0 0 0 3px #FFFDF8, 0 0 0 5px ' + hex : 'inset 0 0 0 1px rgba(30,28,25,0.12)'; };
+    var swatches = palette.map(function (p) {
+      return { label: p.label, fill: p.hex, on: st.color === p.hex ? 'true' : 'false', ring: ringFor(p.hex), pick: function () { self.setState({ color: p.hex }); } };
+    });
+    swatches.push({ label: 'Custom color', fill: 'conic-gradient(#B83A3A, #D9A21B, #3E7B4F, #3B82C4, #7A4E73, #B83A3A)', on: 'false', ring: 'inset 0 0 0 1px rgba(30,28,25,0.12)', pick: function () {} });
+    var quickHex = [{ hex: '#1E1C19', label: 'Ink black' }, { hex: '#2B5A8C', label: 'Deep blue' }, { hex: '#B5532A', label: 'Terracotta' }];
+    var quick = quickHex.map(function (q) { return { hex: q.hex, label: 'Quick color: ' + q.label, ring: ringFor(q.hex), pick: function () { self.setState({ color: q.hex }); } }; });
+    var sizeDefs = [{ mm: '0.3 mm', w: 1.5, px: 4 }, { mm: '0.5 mm', w: 2.5, px: 6 }, { mm: '0.8 mm', w: 4, px: 9 }, { mm: '1.2 mm', w: 6, px: 13 }, { mm: '2.0 mm', w: 10, px: 18 }];
+    var sizes = sizeDefs.map(function (z, i) {
+      var on = st.size === i;
+      return { label: 'Thickness ' + z.mm, px: z.px, on: on ? 'true' : 'false', bg: on ? '#E4ECF4' : '#F6F1E7', border: on ? '2px solid #2B5A8C' : '2px solid transparent', pick: function () { self.setState({ size: i }); } };
+    });
+    var hl = st.tool === 'highlighter';
+    var cur = sizeDefs[st.size];
+    var penTypes = [{ id: 'ballpoint', label: 'Ballpoint' }, { id: 'fountain', label: 'Fountain' }, { id: 'pencil', label: 'Pencil' }].map(function (p) {
+      var on = st.penType === p.id;
+      return { label: p.label, on: on ? 'true' : 'false', bg: on ? '#FFFDF8' : 'transparent', weight: on ? 600 : 500, shadow: on ? '0 1px 2px rgba(30,28,25,0.15)' : 'none', pick: function () { self.setState({ penType: p.id }); } };
+    });
+
+    // left rail groups with flyouts (hover = preview, click = pin until tapping outside)
+    var I = {
+      sticky: 'M4 4h16v10l-6 6H4z M14 20v-6h6',
+      frame: 'M6.5 3h11A1.5 1.5 0 0 1 19 4.5v15a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5v-15A1.5 1.5 0 0 1 6.5 3z M8 8h8M8 12h8M8 16h5',
+      image: 'M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M21 16l-5-5-8 8 M9 8.2a1.8 1.8 0 1 0 0 3.6a1.8 1.8 0 1 0 0-3.6z',
+      mic: 'M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z M5 11a7 7 0 0 0 14 0M12 18v3',
+      templates: 'M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M4 9h16M9 9v11',
+      grid: 'M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z',
+      star: 'M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z',
+      cards: 'M5 8h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z M7 5h12a2 2 0 0 1 2 2v9',
+      sigma: 'M17 5H7l6 7-6 7h10',
+      circle: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M3 12h18M12 3v18 M12 12l5.5-5.5',
+      spell: 'M3 14l3.5-9 3.5 9M4.3 11h4.4 M13 13l3 3 6-7',
+      book: 'M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z M4 19V5 M8 7h7M8 11h5',
+      text: 'M5 7V4h14v3M12 4v16M9 20h6',
+      ruler: 'M3 16L16 3l5 5L8 21z M7 12l2 2M10 9l2 2M13 6l2 2',
+      laser: 'M17 4.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z M4 20l9.5-9.5 M17 1.5v2M17 10.5v2M11.5 7h2M20.5 7h2',
+      split: 'M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M12 4v16',
+      cap: 'M2 9l10-5 10 5-10 5z M6 11v5c3 2.5 9 2.5 12 0v-5 M22 9v6'
+    };
+    var link = function (label, desc, d, href, tint, ic, fill) { return { isLink: true, isAct: false, label: label, desc: desc, d: d, href: href, tint: tint || '#F3EEE3', ic: ic || '#1E1C19', fill: fill || 'none', rowBg: 'transparent' }; };
+    var act = function (label, desc, d, tool, tint, ic) { var on = st.tool === tool; return { isLink: false, isAct: true, label: label, desc: desc, d: d, tint: on ? '#1E1C19' : (tint || '#F3EEE3'), ic: on ? '#FFFDF8' : (ic || '#1E1C19'), fill: 'none', rowBg: on ? '#EEE7D8' : 'transparent', act: function () { self.setState({ tool: tool, popover: false, fly: null, pinned: false }); } }; };
+    var G = [
+      { id: 'insert', label: 'Insert', d: 'M12 5v14M5 12h14', sw: 2.2, primary: true, items: [
+        act('Sticky note', 'Tap the page to drop one', I.sticky, 'sticky', '#FBEFC4', '#8A6400'),
+        act('Paper frame', 'A lined sheet to write on', I.frame, 'frame'),
+        act('Image', 'From photos, camera or files', I.image, 'image'),
+        link('Record audio', 'Place the clip anywhere', I.mic, 'Audio.dc.html', '#F6E1D6', '#B83A3A'),
+        link('Templates', 'Cornell, planner, lab report…', I.templates, 'Templates.dc.html'),
+        link('Everything else', 'PDF, video, tables, widgets…', I.grid, 'Insert.dc.html', '#E1E9F3', '#214A75') ] },
+      { id: 'study', label: 'Study & math', d: I.cap, sw: 1.8, items: [
+        link('Need to remember', 'Star it or lasso it', I.star, 'RememberMark.dc.html', '#FBEFC4', '#8A6400', '#E8B730'),
+        link('Make flashcards', 'Circle the front, then the back', I.cards, 'FlashMake.dc.html', '#F6E1D6', '#8E4220'),
+        link('Math & graphs', 'Handwriting to math, xy and xyz', I.sigma, 'Math.dc.html', '#E1E9F3', '#214A75'),
+        link('Math tools', 'Number line, unit circle, formulas', I.circle, 'MathKit.dc.html', '#E1E9F3', '#214A75') ] },
+      { id: 'write', label: 'Writing help', d: I.spell, d2: 'M3 19c1.5-1.2 3-1.2 4.5 0s3 1.2 4.5 0 3-1.2 4.5 0', c2: '#B3382C', sw: 1.8, items: [
+        link('Spell check', 'Check this page · 4 to review', I.spell, 'Spell.dc.html', '#F6E1D6', '#B3382C'),
+        link('Dictionary & thesaurus', 'Definitions and similar words', I.book, 'Spell.dc.html', '#E3ECE4', '#2F5D3A'),
+        link('Convert to text', 'Turn handwriting into type', I.text, 'Convert.dc.html') ] },
+      { id: 'tools', label: 'Ruler, laser & view', d: I.ruler, sw: 1.8, items: [
+        act('Ruler', 'Two fingers rotate · pen snaps', I.ruler, 'ruler'),
+        act('Laser pointer', 'Fades away, never saved', I.laser, 'laser', '#F6E1D6', '#B83A3A'),
+        link('Split view', 'Two notes side by side', I.split, 'Split.dc.html') ] }
+    ];
+    var openId = st.fly;
+    var groups = G.map(function (g) {
+      var open = openId === g.id, pin = open && st.pinned;
+      var bg = g.primary ? (pin ? '#1F4570' : '#2B5A8C') : (pin ? '#1E1C19' : (open ? '#EEE7D8' : 'transparent'));
+      var light = g.primary || pin;
+      return { label: g.label, d: g.d, d2: g.d2 || '', c2: g.c2 || 'currentColor', sw: g.sw, bg: bg, fg: light ? '#FFFDF8' : '#1E1C19', tick: light ? 'rgba(255,253,248,0.75)' : '#8A8274', expanded: open ? 'true' : 'false',
+        hover: function () { if (!self.state.pinned) self.setState({ fly: g.id, more: false }); },
+        click: function () { if (self.state.pinned && self.state.fly === g.id) self.setState({ fly: null, pinned: false }); else self.setState({ fly: g.id, pinned: true, more: false, popover: false }); } };
+    });
+    var flyIdx = G.map(function (g) { return g.id; }).indexOf(openId);
+    var fly = flyIdx >= 0 ? { title: G[flyIdx].label, items: G[flyIdx].items } : { title: '', items: [] };
+    var moreItems = [
+      { label: 'Export', desc: 'PDF, board file or image', d: 'M12 15V4M7 9l5-5 5 5 M5 14v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5', href: 'Export.dc.html', weight: 600 },
+      { label: 'Import', desc: 'PDF, images or a board file', d: 'M12 4v11M7 10l5 5 5-5 M5 14v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5', href: 'Export.dc.html', weight: 500 },
+      { label: 'Print', desc: '', d: 'M7 9V3h10v6 M6 18H4v-7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7h-2 M7 14h10v7H7z', href: 'Export.dc.html', weight: 500 },
+      { label: 'Password protect', desc: 'This page or the whole notebook', d: 'M7 11h10a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2z M8 11V8a4 4 0 0 1 8 0v3', href: 'Lock.dc.html', weight: 500, sep: true },
+      { label: 'Page & paper', desc: 'Dots, lines, grid or blank', d: 'M6.5 3h11A1.5 1.5 0 0 1 19 4.5v15a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5v-15A1.5 1.5 0 0 1 6.5 3z M8.5 8h.01M12 8h.01M15.5 8h.01M8.5 12h.01M12 12h.01M15.5 12h.01', href: 'Templates.dc.html', weight: 500 },
+      { label: 'Version history', desc: 'See and restore earlier versions', d: 'M3 12a9 9 0 1 0 3-6.7 M3 4v5h5 M12 7v5l3 2', href: 'Sync.dc.html', weight: 500 },
+      { label: 'Settings', desc: '', d: 'M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z M19.4 13a7.5 7.5 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.5 7.5 0 0 0-1.7-1L15 3.5h-4l-.3 2.5a7.5 7.5 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 0 0 1.7 1l.3 2.5h4l.3-2.5a7.5 7.5 0 0 0 1.7-1l2.4 1 2-3.4z', href: 'Sync.dc.html', weight: 500, sep: true }
+    ].map(function (m) { return { label: m.label, desc: m.desc, hasDesc: !!m.desc, d: m.d, href: m.href, weight: m.weight, sep: !!m.sep }; });
+    var chrome = !st.full;
+    var showPopover = chrome && st.popover && (st.tool === 'pen' || hl);
+    var hint = hints[st.tool] || '';
+    return {
+      tb: tb, tf: tf, pressed: pressed,
+      pickSelect: pick('select'), pickLasso: pick('lasso'), pickPen: pick('pen'), pickHighlighter: pick('highlighter'),
+      pickEraser: pick('eraser'), pickShapes: pick('shapes'), pickText: pick('text'), pickSticky: pick('sticky'),
+      pickFrame: pick('frame'), pickImage: pick('image'), pickRuler: pick('ruler'), pickLaser: pick('laser'),
+      togglePopover: function () { self.setState({ popover: !st.popover, tool: (st.tool === 'pen' || hl) ? st.tool : 'pen' }); },
+      closePopover: function () { self.setState({ popover: false }); },
+      showPopover: showPopover,
+      showTray: chrome && st.tray && !showPopover,
+      chrome: chrome,
+      groups: groups, fly: fly, flyOpen: chrome && flyIdx >= 0, flyTop: 6 + Math.max(0, flyIdx) * 46 - 8,
+      pinned: chrome && st.pinned && flyIdx >= 0, notPinned: !st.pinned,
+      closeFly: function () { self.setState({ fly: null, pinned: false }); },
+      leaveRail: function () { if (!self.state.pinned) self.setState({ fly: null }); },
+      moreOpen: chrome && st.more, moreExpanded: st.more ? 'true' : 'false', moreBg: st.more ? '#EEE7D8' : 'transparent',
+      toggleMore: function () { self.setState({ more: !st.more, fly: null, pinned: false, popover: false }); },
+      closeMore: function () { self.setState({ more: false }); },
+      moreItems: moreItems,
+      toggleFull: function () { self.setState({ full: !st.full, more: false, fly: null, pinned: false }); },
+      fullLabel: st.full ? 'Exit full screen' : 'Full screen: hide menus',
+      fullPressed: st.full ? 'true' : 'false', fullBg: st.full ? '#1E1C19' : 'transparent', fullFg: st.full ? '#FFFDF8' : '#1E1C19',
+      fullIcon: st.full ? 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5' : 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
+      trayExpanded: st.tray ? 'true' : 'false',
+      trayBtnBg: st.tray ? '#EEE7D8' : 'transparent',
+      chevron: st.tray ? 'rotate(180deg)' : 'none',
+      toggleTray: function () { self.setState({ tray: !st.tray, popover: false }); },
+      extras: st.extraColors.map(function (hex, i) {
+        var names = { '#3E7B4F': 'Green', '#B83A3A': 'Red', '#7A4E73': 'Plum', '#D9A21B': 'Amber', '#3B82C4': 'Sky blue', '#8A8378': 'Graphite', '#1F6B75': 'Teal', '#C4577A': 'Pink', '#7A5A3A': 'Brown', '#6F8F2A': 'Olive' };
+        return { hex: hex, label: 'Color: ' + (names[hex] || hex), on: st.color === hex ? 'true' : 'false', ring: ringFor(hex), pick: function () { self.setState({ color: hex }); } };
+      }),
+      extraCount: st.extraColors.length,
+      canAdd: st.extraColors.length < 10,
+      addColor: function () {
+        var pool = ['#1F6B75', '#C4577A', '#7A5A3A', '#6F8F2A'];
+        var next = pool.filter(function (h) { return st.extraColors.indexOf(h) < 0; })[0];
+        if (next && st.extraColors.length < 10) self.setState({ extraColors: st.extraColors.concat([next]), color: next });
+      },
+      popExpanded: showPopover ? 'true' : 'false',
+      popTitle: hl ? 'Marker' : 'Pen',
+      caretLeft: hl ? 91 : 45,
+      showImageBar: !showPopover,
+      color: st.color,
+      swatches: swatches, quick: quick, sizes: sizes, penTypes: penTypes,
+      sizeLabel: cur.mm,
+      dotPx: Math.max(6, cur.px),
+      strokeW: hl ? cur.w * 4 : cur.w,
+      strokeOpacity: hl ? 0.4 : 1,
+      ringPx: Math.round(cur.w * 2 + 8),
+      showCursor: st.tool === 'pen' || hl,
+      isRuler: st.tool === 'ruler',
+      isLaser: st.tool === 'laser',
+      hasHint: !!hint && !showPopover && !st.more && !(st.fly && st.pinned),
+      hint: hint,
+      pagesOpen: chrome && st.pages, pagesClosed: chrome && !st.pages,
+      mapOpen: chrome && st.map, mapClosed: !chrome || !st.map,
+      togglePages: function () { self.setState({ pages: !st.pages }); },
+      toggleMap: function () { self.setState({ map: !st.map }); },
+      pressure: st.pressure, snap: st.snap, scribble: st.scribble,
+      toggleScribble: function () { self.setState({ scribble: !st.scribble }); },
+      arrows: st.arrows, toggleArrows: function () { self.setState({ arrows: !st.arrows }); },
+      togglePressure: function () { self.setState({ pressure: !st.pressure }); },
+      toggleSnap: function () { self.setState({ snap: !st.snap }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

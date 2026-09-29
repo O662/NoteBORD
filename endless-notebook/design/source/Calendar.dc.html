@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Calendar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; display: flex; background: #F6F1E7; overflow: hidden; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<nav aria-label="App" style="width: 272px; flex-shrink: 0; box-sizing: border-box; padding: 22px 16px; background: #EEE7D8; border-right: 1px solid #DDD4C2; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 6px">
+<svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="#1E1C19" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15c0-4 3-6 5.5-6S15 15 15 15s3 6 5.5 6S26 19 26 15s-3-6-5.5-6S15 15 15 15s-3 6-5.5 6S4 19 4 15z"/></svg>
+<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 500; letter-spacing: -0.01em">Endless</div>
+</div>
+<a href="Search.dc.html" style="display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; color: #5E574C; font-size: 15px">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+<span>Search notes &amp; handwriting</span>
+</a>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<a href="Start.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>
+<span>Home</span>
+</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h12"/></svg>
+<span style="flex-grow: 1">All notebooks</span><span style="font-size: 13px; color: #5E574C">24</span>
+</a>
+<a href="Calendar.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; background: #E0D6C2; font-size: 15px; font-weight: 600; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>
+<span>Calendar</span>
+</a>
+<a href="Study.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="14" height="12" rx="2"/><path d="M7 5h12a2 2 0 0 1 2 2v9"/></svg>
+<span style="flex-grow: 1">Flashcards</span><span style="font-size: 12px; font-weight: 700; color: #FFFDF8; background: #B5532A; padding: 1px 7px; border-radius: 999px">5</span>
+</a>
+<a href="Remember.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#E8B730" stroke="#8A6400" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z"/></svg>
+<span style="flex-grow: 1">Remember</span><span style="font-size: 12px; font-weight: 700; color: #5A4000; background: #FBEFC4; padding: 1px 7px; border-radius: 999px">8</span>
+</a>
+<button style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border: 0; background: transparent; border-radius: 10px; font-size: 15px; color: #1E1C19; text-align: left">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg>
+<span>Trash</span>
+</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="padding: 0 12px 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C">Folders</span>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#2B5A8C" fill-opacity="0.16" stroke="#2B5A8C" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>School</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#B5532A" fill-opacity="0.16" stroke="#B5532A" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Work</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#4E7A52" fill-opacity="0.16" stroke="#4E7A52" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Personal</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#7A4E73" fill-opacity="0.16" stroke="#7A4E73" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Sketches</a>
+</div>
+<div style="flex-grow: 1"></div>
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="Sync.dc.html" style="flex-grow: 1; display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 12px; box-sizing: border-box; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3B6E47" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z"/><path d="M9.5 13.5l2 2 3.5-3.5"/></svg>
+<span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 14px; font-weight: 600">Synced · Google Drive</span><span style="font-size: 12px; color: #5E574C">2 minutes ago</span></span>
+</a>
+<a href="Sync.dc.html" aria-label="Settings" style="width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+</a>
+</div>
+</nav>
+
+<main style="flex-grow: 1; box-sizing: border-box; padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; min-width: 0">
+<div style="display: flex; align-items: center; gap: 10px">
+<nav aria-label="Calendar or planner" style="display: flex; padding: 3px; gap: 2px; background: #1E1C19; border-radius: 12px">
+<a href="Calendar.dc.html" aria-current="page" style="display: flex; align-items: center; height: 38px; padding: 0 14px; border-radius: 9px; background: #FFFDF8; color: #1E1C19; font-size: 14px; font-weight: 700">Calendar</a>
+<a href="Planner.dc.html" style="display: flex; align-items: center; height: 38px; padding: 0 14px; border-radius: 9px; color: #FFFDF8; font-size: 14px; font-weight: 600">Planner</a>
+</nav>
+<h1 style="margin: 0 0 0 6px; flex-grow: 1; font-family: Newsreader, Georgia, serif; font-size: 30px; font-weight: 400; letter-spacing: -0.01em; white-space: nowrap">September 2026</h1>
+<button style="height: 44px; padding: 0 14px; border: 1px solid #CFC5B1; border-radius: 12px; background: #FFFDF8; color: #1E1C19; font-size: 14px; font-weight: 600">Today</button>
+<button aria-label="Previous week" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+<button aria-label="Next week" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+<div role="group" aria-label="View" style="display: flex; padding: 3px; gap: 2px; background: #EEE7D8; border-radius: 12px">
+<button aria-pressed="false" style="height: 38px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: #1E1C19; font-size: 14px; font-weight: 500">Day</button>
+<button aria-pressed="true" style="height: 38px; padding: 0 12px; border: 0; border-radius: 9px; background: #FFFDF8; color: #1E1C19; font-size: 14px; font-weight: 600; box-shadow: 0 1px 2px rgba(30,28,25,0.15)">Week</button>
+<button aria-pressed="false" style="height: 38px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: #1E1C19; font-size: 14px; font-weight: 500">Month</button>
+</div>
+<button style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px; border: 0; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 14px; font-weight: 600">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Event</button>
+</div>
+
+<div role="group" aria-label="Calendars shown" style="display: flex; align-items: center; gap: 8px">
+<sc-for list="{{ cals }}" as="c" hint-placeholder-count="4">
+<button aria-pressed="{{ c.on }}" onClick="{{ c.toggle }}" style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border: 1px solid #DDD4C2; border-radius: 999px; background: {{ c.bg }}; color: {{ c.fg }}; font-size: 13px; font-weight: 600">
+<span style="width: 12px; height: 12px; border-radius: 4px; background: {{ c.swatch }}; border: 2px solid {{ c.dot }}; box-sizing: border-box"></span>{{ c.label }}<span style="font-weight: 500; color: #5E574C">{{ c.source }}</span></button>
+</sc-for>
+<button onClick="{{ showConnect }}" style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px; border: 1.5px dashed #BFB49E; border-radius: 999px; background: transparent; color: #1E1C19; font-size: 13px; font-weight: 600">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Connect</button>
+</div>
+
+<div style="flex-grow: 1; display: flex; gap: 14px; min-height: 0">
+<div aria-label="Week of September 21" style="position: relative; width: 684px; height: 652px; flex-shrink: 0; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 14px; overflow: hidden">
+<div style="position: absolute; left: 46px; right: 0; top: 0; height: 46px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid #EAE3D5">
+<sc-for list="{{ days }}" as="d" hint-placeholder-count="7">
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; background: {{ d.bg }}">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: {{ d.labelColor }}">{{ d.name }}</span>
+<span style="width: 26px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 999px; background: {{ d.numBg }}; color: {{ d.numFg }}; font-size: 14px; font-weight: 700">{{ d.num }}</span>
+</div>
+</sc-for>
+</div>
+<div style="position: absolute; left: 0; top: 46px; width: 46px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #5E574C">all day</div>
+<div style="position: absolute; left: 46px; right: 0; top: 46px; height: 26px; border-bottom: 1px solid #EAE3D5"></div>
+<sc-if value="{{ showDeadlines }}" hint-placeholder-val="{{ true }}">
+<div style="position: absolute; left: 594px; top: 49px; width: 86px; height: 20px; box-sizing: border-box; padding: 0 6px; display: flex; align-items: center; border-radius: 5px; background: #EDE3EC; color: #5F3A59; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden">Problem set 4 due</div>
+</sc-if>
+<sc-for list="{{ hours }}" as="h" hint-placeholder-count="10">
+<div style="position: absolute; left: 0; right: 0; top: {{ h.top }}px; height: 58px; border-top: 1px solid #F0EADF">
+<span style="position: absolute; left: 6px; top: 3px; font-size: 11px; color: #5E574C">{{ h.label }}</span>
+</div>
+</sc-for>
+<div style="position: absolute; left: 410px; top: 72px; width: 91px; bottom: 0; background: rgba(43,90,140,0.04)"></div>
+<sc-for list="{{ events }}" as="e" hint-placeholder-count="8">
+<button aria-pressed="{{ e.on }}" onClick="{{ e.pick }}" style="position: absolute; left: {{ e.left }}px; top: {{ e.top }}px; width: 86px; height: {{ e.h }}px; box-sizing: border-box; padding: 5px 6px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; border: 0; border-radius: 7px; background: {{ e.bg }}; color: {{ e.fg }}; text-align: left; overflow: hidden; box-shadow: {{ e.ring }}">
+<span style="font-size: 12px; font-weight: 700; line-height: 1.2">{{ e.title }}</span>
+<span style="font-size: 11px; opacity: 0.85">{{ e.time }}</span>
+<sc-if value="{{ e.hasNote }}" hint-placeholder-val="{{ false }}">
+<span style="display: flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z"/></svg>notes</span>
+</sc-if>
+</button>
+</sc-for>
+<div aria-label="Now, 1:30 PM" style="position: absolute; left: 406px; top: 390px; width: 95px; height: 2px; background: #C44A3C"></div>
+<div style="position: absolute; left: 402px; top: 386px; width: 10px; height: 10px; border-radius: 999px; background: #C44A3C"></div>
+</div>
+
+<aside style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 18px; display: flex; flex-direction: column; gap: 14px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 14px">
+<sc-if value="{{ panelEvent }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #5E574C"><span style="width: 10px; height: 10px; border-radius: 3px; background: {{ sel.dot }}"></span>{{ sel.cal }}</span>
+<h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1">{{ sel.title }}</h2>
+<span style="font-size: 14px; color: #3D3830">{{ sel.when }}</span>
+</div>
+<div style="height: 1px; background: #EAE3D5"></div>
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C">Notes for this event</span>
+<sc-if value="{{ sel.hasNote }}" hint-placeholder-val="{{ true }}">
+<a href="Canvas.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 10px; border: 1px solid #DDD4C2; border-radius: 12px; color: #1E1C19">
+<span style="width: 56px; height: 44px; flex-shrink: 0; border-radius: 6px; border: 1px solid #E4DCCB; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1px, transparent 1.1px); background-size: 8px 8px; display: flex; align-items: center; justify-content: center; font-family: Caveat, cursive; font-size: 15px; color: #2B5A8C">notes</span>
+<span style="display: flex; flex-direction: column; gap: 1px; min-width: 0"><span style="font-size: 14px; font-weight: 600">{{ sel.note }}</span><span style="font-size: 12px; color: #5E574C">{{ sel.noteMeta }}</span></span>
+</a>
+</sc-if>
+<sc-if value="{{ sel.noNote }}" hint-placeholder-val="{{ false }}">
+<span style="font-size: 14px; color: #5E574C">No notes yet.</span>
+</sc-if>
+<div style="display: flex; gap: 8px">
+<a href="Canvas.dc.html" style="flex-grow: 1; display: flex; align-items: center; justify-content: center; height: 44px; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 14px; font-weight: 600">{{ sel.cta }}</a>
+<a href="Templates.dc.html" style="display: flex; align-items: center; justify-content: center; height: 44px; padding: 0 12px; border: 1px solid #CFC5B1; border-radius: 12px; color: #1E1C19; font-size: 14px; font-weight: 500">Template</a>
+</div>
+<sc-if value="{{ sel.hasDeck }}" hint-placeholder-val="{{ true }}">
+<a href="Study.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #F6E6D8; color: #5A2A12">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="14" height="12" rx="2"/><path d="M7 5h12a2 2 0 0 1 2 2v9"/></svg>
+<span style="display: flex; flex-direction: column"><span style="font-size: 14px; font-weight: 600">Review before class</span><span style="font-size: 12px">Physics — Momentum · 5 cards due</span></span>
+</a>
+</sc-if>
+<div style="flex-grow: 1"></div>
+<span style="font-size: 12px; color: #5E574C">Changes here also update {{ sel.source }}.</span>
+</sc-if>
+
+<sc-if value="{{ panelConnect }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 24px; font-weight: 400">Calendars</h2>
+<button aria-label="Close" onClick="{{ hideConnect }}" style="width: 44px; height: 44px; margin: -10px -10px -10px 0; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #5E574C"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid #DDD4C2; border-radius: 12px">
+<span style="font-size: 14px; font-weight: 600">Google · connected</span>
+<span style="font-size: 12px; color: #5E574C">[your Gmail address]</span>
+<span style="font-size: 13px; color: #3D3830">School, Personal</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid #DDD4C2; border-radius: 12px">
+<span style="font-size: 14px; font-weight: 600">Outlook · connected</span>
+<span style="font-size: 12px; color: #5E574C">[your work account]</span>
+<span style="font-size: 13px; color: #3D3830">Work</span>
+</div>
+<button style="height: 44px; border: 1px solid #CFC5B1; border-radius: 12px; background: transparent; color: #1E1C19; font-size: 14px; font-weight: 600">Add a Google account</button>
+<button style="height: 44px; border: 1px solid #CFC5B1; border-radius: 12px; background: transparent; color: #1E1C19; font-size: 14px; font-weight: 600">Add Outlook / Microsoft 365</button>
+<div style="flex-grow: 1"></div>
+<span style="font-size: 12px; line-height: 1.45; color: #5E574C">Syncs both ways. Note deadlines come from dates you write in notes and task boards.</span>
+</sc-if>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: 7, panel: 'event', hidden: {} };
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var calDefs = {
+      school: { label: 'School', source: 'Google', dot: '#2B5A8C', bg: '#E1E9F3', fg: '#214A75', full: 'School · Google Calendar', src: 'Google Calendar' },
+      personal: { label: 'Personal', source: 'Google', dot: '#3E7B4F', bg: '#E3ECE4', fg: '#2F5D3A', full: 'Personal · Google Calendar', src: 'Google Calendar' },
+      work: { label: 'Work', source: 'Outlook', dot: '#B5532A', bg: '#F6E1D6', fg: '#8E4220', full: 'Work · Outlook', src: 'Outlook' },
+      deadlines: { label: 'Note deadlines', source: '', dot: '#7A4E73', bg: '#EDE3EC', fg: '#5F3A59', full: 'Note deadlines', src: 'your notes' }
+    };
+    var cals = Object.keys(calDefs).map(function (k) {
+      var c = calDefs[k], on = !st.hidden[k];
+      return { label: c.label, source: c.source, on: on ? 'true' : 'false', bg: on ? '#FFFDF8' : 'transparent', fg: on ? '#1E1C19' : '#5E574C', swatch: on ? c.dot : 'transparent', dot: c.dot,
+        toggle: function () { var h = Object.assign({}, st.hidden); h[k] = !h[k]; self.setState({ hidden: h }); } };
+    });
+    var dayNames = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    var days = dayNames.map(function (n, i) {
+      var today = i === 4;
+      return { name: n, num: 21 + i, bg: today ? 'rgba(43,90,140,0.06)' : 'transparent', labelColor: today ? '#214A75' : '#5E574C', numBg: today ? '#2B5A8C' : 'transparent', numFg: today ? '#FFFDF8' : '#1E1C19' };
+    });
+    var hours = [];
+    for (var hh = 8; hh < 18; hh++) { hours.push({ top: 72 + (hh - 8) * 58, label: (hh > 12 ? hh - 12 : hh) + (hh >= 12 ? ' PM' : ' AM') }); }
+    var fmt = function (t) { var h = Math.floor(t), m = Math.round((t - h) * 60); var hr = h > 12 ? h - 12 : h; return hr + ':' + (m < 10 ? '0' + m : m); };
+    var ev = [
+      { d: 0, s: 10, e: 11.25, cal: 'school', title: 'Physics lecture', note: 'Physics — Lecture notes', noteMeta: 'Page 1 · Mon', deck: true },
+      { d: 0, s: 13, e: 14, cal: 'work', title: 'Team meeting', note: 'Team meeting', noteMeta: 'Work · Sep 21' },
+      { d: 1, s: 9, e: 10.5, cal: 'school', title: 'Calculus II', note: 'Calculus II', noteMeta: 'Page 8 · Tue' },
+      { d: 1, s: 15, e: 15.5, cal: 'work', title: 'Check-in', note: null },
+      { d: 2, s: 10, e: 11.25, cal: 'school', title: 'Physics lecture', note: 'Physics — Lecture notes', noteMeta: 'Page 2 · Wed', deck: true },
+      { d: 2, s: 15, e: 17, cal: 'school', title: 'Lab 4', note: 'Lab journal', noteMeta: 'Page 2 · Wed' },
+      { d: 3, s: 9, e: 10.5, cal: 'school', title: 'Calculus II', note: null },
+      { d: 4, s: 10, e: 11.25, cal: 'school', title: 'Physics lecture', note: 'Physics — Lecture notes', noteMeta: 'Page 3 · today', deck: true },
+      { d: 4, s: 14, e: 15, cal: 'school', title: 'Study group', note: null, deck: true },
+      { d: 3, s: 17, e: 18, cal: 'personal', title: 'Gym', note: null },
+      { d: 5, s: 11, e: 12, cal: 'personal', title: 'Garden', note: 'Garden ideas', noteMeta: 'Personal · Sep 19' }
+    ];
+    var dayNamesLong = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    var events = [];
+    ev.forEach(function (x, i) {
+      if (st.hidden[x.cal]) return;
+      var c = calDefs[x.cal], on = st.sel === i && st.panel === 'event';
+      events.push({ title: x.title, time: fmt(x.s) + '–' + fmt(x.e), left: 46 + x.d * 91 + 2, top: 72 + (x.s - 8) * 58 + 1, h: Math.max(26, (x.e - x.s) * 58 - 3), bg: c.bg, fg: c.fg,
+        ring: on ? '0 0 0 2px #FFFDF8, 0 0 0 4px ' + c.dot : 'none', on: on ? 'true' : 'false', hasNote: !!x.note,
+        pick: function () { self.setState({ sel: i, panel: 'event' }); } });
+    });
+    var s = ev[st.sel], sc = calDefs[s.cal];
+    return {
+      cals: cals, days: days, hours: hours, events: events,
+      showDeadlines: !st.hidden.deadlines,
+      panelEvent: st.panel === 'event', panelConnect: st.panel === 'connect',
+      showConnect: function () { self.setState({ panel: 'connect' }); },
+      hideConnect: function () { self.setState({ panel: 'event' }); },
+      sel: { title: s.title, cal: sc.full, dot: sc.dot, source: sc.src, when: dayNamesLong[s.d] + ', Sep ' + (21 + s.d) + ' · ' + fmt(s.s) + ' – ' + fmt(s.e),
+        hasNote: !!s.note, noNote: !s.note, note: s.note || '', noteMeta: s.noteMeta || '', cta: s.note ? 'Open notes' : 'Start notes', hasDeck: !!s.deck }
+    };
+  }
+}
+</script>
+</body>
+</html>

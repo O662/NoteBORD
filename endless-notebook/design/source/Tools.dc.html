@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Straighten, ruler and laser</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#EEE7D8;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 16px; background: #EEE7D8; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; height: 330px">
+<div style="position: relative; overflow: hidden; border: 1px solid #DDD4C2; border-radius: 16px; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.2px, transparent 1.3px); background-size: 24px 24px">
+<span style="position: absolute; left: 14px; top: 14px; padding: 4px 10px; border-radius: 999px; background: #FFFDF8; border: 1px solid #DDD4C2; font-size: 13px; font-weight: 600">1 · Draw</span>
+<svg width="400" height="330" viewBox="0 0 400 330" fill="none" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 0; top: 0" aria-label="A shaky hand-drawn line">
+<path d="M40 230 C 70 222, 88 214, 110 206 S 150 186, 170 184 S 210 168, 236 158 S 280 140, 300 134 S 330 120, 344 116" stroke="#2B5A8C" stroke-width="3"/>
+</svg>
+<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1E1C19" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 342px; top: 88px" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z"/></svg>
+</div>
+
+<div style="position: relative; overflow: hidden; border: 1px solid #DDD4C2; border-radius: 16px; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.2px, transparent 1.3px); background-size: 24px 24px">
+<span style="position: absolute; left: 14px; top: 14px; padding: 4px 10px; border-radius: 999px; background: #FFFDF8; border: 1px solid #DDD4C2; font-size: 13px; font-weight: 600">2 · Keep the pen down and hold</span>
+<svg width="400" height="330" viewBox="0 0 400 330" fill="none" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 0; top: 0" aria-label="The line with a progress ring at its end">
+<path d="M40 230 C 70 222, 88 214, 110 206 S 150 186, 170 184 S 210 168, 236 158 S 280 140, 300 134 S 330 120, 344 116" stroke="#2B5A8C" stroke-width="3" stroke-opacity="0.45"/>
+<path d="M40 230 L344 116" stroke="#2B5A8C" stroke-width="2" stroke-dasharray="6 6" stroke-opacity="0.8"/>
+<circle cx="344" cy="116" r="20" stroke="#DDD4C2" stroke-width="4"/>
+<path d="M344 96 A20 20 0 1 1 325 123" stroke="#2B5A8C" stroke-width="4"/>
+</svg>
+<div role="status" style="position: absolute; left: 0; right: 0; bottom: 18px; display: flex; justify-content: center"><span style="padding: 9px 14px; border-radius: 999px; background: #1E1C19; color: #FFFDF8; font-size: 14px">Hold to straighten…</span></div>
+</div>
+
+<div style="position: relative; overflow: hidden; border: 1px solid #DDD4C2; border-radius: 16px; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.2px, transparent 1.3px); background-size: 24px 24px">
+<span style="position: absolute; left: 14px; top: 14px; padding: 4px 10px; border-radius: 999px; background: #FFFDF8; border: 1px solid #DDD4C2; font-size: 13px; font-weight: 600">3 · Straightened</span>
+<svg width="400" height="330" viewBox="0 0 400 330" fill="none" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 0; top: 0" aria-label="A perfectly straight line">
+<path d="M40 230 L344 116" stroke="#2B5A8C" stroke-width="3"/>
+<circle cx="40" cy="230" r="6" fill="#FFFDF8" stroke="#2B5A8C" stroke-width="2"/>
+<circle cx="344" cy="116" r="6" fill="#FFFDF8" stroke="#2B5A8C" stroke-width="2"/>
+<path d="M100 230 A60 60 0 0 0 96 208" stroke="#5E574C" stroke-width="1.5"/>
+<path d="M40 230 H 120" stroke="#5E574C" stroke-width="1.5" stroke-dasharray="4 4"/>
+</svg>
+<span style="position: absolute; left: 110px; top: 206px; font-size: 13px; font-weight: 600; color: #3D3830">20°</span>
+<div role="status" style="position: absolute; left: 0; right: 0; bottom: 18px; display: flex; justify-content: center">
+<span style="display: flex; align-items: center; gap: 12px; padding: 4px 4px 4px 14px; border-radius: 999px; background: #1E1C19; color: #FFFDF8; font-size: 14px">Line straightened<button style="height: 36px; padding: 0 12px; border: 0; border-radius: 999px; background: #3D3830; color: #FFFDF8; font-size: 13px; font-weight: 600">Undo</button></span>
+</div>
+</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; flex-grow: 1">
+<div style="position: relative; overflow: hidden; border: 1px solid #DDD4C2; border-radius: 16px; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.2px, transparent 1.3px); background-size: 24px 24px">
+<span style="position: absolute; left: 14px; top: 14px; padding: 4px 10px; border-radius: 999px; background: #FFFDF8; border: 1px solid #DDD4C2; font-size: 13px; font-weight: 600">Ruler</span>
+<div style="position: absolute; left: 40px; top: 190px; width: 560px; height: 72px; transform: rotate(-8deg); transform-origin: 0 0; box-sizing: border-box; border: 1px solid rgba(30,28,25,0.35); border-radius: 8px; background-color: rgba(255,253,248,0.82); background-image: repeating-linear-gradient(90deg, #1E1C19 0 1px, transparent 1px 10px), repeating-linear-gradient(90deg, #1E1C19 0 1.5px, transparent 1.5px 50px); background-size: 100% 12px, 100% 22px; background-repeat: no-repeat; box-shadow: 0 12px 24px -14px rgba(30,28,25,0.6)">
+<span style="position: absolute; left: 250px; top: 28px; padding: 4px 10px; border-radius: 999px; background: #1E1C19; color: #FFFDF8; font-size: 14px; font-weight: 600">8°</span>
+</div>
+<svg width="608" height="398" viewBox="0 0 608 398" fill="none" style="position: absolute; left: 0; top: 0" aria-label="A line drawn along the ruler edge">
+<path d="M66 183 L402 136" stroke="#B5532A" stroke-width="3" stroke-linecap="round"/>
+</svg>
+<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1E1C19" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 400px; top: 108px" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z"/></svg>
+<div role="status" style="position: absolute; left: 0; right: 0; bottom: 18px; display: flex; justify-content: center"><span style="padding: 9px 14px; border-radius: 999px; background: #1E1C19; color: #FFFDF8; font-size: 14px">Two fingers rotate · the pen snaps to the edge</span></div>
+</div>
+
+<div style="position: relative; overflow: hidden; border: 1px solid #DDD4C2; border-radius: 16px; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.2px, transparent 1.3px); background-size: 24px 24px">
+<span style="position: absolute; left: 14px; top: 14px; padding: 4px 10px; border-radius: 999px; background: #FFFDF8; border: 1px solid #DDD4C2; font-size: 13px; font-weight: 600">Laser pointer</span>
+<div role="group" aria-label="Laser color" style="position: absolute; right: 12px; top: 10px; display: flex; gap: 2px; padding: 3px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px">
+<button aria-label="Red laser" aria-pressed="true" style="width: 44px; height: 38px; border: 0; border-radius: 9px; background: #EEE7D8; display: flex; align-items: center; justify-content: center"><span style="width: 16px; height: 16px; border-radius: 999px; background: #E0312B"></span></button>
+<button aria-label="Green laser" aria-pressed="false" style="width: 44px; height: 38px; border: 0; border-radius: 9px; background: transparent; display: flex; align-items: center; justify-content: center"><span style="width: 16px; height: 16px; border-radius: 999px; background: #2E9E4F"></span></button>
+<button aria-label="Blue laser" aria-pressed="false" style="width: 44px; height: 38px; border: 0; border-radius: 9px; background: transparent; display: flex; align-items: center; justify-content: center"><span style="width: 16px; height: 16px; border-radius: 999px; background: #2F6FD6"></span></button>
+</div>
+<div style="position: absolute; left: 56px; top: 96px; font-family: Caveat, 'Segoe Print', cursive; font-size: 48px; font-weight: 600; color: #2B5A8C; line-height: 1">Lecture 3 — Momentum</div>
+<div style="position: absolute; left: 70px; top: 166px; font-family: Caveat, 'Segoe Print', cursive; font-size: 42px; font-weight: 600; color: #1E1C19; line-height: 1">p = m · v</div>
+<div style="position: absolute; left: 56px; top: 226px; font-family: Caveat, 'Segoe Print', cursive; font-size: 34px; color: #1E1C19; line-height: 1.2">total momentum is conserved</div>
+<svg width="608" height="398" viewBox="0 0 608 398" fill="none" stroke-linecap="round" style="position: absolute; left: 0; top: 0" aria-label="Laser trail fading behind the pointer">
+<path d="M60 290 C 120 262, 180 300, 240 272" stroke="#E0312B" stroke-width="5" stroke-opacity="0.12"/>
+<path d="M240 272 C 300 246, 340 290, 400 262" stroke="#E0312B" stroke-width="5" stroke-opacity="0.35"/>
+<path d="M400 262 C 430 250, 450 236, 470 238" stroke="#E0312B" stroke-width="6" stroke-opacity="0.8"/>
+<circle cx="470" cy="238" r="16" fill="#E0312B" fill-opacity="0.22"/>
+<circle cx="470" cy="238" r="7" fill="#E0312B"/>
+</svg>
+<div role="status" style="position: absolute; left: 0; right: 0; bottom: 18px; display: flex; justify-content: center"><span style="padding: 9px 14px; border-radius: 999px; background: #1E1C19; color: #FFFDF8; font-size: 14px">The trail fades in a second and is never saved</span></div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

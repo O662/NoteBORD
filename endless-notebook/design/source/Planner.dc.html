@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Planner</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; display: flex; background: #F6F1E7; overflow: hidden; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<nav aria-label="App" style="width: 272px; flex-shrink: 0; box-sizing: border-box; padding: 22px 16px; background: #EEE7D8; border-right: 1px solid #DDD4C2; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 6px">
+<svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="#1E1C19" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15c0-4 3-6 5.5-6S15 15 15 15s3 6 5.5 6S26 19 26 15s-3-6-5.5-6S15 15 15 15s-3 6-5.5 6S4 19 4 15z"/></svg>
+<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 500; letter-spacing: -0.01em">Endless</div>
+</div>
+<a href="Search.dc.html" style="display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; color: #5E574C; font-size: 15px">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+<span>Search notes &amp; handwriting</span>
+</a>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<a href="Start.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>
+<span>Home</span>
+</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h12"/></svg>
+<span style="flex-grow: 1">All notebooks</span><span style="font-size: 13px; color: #5E574C">24</span>
+</a>
+<a href="Calendar.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; background: #E0D6C2; font-size: 15px; font-weight: 600; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>
+<span>Calendar</span>
+</a>
+<a href="Study.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="14" height="12" rx="2"/><path d="M7 5h12a2 2 0 0 1 2 2v9"/></svg>
+<span style="flex-grow: 1">Flashcards</span><span style="font-size: 12px; font-weight: 700; color: #FFFDF8; background: #B5532A; padding: 1px 7px; border-radius: 999px">5</span>
+</a>
+<a href="Remember.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#E8B730" stroke="#8A6400" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z"/></svg>
+<span style="flex-grow: 1">Remember</span><span style="font-size: 12px; font-weight: 700; color: #5A4000; background: #FBEFC4; padding: 1px 7px; border-radius: 999px">8</span>
+</a>
+<button style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border: 0; background: transparent; border-radius: 10px; font-size: 15px; color: #1E1C19; text-align: left">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg>
+<span>Trash</span>
+</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="padding: 0 12px 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C">Folders</span>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#2B5A8C" fill-opacity="0.16" stroke="#2B5A8C" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>School</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#B5532A" fill-opacity="0.16" stroke="#B5532A" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Work</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#4E7A52" fill-opacity="0.16" stroke="#4E7A52" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Personal</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#7A4E73" fill-opacity="0.16" stroke="#7A4E73" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Sketches</a>
+</div>
+<div style="flex-grow: 1"></div>
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="Sync.dc.html" style="flex-grow: 1; display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 12px; box-sizing: border-box; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3B6E47" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z"/><path d="M9.5 13.5l2 2 3.5-3.5"/></svg>
+<span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 14px; font-weight: 600">Synced · Google Drive</span><span style="font-size: 12px; color: #5E574C">2 minutes ago</span></span>
+</a>
+<a href="Sync.dc.html" aria-label="Settings" style="width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+</a>
+</div>
+</nav>
+
+<main style="flex-grow: 1; box-sizing: border-box; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; min-width: 0">
+<div style="display: flex; align-items: center; gap: 10px">
+<nav aria-label="Calendar or planner" style="display: flex; padding: 3px; gap: 2px; background: #1E1C19; border-radius: 12px">
+<a href="Calendar.dc.html" style="display: flex; align-items: center; height: 38px; padding: 0 14px; border-radius: 9px; color: #FFFDF8; font-size: 14px; font-weight: 600">Calendar</a>
+<a href="Planner.dc.html" aria-current="page" style="display: flex; align-items: center; height: 38px; padding: 0 14px; border-radius: 9px; background: #FFFDF8; color: #1E1C19; font-size: 14px; font-weight: 700">Planner</a>
+</nav>
+<h1 style="margin: 0 0 0 6px; flex-grow: 1; font-family: Newsreader, Georgia, serif; font-size: 30px; font-weight: 400; white-space: nowrap">{{ heading }}</h1>
+<button aria-label="Previous" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+<button aria-label="Next" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+<div role="radiogroup" aria-label="Plan range" style="display: flex; padding: 3px; gap: 2px; background: #EEE7D8; border-radius: 12px">
+<sc-for list="{{ ranges }}" as="r" hint-placeholder-count="3">
+<button role="radio" aria-checked="{{ r.on }}" onClick="{{ r.pick }}" style="height: 38px; padding: 0 14px; border: 0; border-radius: 9px; background: {{ r.bg }}; color: #1E1C19; font-size: 14px; font-weight: {{ r.weight }}; box-shadow: {{ r.shadow }}">{{ r.label }}</button>
+</sc-for>
+</div>
+</div>
+
+<sc-if value="{{ isToday }}" hint-placeholder-val="{{ true }}">
+<div style="flex-grow: 1; display: grid; grid-template-columns: 290px minmax(0, 1fr) 280px; gap: 14px; min-height: 0">
+
+<div style="display: flex; flex-direction: column; gap: 14px">
+<section aria-label="Top 3 priorities" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 14px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C">TOP 3 TODAY</span>
+<sc-for list="{{ priorities }}" as="p" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 10px; min-height: 40px; border-bottom: 1px solid #C9D6E3">
+<span style="width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 999px; background: {{ p.bg }}; color: {{ p.fg }}; font-size: 12px; font-weight: 700">{{ p.n }}</span>
+<span style="font-family: Caveat, 'Segoe Print', cursive; font-size: 24px; line-height: 1; text-decoration: {{ p.deco }}">{{ p.label }}</span>
+</div>
+</sc-for>
+</section>
+<section aria-label="To-do" style="flex-grow: 1; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 14px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C; padding-bottom: 4px">TO-DO</span>
+<sc-for list="{{ todos }}" as="t" hint-placeholder-count="5">
+<label style="display: flex; align-items: center; gap: 10px; min-height: 44px">
+<input type="checkbox" checked="{{ t.done }}" onChange="{{ t.toggle }}" style="width: 20px; height: 20px; margin: 0; flex-shrink: 0; accent-color: #2B5A8C">
+<span style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px">
+<span style="font-size: 14px; text-decoration: {{ t.deco }}; color: {{ t.color }}">{{ t.label }}</span>
+<span style="font-size: 11px; color: #5E574C">{{ t.from }}</span>
+</span>
+<span aria-hidden="true" style="color: #BFB49E; font-size: 16px; letter-spacing: -2px">⋮⋮</span>
+</label>
+</sc-for>
+<span style="margin-top: 6px; padding: 10px; border: 1.5px dashed #CFC5B1; border-radius: 10px; font-family: Caveat, cursive; font-size: 22px; color: #5E574C">write a task…</span>
+</section>
+</div>
+
+<section aria-label="Schedule" style="position: relative; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 14px; overflow: hidden">
+<div style="position: absolute; left: 0; right: 0; top: 0; height: 44px; box-sizing: border-box; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #EAE3D5">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C">SCHEDULE</span>
+<span style="font-size: 12px; color: #5E574C">Drag a to-do here to block time</span>
+</div>
+<sc-for list="{{ hours }}" as="h" hint-placeholder-count="11">
+<div style="position: absolute; left: 0; right: 0; top: {{ h.top }}px; height: 58px; border-top: 1px solid #F0EADF">
+<span style="position: absolute; left: 10px; top: 3px; font-size: 11px; color: #5E574C">{{ h.label }}</span>
+</div>
+</sc-for>
+<sc-for list="{{ blocks }}" as="b" hint-placeholder-count="5">
+<div style="position: absolute; left: 62px; right: 12px; top: {{ b.top }}px; height: {{ b.h }}px; box-sizing: border-box; padding: 5px 10px; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; border-radius: 8px; background: {{ b.bg }}; color: {{ b.fg }}; border: {{ b.border }}; overflow: hidden">
+<span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 13px; font-weight: 700">{{ b.label }}</span><span style="font-size: 11px">{{ b.time }}</span></span>
+<span style="font-size: 11px; font-weight: 600; white-space: nowrap">{{ b.tag }}</span>
+</div>
+</sc-for>
+<div aria-label="Now, 1:30 PM" style="position: absolute; left: 56px; right: 0; top: 364px; height: 2px; background: #C44A3C"></div>
+<div style="position: absolute; left: 52px; top: 360px; width: 10px; height: 10px; border-radius: 999px; background: #C44A3C"></div>
+</section>
+
+<div style="display: flex; flex-direction: column; gap: 14px">
+<section aria-label="Notes for today" style="flex-grow: 1; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; background-color: #FFFDF8; background-image: repeating-linear-gradient(180deg, transparent 0 31px, #C9D6E3 31px 32px); background-position: 0 42px; border: 1px solid #DDD4C2; border-radius: 14px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C">NOTES FOR TODAY</span>
+<div style="font-family: Caveat, 'Segoe Print', cursive; font-size: 24px; line-height: 32px; padding-top: 2px">ask prof: is θ always<br>from the ground?<br>bring calculator Mon<br>Maya → lab data by Sun</div>
+</section>
+<section aria-label="Tomorrow" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 14px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C">TOMORROW · SAT 26</span>
+<span style="display: flex; align-items: center; gap: 8px; font-size: 13px"><span style="width: 8px; height: 8px; border-radius: 3px; background: #3E7B4F"></span>11:00 Garden</span>
+<span style="display: flex; align-items: center; gap: 8px; font-size: 13px"><span style="width: 8px; height: 8px; border-radius: 3px; background: #B5532A"></span>Flashcards · 20 min</span>
+</section>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isThree }}" hint-placeholder-val="{{ false }}">
+<div style="flex-grow: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; min-height: 0">
+<sc-for list="{{ three }}" as="d" hint-placeholder-count="3">
+<section style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: #FFFDF8; border: {{ d.border }}; border-radius: 14px">
+<div style="display: flex; align-items: baseline; justify-content: space-between">
+<span style="font-family: Newsreader, Georgia, serif; font-size: 24px">{{ d.name }}</span>
+<span style="font-size: 12px; font-weight: 700; color: #214A75">{{ d.tag }}</span>
+</div>
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C">SCHEDULE</span>
+<sc-for list="{{ d.items }}" as="it" hint-placeholder-count="3">
+<div style="display: flex; gap: 8px; align-items: center">
+<span style="width: 44px; flex-shrink: 0; font-size: 12px; color: #5E574C">{{ it.t }}</span>
+<span style="flex-grow: 1; padding: 7px 10px; border-radius: 8px; background: {{ it.bg }}; color: {{ it.fg }}; border: {{ it.border }}; font-size: 13px; font-weight: 600">{{ it.label }}</span>
+</div>
+</sc-for>
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C; padding-top: 6px">TO-DO</span>
+<sc-for list="{{ d.todos }}" as="td" hint-placeholder-count="2">
+<label style="display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 14px">
+<input type="checkbox" style="width: 20px; height: 20px; margin: 0; accent-color: #2B5A8C">
+<span>{{ td }}</span>
+</label>
+</sc-for>
+<div style="flex-grow: 1; min-height: 90px; margin-top: 4px; padding: 10px; border-radius: 10px; background-color: #F6F1E7; background-image: repeating-linear-gradient(180deg, transparent 0 29px, #D6DEE8 29px 30px); font-family: Caveat, 'Segoe Print', cursive; font-size: 22px; line-height: 30px; color: #3D3830">{{ d.ink }}</div>
+</section>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ isWeek }}" hint-placeholder-val="{{ false }}">
+<section aria-label="Week goals" style="display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 14px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C; white-space: nowrap">WEEK GOALS</span>
+<span style="font-family: Caveat, 'Segoe Print', cursive; font-size: 26px; line-height: 1.1">finish ch. 9 · lab report draft · 30 flashcards a day · rest Sunday</span>
+</section>
+<div style="flex-grow: 1; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; min-height: 0">
+<sc-for list="{{ week }}" as="d" hint-placeholder-count="7">
+<section style="display: flex; flex-direction: column; gap: 6px; padding: 10px 8px; background: {{ d.bg }}; border: {{ d.border }}; border-radius: 12px">
+<span style="font-size: 12px; font-weight: 700; color: {{ d.labelColor }}">{{ d.name }}</span>
+<sc-for list="{{ d.items }}" as="it" hint-placeholder-count="3">
+<span style="padding: 6px 7px; border-radius: 7px; background: {{ it.bg }}; color: {{ it.fg }}; border: {{ it.border }}; font-size: 11px; font-weight: 600; line-height: 1.25">{{ it.label }}</span>
+</sc-for>
+</section>
+</sc-for>
+</div>
+<section aria-label="Not scheduled yet" style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #FFFDF8; border: 1.5px dashed #BFB49E; border-radius: 14px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C; white-space: nowrap; margin-right: 4px">NOT SCHEDULED</span>
+<span style="padding: 8px 12px; border-radius: 8px; background: #F6F1E7; font-size: 13px; font-weight: 600">Print formula sheet</span>
+<span style="padding: 8px 12px; border-radius: 8px; background: #F6F1E7; font-size: 13px; font-weight: 600">Email lab partner</span>
+<span style="padding: 8px 12px; border-radius: 8px; background: #F6F1E7; font-size: 13px; font-weight: 600">Re-do trial 3</span>
+<span style="font-size: 12px; color: #5E574C; margin-left: auto">Drag onto a day</span>
+</section>
+</sc-if>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { range: 'today', done: { a: true } };
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var blue = { bg: '#E1E9F3', fg: '#214A75' }, green = { bg: '#E3ECE4', fg: '#2F5D3A' }, plum = { bg: '#EDE3EC', fg: '#5F3A59' }, clay = { bg: '#F6E1D6', fg: '#8E4220' };
+    var headings = { today: 'Friday, Sep 25', three: 'Fri 25 – Sun 27', week: 'Week of Sep 21' };
+    var ranges = [{ id: 'today', label: 'Today' }, { id: 'three', label: '3 days' }, { id: 'week', label: 'Week' }].map(function (r) {
+      var on = st.range === r.id;
+      return { label: r.label, on: on ? 'true' : 'false', bg: on ? '#FFFDF8' : 'transparent', weight: on ? 700 : 500, shadow: on ? '0 1px 2px rgba(30,28,25,0.15)' : 'none', pick: function () { self.setState({ range: r.id }); } };
+    });
+    var priorities = [
+      { n: 1, label: 'Lab report intro', done: false },
+      { n: 2, label: '20 min flashcards', done: true },
+      { n: 3, label: 'Problem set Q1–5', done: false }
+    ].map(function (p) { return { n: p.n, label: p.label, bg: p.done ? '#3E7B4F' : '#EEE7D8', fg: p.done ? '#FFFDF8' : '#1E1C19', deco: p.done ? 'line-through' : 'none' }; });
+    var todoDefs = [
+      { id: 'a', label: 'Review flashcards', from: 'Physics — Momentum deck' },
+      { id: 'b', label: 'Read ch. 9 (p. 214–230)', from: 'Study tasks board' },
+      { id: 'c', label: 'Problem set 4, Q1–5', from: 'Study tasks board' },
+      { id: 'd', label: 'Email lab partner', from: 'Lab journal, page 2' },
+      { id: 'e', label: 'Print formula sheet', from: 'Added here' }
+    ];
+    var todos = todoDefs.map(function (t) {
+      var d = !!st.done[t.id];
+      return { label: t.label, from: t.from, done: d, deco: d ? 'line-through' : 'none', color: d ? '#5E574C' : '#1E1C19', toggle: function () { var x = Object.assign({}, st.done); x[t.id] = !d; self.setState({ done: x }); } };
+    });
+    var hours = [];
+    for (var hh = 8; hh <= 18; hh++) { hours.push({ top: 44 + (hh - 8) * 58, label: (hh > 12 ? hh - 12 : hh) + (hh >= 12 ? ' PM' : ' AM') }); }
+    var fmt = function (t) { var h = Math.floor(t), m = Math.round((t - h) * 60); var hr = h > 12 ? h - 12 : h; return hr + ':' + (m < 10 ? '0' + m : m); };
+    var blk = function (label, s, e, c, planned, tag) { return { label: label, time: fmt(s) + ' – ' + fmt(e), top: 44 + (s - 8) * 58 + 2, h: Math.max(30, (e - s) * 58 - 4), bg: planned ? '#FFFDF8' : c.bg, fg: c.fg, border: planned ? '1.5px dashed ' + c.fg : '1.5px solid transparent', tag: tag }; };
+    var blocks = [
+      blk('Physics lecture', 10, 11.25, blue, false, 'Google'),
+      blk('Review flashcards', 11.5, 12, clay, true, 'Planned'),
+      blk('Lunch', 12.25, 13, green, false, 'Google'),
+      blk('Study group', 14, 15, blue, false, 'Google'),
+      blk('Lab report draft', 15.5, 17, plum, true, 'Planned')
+    ];
+    var it = function (t, label, c, planned) { return { t: t, label: label, bg: planned ? '#FFFDF8' : c.bg, fg: c.fg, border: planned ? '1.5px dashed ' + c.fg : '1.5px solid transparent' }; };
+    var three = [
+      { name: 'Fri 25', tag: 'TODAY', border: '2px solid #2B5A8C', items: [it('10:00', 'Physics lecture', blue), it('2:00', 'Study group', blue), it('3:30', 'Lab report draft', plum, true)], todos: ['Problem set 4, Q1–5', 'Email lab partner'], ink: 'bring calculator Monday' },
+      { name: 'Sat 26', tag: '', border: '1px solid #DDD4C2', items: [it('11:00', 'Garden', green), it('2:00', 'Flashcards · 20 min', clay, true)], todos: ['Read ch. 9'], ink: 'call grandma' },
+      { name: 'Sun 27', tag: '', border: '1px solid #DDD4C2', items: [it('all day', 'Problem set 4 due', plum), it('', 'Rest day', green)], todos: ['Submit problem set'], ink: '' }
+    ];
+    var w = function (label, c, planned) { return { label: label, bg: planned ? '#FFFDF8' : c.bg, fg: c.fg, border: planned ? '1.5px dashed ' + c.fg : '1.5px solid transparent' }; };
+    var weekDefs = [
+      ['Mon 21', [w('Physics lecture', blue), w('Team meeting', clay), w('Flashcards', clay, true)]],
+      ['Tue 22', [w('Calculus II', blue), w('Check-in', clay), w('Read ch. 9 · part 1', plum, true)]],
+      ['Wed 23', [w('Physics lecture', blue), w('Lab 4', blue)]],
+      ['Thu 24', [w('Calculus II', blue), w('Gym', green), w('Flashcards', clay, true)]],
+      ['Fri 25', [w('Physics lecture', blue), w('Study group', blue), w('Lab report draft', plum, true)]],
+      ['Sat 26', [w('Garden', green), w('Flashcards', clay, true)]],
+      ['Sun 27', [w('Problem set 4 due', plum), w('Rest day', green)]]
+    ];
+    var week = weekDefs.map(function (d, i) {
+      var today = i === 4;
+      return { name: d[0], items: d[1], bg: today ? '#FFFDF8' : '#FBF8F1', border: today ? '2px solid #2B5A8C' : '1px solid #DDD4C2', labelColor: today ? '#214A75' : '#1E1C19' };
+    });
+    return {
+      heading: headings[st.range], ranges: ranges,
+      isToday: st.range === 'today', isThree: st.range === 'three', isWeek: st.range === 'week',
+      priorities: priorities, todos: todos, hours: hours, blocks: blocks, three: three, week: week
+    };
+  }
+}
+</script>
+</body>
+</html>

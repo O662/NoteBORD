@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Math equations</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; overflow: hidden; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.3px, transparent 1.4px); background-size: 26px 26px; background-position: 13px 13px; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<div style="position: absolute; left: 110px; top: 92px; font-family: Caveat, 'Segoe Print', cursive; font-size: 46px; font-weight: 600; color: #2B5A8C; line-height: 1">Lecture 4 — Energy &amp; impulse</div>
+
+<div style="position: absolute; left: 124px; top: 166px; font-family: Caveat, 'Segoe Print', cursive; font-size: 42px; line-height: 1">v = √(v₀² + 2gh)</div>
+<sc-if value="{{ notConverted }}" hint-placeholder-val="{{ true }}">
+<svg width="380" height="96" viewBox="0 0 380 96" fill="none" style="position: absolute; left: 100px; top: 146px" aria-label="Lasso around a handwritten equation">
+<path d="M16 18 C 100 2, 290 2, 360 16 C 380 36, 376 76, 350 84 C 250 96, 90 96, 24 82 C 4 66, 4 32, 16 18 Z" stroke="#2B5A8C" stroke-width="2" stroke-dasharray="7 6" fill="rgba(43,90,140,0.05)"/>
+</svg>
+<div role="menu" aria-label="Selection actions" style="position: absolute; left: 110px; top: 250px; display: flex; gap: 2px; padding: 3px; background: #1E1C19; border-radius: 12px; box-shadow: 0 8px 20px -10px rgba(30,28,25,0.6)">
+<button role="menuitem" onClick="{{ convert }}" style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px; border: 0; border-radius: 9px; background: #2B5A8C; color: #FFFDF8; font-size: 14px; font-weight: 700"><span style="font-family: Newsreader, Georgia, serif; font-size: 17px">∑</span>Convert to math</button>
+<button role="menuitem" style="height: 40px; padding: 0 11px; border: 0; border-radius: 9px; background: transparent; color: #FFFDF8; font-size: 14px">Graph it</button>
+<button role="menuitem" style="height: 40px; padding: 0 11px; border: 0; border-radius: 9px; background: transparent; color: #FFFDF8; font-size: 14px">Copy as LaTeX</button>
+</div>
+<div style="position: absolute; left: 520px; top: 158px; display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C">PREVIEW</span>
+<span style="display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: #FFFDF8; border: 1.5px dashed #2B5A8C; border-radius: 12px; font-family: Newsreader, 'Cambria Math', Georgia, serif; font-size: 30px"><i>v</i> = √<span style="border-top: 2px solid #1E1C19; padding: 0 4px"><i>v</i><sub style="font-size: 16px">0</sub><sup style="font-size: 16px">2</sup> + 2<i>gh</i></span></span>
+</div>
+</sc-if>
+<sc-if value="{{ converted }}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: 110px; top: 150px; width: 420px; height: 80px; background: #F6F1E7"></div>
+<span style="position: absolute; left: 110px; top: 156px; display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; font-family: Newsreader, 'Cambria Math', Georgia, serif; font-size: 32px"><i>v</i> = √<span style="border-top: 2px solid #1E1C19; padding: 0 4px"><i>v</i><sub style="font-size: 17px">0</sub><sup style="font-size: 17px">2</sup> + 2<i>gh</i></span></span>
+<div role="status" style="position: absolute; left: 110px; top: 236px; display: flex; align-items: center; gap: 10px; padding: 4px 4px 4px 14px; border-radius: 999px; background: #1E1C19; color: #FFFDF8; font-size: 13px">Converted to math — tap to edit<button onClick="{{ undo }}" style="height: 36px; padding: 0 12px; border: 0; border-radius: 999px; background: #3D3830; color: #FFFDF8; font-size: 13px; font-weight: 600">Undo</button></div>
+</sc-if>
+
+<div style="position: absolute; left: 110px; top: 316px; display: flex; gap: 16px; align-items: stretch">
+<span style="display: flex; align-items: center; padding: 10px 16px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; font-family: Newsreader, 'Cambria Math', Georgia, serif; font-size: 30px"><i>F</i>&nbsp;=&nbsp;<span style="display: inline-flex; flex-direction: column; align-items: center; line-height: 1.05"><span style="padding: 0 4px"><i>dp</i></span><span style="border-top: 2px solid #1E1C19; padding: 0 4px"><i>dt</i></span></span></span>
+<span style="display: flex; align-items: center; padding: 10px 16px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; font-family: Newsreader, 'Cambria Math', Georgia, serif; font-size: 30px"><i>J</i>&nbsp;=&nbsp;<span style="display: inline-flex; align-items: center"><span style="font-size: 46px; line-height: 1">∫</span><span style="display: inline-flex; flex-direction: column; justify-content: space-between; height: 54px; font-size: 15px; margin-left: -2px"><span><i>t</i>₁</span><span><i>t</i>₀</span></span></span>&nbsp;<i>F dt</i>&nbsp;=&nbsp;Δ<i>p</i></span>
+<span style="display: flex; align-items: center; padding: 10px 16px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; font-family: Newsreader, 'Cambria Math', Georgia, serif; font-size: 30px"><i>KE</i>&nbsp;=&nbsp;<span style="display: inline-flex; flex-direction: column; align-items: center; line-height: 1.05; font-size: 24px"><span style="padding: 0 3px">1</span><span style="border-top: 2px solid #1E1C19; padding: 0 3px">2</span></span>&nbsp;<i>mv</i><sup style="font-size: 17px">2</sup></span>
+<span style="display: flex; align-items: center; padding: 10px 16px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; font-family: Newsreader, 'Cambria Math', Georgia, serif; font-size: 30px">Σ&nbsp;<i>p</i><sub style="font-size: 15px">before</sub>&nbsp;=&nbsp;Σ&nbsp;<i>p</i><sub style="font-size: 15px">after</sub></span>
+</div>
+
+<div style="position: absolute; left: 900px; top: 156px; display: flex; flex-direction: column; gap: 10px">
+<span style="display: flex; align-items: center; padding: 10px 16px; background: #FFFDF8; border: 2px solid #2B5A8C; border-radius: 12px; font-family: Newsreader, 'Cambria Math', Georgia, serif; font-size: 30px"><i>ω</i>&nbsp;=&nbsp;<span style="display: inline-flex; flex-direction: column; align-items: center; line-height: 1.05"><span style="padding: 0 4px">Δ<i>θ</i></span><span style="border-top: 2px solid #1E1C19; padding: 0 4px">Δ<i>t</i></span></span></span>
+<span style="font-family: Caveat, 'Segoe Print', cursive; font-size: 24px; color: #5E574C">← typing it now</span>
+</div>
+
+<section aria-label="Math keyboard" style="position: absolute; left: 110px; top: 420px; width: 1060px; box-sizing: border-box; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 18px; box-shadow: 0 24px 48px -24px rgba(30,28,25,0.45)">
+<div style="display: flex; align-items: center; gap: 10px">
+<div aria-label="Equation being edited" style="flex-grow: 1; height: 54px; box-sizing: border-box; padding: 0 16px; display: flex; align-items: center; border: 1.5px solid #2B5A8C; border-radius: 12px; font-family: Newsreader, 'Cambria Math', Georgia, serif; font-size: 28px; font-style: italic">{{ expr }}<span style="width: 2px; height: 30px; margin-left: 3px; background: #2B5A8C"></span></div>
+<button aria-label="Delete last symbol" onClick="{{ back }}" style="width: 54px; height: 54px; display: flex; align-items: center; justify-content: center; border: 1px solid #CFC5B1; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 5H9l-6 7 6 7h12z"/><path d="M12 9l5 6M17 9l-5 6"/></svg></button>
+<button style="height: 54px; padding: 0 16px; border: 1px solid #CFC5B1; border-radius: 12px; background: transparent; color: #1E1C19; font-size: 14px; font-weight: 600">Write it instead</button>
+<button style="height: 54px; padding: 0 22px; border: 0; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 15px; font-weight: 700">Insert</button>
+</div>
+<div role="tablist" aria-label="Symbol sets" style="display: flex; gap: 6px">
+<sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+<button role="tab" aria-selected="{{ t.on }}" onClick="{{ t.pick }}" style="height: 40px; padding: 0 16px; border: 0; border-radius: 10px; background: {{ t.bg }}; color: {{ t.fg }}; font-size: 14px; font-weight: 600">{{ t.label }}</button>
+</sc-for>
+</div>
+<div style="display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px">
+<sc-for list="{{ keys }}" as="k" hint-placeholder-count="36">
+<button aria-label="{{ k.aria }}" onClick="{{ k.press }}" style="height: 48px; border: 1px solid #E4DCCB; border-radius: 10px; background: #F6F1E7; color: #1E1C19; font-family: Newsreader, 'Cambria Math', Georgia, serif; font-size: {{ k.size }}px">{{ k.label }}</button>
+</sc-for>
+</div>
+</section>
+
+<header style="position: absolute; left: 0; top: 0; width: 1280px; height: 72px; box-sizing: border-box; padding: 0 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px">
+<div style="justify-self: start; display: flex; align-items: center; gap: 4px; padding: 4px 16px 4px 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<a href="Canvas.dc.html" aria-label="Back" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+<div style="display: flex; flex-direction: column; gap: 1px">
+<span style="font-size: 16px; font-weight: 600; white-space: nowrap">Physics — Lecture notes</span>
+<span style="font-size: 13px; color: #5E574C; white-space: nowrap">Page 4 of 12 · Saved</span>
+</div>
+</div>
+<div role="toolbar" aria-label="Math mode" style="display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 14px; background: #1E1C19; color: #FFFDF8; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.6)">
+<span style="font-family: Newsreader, Georgia, serif; font-size: 20px">∑</span>
+<span style="font-size: 15px; font-weight: 600">Math mode</span>
+<span style="font-size: 13px; color: #D8D0C0">Handwriting converts as you go</span>
+<a href="MathKit.dc.html" style="display: flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 12px; background: #3D3830; color: #FFFDF8; font-size: 14px; font-weight: 600">Formulas &amp; tools</a>
+<a href="Graph.dc.html" style="display: flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 12px; background: #3D3830; color: #FFFDF8; font-size: 14px; font-weight: 600">Add a graph</a>
+<a href="Canvas.dc.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 12px; background: #FFFDF8; color: #1E1C19; font-size: 14px; font-weight: 700">Done</a>
+</div>
+<div style="justify-self: end; display: flex; align-items: center; gap: 4px; padding: 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<a href="Share.dc.html" style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px 0 14px; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 15px; font-weight: 600">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c.8-3.4 3.2-5 6-5s5.2 1.6 6 5M18 8v6M15 11h6"/></svg>
+Share
+</a>
+<button aria-label="More options" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+</div>
+</header>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'greek', expr: 'ω = Δθ / Δt', converted: false };
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var sets = {
+      greek: 'α β γ δ ε ζ η θ ι κ λ μ ν ξ π ρ σ τ υ φ χ ψ ω ϕ Γ Δ Θ Λ Ξ Π Σ Φ Ψ Ω ∂ ∇'.split(' '),
+      ops: '+ − × ÷ ± ∓ = ≠ ≈ ≡ < > ≤ ≥ ∝ → ⇒ ⇔ ∈ ∉ ⊂ ∪ ∩ ∀ ∃ ∞ · ° ′ ∠ ⊥ ∥ ! % ( )'.split(' '),
+      struct: [['a⁄b', ' / '], ['xⁿ', '^'], ['xₙ', '_'], ['√x', '√('], ['ⁿ√x', 'ⁿ√('], ['∫', '∫ '], ['∫ₐᵇ', '∫ₐᵇ '], ['∑', '∑ '], ['∏', '∏ '], ['lim', 'lim '], ['d⁄dx', 'd/dx '], ['|x|', '| |'], ['sin', 'sin '], ['cos', 'cos '], ['tan', 'tan '], ['log', 'log '], ['ln', 'ln '], ['eˣ', 'e^'], ['x̄', '̄'], ['v⃗', '⃗'], ['[ ]', '[ ]'], ['( )', '( )'], ['matrix', '[[ ]]'], ['n!', '!']],
+      units: 'm s kg N J W Pa Hz m/s m/s² kg·m/s °C K mol A V Ω eV cm mm km g mg L mL h min ms μs nm μm'.split(' ')
+    };
+    var tabDefs = [{ id: 'greek', label: 'Greek  α β γ' }, { id: 'ops', label: 'Operators  ± ≤ →' }, { id: 'struct', label: 'Structures  √ ∫ ∑' }, { id: 'units', label: 'Units' }];
+    var tabs = tabDefs.map(function (t) {
+      var on = st.tab === t.id;
+      return { label: t.label, on: on ? 'true' : 'false', bg: on ? '#1E1C19' : '#EEE7D8', fg: on ? '#FFFDF8' : '#1E1C19', pick: function () { self.setState({ tab: t.id }); } };
+    });
+    var raw = sets[st.tab];
+    var keys = raw.map(function (k) {
+      var label = Array.isArray(k) ? k[0] : k;
+      var ins = Array.isArray(k) ? k[1] : k;
+      return { label: label, aria: 'Insert ' + label, size: label.length > 3 ? 16 : 22, press: function () { self.setState({ expr: st.expr + (st.tab === 'ops' ? ' ' + ins + ' ' : ins) }); } };
+    });
+    return {
+      tabs: tabs, keys: keys, expr: st.expr,
+      back: function () { self.setState({ expr: st.expr.replace(/\s+$/, '').slice(0, -1) }); },
+      converted: st.converted, notConverted: !st.converted,
+      convert: function () { self.setState({ converted: true }); },
+      undo: function () { self.setState({ converted: false }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

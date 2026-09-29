@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Graphs</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; overflow: hidden; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.3px, transparent 1.4px); background-size: 26px 26px; background-position: 13px 13px; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<section aria-label="Graph widget" style="position: absolute; left: 40px; top: 96px; width: 860px; height: 660px; box-sizing: border-box; display: flex; flex-direction: column; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 18px; outline: 2px solid #2B5A8C; outline-offset: 4px; box-shadow: 0 18px 36px -22px rgba(30,28,25,0.5); overflow: hidden">
+<div style="height: 60px; flex-shrink: 0; box-sizing: border-box; padding: 0 12px 0 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #EAE3D5">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#214A75" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v17h17"/><path d="M6 17c3-9 6-11 8-6s3 4 6-4"/></svg>
+<span style="font-size: 16px; font-weight: 700; flex-grow: 1">Graph</span>
+<div role="radiogroup" aria-label="Graph type" style="display: flex; padding: 3px; gap: 2px; background: #EEE7D8; border-radius: 10px">
+<sc-for list="{{ modes }}" as="m" hint-placeholder-count="2">
+<button role="radio" aria-checked="{{ m.on }}" onClick="{{ m.pick }}" style="height: 38px; padding: 0 14px; border: 0; border-radius: 8px; background: {{ m.bg }}; color: #1E1C19; font-size: 14px; font-weight: {{ m.weight }}; box-shadow: {{ m.shadow }}">{{ m.label }}</button>
+</sc-for>
+</div>
+<sc-if value="{{ is3d }}" hint-placeholder-val="{{ false }}">
+<button aria-label="Rotate left" onClick="{{ rotL }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #CFC5B1; border-radius: 10px; background: transparent; color: #1E1C19"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+<button aria-label="Rotate right" onClick="{{ rotR }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #CFC5B1; border-radius: 10px; background: transparent; color: #1E1C19"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>
+</sc-if>
+<button aria-label="Zoom out" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 10px; background: transparent; color: #1E1C19"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+<button aria-label="Zoom in" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 10px; background: transparent; color: #1E1C19"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+</div>
+
+<div style="flex-grow: 1; display: flex; min-height: 0">
+<div style="width: 270px; flex-shrink: 0; box-sizing: border-box; padding: 14px; display: flex; flex-direction: column; gap: 8px; border-right: 1px solid #EAE3D5">
+<sc-if value="{{ is2d }}" hint-placeholder-val="{{ true }}">
+<sc-for list="{{ fns }}" as="f" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 8px 8px 8px 10px; border-radius: 12px; background: #F6F1E7">
+<div style="display: flex; align-items: center; gap: 8px">
+<button aria-label="{{ f.aria }}" aria-pressed="{{ f.onStr }}" onClick="{{ f.toggle }}" style="width: 44px; height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 10px; background: transparent">
+<span style="width: 20px; height: 20px; border-radius: 999px; box-sizing: border-box; border: 3px solid {{ f.color }}; background: {{ f.fill }}"></span>
+</button>
+<span style="font-family: Newsreader, 'Cambria Math', Georgia, serif; font-size: 22px; font-style: italic">{{ f.label }}</span>
+</div>
+<sc-if value="{{ f.fromInk }}" hint-placeholder-val="{{ false }}">
+<span style="display: flex; align-items: center; gap: 6px; padding-left: 52px; font-size: 12px; color: #5E574C">from your handwriting <span style="font-family: Caveat, cursive; font-size: 18px; color: #B5532A">y = 2 sin x</span></span>
+</sc-if>
+</div>
+</sc-for>
+<span style="margin-top: 4px; padding: 12px; border: 1.5px dashed #CFC5B1; border-radius: 12px; font-family: Caveat, cursive; font-size: 22px; color: #5E574C">write or type an equation…</span>
+<div style="flex-grow: 1"></div>
+<div style="display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; background: #E1E9F3; color: #214A75">
+<span style="font-size: 12px; font-weight: 700">TRACE</span>
+<span style="font-family: Newsreader, Georgia, serif; font-size: 18px">x = 2, &nbsp;y = 2</span>
+</div>
+</sc-if>
+<sc-if value="{{ is3d }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 12px; background: #F6F1E7">
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 14px; height: 14px; border-radius: 4px; background: #2B5A8C"></span><span style="font-family: Newsreader, 'Cambria Math', Georgia, serif; font-size: 21px; font-style: italic">z = (x² − y²) / 4</span></span>
+<div style="display: flex; gap: 6px">
+<span style="padding: 4px 10px; border-radius: 999px; background: #1E1C19; color: #FFFDF8; font-size: 12px; font-weight: 600">Wireframe</span>
+<span style="padding: 4px 10px; border-radius: 999px; background: #EEE7D8; font-size: 12px; font-weight: 600">Surface</span>
+</div>
+</div>
+<span style="padding: 12px; border: 1.5px dashed #CFC5B1; border-radius: 12px; font-family: Caveat, cursive; font-size: 22px; color: #5E574C">add a surface or 3D point…</span>
+<div style="flex-grow: 1"></div>
+<span style="font-size: 13px; line-height: 1.45; color: #5E574C">Two fingers rotate the view. Pinch to zoom.</span>
+<span style="font-family: Newsreader, Georgia, serif; font-size: 16px; color: #3D3830">View angle: {{ angle }}°</span>
+</sc-if>
+</div>
+
+<div style="position: relative; flex-grow: 1">
+<sc-if value="{{ is2d }}" hint-placeholder-val="{{ true }}">
+<svg width="570" height="580" viewBox="0 0 570 580" fill="none" aria-label="Graph of y = x squared over 2, y = 2 sin x and y = x + 1" style="display: block">
+<g transform="translate(15 20)">
+<path d="{{ grid2 }}" stroke="#EAE3D5" stroke-width="1"/>
+<path d="{{ axes2 }}" stroke="#8A8274" stroke-width="1.6"/>
+<sc-for list="{{ ticks }}" as="t" hint-placeholder-count="10">
+<foreignObject x="{{ t.x }}" y="{{ t.y }}" width="1" height="1" style="overflow: visible"><div xmlns="http://www.w3.org/1999/xhtml" style="position: absolute; left: 0; top: 0; transform: translate(-50%, -82%); white-space: nowrap; line-height: 1; font-family: Figtree, sans-serif; font-size: 11px; color: #5E574C">{{ t.label }}</div></foreignObject>
+</sc-for>
+<sc-for list="{{ curves }}" as="c" hint-placeholder-count="3">
+<path d="{{ c.d }}" stroke="{{ c.color }}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</sc-for>
+<sc-if value="{{ showTrace }}" hint-placeholder-val="{{ true }}">
+<circle cx="{{ trace.x }}" cy="{{ trace.y }}" r="7" fill="#FFFDF8" stroke="#2B5A8C" stroke-width="3"/>
+<text x="{{ trace.lx }}" y="{{ trace.ly }}" font-family="Newsreader, Georgia, serif" font-size="16" fill="#214A75">(2, 2)</text>
+</sc-if>
+<text x="530" y="{{ xLabelY }}" font-family="Newsreader, Georgia, serif" font-style="italic" font-size="18" fill="#3D3830">x</text>
+<text x="{{ yLabelX }}" y="14" font-family="Newsreader, Georgia, serif" font-style="italic" font-size="18" fill="#3D3830">y</text>
+</g>
+</svg>
+</sc-if>
+<sc-if value="{{ is3d }}" hint-placeholder-val="{{ false }}">
+<svg width="570" height="580" viewBox="0 0 570 580" fill="none" aria-label="3D wireframe of the saddle surface z equals x squared minus y squared over 4" style="display: block">
+<path d="{{ surfA }}" stroke="#2B5A8C" stroke-width="1.4" stroke-opacity="0.85"/>
+<path d="{{ surfB }}" stroke="#7FA3C8" stroke-width="1.2"/>
+<path d="{{ axes3 }}" stroke="#3D3830" stroke-width="2" stroke-linecap="round"/>
+<sc-for list="{{ axisLabels }}" as="a" hint-placeholder-count="3">
+<foreignObject x="{{ a.x }}" y="{{ a.y }}" width="1" height="1" style="overflow: visible"><div xmlns="http://www.w3.org/1999/xhtml" style="position: absolute; left: 0; top: 0; transform: translate(0, -82%); white-space: nowrap; line-height: 1; font-family: Newsreader, Georgia, serif; font-size: 20px; color: #1E1C19; font-style: italic">{{ a.t }}</div></foreignObject>
+</sc-for>
+</svg>
+</sc-if>
+</div>
+</div>
+</section>
+
+<div style="position: absolute; left: 960px; top: 120px; font-family: Caveat, 'Segoe Print', cursive; font-size: 40px; font-weight: 600; color: #2B5A8C; line-height: 1">Graphs hw #3</div>
+<div style="position: absolute; left: 980px; top: 200px; font-family: Caveat, 'Segoe Print', cursive; font-size: 38px; color: #B5532A; line-height: 1">y = 2 sin x</div>
+<svg width="220" height="80" viewBox="0 0 220 80" fill="none" style="position: absolute; left: 958px; top: 182px" aria-hidden="true"><path d="M14 16 C 70 2, 180 4, 206 20 C 220 40, 212 64, 186 70 C 120 80, 40 78, 18 64 C 4 52, 4 26, 14 16 Z" stroke="#2B5A8C" stroke-width="2" stroke-dasharray="7 6"/></svg>
+<span style="position: absolute; left: 1090px; top: 166px; padding: 3px 9px; border-radius: 999px; background: #E1E9F3; color: #214A75; font-size: 12px; font-weight: 700">Graphed</span>
+<svg width="120" height="90" viewBox="0 0 120 90" fill="none" style="position: absolute; left: 900px; top: 260px" aria-label="Hand-drawn arrow pointing to the graph">
+<path d="M100 8 C 80 40, 50 60, 16 74" stroke="#B5532A" stroke-width="3" stroke-linecap="round"/>
+<path d="M34 62 L16 74 L36 80" stroke="#B5532A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+<div style="position: absolute; left: 960px; top: 380px; font-family: Caveat, 'Segoe Print', cursive; font-size: 30px; line-height: 1.25; color: #1E1C19">where do they cross?<br>x = 0 and x ≈ 1.93</div>
+<div style="position: absolute; left: 960px; top: 500px; font-family: Caveat, 'Segoe Print', cursive; font-size: 30px; line-height: 1.25; color: #1E1C19">3D: saddle point<br>at (0, 0, 0)</div>
+
+<header style="position: absolute; left: 0; top: 0; width: 1280px; height: 72px; box-sizing: border-box; padding: 0 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px">
+<div style="justify-self: start; display: flex; align-items: center; gap: 4px; padding: 4px 16px 4px 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<a href="Canvas.dc.html" aria-label="Back" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+<div style="display: flex; flex-direction: column; gap: 1px">
+<span style="font-size: 16px; font-weight: 600; white-space: nowrap">Calculus II</span>
+<span style="font-size: 13px; color: #5E574C; white-space: nowrap">Page 9 of 9 · Saved</span>
+</div>
+</div>
+<div role="toolbar" aria-label="Writing tools" style="display: flex; align-items: center; gap: 2px; padding: 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<button aria-label="Undo" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+<button aria-label="Redo" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
+<div style="width: 1px; height: 28px; background: #DDD4C2; margin: 0 4px"></div>
+<button aria-label="Select" aria-pressed="true" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: #1E1C19; color: #FFFDF8"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l12 8-5.5 1.2L10 18z"/></svg></button>
+<button aria-label="Lasso select" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4c5 0 8 2.4 8 5.4S16.5 15 12 15s-8-2.6-8-5.6S7 4 12 4z" stroke-dasharray="3 2.6"/><path d="M7.5 13.5c-1 2.2.2 4.5 2.5 5.5"/></svg></button>
+<div style="width: 1px; height: 28px; background: #DDD4C2; margin: 0 4px"></div>
+<button aria-label="Pen" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg></button>
+<button aria-label="Marker" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 15l-4 4h5l2-2"/><path d="M9 15l8-10 3 3-10 8z"/><path d="M13 21h8"/></svg></button>
+<button aria-label="Eraser" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16l9-9 6 6-6 6H7z"/><path d="M13 19h8"/></svg></button>
+<button aria-label="Shapes" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="9" height="9" rx="1"/><circle cx="16" cy="8" r="5"/></svg></button>
+<button aria-label="Text" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7V4h14v3M12 4v16M9 20h6"/></svg></button>
+<div style="width: 1px; height: 28px; background: #DDD4C2; margin: 0 4px"></div>
+<button aria-label="Quick color: Ink black" style="width: 36px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent"><span style="width: 22px; height: 22px; border-radius: 999px; background: #1E1C19"></span></button>
+<button aria-label="Quick color: Deep blue" style="width: 36px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent"><span style="width: 22px; height: 22px; border-radius: 999px; background: #2B5A8C; box-shadow: 0 0 0 3px #FFFDF8, 0 0 0 5px #2B5A8C"></span></button>
+<button aria-label="Quick color: Terracotta" style="width: 36px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent"><span style="width: 22px; height: 22px; border-radius: 999px; background: #B5532A"></span></button>
+<button aria-label="Color and thickness" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: #EEE7D8"><span style="width: 6px; height: 6px; border-radius: 999px; background: #2B5A8C"></span></button>
+</div>
+<div style="justify-self: end; display: flex; align-items: center; gap: 4px; padding: 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<a href="Share.dc.html" style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px 0 14px; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 15px; font-weight: 600">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c.8-3.4 3.2-5 6-5s5.2 1.6 6 5M18 8v6M15 11h6"/></svg>
+Share
+</a>
+<button aria-label="More options" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+</div>
+</header>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { mode: '2d', angle: 35, off: {} };
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var W = 530, H = 540, x0 = -5, x1 = 5, y0 = -4, y1 = 8;
+    var px = function (x) { return ((x - x0) / (x1 - x0)) * W; };
+    var py = function (y) { return H - ((y - y0) / (y1 - y0)) * H; };
+    var r = function (n) { return Math.round(n * 10) / 10; };
+    var grid = '';
+    for (var gx = x0; gx <= x1; gx++) grid += 'M' + r(px(gx)) + ' 0V' + H + ' ';
+    for (var gy = y0; gy <= y1; gy++) grid += 'M0 ' + r(py(gy)) + 'H' + W + ' ';
+    var axes = 'M0 ' + r(py(0)) + 'H' + W + ' M' + r(px(0)) + ' 0V' + H;
+    var ticks = [];
+    [-4, -2, 2, 4].forEach(function (v) { ticks.push({ x: r(px(v)), y: r(py(0) + 16), label: v }); });
+    [-2, 2, 4, 6].forEach(function (v) { ticks.push({ x: r(px(0) - 12), y: r(py(v) + 4), label: v }); });
+    var fnDefs = [
+      { id: 'a', label: 'y = x² / 2', color: '#2B5A8C', f: function (x) { return x * x / 2; } },
+      { id: 'b', label: 'y = 2 sin x', color: '#B5532A', f: function (x) { return 2 * Math.sin(x); }, ink: true },
+      { id: 'c', label: 'y = x + 1', color: '#3E7B4F', f: function (x) { return x + 1; } }
+    ];
+    var curves = [];
+    var fns = fnDefs.map(function (fd) {
+      var on = !st.off[fd.id];
+      if (on) {
+        var d = '', started = false;
+        for (var i = 0; i <= 200; i++) {
+          var x = x0 + (x1 - x0) * i / 200, y = fd.f(x);
+          if (y < y0 - 0.5 || y > y1 + 0.5) { started = false; continue; }
+          d += (started ? 'L' : 'M') + r(px(x)) + ' ' + r(py(y)) + ' ';
+          started = true;
+        }
+        curves.push({ d: d, color: fd.color });
+      }
+      return { label: fd.label, color: fd.color, fill: on ? fd.color : 'transparent', onStr: on ? 'true' : 'false', aria: (on ? 'Hide ' : 'Show ') + fd.label, fromInk: !!fd.ink,
+        toggle: function () { var o = Object.assign({}, st.off); o[fd.id] = on; self.setState({ off: o }); } };
+    });
+    // 3D saddle
+    var a = st.angle * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a), s = 58, cx = 285, cy = 300;
+    var proj = function (x, y, z) { var X = x * ca - y * sa, Y = x * sa + y * ca; return [r(cx + X * s), r(cy - z * s * 0.95 + Y * s * 0.45)]; };
+    var zf = function (x, y) { return (x * x - y * y) / 4; };
+    var surfA = '', surfB = '', k, j, p;
+    for (k = -3; k <= 3.001; k += 0.5) {
+      for (j = -3, p = 0; j <= 3.001; j += 0.25, p++) { var q = proj(j, k, zf(j, k)); surfA += (p ? 'L' : 'M') + q[0] + ' ' + q[1] + ' '; }
+      for (j = -3, p = 0; j <= 3.001; j += 0.25, p++) { var q2 = proj(k, j, zf(k, j)); surfB += (p ? 'L' : 'M') + q2[0] + ' ' + q2[1] + ' '; }
+    }
+    var ax = [[[-3.8, 0, 0], [3.8, 0, 0]], [[0, -3.8, 0], [0, 3.8, 0]], [[0, 0, -2.6], [0, 0, 3.2]]];
+    var axes3 = ax.map(function (l) { var p1 = proj.apply(null, l[0]), p2 = proj.apply(null, l[1]); return 'M' + p1[0] + ' ' + p1[1] + 'L' + p2[0] + ' ' + p2[1]; }).join(' ');
+    var lx = proj(4.2, 0, 0), ly = proj(0, 4.2, 0), lz = proj(0, 0, 3.5);
+    var is3d = st.mode === '3d';
+    var modes = [{ id: '2d', label: '2D · x y' }, { id: '3d', label: '3D · x y z' }].map(function (m) {
+      var on = st.mode === m.id;
+      return { label: m.label, on: on ? 'true' : 'false', bg: on ? '#FFFDF8' : 'transparent', weight: on ? 700 : 500, shadow: on ? '0 1px 2px rgba(30,28,25,0.15)' : 'none', pick: function () { self.setState({ mode: m.id }); } };
+    });
+    return {
+      modes: modes, is2d: !is3d, is3d: is3d,
+      fns: fns, curves: curves, grid2: grid, axes2: axes, ticks: ticks,
+      showTrace: !st.off.a,
+      trace: { x: r(px(2)), y: r(py(2)), lx: r(px(2) + 12), ly: r(py(2) + 22) },
+      xLabelY: r(py(0) - 8), yLabelX: r(px(0) + 10),
+      surfA: surfA, surfB: surfB, axes3: axes3,
+      axisLabels: [{ t: 'x', x: lx[0], y: lx[1] }, { t: 'y', x: ly[0], y: ly[1] }, { t: 'z', x: lz[0] - 6, y: lz[1] }],
+      angle: st.angle,
+      rotL: function () { self.setState({ angle: st.angle - 20 }); },
+      rotR: function () { self.setState({ angle: st.angle + 20 }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scribble to erase</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#EEE7D8;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 16px; background: #EEE7D8; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; height: 330px">
+<div style="position: relative; overflow: hidden; border: 1px solid #DDD4C2; border-radius: 16px; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.2px, transparent 1.3px); background-size: 24px 24px">
+<span style="position: absolute; left: 14px; top: 14px; padding: 4px 10px; border-radius: 999px; background: #FFFDF8; border: 1px solid #DDD4C2; font-size: 13px; font-weight: 600">1 · Scribble over it with the pen</span>
+<div style="position: absolute; left: 40px; top: 120px; font-family: Caveat, 'Segoe Print', cursive; font-size: 44px; line-height: 1.2; color: #1E1C19">J = F · Δt <span style="color: #1E1C19">oops</span><br>&nbsp;&nbsp;&nbsp;= Δp</div>
+<svg width="400" height="330" viewBox="0 0 400 330" fill="none" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 0; top: 0" aria-label="A zig-zag scribble over the word oops">
+<path d="M222 150 L240 124 L250 158 L266 122 L276 160 L292 124 L302 158 L318 126 L326 150" stroke="#2B5A8C" stroke-width="3"/>
+</svg>
+<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1E1C19" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 324px; top: 122px" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z"/></svg>
+</div>
+
+<div style="position: relative; overflow: hidden; border: 1px solid #DDD4C2; border-radius: 16px; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.2px, transparent 1.3px); background-size: 24px 24px">
+<span style="position: absolute; left: 14px; top: 14px; padding: 4px 10px; border-radius: 999px; background: #FFFDF8; border: 1px solid #DDD4C2; font-size: 13px; font-weight: 600">2 · The app shows what will go</span>
+<div style="position: absolute; left: 40px; top: 120px; font-family: Caveat, 'Segoe Print', cursive; font-size: 44px; line-height: 1.2; color: #1E1C19">J = F · Δt <span style="color: #C44A3C; opacity: 0.45; text-decoration: line-through">oops</span><br>&nbsp;&nbsp;&nbsp;= Δp</div>
+<svg width="400" height="330" viewBox="0 0 400 330" fill="none" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 0; top: 0" aria-hidden="true">
+<path d="M222 150 L240 124 L250 158 L266 122 L276 160 L292 124 L302 158 L318 126 L326 150" stroke="#2B5A8C" stroke-width="3" stroke-opacity="0.25"/>
+</svg>
+<div role="status" style="position: absolute; left: 0; right: 0; bottom: 18px; display: flex; justify-content: center"><span style="padding: 9px 14px; border-radius: 999px; background: #1E1C19; color: #FFFDF8; font-size: 14px">Lift the pen to erase</span></div>
+</div>
+
+<div style="position: relative; overflow: hidden; border: 1px solid #DDD4C2; border-radius: 16px; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.2px, transparent 1.3px); background-size: 24px 24px">
+<span style="position: absolute; left: 14px; top: 14px; padding: 4px 10px; border-radius: 999px; background: #FFFDF8; border: 1px solid #DDD4C2; font-size: 13px; font-weight: 600">3 · Gone, and nothing else touched</span>
+<div style="position: absolute; left: 40px; top: 120px; font-family: Caveat, 'Segoe Print', cursive; font-size: 44px; line-height: 1.2; color: #1E1C19">J = F · Δt<br>&nbsp;&nbsp;&nbsp;= Δp</div>
+<div role="status" style="position: absolute; left: 0; right: 0; bottom: 18px; display: flex; justify-content: center">
+<span style="display: flex; align-items: center; gap: 12px; padding: 4px 4px 4px 14px; border-radius: 999px; background: #1E1C19; color: #FFFDF8; font-size: 14px">Erased 1 word<button style="height: 36px; padding: 0 12px; border: 0; border-radius: 999px; background: #3D3830; color: #FFFDF8; font-size: 13px; font-weight: 600">Undo</button></span>
+</div>
+</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; flex-grow: 1">
+<div style="position: relative; overflow: hidden; border: 1px solid #DDD4C2; border-radius: 16px; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.2px, transparent 1.3px); background-size: 24px 24px">
+<span style="position: absolute; left: 14px; top: 14px; padding: 4px 10px; border-radius: 999px; background: #FFFDF8; border: 1px solid #DDD4C2; font-size: 13px; font-weight: 600">Works on drawings too: only the arrow you scribbled goes</span>
+<svg width="608" height="398" viewBox="0 0 608 398" fill="none" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 0; top: 0" aria-label="An incline diagram with one arrow being scribbled out">
+<g transform="translate(40 70) scale(1.2)">
+<path d="M10 176 L300 176 L300 36 Z" stroke="#1E1C19" stroke-width="2.5"/>
+<rect x="145" y="62" width="52" height="34" stroke="#1E1C19" stroke-width="2.5" transform="rotate(-25.8 170 96)"/>
+<path d="M168 82 L168 156 M161 146 L168 157 L175 146" stroke="#B5532A" stroke-width="2.5"/>
+<path d="M196 70 L252 43 M240 41 L253 43 L246 54" stroke="#C44A3C" stroke-width="2.5" stroke-opacity="0.4" stroke-dasharray="4 4"/>
+<path d="M200 66 L212 40 L220 70 L232 36 L240 66 L252 34 L258 58" stroke="#2B5A8C" stroke-width="2.5"/>
+</g>
+</svg>
+<div role="status" style="position: absolute; left: 0; right: 0; bottom: 18px; display: flex; justify-content: center"><span style="padding: 9px 14px; border-radius: 999px; background: #1E1C19; color: #FFFDF8; font-size: 14px">Lift the pen to erase 1 stroke</span></div>
+</div>
+
+<section aria-label="Scribble to erase settings" style="box-sizing: border-box; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px; border: 1px solid #DDD4C2; border-radius: 16px; background: #FFFDF8">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C">Settings › Pen &amp; S Pen</span>
+<h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 28px; font-weight: 400">Scribble to erase</h2>
+</div>
+<div style="display: flex; align-items: center; gap: 16px; min-height: 52px; border-bottom: 1px solid #EAE3D5; padding-bottom: 10px">
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 15px; font-weight: 500">Scribble over ink to erase it</span>
+<span style="font-size: 13px; color: #5E574C">Works with the pen and marker, no need to switch tools</span>
+</div>
+<button role="switch" aria-checked="{{ onStr }}" aria-label="Scribble over ink to erase it" onClick="{{ toggle }}" style="width: 56px; height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; background: transparent">
+<span style="width: 50px; height: 30px; box-sizing: border-box; padding: 3px; display: flex; justify-content: {{ sw.justify }}; border-radius: 999px; background: {{ sw.track }}"><span style="width: 24px; height: 24px; border-radius: 999px; background: #FFFDF8; box-shadow: 0 1px 2px rgba(0,0,0,0.25)"></span></span>
+</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 15px; font-weight: 500">How much scribbling counts</span>
+<div role="radiogroup" aria-label="Scribble sensitivity" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; padding: 3px; background: #EEE7D8; border-radius: 12px">
+<sc-for list="{{ levels }}" as="l" hint-placeholder-count="3">
+<button role="radio" aria-checked="{{ l.on }}" onClick="{{ l.pick }}" style="height: 42px; border: 0; border-radius: 9px; background: {{ l.bg }}; color: #1E1C19; font-size: 14px; font-weight: {{ l.weight }}; box-shadow: {{ l.shadow }}">{{ l.label }}</button>
+</sc-for>
+</div>
+<span style="font-size: 13px; color: #5E574C">{{ levelHelp }}</span>
+</div>
+</section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { on: true, level: 'normal' };
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var help = { light: 'Two quick back-and-forth strokes are enough.', normal: 'Three or more back-and-forth strokes. Shading stays safe.', firm: 'Needs a dense scribble. Best if you shade or hatch a lot.' };
+    var levels = [{ id: 'light', label: 'Light' }, { id: 'normal', label: 'Normal' }, { id: 'firm', label: 'Firm' }].map(function (l) {
+      var on = st.level === l.id;
+      return { label: l.label, on: on ? 'true' : 'false', bg: on ? '#FFFDF8' : 'transparent', weight: on ? 600 : 500, shadow: on ? '0 1px 2px rgba(30,28,25,0.15)' : 'none', pick: function () { self.setState({ level: l.id }); } };
+    });
+    return {
+      onStr: st.on ? 'true' : 'false',
+      sw: { justify: st.on ? 'flex-end' : 'flex-start', track: st.on ? '#2B5A8C' : '#B8AE9B' },
+      toggle: function () { self.setState({ on: !st.on }); },
+      levels: levels,
+      levelHelp: help[st.level]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spell check and dictionary</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; overflow: hidden; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.3px, transparent 1.4px); background-size: 26px 26px; background-position: 13px 13px; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<div style="position: absolute; left: 100px; top: 104px; display: flex; flex-direction: column; gap: 22px; width: 720px">
+<sc-for list="{{ lines }}" as="ln" hint-placeholder-count="4">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; font-family: {{ ln.font }}; font-size: {{ ln.size }}px; font-weight: {{ ln.weight }}; color: {{ ln.color }}; line-height: 1.2; padding: {{ ln.pad }}; background: {{ ln.bg }}; border: {{ ln.border }}; border-radius: 10px">
+<sc-for list="{{ ln.segs }}" as="sg" hint-placeholder-count="3">
+<span style="white-space: pre; text-decoration: {{ sg.deco }}; text-decoration-thickness: 2px; text-underline-offset: 6px; background: {{ sg.bg }}; border-radius: 6px">{{ sg.text }}</span>
+</sc-for>
+</div>
+</sc-for>
+</div>
+
+<section aria-label="Spelling suggestion" style="position: absolute; left: 100px; top: 470px; width: 720px; box-sizing: border-box; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 18px; box-shadow: 0 20px 40px -24px rgba(30,28,25,0.5)">
+<sc-if value="{{ hasIssue }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; align-items: baseline; gap: 10px">
+<span style="font-size: 13px; color: #5E574C">Not in the dictionary:</span>
+<span style="font-family: Caveat, 'Segoe Print', cursive; font-size: 30px; text-decoration: underline wavy #C23B2E; text-decoration-thickness: 2px; text-underline-offset: 6px">{{ cur.word }}</span>
+<span style="flex-grow: 1"></span>
+<span style="font-size: 12px; font-weight: 700; color: #5E574C">{{ cur.kind }}</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{ sugg }}" as="s" hint-placeholder-count="3">
+<button onClick="{{ s.pick }}" style="height: 44px; padding: 0 16px; border: {{ s.border }}; border-radius: 12px; background: {{ s.bg }}; color: {{ s.fg }}; font-size: 16px; font-weight: 600">{{ s.label }}</button>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid #EAE3D5">
+<label style="display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 14px; flex-grow: 1">
+<input type="checkbox" checked="{{ inkStyle }}" onChange="{{ toggleInk }}" style="width: 20px; height: 20px; margin: 0; accent-color: #2B5A8C">
+<span>Fix it in my handwriting</span>
+</label>
+<button onClick="{{ lookUp }}" style="height: 40px; padding: 0 12px; border: 1px solid #CFC5B1; border-radius: 10px; background: transparent; color: #1E1C19; font-size: 13px; font-weight: 600">Look up</button>
+<button onClick="{{ ignore }}" style="height: 40px; padding: 0 12px; border: 1px solid #CFC5B1; border-radius: 10px; background: transparent; color: #1E1C19; font-size: 13px; font-weight: 600">Ignore</button>
+<button onClick="{{ ignore }}" style="height: 40px; padding: 0 12px; border: 1px solid #CFC5B1; border-radius: 10px; background: transparent; color: #1E1C19; font-size: 13px; font-weight: 600">Add to my dictionary</button>
+</div>
+</sc-if>
+<sc-if value="{{ allDone }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; gap: 12px; min-height: 60px">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3E7B4F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>
+<span style="flex-grow: 1; font-size: 16px; font-weight: 600">No spelling issues left on this page</span>
+<button onClick="{{ reset }}" style="height: 40px; padding: 0 14px; border: 1px solid #CFC5B1; border-radius: 10px; background: transparent; color: #1E1C19; font-size: 13px; font-weight: 600">Start over</button>
+</div>
+</sc-if>
+</section>
+
+<aside aria-label="Dictionary and thesaurus" style="position: absolute; right: 14px; top: 84px; bottom: 16px; width: 400px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 14px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 18px; box-shadow: 0 20px 40px -24px rgba(30,28,25,0.5)">
+<label style="display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; box-sizing: border-box; background: #F6F1E7; border: 1px solid #DDD4C2; border-radius: 12px; color: #5E574C">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Look up a word</span>
+<input type="search" value="{{ entry.word }}" style="flex-grow: 1; height: 40px; border: 0; outline: none; background: transparent; font-family: inherit; font-size: 16px; color: #1E1C19">
+</label>
+<div role="tablist" aria-label="Dictionary or thesaurus" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; padding: 3px; background: #EEE7D8; border-radius: 12px">
+<sc-for list="{{ tabs }}" as="t" hint-placeholder-count="2">
+<button role="tab" aria-selected="{{ t.on }}" onClick="{{ t.pick }}" style="height: 40px; border: 0; border-radius: 9px; background: {{ t.bg }}; color: #1E1C19; font-size: 14px; font-weight: {{ t.weight }}; box-shadow: {{ t.shadow }}">{{ t.label }}</button>
+</sc-for>
+</div>
+<div style="display: flex; align-items: baseline; gap: 10px">
+<span style="font-family: Newsreader, Georgia, serif; font-size: 34px">{{ entry.word }}</span>
+<span style="font-size: 14px; color: #5E574C">{{ entry.say }}</span>
+<button aria-label="Hear it" style="width: 40px; height: 40px; margin-left: auto; display: flex; align-items: center; justify-content: center; border: 1px solid #CFC5B1; border-radius: 999px; background: transparent; color: #1E1C19"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6"/></svg></button>
+</div>
+<sc-if value="{{ isDef }}" hint-placeholder-val="{{ true }}">
+<span style="font-size: 13px; font-style: italic; color: #5E574C">{{ entry.pos }}</span>
+<sc-for list="{{ entry.defs }}" as="d" hint-placeholder-count="2">
+<div style="display: flex; gap: 10px">
+<span style="width: 22px; height: 22px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 999px; background: #EEE7D8; font-size: 12px; font-weight: 700">{{ d.n }}</span>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 15px; line-height: 1.45">{{ d.text }}</span>
+<span style="font-size: 14px; line-height: 1.4; color: #5E574C; font-style: italic">“{{ d.ex }}”</span>
+</div>
+</div>
+</sc-for>
+</sc-if>
+<sc-if value="{{ isThes }}" hint-placeholder-val="{{ false }}">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C">SIMILAR WORDS</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{ syns }}" as="w" hint-placeholder-count="5">
+<button onClick="{{ w.go }}" style="height: 40px; padding: 0 14px; border: 1px solid {{ w.border }}; border-radius: 999px; background: {{ w.bg }}; color: #1E1C19; font-size: 14px; font-weight: 600">{{ w.label }}</button>
+</sc-for>
+</div>
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C; padding-top: 6px">OPPOSITES</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{ entry.ants }}" as="w" hint-placeholder-count="2">
+<span style="display: flex; align-items: center; height: 36px; padding: 0 12px; border-radius: 999px; background: #F6E1D6; color: #8E4220; font-size: 14px; font-weight: 600">{{ w }}</span>
+</sc-for>
+</div>
+</sc-if>
+<div style="flex-grow: 1"></div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5E574C">RECENT</span>
+<div style="display: flex; gap: 8px">
+<sc-for list="{{ recent }}" as="r" hint-placeholder-count="3">
+<button onClick="{{ r.go }}" style="height: 36px; padding: 0 12px; border: 0; border-radius: 999px; background: #EEE7D8; color: #1E1C19; font-size: 13px; font-weight: 600">{{ r.label }}</button>
+</sc-for>
+</div>
+</div>
+<div style="display: flex; gap: 8px">
+<button style="flex-grow: 1; height: 44px; border: 0; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 14px; font-weight: 700">Add definition to page</button>
+<button style="height: 44px; padding: 0 14px; border: 1px solid #CFC5B1; border-radius: 12px; background: transparent; color: #1E1C19; font-size: 14px; font-weight: 600">Make flashcard</button>
+</div>
+<span style="font-size: 12px; color: #5E574C">Works offline · English (US)</span>
+</aside>
+
+<header style="position: absolute; left: 0; top: 0; width: 1280px; height: 72px; box-sizing: border-box; padding: 0 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px">
+<div style="justify-self: start; display: flex; align-items: center; gap: 4px; padding: 4px 16px 4px 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<a href="Canvas.dc.html" aria-label="Back" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+<div style="display: flex; flex-direction: column; gap: 1px">
+<span style="font-size: 16px; font-weight: 600; white-space: nowrap">Physics — Lecture notes</span>
+<span style="font-size: 13px; color: #5E574C; white-space: nowrap">Page 3 of 12 · Saved</span>
+</div>
+</div>
+<div role="toolbar" aria-label="Spell check" style="display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 14px; background: #1E1C19; color: #FFFDF8; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.6)">
+<span style="font-size: 14px; font-weight: 800; letter-spacing: -0.02em">abc<span style="color: #8CCB9A">✓</span></span>
+<span style="font-size: 15px; font-weight: 600; padding: 0 4px">Spell check</span>
+<span style="font-size: 13px; color: #D8D0C0; font-variant-numeric: tabular-nums">{{ countLabel }}</span>
+<button aria-label="Previous issue" onClick="{{ prev }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: #3D3830; color: #FFFDF8"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+<button aria-label="Next issue" onClick="{{ next }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: #3D3830; color: #FFFDF8"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+<button onClick="{{ fixAll }}" style="height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: #3D3830; color: #FFFDF8; font-size: 14px; font-weight: 600">Fix all</button>
+<a href="Canvas.dc.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 12px; background: #FFFDF8; color: #1E1C19; font-size: 14px; font-weight: 700">Done</a>
+</div>
+<div></div>
+</header>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { fixed: {}, ignored: {}, cur: 0, ink: true, tab: 'def', word: 'conserve' };
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var issues = [
+      { word: 'Momentem', sugg: ['Momentum', 'Moment', 'Momenta'], kind: 'Handwriting', look: 'momentum' },
+      { word: 'sistem', sugg: ['system', 'sister', 'sixteen'], kind: 'Handwriting', look: 'conserve' },
+      { word: 'colision', sugg: ['collision', 'collusion', 'coalition'], kind: 'Handwriting', look: 'collision' },
+      { word: 'Recieve', sugg: ['Receive', 'Relieve', 'Recipe'], kind: 'Typed text', look: 'conserve' }
+    ];
+    var open = function (i) { return !st.fixed[i] && !st.ignored[i]; };
+    var seg = function (text, i) {
+      if (i === undefined) return { text: text, deco: 'none', bg: 'transparent' };
+      var shown = st.fixed[i] ? st.fixed[i] : issues[i].word;
+      var active = open(i) && st.cur === i;
+      return { text: shown, deco: open(i) ? 'underline wavy #C23B2E' : 'none', bg: active ? 'rgba(194,59,46,0.12)' : (st.fixed[i] ? 'rgba(62,123,79,0.12)' : 'transparent') };
+    };
+    var ink = "Caveat, 'Segoe Print', cursive";
+    var lines = [
+      { font: ink, size: 50, weight: 600, color: '#2B5A8C', pad: '0', bg: 'transparent', border: '0', segs: [seg('Lecture 3 — '), seg('', 0)] },
+      { font: ink, size: 38, weight: 400, color: '#1E1C19', pad: '0', bg: 'transparent', border: '0', segs: [seg('total momentum is conserved in a closed '), seg('', 1)] },
+      { font: ink, size: 38, weight: 400, color: '#1E1C19', pad: '0', bg: 'transparent', border: '0', segs: [seg('elastic '), seg('', 2), seg(': kinetic energy is conserved too')] },
+      { font: "Figtree, system-ui, sans-serif", size: 18, weight: 500, color: '#1E1C19', pad: '12px 14px', bg: '#FFFDF8', border: '1px solid #DDD4C2', segs: [seg('', 3), seg(' lab data from Maya by Sunday')] }
+    ];
+    var remaining = issues.map(function (x, i) { return i; }).filter(open);
+    var curIdx = remaining.indexOf(st.cur) >= 0 ? st.cur : remaining[0];
+    var has = remaining.length > 0;
+    var cur = has ? issues[curIdx] : issues[0];
+    var go = function (dir) {
+      if (!remaining.length) return;
+      var p = remaining.indexOf(curIdx);
+      self.setState({ cur: remaining[(p + dir + remaining.length) % remaining.length] });
+    };
+    var sugg = cur.sugg.map(function (w, k) {
+      return { label: w, bg: k === 0 ? '#1E1C19' : '#FFFDF8', fg: k === 0 ? '#FFFDF8' : '#1E1C19', border: k === 0 ? '0' : '1px solid #CFC5B1',
+        pick: function () { var f = Object.assign({}, st.fixed); f[curIdx] = w; var rest = remaining.filter(function (r) { return r !== curIdx; }); self.setState({ fixed: f, cur: rest.length ? rest[0] : curIdx }); } };
+    });
+    var D = {
+      conserve: { word: 'conserve', say: 'kən-SURV', pos: 'verb', defs: [
+        { n: 1, text: 'To keep something from being wasted, lost or used up.', ex: 'Turn off the lights to conserve energy.' },
+        { n: 2, text: 'In physics: a quantity is conserved when its total stays the same over time.', ex: 'In a closed system, momentum is conserved.' }],
+        syns: ['preserve', 'keep', 'maintain', 'save', 'retain'], ants: ['waste', 'lose', 'use up'] },
+      momentum: { word: 'momentum', say: 'moh-MEN-tum', pos: 'noun', defs: [
+        { n: 1, text: 'In physics: an object’s mass multiplied by its velocity (p = m·v).', ex: 'A heavier cart at the same speed has more momentum.' },
+        { n: 2, text: 'The force or speed gained by something that is already moving or growing.', ex: 'The team gained momentum after the first win.' }],
+        syns: ['impetus', 'drive', 'force', 'thrust', 'energy'], ants: ['inertia', 'stagnation'] },
+      collision: { word: 'collision', say: 'kuh-LIZH-un', pos: 'noun', defs: [
+        { n: 1, text: 'When two or more moving things hit each other.', ex: 'The two carts had an elastic collision.' },
+        { n: 2, text: 'A clash between opposing ideas or interests.', ex: 'A collision of opinions.' }],
+        syns: ['crash', 'impact', 'bump', 'smash', 'clash'], ants: ['miss', 'avoidance'] }
+    };
+    var entry = D[st.word];
+    var tabs = [{ id: 'def', label: 'Dictionary' }, { id: 'thes', label: 'Thesaurus' }].map(function (t) {
+      var on = st.tab === t.id;
+      return { label: t.label, on: on ? 'true' : 'false', bg: on ? '#FFFDF8' : 'transparent', weight: on ? 700 : 500, shadow: on ? '0 1px 2px rgba(30,28,25,0.15)' : 'none', pick: function () { self.setState({ tab: t.id }); } };
+    });
+    var syns = entry.syns.map(function (w) {
+      var known = D[w];
+      return { label: w, bg: known ? '#E1E9F3' : '#FFFDF8', border: known ? '#BCCDE2' : '#CFC5B1', go: function () { if (known) self.setState({ word: w, tab: 'def' }); } };
+    });
+    var recent = ['conserve', 'momentum', 'collision'].map(function (w) { return { label: w, go: function () { self.setState({ word: w }); } }; });
+    return {
+      lines: lines, hasIssue: has, allDone: !has,
+      cur: { word: cur.word, kind: cur.kind }, sugg: sugg,
+      countLabel: has ? (remaining.indexOf(curIdx) + 1) + ' of ' + remaining.length : 'All clear',
+      prev: function () { go(-1); }, next: function () { go(1); },
+      fixAll: function () { var f = Object.assign({}, st.fixed); remaining.forEach(function (i) { f[i] = issues[i].sugg[0]; }); self.setState({ fixed: f }); },
+      ignore: function () { var g = Object.assign({}, st.ignored); g[curIdx] = true; var rest = remaining.filter(function (r) { return r !== curIdx; }); self.setState({ ignored: g, cur: rest.length ? rest[0] : curIdx }); },
+      reset: function () { self.setState({ fixed: {}, ignored: {}, cur: 0 }); },
+      inkStyle: st.ink, toggleInk: function () { self.setState({ ink: !st.ink }); },
+      lookUp: function () { self.setState({ word: cur.look, tab: 'def' }); },
+      entry: entry, tabs: tabs, syns: syns, recent: recent,
+      isDef: st.tab === 'def', isThes: st.tab === 'thes'
+    };
+  }
+}
+</script>
+</body>
+</html>

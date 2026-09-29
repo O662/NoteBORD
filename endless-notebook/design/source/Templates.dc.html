@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Templates</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; overflow: hidden; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.3px, transparent 1.4px); background-size: 26px 26px; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+<div aria-hidden="true" style="position: absolute; left: 0; top: 0; width: 1280px; height: 800px; background: rgba(30,28,25,0.42)"></div>
+
+<section role="dialog" aria-label="Templates" style="position: absolute; left: 110px; top: 40px; width: 1060px; height: 720px; box-sizing: border-box; display: flex; background: #FFFDF8; border-radius: 22px; box-shadow: 0 30px 60px -24px rgba(0,0,0,0.5); overflow: hidden">
+<nav aria-label="Template categories" style="width: 220px; flex-shrink: 0; box-sizing: border-box; padding: 24px 14px; display: flex; flex-direction: column; gap: 4px; background: #F3EEE3; border-right: 1px solid #E4DCCB">
+<h2 style="margin: 0 0 14px 10px; font-family: Newsreader, Georgia, serif; font-size: 30px; font-weight: 400">Templates</h2>
+<sc-for list="{{ cats }}" as="c" hint-placeholder-count="6">
+<button aria-current="{{ c.current }}" onClick="{{ c.pick }}" style="height: 44px; padding: 0 12px; border: 0; border-radius: 10px; background: {{ c.bg }}; text-align: left; font-size: 15px; font-weight: {{ c.weight }}; color: #1E1C19">{{ c.label }}</button>
+</sc-for>
+</nav>
+
+<div style="flex-grow: 1; box-sizing: border-box; padding: 22px 26px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<span style="font-size: 14px; color: #5E574C">Every template stays endless — it’s a starting layout, not a boundary.</span>
+<a href="Canvas.dc.html" aria-label="Close" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #5E574C">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+</a>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 14px">
+
+<button aria-pressed="{{ on.blank }}" onClick="{{ pick.blank }}" style="display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: transparent; text-align: left; color: #1E1C19">
+<span style="display: block; width: 100%; height: 112px; box-sizing: border-box; border: {{ b.blank }}; border-radius: 10px; background-color: #FFFDF8; background-image: radial-gradient(#CFC5B1 1.2px, transparent 1.3px); background-size: 12px 12px"></span>
+<span style="font-size: 14px; font-weight: 600">Dot grid</span>
+</button>
+
+<button aria-pressed="{{ on.lined }}" onClick="{{ pick.lined }}" style="display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: transparent; text-align: left; color: #1E1C19">
+<span style="display: block; width: 100%; height: 112px; box-sizing: border-box; border: {{ b.lined }}; border-radius: 10px; background-color: #FFFDF8; background-image: linear-gradient(90deg, transparent 24px, rgba(196,84,70,0.5) 24px, rgba(196,84,70,0.5) 25px, transparent 25px), repeating-linear-gradient(180deg, transparent 0 13px, #C9D6E3 13px 14px)"></span>
+<span style="font-size: 14px; font-weight: 600">Lined paper</span>
+</button>
+
+<button aria-pressed="{{ on.grid }}" onClick="{{ pick.grid }}" style="display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: transparent; text-align: left; color: #1E1C19">
+<span style="display: block; width: 100%; height: 112px; box-sizing: border-box; border: {{ b.grid }}; border-radius: 10px; background-color: #FFFDF8; background-image: repeating-linear-gradient(180deg, transparent 0 13px, #D6DEE8 13px 14px), repeating-linear-gradient(90deg, transparent 0 13px, #D6DEE8 13px 14px)"></span>
+<span style="font-size: 14px; font-weight: 600">Graph paper</span>
+</button>
+
+<button aria-pressed="{{ on.cornell }}" onClick="{{ pick.cornell }}" style="display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: transparent; text-align: left; color: #1E1C19">
+<span style="display: block; width: 100%; height: 112px; box-sizing: border-box; border: {{ b.cornell }}; border-radius: 10px; background: #FFFDF8; overflow: hidden">
+<svg width="100%" height="100%" viewBox="0 0 200 112" preserveAspectRatio="none" fill="none" aria-hidden="true"><path d="M0 22h200M60 22v64M0 86h200" stroke="#2B5A8C" stroke-width="1.5"/><path d="M70 36h110M70 48h96M70 60h118M70 72h80M10 36h40M10 48h32M10 98h150" stroke="#CFC5B1" stroke-width="3" stroke-linecap="round"/></svg>
+</span>
+<span style="font-size: 14px; font-weight: 600">Cornell notes</span>
+</button>
+
+<button aria-pressed="{{ on.meeting }}" onClick="{{ pick.meeting }}" style="display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: transparent; text-align: left; color: #1E1C19">
+<span style="display: block; width: 100%; height: 112px; box-sizing: border-box; border: {{ b.meeting }}; border-radius: 10px; background: #FFFDF8; overflow: hidden">
+<svg width="100%" height="100%" viewBox="0 0 200 112" preserveAspectRatio="none" fill="none" aria-hidden="true"><path d="M12 16h70" stroke="#1E1C19" stroke-width="5" stroke-linecap="round"/><path d="M12 30h40M110 30h60M12 48h170M12 58h150M12 68h160" stroke="#CFC5B1" stroke-width="3" stroke-linecap="round"/><rect x="12" y="82" width="8" height="8" rx="1.5" stroke="#2B5A8C" stroke-width="1.5"/><rect x="12" y="96" width="8" height="8" rx="1.5" stroke="#2B5A8C" stroke-width="1.5"/><path d="M28 86h90M28 100h70" stroke="#CFC5B1" stroke-width="3" stroke-linecap="round"/></svg>
+</span>
+<span style="font-size: 14px; font-weight: 600">Meeting notes</span>
+</button>
+
+<button aria-pressed="{{ on.weekly }}" onClick="{{ pick.weekly }}" style="display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: transparent; text-align: left; color: #1E1C19">
+<span style="display: block; width: 100%; height: 112px; box-sizing: border-box; border: {{ b.weekly }}; border-radius: 10px; background: #FFFDF8; overflow: hidden">
+<svg width="100%" height="100%" viewBox="0 0 200 112" preserveAspectRatio="none" fill="none" aria-hidden="true"><g stroke="#CFC5B1" stroke-width="1.5"><rect x="8" y="8" width="42" height="44" rx="3"/><rect x="56" y="8" width="42" height="44" rx="3"/><rect x="104" y="8" width="42" height="44" rx="3"/><rect x="152" y="8" width="40" height="44" rx="3"/><rect x="8" y="60" width="42" height="44" rx="3"/><rect x="56" y="60" width="42" height="44" rx="3"/><rect x="104" y="60" width="42" height="44" rx="3"/></g><rect x="152" y="60" width="40" height="44" rx="3" fill="#FBEFC4"/></svg>
+</span>
+<span style="font-size: 14px; font-weight: 600">Weekly planner</span>
+</button>
+
+<button aria-pressed="{{ on.todo }}" onClick="{{ pick.todo }}" style="display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: transparent; text-align: left; color: #1E1C19">
+<span style="display: block; width: 100%; height: 112px; box-sizing: border-box; border: {{ b.todo }}; border-radius: 10px; background: #FFFDF8; overflow: hidden">
+<svg width="100%" height="100%" viewBox="0 0 200 112" preserveAspectRatio="none" fill="none" aria-hidden="true"><g stroke="#2B5A8C" stroke-width="1.5"><rect x="14" y="14" width="10" height="10" rx="2"/><rect x="14" y="36" width="10" height="10" rx="2"/><rect x="14" y="58" width="10" height="10" rx="2"/><rect x="14" y="80" width="10" height="10" rx="2"/></g><path d="M16 19l3 3 5-7" stroke="#2B5A8C" stroke-width="2" stroke-linecap="round"/><path d="M34 19h110M34 41h90M34 63h124M34 85h70" stroke="#CFC5B1" stroke-width="3" stroke-linecap="round"/></svg>
+</span>
+<span style="font-size: 14px; font-weight: 600">To-do list</span>
+</button>
+
+<button aria-pressed="{{ on.kanban }}" onClick="{{ pick.kanban }}" style="display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: transparent; text-align: left; color: #1E1C19">
+<span style="display: block; width: 100%; height: 112px; box-sizing: border-box; border: {{ b.kanban }}; border-radius: 10px; background: #FFFDF8; overflow: hidden">
+<svg width="100%" height="100%" viewBox="0 0 200 112" preserveAspectRatio="none" fill="none" aria-hidden="true"><g fill="#F3EEE3"><rect x="8" y="8" width="58" height="96" rx="4"/><rect x="71" y="8" width="58" height="96" rx="4"/><rect x="134" y="8" width="58" height="96" rx="4"/></g><g fill="#FFFDF8" stroke="#DDD4C2"><rect x="13" y="18" width="48" height="18" rx="3"/><rect x="13" y="41" width="48" height="18" rx="3"/><rect x="76" y="18" width="48" height="18" rx="3"/><rect x="139" y="18" width="48" height="18" rx="3"/><rect x="139" y="41" width="48" height="18" rx="3"/><rect x="139" y="64" width="48" height="18" rx="3"/></g></svg>
+</span>
+<span style="font-size: 14px; font-weight: 600">Kanban board</span>
+</button>
+
+<button aria-pressed="{{ on.mind }}" onClick="{{ pick.mind }}" style="display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: transparent; text-align: left; color: #1E1C19">
+<span style="display: block; width: 100%; height: 112px; box-sizing: border-box; border: {{ b.mind }}; border-radius: 10px; background: #FFFDF8; overflow: hidden">
+<svg width="100%" height="100%" viewBox="0 0 200 112" preserveAspectRatio="none" fill="none" aria-hidden="true"><path d="M100 56L40 22M100 56L40 90M100 56L160 22M100 56L160 90M100 56L100 14" stroke="#CFC5B1" stroke-width="2"/><ellipse cx="100" cy="56" rx="30" ry="16" fill="#E1E9F3" stroke="#2B5A8C" stroke-width="1.5"/><g fill="#F3EEE3" stroke="#BFB49E"><rect x="18" y="14" width="40" height="16" rx="8"/><rect x="18" y="82" width="40" height="16" rx="8"/><rect x="142" y="14" width="40" height="16" rx="8"/><rect x="142" y="82" width="40" height="16" rx="8"/></g></svg>
+</span>
+<span style="font-size: 14px; font-weight: 600">Mind map</span>
+</button>
+
+<button aria-pressed="{{ on.story }}" onClick="{{ pick.story }}" style="display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: transparent; text-align: left; color: #1E1C19">
+<span style="display: block; width: 100%; height: 112px; box-sizing: border-box; border: {{ b.story }}; border-radius: 10px; background: #FFFDF8; overflow: hidden">
+<svg width="100%" height="100%" viewBox="0 0 200 112" preserveAspectRatio="none" fill="none" aria-hidden="true"><g stroke="#8A8274" stroke-width="1.5"><rect x="10" y="10" width="54" height="34" rx="2"/><rect x="73" y="10" width="54" height="34" rx="2"/><rect x="136" y="10" width="54" height="34" rx="2"/><rect x="10" y="60" width="54" height="34" rx="2"/><rect x="73" y="60" width="54" height="34" rx="2"/><rect x="136" y="60" width="54" height="34" rx="2"/></g><path d="M10 50h40M73 50h36M136 50h44M10 100h30M73 100h42M136 100h36" stroke="#CFC5B1" stroke-width="3" stroke-linecap="round"/></svg>
+</span>
+<span style="font-size: 14px; font-weight: 600">Storyboard</span>
+</button>
+
+<button aria-pressed="{{ on.lab }}" onClick="{{ pick.lab }}" style="display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: transparent; text-align: left; color: #1E1C19">
+<span style="display: block; width: 100%; height: 112px; box-sizing: border-box; border: {{ b.lab }}; border-radius: 10px; background: #FFFDF8; overflow: hidden">
+<svg width="100%" height="100%" viewBox="0 0 200 112" preserveAspectRatio="none" fill="none" aria-hidden="true"><path d="M12 16h60M12 46h44M12 76h52" stroke="#3E7B4F" stroke-width="4" stroke-linecap="round"/><path d="M12 28h170M12 36h140M12 58h160M12 66h120M12 88h170M12 96h100" stroke="#CFC5B1" stroke-width="3" stroke-linecap="round"/></svg>
+</span>
+<span style="font-size: 14px; font-weight: 600">Lab report</span>
+</button>
+
+<button style="display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: transparent; text-align: left; color: #1E1C19">
+<span style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 112px; box-sizing: border-box; border: 2px dashed #BFB49E; border-radius: 10px; color: #5E574C; font-size: 13px">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+From this page
+</span>
+<span style="font-size: 14px; font-weight: 600">Save as template</span>
+</button>
+</div>
+
+<div style="flex-grow: 1"></div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 16px; border-top: 1px solid #EAE3D5">
+<div role="radiogroup" aria-label="Use it for" style="display: flex; align-items: center; gap: 8px">
+<span style="font-size: 14px; color: #5E574C; margin-right: 4px">Use for</span>
+<sc-for list="{{ targets }}" as="t" hint-placeholder-count="3">
+<button role="radio" aria-checked="{{ t.on }}" onClick="{{ t.pick }}" style="height: 44px; padding: 0 16px; border: 1px solid {{ t.border }}; border-radius: 999px; background: {{ t.bg }}; color: {{ t.fg }}; font-size: 14px; font-weight: 500">{{ t.label }}</button>
+</sc-for>
+</div>
+<div style="display: flex; gap: 10px">
+<a href="Canvas.dc.html" style="display: flex; align-items: center; height: 48px; padding: 0 20px; border: 1px solid #CFC5B1; border-radius: 12px; color: #1E1C19; font-size: 15px; font-weight: 500">Cancel</a>
+<a href="Canvas.dc.html" style="display: flex; align-items: center; height: 48px; padding: 0 22px; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 15px; font-weight: 600">Use “{{ selName }}”</a>
+</div>
+</div>
+</div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: 'cornell', cat: 'all', target: 'page' };
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var names = { blank: 'Dot grid', lined: 'Lined paper', grid: 'Graph paper', cornell: 'Cornell notes', meeting: 'Meeting notes', weekly: 'Weekly planner', todo: 'To-do list', kanban: 'Kanban board', mind: 'Mind map', story: 'Storyboard', lab: 'Lab report' };
+    var b = {}, on = {}, pick = {};
+    Object.keys(names).forEach(function (k) {
+      var sel = st.sel === k;
+      b[k] = sel ? '3px solid #2B5A8C' : '1px solid #DDD4C2';
+      on[k] = sel ? 'true' : 'false';
+      pick[k] = function () { self.setState({ sel: k }); };
+    });
+    var cats = [{ id: 'all', label: 'All' }, { id: 'paper', label: 'Paper' }, { id: 'study', label: 'Study' }, { id: 'plan', label: 'Planning' }, { id: 'boards', label: 'Boards' }, { id: 'mine', label: 'My templates' }].map(function (c) {
+      var cur = st.cat === c.id;
+      return { label: c.label, current: cur ? 'page' : 'false', bg: cur ? '#E0D6C2' : 'transparent', weight: cur ? 600 : 400, pick: function () { self.setState({ cat: c.id }); } };
+    });
+    var targets = [{ id: 'page', label: 'New page' }, { id: 'frame', label: 'Frame' }, { id: 'notebook', label: 'New notebook' }].map(function (t) {
+      var sel = st.target === t.id;
+      return { label: t.label, on: sel ? 'true' : 'false', bg: sel ? '#1E1C19' : 'transparent', fg: sel ? '#FFFDF8' : '#1E1C19', border: sel ? '#1E1C19' : '#CFC5B1', pick: function () { self.setState({ target: t.id }); } };
+    });
+    return { b: b, on: on, pick: pick, cats: cats, targets: targets, selName: names[st.sel] };
+  }
+}
+</script>
+</body>
+</html>

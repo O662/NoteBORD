@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Math tools and formula library</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; overflow: hidden; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.3px, transparent 1.4px); background-size: 26px 26px; background-position: 13px 13px; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<section aria-label="Number line" style="position: absolute; left: 40px; top: 90px; width: 790px; box-sizing: border-box; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 12px 24px -18px rgba(30,28,25,0.45)">
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="flex-grow: 1; font-size: 14px; font-weight: 700">Number line</span>
+<button aria-pressed="{{ intervalStr }}" onClick="{{ toggleInterval }}" style="height: 36px; padding: 0 12px; border: 1px solid {{ intervalBorder }}; border-radius: 999px; background: {{ intervalBg }}; color: #1E1C19; font-family: Newsreader, Georgia, serif; font-size: 15px">interval [1, π)</button>
+<button onClick="{{ addRoot2 }}" style="height: 36px; padding: 0 12px; border: 1px dashed #BFB49E; border-radius: 999px; background: transparent; color: #1E1C19; font-size: 13px; font-weight: 600">+ point √2</button>
+</div>
+<svg width="758" height="92" viewBox="0 0 758 92" fill="none" aria-label="Number line from minus 5 to 5 with marked points">
+<sc-if value="{{ showInterval }}" hint-placeholder-val="{{ true }}">
+<rect x="{{ nl.i1 }}" y="38" width="{{ nl.iw }}" height="10" rx="5" fill="#8CCB9A" fill-opacity="0.55"/>
+</sc-if>
+<path d="M14 43H744M736 36l9 7-9 7M22 36l-9 7 9 7" stroke="#1E1C19" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<sc-for list="{{ nl.ticks }}" as="t" hint-placeholder-count="11">
+<path d="M{{ t.x }} 35V51" stroke="#1E1C19" stroke-width="{{ t.w }}"/>
+<foreignObject x="{{ t.x }}" y="72" width="1" height="1" style="overflow: visible"><div xmlns="http://www.w3.org/1999/xhtml" style="position: absolute; left: 0; top: 0; transform: translate(-50%, -82%); white-space: nowrap; line-height: 1; font-family: Newsreader, Georgia, serif; font-size: 15px; color: #3D3830">{{ t.label }}</div></foreignObject>
+</sc-for>
+<sc-for list="{{ nl.pts }}" as="p" hint-placeholder-count="3">
+<circle cx="{{ p.x }}" cy="43" r="7" fill="{{ p.fill }}" stroke="{{ p.c }}" stroke-width="3"/>
+<foreignObject x="{{ p.x }}" y="22" width="1" height="1" style="overflow: visible"><div xmlns="http://www.w3.org/1999/xhtml" style="position: absolute; left: 0; top: 0; transform: translate(-50%, -82%); white-space: nowrap; line-height: 1; font-family: Newsreader, Georgia, serif; font-size: 16px; color: {{ p.c }}; font-style: italic">{{ p.label }}</div></foreignObject>
+</sc-for>
+</svg>
+</section>
+
+<section aria-label="Unit circle" style="position: absolute; left: 40px; top: 262px; width: 400px; box-sizing: border-box; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 12px 24px -18px rgba(30,28,25,0.45)">
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="flex-grow: 1; font-size: 14px; font-weight: 700">Unit circle</span>
+<button aria-label="Previous special angle" onClick="{{ angPrev }}" style="width: 44px; height: 40px; border: 1px solid #CFC5B1; border-radius: 10px; background: transparent; color: #1E1C19; font-size: 16px">−</button>
+<span style="min-width: 110px; text-align: center; font-family: Newsreader, Georgia, serif; font-size: 18px"><i>θ</i> = {{ uc.deg }}° = {{ uc.rad }}</span>
+<button aria-label="Next special angle" onClick="{{ angNext }}" style="width: 44px; height: 40px; border: 1px solid #CFC5B1; border-radius: 10px; background: transparent; color: #1E1C19; font-size: 16px">+</button>
+</div>
+<svg width="366" height="300" viewBox="0 0 366 300" fill="none" aria-label="Unit circle at {{ uc.deg }} degrees">
+<path d="M18 150H348M183 12V288" stroke="#BFB49E" stroke-width="1.5"/>
+<circle cx="183" cy="150" r="120" stroke="#1E1C19" stroke-width="2"/>
+<sc-for list="{{ uc.dots }}" as="d" hint-placeholder-count="16">
+<circle cx="{{ d.x }}" cy="{{ d.y }}" r="3" fill="#8A8274"/>
+</sc-for>
+<path d="{{ uc.arc }}" stroke="#7A4E73" stroke-width="2"/>
+<path d="M183 150L{{ uc.px }} {{ uc.py }}" stroke="#1E1C19" stroke-width="2.5"/>
+<path d="M183 150H{{ uc.px }}" stroke="#2B5A8C" stroke-width="4" stroke-linecap="round"/>
+<path d="M{{ uc.px }} 150V{{ uc.py }}" stroke="#C2662F" stroke-width="4" stroke-linecap="round"/>
+<circle cx="{{ uc.px }}" cy="{{ uc.py }}" r="7" fill="#FFFDF8" stroke="#1E1C19" stroke-width="3"/>
+<foreignObject x="{{ uc.lx }}" y="{{ uc.ly }}" width="1" height="1" style="overflow: visible"><div xmlns="http://www.w3.org/1999/xhtml" style="position: absolute; left: 0; top: 0; transform: translate(-50%, -82%); white-space: nowrap; line-height: 1; font-family: Newsreader, Georgia, serif; font-size: 15px; color: #1E1C19">({{ uc.cos }}, {{ uc.sin }})</div></foreignObject>
+<text x="352" y="146" font-family="Newsreader, Georgia, serif" font-style="italic" font-size="14" fill="#5E574C">x</text>
+<text x="194" y="44" font-family="Newsreader, Georgia, serif" font-style="italic" font-size="14" fill="#5E574C">y</text>
+</svg>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; font-family: Newsreader, Georgia, serif; font-size: 16px; text-align: center">
+<span style="padding: 6px; border-radius: 8px; background: #E1E9F3; color: #214A75">cos <i>θ</i> = {{ uc.cos }}</span>
+<span style="padding: 6px; border-radius: 8px; background: #F6E1D6; color: #8E4220">sin <i>θ</i> = {{ uc.sin }}</span>
+<span style="padding: 6px; border-radius: 8px; background: #EEE7D8">tan <i>θ</i> = {{ uc.tan }}</span>
+</div>
+</section>
+
+<section aria-label="Polar grid" style="position: absolute; left: 460px; top: 262px; width: 370px; box-sizing: border-box; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 12px 24px -18px rgba(30,28,25,0.45)">
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="flex-grow: 1; font-size: 14px; font-weight: 700">Polar grid</span>
+<sc-for list="{{ polarFns }}" as="f" hint-placeholder-count="2">
+<button aria-pressed="{{ f.on }}" onClick="{{ f.toggle }}" style="height: 36px; padding: 0 10px; border: 1.5px solid {{ f.c }}; border-radius: 999px; background: {{ f.bg }}; color: #1E1C19; font-family: Newsreader, Georgia, serif; font-size: 14px; font-style: italic">{{ f.label }}</button>
+</sc-for>
+</div>
+<svg width="338" height="338" viewBox="0 0 338 338" fill="none" aria-label="Polar grid with curves">
+<g stroke="#E4DCCB" stroke-width="1"><circle cx="169" cy="169" r="35"/><circle cx="169" cy="169" r="70"/><circle cx="169" cy="169" r="105"/><circle cx="169" cy="169" r="140"/></g>
+<path d="{{ rays }}" stroke="#E4DCCB" stroke-width="1"/>
+<sc-for list="{{ rayLabels }}" as="r" hint-placeholder-count="12">
+<foreignObject x="{{ r.x }}" y="{{ r.y }}" width="1" height="1" style="overflow: visible"><div xmlns="http://www.w3.org/1999/xhtml" style="position: absolute; left: 0; top: 0; transform: translate(-50%, -82%); white-space: nowrap; line-height: 1; font-family: Figtree, sans-serif; font-size: 10px; color: #8A8274">{{ r.t }}</div></foreignObject>
+</sc-for>
+<sc-for list="{{ polarPaths }}" as="pp" hint-placeholder-count="2">
+<path d="{{ pp.d }}" stroke="{{ pp.c }}" stroke-width="3" stroke-linejoin="round"/>
+</sc-for>
+</svg>
+</section>
+
+<aside aria-label="Formula library" style="position: absolute; right: 14px; top: 84px; bottom: 16px; width: 420px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 18px; box-shadow: 0 20px 40px -24px rgba(30,28,25,0.5)">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<span style="font-family: Newsreader, Georgia, serif; font-size: 24px">Formulas &amp; symbols</span>
+<span style="font-size: 12px; color: #5E574C">Tap to add to the page</span>
+</div>
+<div role="tablist" aria-label="Library" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; padding: 3px; background: #EEE7D8; border-radius: 12px">
+<sc-for list="{{ libTabs }}" as="t" hint-placeholder-count="3">
+<button role="tab" aria-selected="{{ t.on }}" onClick="{{ t.pick }}" style="height: 40px; border: 0; border-radius: 9px; background: {{ t.bg }}; color: #1E1C19; font-size: 14px; font-weight: {{ t.weight }}; box-shadow: {{ t.shadow }}">{{ t.label }}</button>
+</sc-for>
+</div>
+<sc-if value="{{ showFormulas }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 6px; overflow: hidden">
+<sc-for list="{{ formulas }}" as="f" hint-placeholder-count="8">
+<button onClick="{{ f.insert }}" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 52px; padding: 6px 12px; border: 1px solid #EAE3D5; border-radius: 12px; background: #FBF8F1; text-align: left; color: #1E1C19">
+<span style="display: flex; flex-direction: column; gap: 1px">
+<span style="font-size: 11px; font-weight: 700; color: #5E574C">{{ f.name }}</span>
+<span style="font-family: Newsreader, 'Cambria Math', Georgia, serif; font-size: 20px; font-style: italic">{{ f.f }}</span>
+</span>
+<span style="font-size: 18px; color: #2B5A8C" aria-hidden="true">+</span>
+</button>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ showSymbols }}" hint-placeholder-val="{{ false }}">
+<div style="flex: 1; min-height: 0; overflow-y: auto; margin: 0 -6px; padding: 0 6px 4px">
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px">
+<sc-for list="{{ symbolKeys }}" as="s" hint-placeholder-count="43">
+<button aria-label="Insert {{ s.name }}" title="{{ s.name }}" onClick="{{ s.insert }}" style="height: 80px; padding: 4px; border: 1px solid #DDD4C2; border-radius: 14px; background: #FBF8F1; color: #1E1C19; font-family: Newsreader, 'Cambria Math', Georgia, serif; font-size: {{ s.size }}; line-height: 1.15; white-space: normal; overflow-wrap: anywhere; box-shadow: 0 1px 0 #EAE3D5">{{ s.ch }}</button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+</aside>
+
+<sc-if value="{{ toastOn }}" hint-placeholder-val="{{ false }}">
+<div role="status" style="position: absolute; left: 40px; bottom: 20px; display: flex; align-items: center; gap: 10px; padding: 4px 4px 4px 16px; border-radius: 999px; background: #1E1C19; color: #FFFDF8; font-size: 14px">Added <span style="font-family: Newsreader, Georgia, serif; font-style: italic">{{ toast }}</span> to the page<button onClick="{{ clearToast }}" style="height: 36px; padding: 0 12px; border: 0; border-radius: 999px; background: #3D3830; color: #FFFDF8; font-size: 13px; font-weight: 600">Undo</button></div>
+</sc-if>
+
+<header style="position: absolute; left: 0; top: 0; width: 1280px; height: 72px; box-sizing: border-box; padding: 0 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px">
+<div style="justify-self: start; display: flex; align-items: center; gap: 4px; padding: 4px 16px 4px 4px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.45)">
+<a href="Math.dc.html" aria-label="Back to math mode" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+<div style="display: flex; flex-direction: column; gap: 1px">
+<span style="font-size: 16px; font-weight: 600; white-space: nowrap">Calculus II</span>
+<span style="font-size: 13px; color: #5E574C; white-space: nowrap">Page 10 · Saved</span>
+</div>
+</div>
+<div role="toolbar" aria-label="Math tools" style="display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 14px; background: #1E1C19; color: #FFFDF8; border-radius: 16px; box-shadow: 0 6px 18px -12px rgba(30,28,25,0.6)">
+<span style="font-family: Newsreader, Georgia, serif; font-size: 20px">∑</span>
+<span style="font-size: 15px; font-weight: 600; padding-right: 4px">Math tools</span>
+<button style="height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: #3D3830; color: #FFFDF8; font-size: 14px; font-weight: 600">Number line</button>
+<button style="height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: #3D3830; color: #FFFDF8; font-size: 14px; font-weight: 600">Unit circle</button>
+<button style="height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: #3D3830; color: #FFFDF8; font-size: 14px; font-weight: 600">Polar grid</button>
+<a href="Graph.dc.html" style="display: flex; align-items: center; height: 44px; padding: 0 12px; border-radius: 12px; background: #3D3830; color: #FFFDF8; font-size: 14px; font-weight: 600">Graph</a>
+<a href="Math.dc.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 12px; background: #FFFDF8; color: #1E1C19; font-size: 14px; font-weight: 700">Done</a>
+</div>
+<div></div>
+</header>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { interval: true, root2: false, ang: 4, card: true, rose: false, tab: 'symbols', toast: '' };
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var r1 = function (v) { return Math.round(v * 10) / 10; };
+    // number line
+    var nx = function (x) { return 39 + (x + 5) * 68; };
+    var ticks = [];
+    for (var k = -5; k <= 5; k++) ticks.push({ x: nx(k), label: k < 0 ? '−' + (-k) : '' + k, w: k === 0 ? 3 : 1.5 });
+    var pts = [{ x: nx(-2.5), label: '−2.5', c: '#2B5A8C', fill: '#2B5A8C' }, { x: nx(1), label: '1', c: '#3E7B4F', fill: st.interval ? '#3E7B4F' : '#FFFDF8' }, { x: nx(Math.PI), label: 'π', c: '#3E7B4F', fill: '#FFFDF8' }];
+    if (st.root2) pts.push({ x: r1(nx(Math.SQRT2)), label: '√2', c: '#C2662F', fill: '#C2662F' });
+    var nl = { ticks: ticks, pts: pts, i1: nx(1), iw: r1(nx(Math.PI) - nx(1)) };
+    // unit circle
+    var A = [
+      [0, '0', '1', '0', '0'], [30, 'π/6', '√3/2', '1/2', '√3/3'], [45, 'π/4', '√2/2', '√2/2', '1'], [60, 'π/3', '1/2', '√3/2', '√3'],
+      [90, 'π/2', '0', '1', 'undefined'], [120, '2π/3', '−1/2', '√3/2', '−√3'], [135, '3π/4', '−√2/2', '√2/2', '−1'], [150, '5π/6', '−√3/2', '1/2', '−√3/3'],
+      [180, 'π', '−1', '0', '0'], [210, '7π/6', '−√3/2', '−1/2', '√3/3'], [225, '5π/4', '−√2/2', '−√2/2', '1'], [240, '4π/3', '−1/2', '−√3/2', '√3'],
+      [270, '3π/2', '0', '−1', 'undefined'], [300, '5π/3', '1/2', '−√3/2', '−√3'], [315, '7π/4', '√2/2', '−√2/2', '−1'], [330, '11π/6', '√3/2', '−1/2', '−√3/3']
+    ];
+    var a = A[((st.ang % 16) + 16) % 16];
+    var rad = a[0] * Math.PI / 180, cx = 183, cy = 150, R = 120;
+    var px = r1(cx + Math.cos(rad) * R), py = r1(cy - Math.sin(rad) * R);
+    var arcR = 34, large = a[0] > 180 ? 1 : 0;
+    var arc = a[0] === 0 ? '' : 'M' + (cx + arcR) + ' ' + cy + ' A' + arcR + ' ' + arcR + ' 0 ' + large + ' 0 ' + r1(cx + Math.cos(rad) * arcR) + ' ' + r1(cy - Math.sin(rad) * arcR);
+    var dots = A.map(function (x) { var t = x[0] * Math.PI / 180; return { x: r1(cx + Math.cos(t) * R), y: r1(cy - Math.sin(t) * R) }; });
+    var lx = r1(cx + Math.cos(rad) * (R + 4)), ly = r1(cy - Math.sin(rad) * (R + 4) + (Math.sin(rad) >= 0 ? -14 : 24));
+    lx = Math.max(60, Math.min(306, lx));
+    var uc = { deg: a[0], rad: a[1], cos: a[2], sin: a[3], tan: a[4], px: px, py: py, arc: arc, dots: dots, lx: lx, ly: ly };
+    // polar
+    var pc = 169, sc = 70, rays = '', rayLabels = [];
+    for (var d = 0; d < 360; d += 30) {
+      var t = d * Math.PI / 180;
+      rays += 'M' + pc + ' ' + pc + 'L' + r1(pc + Math.cos(t) * 140) + ' ' + r1(pc - Math.sin(t) * 140) + ' ';
+      rayLabels.push({ x: r1(pc + Math.cos(t) * 156), y: r1(pc - Math.sin(t) * 156 + 4), t: d + '°' });
+    }
+    var polarPath = function (f) { var s = ''; for (var i = 0; i <= 360; i += 3) { var th = i * Math.PI / 180, r = f(th); s += (i ? 'L' : 'M') + r1(pc + r * Math.cos(th) * sc) + ' ' + r1(pc - r * Math.sin(th) * sc) + ' '; } return s; };
+    var polarPaths = [];
+    if (st.card) polarPaths.push({ d: polarPath(function (th) { return 1 + Math.cos(th); }), c: '#2B5A8C' });
+    if (st.rose) polarPaths.push({ d: polarPath(function (th) { return 2 * Math.cos(3 * th); }), c: '#C2662F' });
+    var polarFns = [{ key: 'card', label: 'r = 1 + cos θ', c: '#2B5A8C' }, { key: 'rose', label: 'r = 2 cos 3θ', c: '#C2662F' }].map(function (f) {
+      var on = st[f.key];
+      return { label: f.label, c: f.c, on: on ? 'true' : 'false', bg: on ? '#FFFDF8' : '#F3EEE3', toggle: function () { var p = {}; p[f.key] = !on; self.setState(p); } };
+    });
+    // library
+    var ins = function (txt) { return function () { self.setState({ toast: txt }); }; };
+    var F = {
+      math: [['Quadratic formula', 'x = (−b ± √(b² − 4ac)) / 2a'], ['Pythagorean theorem', 'a² + b² = c²'], ['Area of a circle', 'A = πr²'], ['Slope', 'm = (y₂ − y₁) / (x₂ − x₁)'], ['Power rule', 'd/dx xⁿ = n·xⁿ⁻¹'], ['Integral of xⁿ', '∫ xⁿ dx = xⁿ⁺¹ / (n + 1) + C'], ['Log of a product', 'log(ab) = log a + log b'], ['Pythagorean identity', 'sin²θ + cos²θ = 1']],
+      physics: [['Velocity', 'v = v₀ + at'], ['Position', 'x = x₀ + v₀t + ½at²'], ['Newton’s 2nd law', 'F = ma'], ['Momentum', 'p = mv'], ['Kinetic energy', 'KE = ½mv²'], ['Potential energy', 'PE = mgh'], ['Work', 'W = Fd cos θ'], ['Ohm’s law', 'V = IR']]
+    };
+    var libTabs = [{ id: 'math', label: 'Math' }, { id: 'physics', label: 'Physics' }, { id: 'symbols', label: 'Symbols' }].map(function (t) {
+      var on = st.tab === t.id;
+      return { label: t.label, on: on ? 'true' : 'false', bg: on ? '#FFFDF8' : 'transparent', weight: on ? 700 : 500, shadow: on ? '0 1px 2px rgba(30,28,25,0.15)' : 'none', pick: function () { self.setState({ tab: t.id }); } };
+    });
+    var formulas = (F[st.tab] || []).map(function (f) { return { name: f[0], f: f[1], insert: ins(f[1]) }; });
+    var K = [['π','pi'],['e','Euler’s number'],['φ','phi'],['τ','tau'],['∞','infinity'],['√','square root'],['∫','integral'],['∬','double integral'],['∭','triple integral'],['∮','contour integral'],['d/dx','derivative'],['d²/dx²','second derivative'],['∂/∂x','partial derivative'],['∇','nabla'],['Σ','sum'],['Π','product'],
+      ['±','plus or minus'],['×','times'],['÷','divide'],['≈','approximately equal'],['≠','not equal'],['≤','less than or equal'],['≥','greater than or equal'],['∝','proportional to'],
+      ['α','alpha'],['β','beta'],['γ','gamma'],['δ','delta'],['ε','epsilon'],['θ','theta'],['λ','lambda'],['μ','mu'],['σ','sigma'],['ω','omega'],['Δ','capital delta'],['Ω','capital omega'],
+      ['∈','element of'],['∉','not an element of'],['⊂','subset of'],['∪','union'],['∩','intersection'],['∀','for all'],['∃','there exists']];
+    var symbolKeys = K.map(function (k) { var n = k[0].length; return { ch: k[0], name: k[1], size: n > 4 ? '22px' : n > 2 ? '26px' : '32px', insert: ins(k[0]) }; });
+    return {
+      nl: nl, showInterval: st.interval, intervalStr: st.interval ? 'true' : 'false', intervalBg: st.interval ? '#E3ECE4' : 'transparent', intervalBorder: st.interval ? '#8CCB9A' : '#CFC5B1',
+      toggleInterval: function () { self.setState({ interval: !st.interval }); },
+      addRoot2: function () { self.setState({ root2: !st.root2 }); },
+      uc: uc, angPrev: function () { self.setState({ ang: st.ang - 1 }); }, angNext: function () { self.setState({ ang: st.ang + 1 }); },
+      rays: rays, rayLabels: rayLabels, polarPaths: polarPaths, polarFns: polarFns,
+      libTabs: libTabs, formulas: formulas, symbolKeys: symbolKeys,
+      showFormulas: st.tab !== 'symbols', showSymbols: st.tab === 'symbols',
+      toastOn: !!st.toast, toast: st.toast, clearToast: function () { self.setState({ toast: '' }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

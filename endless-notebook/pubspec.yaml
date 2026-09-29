@@ -1,0 +1,63 @@
+name: endless
+description: "Endless - a handwriting-first endless notebook"
+publish_to: 'none'
+
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.10.7
+  flutter: ">=3.38.0"
+
+# Versions are pinned (see CLAUDE.md). Check a package is maintained and
+# supports our target platforms before adding or bumping it.
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: 3.3.2
+  go_router: 17.5.0
+  path: 1.9.1
+  path_parsing: 1.1.0
+  path_provider: 2.1.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: 6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/fonts/OFL-figtree.txt
+    - assets/fonts/OFL-newsreader.txt
+    - assets/fonts/OFL-caveat.txt
+
+  fonts:
+    - family: Figtree
+      fonts:
+        - asset: assets/fonts/Figtree-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Figtree-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Figtree-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Figtree-Bold.ttf
+          weight: 700
+    - family: Newsreader
+      fonts:
+        - asset: assets/fonts/Newsreader-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Newsreader-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Newsreader-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/fonts/Newsreader-MediumItalic.ttf
+          weight: 500
+          style: italic
+    - family: Caveat
+      fonts:
+        - asset: assets/fonts/Caveat-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Caveat-SemiBold.ttf
+          weight: 600

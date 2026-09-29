@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Study flashcards</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; display: flex; background: #F6F1E7; overflow: hidden; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<nav aria-label="Decks" style="width: 290px; flex-shrink: 0; box-sizing: border-box; padding: 20px 16px; background: #EEE7D8; border-right: 1px solid #DDD4C2; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; gap: 6px">
+<a href="Start.dc.html" aria-label="Back to home" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+<h1 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 28px; font-weight: 400">Flashcards</h1>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<button aria-current="true" style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 14px; border: 2px solid #2B5A8C; border-radius: 14px; background: #FFFDF8; text-align: left; color: #1E1C19">
+<span style="font-size: 15px; font-weight: 600">Physics — Momentum</span>
+<span style="display: flex; gap: 8px; font-size: 13px; color: #5E574C"><span style="font-weight: 700; color: #8E4220">5 due</span>· 12 cards · from 2 notebooks</span>
+</button>
+<button style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 14px; border: 1px solid #DDD4C2; border-radius: 14px; background: #FFFDF8; text-align: left; color: #1E1C19">
+<span style="font-size: 15px; font-weight: 600">Calculus II — Integrals</span>
+<span style="display: flex; gap: 8px; font-size: 13px; color: #5E574C"><span style="font-weight: 700; color: #8E4220">2 due</span>· 20 cards</span>
+</button>
+<button style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 14px; border: 1px solid #DDD4C2; border-radius: 14px; background: #FFFDF8; text-align: left; color: #1E1C19">
+<span style="font-size: 15px; font-weight: 600">Lab safety</span>
+<span style="font-size: 13px; color: #5E574C">All caught up · 8 cards</span>
+</button>
+</div>
+<button style="display: flex; align-items: center; justify-content: center; gap: 8px; height: 46px; border: 1.5px dashed #BFB49E; border-radius: 14px; background: transparent; color: #1E1C19; font-size: 14px; font-weight: 600">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>New deck</button>
+<div style="flex-grow: 1"></div>
+<a href="FlashMake.dc.html" style="display: flex; gap: 12px; padding: 14px; border-radius: 14px; background: #FFFDF8; border: 1px solid #DDD4C2; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2B5A8C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><path d="M12 4c5 0 8 2.4 8 5.4S16.5 15 12 15s-8-2.6-8-5.6S7 4 12 4z" stroke-dasharray="3 2.6"/><path d="M7.5 13.5c-1 2.2.2 4.5 2.5 5.5"/></svg>
+<span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px; font-weight: 600">Make cards from your notes</span><span style="font-size: 13px; line-height: 1.4; color: #5E574C">Circle the front, then the back. Ink, images and text all work.</span></span>
+</a>
+</nav>
+
+<main style="flex-grow: 1; box-sizing: border-box; padding: 26px 40px; display: flex; flex-direction: column; align-items: center; gap: 20px">
+<div style="align-self: stretch; display: flex; align-items: center; gap: 16px">
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: baseline; gap: 12px">
+<span style="font-family: Newsreader, Georgia, serif; font-size: 26px">Physics — Momentum</span>
+<span style="font-size: 14px; color: #5E574C">{{ progressLabel }}</span>
+</div>
+<div role="progressbar" aria-valuemin="0" aria-valuemax="5" aria-valuenow="{{ done }}" style="height: 8px; border-radius: 999px; background: #E4DCCB; overflow: hidden"><div style="width: {{ pct }}%; height: 100%; background: #2B5A8C; border-radius: 999px"></div></div>
+</div>
+<div role="radiogroup" aria-label="Study mode" style="display: flex; padding: 3px; gap: 2px; background: #EEE7D8; border-radius: 12px">
+<sc-for list="{{ modes }}" as="m" hint-placeholder-count="2">
+<button role="radio" aria-checked="{{ m.on }}" onClick="{{ m.pick }}" style="height: 40px; padding: 0 14px; border: 0; border-radius: 9px; background: {{ m.bg }}; color: #1E1C19; font-size: 14px; font-weight: {{ m.weight }}; box-shadow: {{ m.shadow }}">{{ m.label }}</button>
+</sc-for>
+</div>
+</div>
+
+<button aria-label="{{ cardLabel }}" onClick="{{ flip }}" style="position: relative; width: 660px; height: 400px; flex-shrink: 0; padding: 0; border: 1px solid #DDD4C2; border-radius: 22px; background-color: #FFFDF8; background-image: radial-gradient(#E4DCCB 1.1px, transparent 1.2px); background-size: 22px 22px; box-shadow: 0 2px 0 rgba(30,28,25,0.04), 0 24px 40px -24px rgba(30,28,25,0.45); color: #1E1C19; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px">
+<span style="position: absolute; left: 20px; top: 16px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: {{ sideColor }}">{{ sideLabel }}</span>
+
+<sc-if value="{{ show.frontInk }}" hint-placeholder-val="{{ true }}">
+<span style="font-family: Caveat, 'Segoe Print', cursive; font-size: 84px; font-weight: 600; color: #2B5A8C; line-height: 1">{{ card.frontText }}</span>
+</sc-if>
+<sc-if value="{{ show.frontImage }}" hint-placeholder-val="{{ false }}">
+<span style="width: 300px; height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background-color: #E6DECD; background-image: repeating-linear-gradient(45deg, rgba(30,28,25,0.06) 0 8px, transparent 8px 16px); color: #5E574C; font-size: 14px">[Photo] lab-setup.jpg</span>
+<span style="font-family: Caveat, 'Segoe Print', cursive; font-size: 40px; color: #1E1C19; line-height: 1">{{ card.frontText }}</span>
+</sc-if>
+<sc-if value="{{ show.backInk }}" hint-placeholder-val="{{ false }}">
+<span style="font-family: Caveat, 'Segoe Print', cursive; font-size: 64px; color: #1E1C19; line-height: 1">{{ card.backText }}</span>
+<sc-if value="{{ card.backDiagram }}" hint-placeholder-val="{{ false }}">
+<svg width="220" height="130" viewBox="0 0 340 200" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 176 L300 176 L300 36 Z" stroke="#1E1C19" stroke-width="4"/><rect x="145" y="62" width="52" height="34" stroke="#1E1C19" stroke-width="4" transform="rotate(-25.8 170 96)"/><path d="M196 70 L252 43 M240 41 L253 43 L246 54" stroke="#2B5A8C" stroke-width="4"/></svg>
+</sc-if>
+</sc-if>
+<sc-if value="{{ show.backTyped }}" hint-placeholder-val="{{ false }}">
+<span style="max-width: 480px; font-family: Newsreader, Georgia, serif; font-size: 34px; line-height: 1.25; text-align: center">{{ card.backText }}</span>
+</sc-if>
+
+<sc-if value="{{ show.writeArea }}" hint-placeholder-val="{{ false }}">
+<span style="width: 520px; height: 110px; display: flex; align-items: center; justify-content: center; border: 2px dashed #BFB49E; border-radius: 14px; color: #5E574C; font-size: 15px">Write your answer here with the S Pen</span>
+</sc-if>
+<sc-if value="{{ show.tapHint }}" hint-placeholder-val="{{ true }}">
+<span style="position: absolute; bottom: 16px; font-size: 13px; color: #5E574C">Tap the card to flip</span>
+</sc-if>
+<sc-if value="{{ show.source }}" hint-placeholder-val="{{ false }}">
+<span style="position: absolute; bottom: 16px; font-size: 13px; color: #5E574C">From Physics — Lecture notes · page 3</span>
+</sc-if>
+</button>
+
+<sc-if value="{{ show.rate }}" hint-placeholder-val="{{ false }}">
+<div role="group" aria-label="How well did you know it?" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; width: 660px">
+<sc-for list="{{ ratings }}" as="r" hint-placeholder-count="4">
+<button onClick="{{ r.pick }}" style="height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 1px solid {{ r.border }}; border-radius: 14px; background: {{ r.bg }}; color: {{ r.fg }}">
+<span style="font-size: 15px; font-weight: 700">{{ r.label }}</span>
+<span style="font-size: 12px">{{ r.next }}</span>
+</button>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ show.showBtn }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; gap: 10px; width: 660px">
+<a href="Canvas.dc.html" style="display: flex; align-items: center; justify-content: center; height: 64px; padding: 0 20px; border: 1px solid #CFC5B1; border-radius: 14px; color: #1E1C19; font-size: 15px; font-weight: 500">Open in notes</a>
+<button onClick="{{ flip }}" style="flex-grow: 1; height: 64px; border: 0; border-radius: 14px; background: #1E1C19; color: #FFFDF8; font-size: 16px; font-weight: 600">{{ showLabel }}</button>
+</div>
+</sc-if>
+<sc-if value="{{ finished }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 10px">
+<span style="font-size: 16px">All 5 due cards done. Next review: tomorrow.</span>
+<button onClick="{{ restart }}" style="height: 48px; padding: 0 20px; border: 1px solid #CFC5B1; border-radius: 12px; background: transparent; color: #1E1C19; font-size: 15px; font-weight: 600">Study again</button>
+</div>
+</sc-if>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { i: 0, flipped: false, done: 2, mode: 'flip' };
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var cards = [
+      { front: 'ink', frontText: 'Impulse', back: 'ink', backText: 'J = F · Δt = Δp', backDiagram: true },
+      { front: 'image', frontText: 'What does this setup measure?', back: 'typed', backText: 'Momentum before and after a collision', backDiagram: false },
+      { front: 'ink', frontText: 'p = ?', back: 'ink', backText: 'm · v   (kg·m/s)', backDiagram: false }
+    ];
+    var card = cards[st.i % cards.length];
+    var finished = st.done >= 5;
+    var f = st.flipped;
+    var write = st.mode === 'write';
+    var next = function () { self.setState({ i: st.i + 1, flipped: false, done: st.done + 1 }); };
+    var rDefs = [
+      { label: 'Again', next: 'in 1 min', bg: '#F6E1D6', fg: '#8E4220', border: '#E9C3AE' },
+      { label: 'Hard', next: 'in 10 min', bg: '#FFFDF8', fg: '#1E1C19', border: '#CFC5B1' },
+      { label: 'Good', next: 'in 2 days', bg: '#E1E9F3', fg: '#214A75', border: '#BCCDE2' },
+      { label: 'Easy', next: 'in 5 days', bg: '#E3ECE4', fg: '#2F5D3A', border: '#BFD3C1' }
+    ];
+    var modes = [{ id: 'flip', label: 'Flip' }, { id: 'write', label: 'Write the answer' }].map(function (m) {
+      var on = st.mode === m.id;
+      return { label: m.label, on: on ? 'true' : 'false', bg: on ? '#FFFDF8' : 'transparent', weight: on ? 600 : 500, shadow: on ? '0 1px 2px rgba(30,28,25,0.15)' : 'none', pick: function () { self.setState({ mode: m.id, flipped: false }); } };
+    });
+    return {
+      card: card, modes: modes,
+      progressLabel: finished ? 'Done for today' : 'Card ' + (st.done + 1) + ' of 5 due',
+      done: st.done, pct: Math.min(100, st.done * 20),
+      sideLabel: f ? 'BACK' : 'FRONT', sideColor: f ? '#8E4220' : '#214A75',
+      cardLabel: f ? 'Card back. Tap to see the front' : 'Card front. Tap to flip',
+      show: {
+        frontInk: !finished && !f && card.front === 'ink',
+        frontImage: !finished && !f && card.front === 'image',
+        backInk: !finished && f && card.back === 'ink',
+        backTyped: !finished && f && card.back === 'typed',
+        writeArea: !finished && !f && write,
+        tapHint: !finished && !f && !write,
+        source: !finished && f,
+        rate: !finished && f,
+        showBtn: !finished && !f
+      },
+      showLabel: write ? 'Check my answer' : 'Show answer',
+      finished: finished,
+      ratings: rDefs.map(function (r) { return Object.assign({ pick: next }, r); }),
+      flip: function () { if (!finished) self.setState({ flipped: !st.flipped }); },
+      restart: function () { self.setState({ i: 0, flipped: false, done: 0 }); }
+    };
+  }
+}
+</script>
+</body>
+</html>
