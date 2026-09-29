@@ -49,7 +49,6 @@ app.*.map.json
 /design/tokens.json
 /Updates/
 /tool/
-/README.md
 
 # Golden test diff output
 **/failures/
