@@ -15,7 +15,7 @@ My notebook.board
     └── recognition.json # optional cache: handwriting text per stroke group
 ```
 
-Locked notebooks and pages store `pages/<pageId>.json.enc` (AES-256-GCM) in place of the plain file, along with `lock.json` (salt, Argon2id parameters, hint).
+Locked notebooks and pages store `pages/<pageId>.json.enc` (AES-256-GCM) in place of the plain file, along with `lock.json` (salt, Argon2id parameters, hint). See [Locks](#locks).
 
 ## notebook.json
 ```json
@@ -30,9 +30,12 @@ Locked notebooks and pages store `pages/<pageId>.json.enc` (AES-256-GCM) in plac
   "updatedAt": "2026-09-25T10:12:03Z",
   "pages": ["pg_01", "pg_02", "pg_03"],
   "defaults": { "paper": "dots", "theme": "paper" },
-  "locked": false
+  "locked": false,
+  "pinned": false,
+  "trashedAt": null
 }
 ```
+`locked` means the whole notebook has a password. `pinned` shows it under Pinned on the Start page. `trashedAt` is set while it's in the Trash (it is deleted 30 days later).
 
 ## pages/<pageId>.json
 ```json
@@ -45,6 +48,7 @@ Locked notebooks and pages store `pages/<pageId>.json.enc` (AES-256-GCM) in plac
   "items": [ /* Item[] in z-order */ ]
 }
 ```
+`template` is a built-in layout drawn under the ink (`cornell`, `meeting`, `weekly`, `todo`, `kanban`, `mind`, `story`, `lab`), or null. `paper` is `dots`, `lines`, `grid` or `blank`. `locked` means the page has its own password.
 
 ## Items
 Every item has these fields:
@@ -77,6 +81,32 @@ Every item has these fields:
 **Strokes, as implemented (v1):** `x`/`y` is the top-left of the stroke's points, and each point's `x`/`y` is relative to it, so moving a stroke only changes `x`/`y`. `tMs` is milliseconds since the stroke started (`createdAt` gives the absolute time). `pressure` is normalized to 0–1. `width` is the nominal width in page px at medium pressure. Two extra stroke fields: `penType` (`ballpoint`/`fountain`/`pencil`) and `usePressure` (false when "Pressure changes thickness" was off).
 
 `remember` is either `null` or `{ "why": "...", "remindAt": "...", "flashcard": false }`.
+
+## Locks
+`lock.json`:
+```json
+{
+  "version": 1,
+  "notebook": null,
+  "pages": {
+    "pg_03": {
+      "kdf": { "alg": "argon2id", "memoryKiB": 19456, "iterations": 2, "parallelism": 1 },
+      "salt": "<16 bytes, base64>",
+      "check": "<sealed \"endless-lock-check\", base64>",
+      "hint": "units",
+      "biometric": true
+    }
+  }
+}
+```
+- A page with its own entry uses that password; any other page of a notebook with a `notebook` entry uses the notebook's.
+- The key is Argon2id(password, salt), 32 bytes. `check` tells a wrong password from a damaged file.
+- A sealed file is `EBL1` (4 bytes) · nonce (12) · GCM tag (16) · ciphertext of the page JSON.
+- The password and key are never written. `biometric` means this device keeps the key in the platform's secure storage for fingerprint or face unlock.
+- Order of writes: lock.json before the first sealed page; when a lock is removed, the plain page before lock.json loses the entry. If both `pages/<id>.json` and `.json.enc` exist, the sealed one wins.
+
+## Outside the packages
+The app's data folder also holds `settings.json`, `library.json` (folders: `{"version": 1, "folders": [{"path": ["School", "Physics"], "color": "#2B5A8C"}]}`), `templates/<id>.json` (My templates: `format: "endless.template"`, `name`, `paper`, `template`, `items`) and `index.sqlite` (the library index, a cache rebuilt from the packages).
 
 ## Rules
 - Unknown item types and fields must be kept on load and written back on save, so newer files survive older apps.

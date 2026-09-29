@@ -9,7 +9,6 @@
 @Tags(['golden'])
 library;
 
-import 'package:endless/state/notebook.dart';
 import 'package:endless/state/settings.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -39,8 +38,8 @@ Future<void> _settle(WidgetTester tester) async {
 void _golden(String name, {ThemeMode mode = ThemeMode.light, Future<void> Function(WidgetTester t)? setUp}) {
   testWidgets(name, (tester) => _withShadows(() async {
         final store = storeWith(sampleNotebook(), settings: AppSettings(themeMode: mode));
-        final c = await pumpCanvas(tester, store: store);
-        c.read(notebookProvider.notifier).goToPage(2);
+        await pumpCanvas(tester, store: store);
+        canvasPane.goTo(2);
         await _settle(tester);
         await setUp?.call(tester);
         await _settle(tester);

@@ -8,8 +8,13 @@ class CanvasView extends ChangeNotifier {
   /// Zoom steps used by the + and − buttons.
   static const steps = [0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0];
 
+  CanvasView({this.home = Offset.zero}) : _translation = home;
+
+  /// Where page (0, 0) sits on screen at 100% ("reset" returns here).
+  final Offset home;
+
   double _scale = 1;
-  Offset _translation = Offset.zero;
+  Offset _translation;
   Size size = Size.zero;
 
   double get scale => _scale;
@@ -77,7 +82,7 @@ class CanvasView extends ChangeNotifier {
 
   void reset() {
     _scale = 1;
-    _translation = Offset.zero;
+    _translation = home;
     notifyListeners();
   }
 }

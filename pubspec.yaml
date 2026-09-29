@@ -11,13 +11,23 @@ environment:
 # Versions are pinned (see CLAUDE.md). Check a package is maintained and
 # supports our target platforms before adding or bumping it.
 dependencies:
+  # AES-GCM and Argon2id for locked pages (pure Dart, every platform).
+  cryptography: 2.9.0
+  # The library index. No drift_dev: its code generator needs a newer
+  # analyzer than this Flutter SDK allows, so queries are plain SQL for now.
+  drift: 2.35.0
   flutter:
     sdk: flutter
   flutter_riverpod: 3.3.2
+  flutter_secure_storage: 11.2.0
   go_router: 17.5.0
+  local_auth: 3.0.2
   path: 1.9.1
   path_parsing: 1.1.0
   path_provider: 2.1.6
+  # 3.x builds or downloads SQLite through a build hook on every platform,
+  # so no sqlite3_flutter_libs.
+  sqlite3: 3.5.2
 
 dev_dependencies:
   flutter_test:

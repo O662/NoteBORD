@@ -6,7 +6,7 @@ import 'model.dart';
 
 const _notebookKeys = {
   'format', 'version', 'id', 'title', 'folderPath', 'cover', 'createdAt', 'updatedAt', //
-  'pages', 'defaults', 'locked',
+  'pages', 'defaults', 'locked', 'pinned', 'trashedAt',
 };
 const _pageKeys = {'id', 'title', 'paper', 'template', 'locked', 'items'};
 const _itemKeys = {'id', 'type', 'x', 'y', 'rotation', 'z', 'createdAt', 'author', 'remember'};
@@ -31,6 +31,8 @@ String encodeNotebook(Notebook nb) {
     'pages': nb.pageIds,
     'defaults': {...nb.extraDefaults, 'paper': nb.defaultPaper.name, 'theme': nb.theme},
     'locked': nb.locked,
+    'pinned': nb.pinned,
+    'trashedAt': nb.trashedAt?.toUtc().toIso8601String(),
   };
   return const JsonEncoder.withIndent('  ').convert(json);
 }
@@ -52,6 +54,8 @@ Notebook decodeNotebook(String source) {
     defaultPaper: paperFromName(defaults['paper'] as String?),
     theme: defaults['theme'] as String? ?? 'paper',
     locked: json['locked'] as bool? ?? false,
+    pinned: json['pinned'] as bool? ?? false,
+    trashedAt: DateTime.tryParse(json['trashedAt'] as String? ?? ''),
     extra: _unknown(json, _notebookKeys),
     extraDefaults: _unknown(defaults, {'paper', 'theme'}),
   );

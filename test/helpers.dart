@@ -1,16 +1,25 @@
 import 'dart:math' as math;
 
+import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:endless/app.dart';
 import 'package:endless/board/ids.dart';
+import 'package:endless/board/lock.dart';
 import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
+import 'package:endless/canvas/page_runtime.dart';
+import 'package:endless/canvas/pane.dart';
+import 'package:endless/library/index_db.dart';
+import 'package:endless/state/biometric.dart';
+import 'package:endless/state/bootstrap.dart';
 import 'package:endless/state/notebook.dart';
 import 'package:endless/state/settings.dart';
 import 'package:endless/theme/tokens.g.dart' as tokens;
 import 'package:endless/ui/canvas/canvas_screen.dart';
 import 'package:endless/ui/common.dart';
+import 'package:endless/ui/routes.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 /// Finds a chrome button by its accessible label.
@@ -32,15 +41,99 @@ Future<void> loadAppFonts() async {
   }
 }
 
-/// Pumps the app at the tablet size (1280×800) and returns its container.
-Future<ProviderContainer> pumpCanvas(WidgetTester tester, {MemoryBoardStore? store}) async {
+/// "Now" in tests and goldens: Friday, September 25, 2026, 10:00 (like the design).
+final testNow = DateTime(2026, 9, 25, 10);
+
+/// Real Argon2id and AES, with cheap parameters and no isolates.
+final testCrypto = LockCrypto(kdf: const Argon2Kdf(background: false), params: KdfParams.fast, background: false);
+
+/// A fingerprint reader that always recognizes the finger (unless [fail]).
+class FakeBiometric implements BiometricUnlock {
+  final saved = <String, Uint8List>{};
+  bool available = true;
+  bool fail = false;
+
+  @override
+  Future<bool> isAvailable() async => available;
+
+  @override
+  Future<void> save(String slot, Uint8List key) async => saved[slot] = key;
+
+  @override
+  Future<Uint8List?> read(String slot, {required String reason}) async => fail ? null : saved[slot];
+
+  @override
+  Future<void> delete(String slot) async => saved.remove(slot);
+}
+
+/// Bootstraps [store] with the test clock, crypto and fingerprint reader.
+Future<List<Override>> testOverrides(
+  MemoryBoardStore store, {
+  String? location,
+  FakeBiometric? biometric,
+  IndexDb? index,
+}) async {
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  final db = index ?? IndexDb.memory();
+  if (index == null) addTearDown(db.close);
+  return [
+    ...await bootstrap(store, index: db, clock: () => testNow),
+    lockCryptoProvider.overrideWithValue(testCrypto),
+    biometricProvider.overrideWithValue(biometric ?? FakeBiometric()),
+    if (location != null) initialLocationProvider.overrideWithValue(location),
+  ];
+}
+
+/// Pumps the whole app at the tablet size (1280×800), starting at [location].
+Future<ProviderContainer> pumpApp(
+  WidgetTester tester, {
+  MemoryBoardStore? store,
+  String location = Routes.start,
+  FakeBiometric? biometric,
+  IndexDb? index,
+}) async {
   tester.view.physicalSize = tokens.Sizes.tabletFrame;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final overrides = await bootstrap(store ?? MemoryBoardStore());
+  final overrides =
+      await testOverrides(store ?? MemoryBoardStore(), location: location, biometric: biometric, index: index);
   await tester.pumpWidget(ProviderScope(overrides: overrides, child: const EndlessApp()));
   await tester.pump();
-  return ProviderScope.containerOf(tester.element(find.byType(CanvasScreen)));
+  await tester.pump();
+  return ProviderScope.containerOf(tester.element(find.byType(EndlessApp)));
+}
+
+/// Adds an empty "Untitled notebook" to [store] and returns its id.
+String addUntitled(MemoryBoardStore store) {
+  final now = DateTime.utc(2026, 9, 25, 9);
+  final page = BoardPage(id: newId('pg'));
+  final nb = Notebook(id: newId('nb'), title: 'Untitled notebook', createdAt: now, updatedAt: now, pageIds: [page.id]);
+  store.savePage(nb.id, page);
+  store.saveNotebook(nb);
+  store.pageWrites = 0;
+  return nb.id;
+}
+
+/// The pane of the Canvas screen pumped by [pumpCanvas].
+late Pane canvasPane;
+
+/// The notebook and page that screen shows.
+NotebookState shownNotebook(ProviderContainer c) => c.read(notebookProvider(canvasPane.notebookId));
+PageRuntime shownPage(ProviderContainer c) => shownNotebook(c).pageAt(canvasPane.page);
+
+/// Pumps the app straight into a notebook's canvas: [notebookId], or the
+/// store's first notebook (an empty one is created if there is none).
+Future<ProviderContainer> pumpCanvas(
+  WidgetTester tester, {
+  MemoryBoardStore? store,
+  String? notebookId,
+  FakeBiometric? biometric,
+}) async {
+  final s = store ?? MemoryBoardStore();
+  final id = notebookId ?? (s.notebooks.isEmpty ? addUntitled(s) : s.notebooks.keys.first);
+  final c = await pumpApp(tester, store: s, location: Routes.notebook(id), biometric: biometric);
+  canvasPane = tester.widget<CanvasScreen>(find.byType(CanvasScreen)).pane;
+  return c;
 }
 
 /// A store holding one notebook; optional settings.

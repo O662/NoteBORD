@@ -1,6 +1,5 @@
 import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
-import 'package:endless/state/notebook.dart';
 import 'package:endless/state/settings.dart';
 import 'package:endless/theme/tokens.g.dart' as tokens;
 import 'package:flutter/gestures.dart';
@@ -10,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers.dart';
 
-List<Item> _items(ProviderContainer c) => c.read(notebookProvider).page.items;
+List<Item> _items(ProviderContainer c) => shownPage(c).items;
 
 Future<void> _stylusStroke(
   WidgetTester tester,

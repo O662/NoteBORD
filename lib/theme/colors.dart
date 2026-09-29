@@ -41,6 +41,19 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
     required this.menuTile,
     required this.clayDeep,
     required this.greenDeep,
+    required this.sideSelected,
+    required this.lineDashed,
+    required this.accentWash,
+    required this.switchOff,
+    required this.warningTint,
+    required this.onWarning,
+    required this.goldDeep,
+    required this.moss,
+    required this.paperLine,
+    required this.paperGrid,
+    required this.paperMargin,
+    required this.scrim,
+    required this.frost,
   });
 
   final Color text;
@@ -80,6 +93,45 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
   final Color clayDeep;
   final Color greenDeep;
 
+  /// Selected row in the sidebar and category lists.
+  final Color sideSelected;
+
+  /// Dashed "add" outlines (New folder, Save as template).
+  final Color lineDashed;
+
+  /// Selected option card background.
+  final Color accentWash;
+
+  /// Switch track when off.
+  final Color switchOff;
+
+  /// Warning box background.
+  final Color warningTint;
+
+  /// Warning box text.
+  final Color onWarning;
+
+  /// Text on the gold "remember" badge.
+  final Color goldDeep;
+
+  /// The green notebook and folder color.
+  final Color moss;
+
+  /// Lined paper rules.
+  final Color paperLine;
+
+  /// Graph paper grid.
+  final Color paperGrid;
+
+  /// Lined paper margin.
+  final Color paperMargin;
+
+  /// Behind dialogs.
+  final Color scrim;
+
+  /// Over a locked page.
+  final Color frost;
+
   /// Floating pill shadow: `0 6px 18px -12px shadow`.
   List<BoxShadow> get pillShadow => [
         BoxShadow(color: shadow, offset: const Offset(0, 6), blurRadius: 18, spreadRadius: -12),
@@ -98,6 +150,17 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
   /// Map card and zoom pill: `0 10px 24px -18px shadow`.
   List<BoxShadow> get cardShadow => [
         BoxShadow(color: shadow, offset: const Offset(0, 10), blurRadius: 24, spreadRadius: -18),
+      ];
+
+  /// Full dialogs (Templates, Password protect): `0 30px 60px -24px shadow`.
+  List<BoxShadow> get modalShadow => [
+        BoxShadow(color: shadow, offset: const Offset(0, 30), blurRadius: 60, spreadRadius: -24),
+      ];
+
+  /// Notebook covers in the library: `0 1px 0 shadow/8%, 0 6px 16px -10px shadow/55%`.
+  List<BoxShadow> get coverShadow => [
+        BoxShadow(color: shadow.withValues(alpha: shadow.a * 0.09), offset: const Offset(0, 1)),
+        BoxShadow(color: shadow.withValues(alpha: shadow.a * 0.55), offset: const Offset(0, 6), blurRadius: 16, spreadRadius: -10),
       ];
 
   /// Popovers and dialogs: `0 24px 48px -20px shadow`.
@@ -147,6 +210,19 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
       menuTile: l(menuTile, other.menuTile),
       clayDeep: l(clayDeep, other.clayDeep),
       greenDeep: l(greenDeep, other.greenDeep),
+      sideSelected: l(sideSelected, other.sideSelected),
+      lineDashed: l(lineDashed, other.lineDashed),
+      accentWash: l(accentWash, other.accentWash),
+      switchOff: l(switchOff, other.switchOff),
+      warningTint: l(warningTint, other.warningTint),
+      onWarning: l(onWarning, other.onWarning),
+      goldDeep: l(goldDeep, other.goldDeep),
+      moss: l(moss, other.moss),
+      paperLine: l(paperLine, other.paperLine),
+      paperGrid: l(paperGrid, other.paperGrid),
+      paperMargin: l(paperMargin, other.paperMargin),
+      scrim: l(scrim, other.scrim),
+      frost: l(frost, other.frost),
     );
   }
 }

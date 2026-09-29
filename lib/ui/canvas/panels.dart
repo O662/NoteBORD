@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../canvas/page_runtime.dart';
 import '../../canvas/canvas_view.dart';
+import '../../canvas/pane.dart';
 import '../../state/notebook.dart';
 import '../../state/settings.dart';
 import '../../theme/colors.dart';
@@ -14,18 +15,28 @@ import '../icons.dart';
 
 /// Right-hand pages rail: current page of total, thumbnails, locked pages, add page.
 class PagesRail extends ConsumerWidget {
-  const PagesRail({super.key, required this.maxHeight});
+  const PagesRail({super.key, required this.pane, required this.maxHeight});
 
+  final Pane pane;
   final double maxHeight;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context, WidgetRef ref) => ListenableBuilder(
+        listenable: pane,
+        // A Consumer, so what _build watches is tracked for this build.
+        builder: (context, _) => Consumer(builder: (context, ref, _) => _build(context, ref)),
+      );
+
+  Widget _build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
-    final nb = ref.watch(notebookProvider);
+    final nb = ref.watch(notebookProvider(pane.notebookId));
     final open = ref.watch(settingsProvider.select((s) => s.pagesOpen));
     final settings = ref.read(settingsProvider.notifier);
-    final notebook = ref.read(notebookProvider.notifier);
-    final counter = '${nb.current + 1} / ${nb.pages.length}';
+    final notebook = ref.read(notebookProvider(pane.notebookId).notifier);
+    final current = pane.page.clamp(0, nb.pages.length - 1);
+    final counter = '${current + 1} / ${nb.pages.length}';
+    // A new page in a locked notebook needs the notebook's key.
+    final canAdd = !(nb.notebookLocked && nb.sealed.isNotEmpty);
     void toggle() => settings.apply((s) => s.copyWith(pagesOpen: !s.pagesOpen));
 
     if (!open) {
@@ -78,7 +89,13 @@ class PagesRail extends ConsumerWidget {
             radius: Radii.key,
             onPressed: toggle,
             child: Row(mainAxisSize: MainAxisSize.min, spacing: 6, children: [
-              Text(counter, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.inverseRaised)),
+              // "12 / 12" at large font sizes shrinks to fit the rail.
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(counter, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.inverseRaised)),
+                ),
+              ),
               EIcon(EIcons.chevronRight, size: 16, color: c.inverseRaised),
             ]),
           ),
@@ -87,7 +104,7 @@ class PagesRail extends ConsumerWidget {
             child: ListView.separated(
               shrinkWrap: true,
               padding: EdgeInsets.zero,
-              itemCount: nb.pages.length + 1,
+              itemCount: nb.pages.length + (canAdd ? 1 : 0),
               separatorBuilder: (_, _) => const SizedBox(height: 10),
               itemBuilder: (context, i) {
                 if (i == nb.pages.length) {
@@ -97,7 +114,7 @@ class PagesRail extends ConsumerWidget {
                     excludeSemantics: true,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(Radii.small),
-                      onTap: notebook.addPage,
+                      onTap: () => pane.goTo(notebook.addPage()),
                       child: DashedBorder(
                         color: c.lineStrong,
                         child: SizedBox(
@@ -112,9 +129,10 @@ class PagesRail extends ConsumerWidget {
                 return _PageThumb(
                   page: nb.pages[i],
                   number: i + 1,
-                  current: i == nb.current,
+                  current: i == current,
+                  locked: nb.pages[i].page.locked || nb.isSealed(nb.pages[i].id),
                   revision: nb.revision,
-                  onTap: () => notebook.goToPage(i),
+                  onTap: () => pane.goTo(i),
                 );
               },
             ),
@@ -130,6 +148,7 @@ class _PageThumb extends StatelessWidget {
     required this.page,
     required this.number,
     required this.current,
+    required this.locked,
     required this.revision,
     required this.onTap,
   });
@@ -137,13 +156,13 @@ class _PageThumb extends StatelessWidget {
   final PageRuntime page;
   final int number;
   final bool current;
+  final bool locked;
   final int revision;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final locked = page.page.locked;
     final label = locked ? 'Page $number, locked' : (current ? 'Page $number, current' : 'Page $number');
     return Semantics(
       button: true,
@@ -327,15 +346,21 @@ class ZoomPill extends StatelessWidget {
 /// Minimap of the endless page, above the zoom pill. The box is your view;
 /// tap or drag to move it.
 class MapPanel extends ConsumerWidget {
-  const MapPanel({super.key, required this.view, required this.onHide});
+  const MapPanel({super.key, required this.pane, required this.onHide});
 
-  final CanvasView view;
+  final Pane pane;
   final VoidCallback onHide;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context, WidgetRef ref) => ListenableBuilder(
+        listenable: pane,
+        // A Consumer, so what _build watches is tracked for this build.
+        builder: (context, _) => Consumer(builder: (context, ref, _) => _build(context, ref)),
+      );
+
+  Widget _build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
-    final nb = ref.watch(notebookProvider);
+    final nb = ref.watch(notebookProvider(pane.notebookId));
     final brightness = Theme.of(context).brightness;
     return Container(
       width: cornerWidth,
@@ -364,7 +389,7 @@ class MapPanel extends ConsumerWidget {
             ),
           ),
         ]),
-        _MinimapView(view: view, page: nb.page, revision: nb.revision, brightness: brightness),
+        _MinimapView(view: pane.view, page: nb.pageAt(pane.page), revision: nb.revision, brightness: brightness),
       ]),
     );
   }

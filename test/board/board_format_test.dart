@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:endless/board/codec.dart';
 import 'package:endless/board/model.dart';
@@ -128,6 +129,48 @@ void main() {
       expect(await store.loadSettings(), isNull);
       await store.saveSettings({'tool': 'marker'});
       expect(await store.loadSettings(), {'tool': 'marker'});
+    });
+
+    test('a sealed page replaces the clear one (and back), with lock.json beside it', () async {
+      final sample = sampleNotebook();
+      await store.saveNotebook(sample.notebook);
+      for (final p in sample.pages) {
+        await store.savePage('nb_sample', p);
+      }
+      final pages = Directory('${dir.path}/notebooks/nb_sample.board/pages');
+      await store.saveLock('nb_sample', {'version': 1, 'notebook': null, 'pages': {}});
+      await store.saveSealedPage('nb_sample', 'pg_03', Uint8List.fromList([69, 66, 76, 49, 1, 2, 3]));
+      expect(File('${pages.path}/pg_03.json').existsSync(), isFalse);
+      expect(File('${pages.path}/pg_03.json.enc').existsSync(), isTrue);
+      expect(File('${dir.path}/notebooks/nb_sample.board/lock.json').existsSync(), isTrue);
+
+      var loaded = (await store.loadNotebook('nb_sample'))!;
+      expect(loaded.sealed.keys, ['pg_03']);
+      expect(loaded.pages[2].locked, isTrue);
+      expect(loaded.pages[2].items, isEmpty);
+      expect(loaded.lock, isNotNull);
+
+      await store.savePage('nb_sample', sample.pages[2]);
+      await store.saveLock('nb_sample', null);
+      loaded = (await store.loadNotebook('nb_sample'))!;
+      expect(loaded.sealed, isEmpty);
+      expect(loaded.pages[2].items, hasLength(14));
+      expect(loaded.lock, isNull);
+    });
+
+    test('library.json, templates and deleting a notebook', () async {
+      await store.saveLibrary({'version': 1, 'folders': []});
+      expect(await store.loadLibrary(), {'version': 1, 'folders': []});
+      await store.saveTemplate('tp_1', {'format': 'endless.template', 'id': 'tp_1'});
+      expect(await store.loadTemplates(), hasLength(1));
+      await store.deleteTemplate('tp_1');
+      expect(await store.loadTemplates(), isEmpty);
+
+      final sample = sampleNotebook();
+      await store.saveNotebook(sample.notebook);
+      expect((await store.loadNotebookMeta('nb_sample'))!.title, 'Physics — Lecture notes');
+      await store.deleteNotebook('nb_sample');
+      expect(await store.listNotebookIds(), isEmpty);
     });
   });
 }

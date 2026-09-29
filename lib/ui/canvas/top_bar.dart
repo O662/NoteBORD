@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../canvas/pane.dart';
 import '../../canvas/pens.dart';
 import '../../state/notebook.dart';
 import '../../state/settings.dart';
@@ -16,6 +17,11 @@ import '../icons.dart';
 class TopBar extends StatelessWidget {
   const TopBar({
     super.key,
+    required this.title,
+    required this.pane,
+    this.showTools = true,
+    this.showActions = true,
+    this.showTrayButton = true,
     required this.popoverOpen,
     required this.penLink,
     required this.markerLink,
@@ -27,6 +33,16 @@ class TopBar extends StatelessWidget {
     required this.onComingSoon,
   });
 
+  /// The left pill: [TitlePill] on the canvas, the split title in Split view.
+  final Widget title;
+
+  /// The pane the tools write to (undo and redo act on its page).
+  final Pane pane;
+  final bool showTools;
+  final bool showActions;
+
+  /// The "More colors" button (Split view has none).
+  final bool showTrayButton;
   final bool popoverOpen;
   final LayerLink penLink;
   final LayerLink markerLink;
@@ -42,6 +58,8 @@ class TopBar extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final tools = ToolPill(
+          pane: pane,
+          showTrayButton: showTrayButton,
           popoverOpen: popoverOpen,
           penLink: penLink,
           markerLink: markerLink,
@@ -57,20 +75,21 @@ class TopBar extends StatelessWidget {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              tools,
+              if (showTools) tools,
               Align(
                 alignment: Alignment.centerLeft,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
                     maxWidth: math.max(160, (constraints.maxWidth - ToolPill.width) / 2 - 24),
                   ),
-                  child: TitlePill(onBack: () => onComingSoon('The library')),
+                  child: title,
                 ),
               ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ActionsPill(moreOpen: moreOpen, onToggleMore: onToggleMore, onComingSoon: onComingSoon),
-              ),
+              if (showActions)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ActionsPill(moreOpen: moreOpen, onToggleMore: onToggleMore, onComingSoon: onComingSoon),
+                ),
             ],
           ),
         );
@@ -80,14 +99,25 @@ class TopBar extends StatelessWidget {
 }
 
 class TitlePill extends ConsumerWidget {
-  const TitlePill({super.key, required this.onBack});
+  const TitlePill({super.key, required this.pane, required this.onBack, required this.onRename});
 
+  final Pane pane;
   final VoidCallback onBack;
 
+  /// Tapping the title renames the notebook.
+  final VoidCallback onRename;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context, WidgetRef ref) => ListenableBuilder(
+        listenable: pane,
+        // A Consumer, so what _build watches is tracked for this build.
+        builder: (context, _) => Consumer(builder: (context, ref, _) => _build(context, ref)),
+      );
+
+  Widget _build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
-    final nb = ref.watch(notebookProvider);
+    final nb = ref.watch(notebookProvider(pane.notebookId));
+    final page = pane.page.clamp(0, nb.pages.length - 1);
     final status = switch (nb.saveStatus) {
       SaveStatus.saved => 'Saved',
       SaveStatus.saving => 'Saving…',
@@ -109,17 +139,25 @@ class TitlePill extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    nb.notebook.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TypeScale.pillTitle.copyWith(color: c.text),
+                  Semantics(
+                    button: true,
+                    hint: 'Rename',
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onRename,
+                      child: Text(
+                        nb.notebook.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TypeScale.pillTitle.copyWith(color: c.text),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 1),
                   Semantics(
                     liveRegion: true,
                     child: Text(
-                      'Page ${nb.current + 1} of ${nb.pages.length} · $status',
+                      'Page ${page + 1} of ${nb.pages.length} · $status',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TypeScale.pillSub.copyWith(
@@ -143,6 +181,8 @@ class ToolPill extends ConsumerWidget {
 
   const ToolPill({
     super.key,
+    required this.pane,
+    this.showTrayButton = true,
     required this.popoverOpen,
     required this.penLink,
     required this.markerLink,
@@ -152,6 +192,8 @@ class ToolPill extends ConsumerWidget {
     required this.onComingSoon,
   });
 
+  final Pane pane;
+  final bool showTrayButton;
   final bool popoverOpen;
   final LayerLink penLink;
   final LayerLink markerLink;
@@ -161,11 +203,18 @@ class ToolPill extends ConsumerWidget {
   final ValueChanged<String> onComingSoon;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context, WidgetRef ref) => ListenableBuilder(
+        listenable: pane,
+        // A Consumer, so what _build watches is tracked for this build.
+        builder: (context, _) => Consumer(builder: (context, ref, _) => _build(context, ref)),
+      );
+
+  Widget _build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final s = ref.watch(settingsProvider);
-    final nb = ref.watch(notebookProvider);
-    final notebook = ref.read(notebookProvider.notifier);
+    final nb = ref.watch(notebookProvider(pane.notebookId));
+    final notebook = ref.read(notebookProvider(pane.notebookId).notifier);
+    final pageId = nb.pageAt(pane.page).id;
     final brightness = Theme.of(context).brightness;
     final extras = tokens.extraInkDefaults;
 
@@ -185,8 +234,18 @@ class ToolPill extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           spacing: 2,
           children: [
-            ChromeButton(label: 'Undo', icon: EIcons.undo, enabled: nb.canUndo, onPressed: notebook.undo),
-            ChromeButton(label: 'Redo', icon: EIcons.redo, enabled: nb.canRedo, onPressed: notebook.redo),
+            ChromeButton(
+              label: 'Undo',
+              icon: EIcons.undo,
+              enabled: notebook.canUndo(pageId),
+              onPressed: () => notebook.undo(pageId),
+            ),
+            ChromeButton(
+              label: 'Redo',
+              icon: EIcons.redo,
+              enabled: notebook.canRedo(pageId),
+              onPressed: () => notebook.redo(pageId),
+            ),
             const PillDivider(),
             ChromeButton(label: 'Select', icon: EIcons.select, onPressed: () => onComingSoon('Select')),
             ChromeButton(label: 'Lasso select', icon: EIcons.lasso, onPressed: () => onComingSoon('Lasso select')),
@@ -221,37 +280,38 @@ class ToolPill extends ConsumerWidget {
             ChromeButton(label: 'Text', icon: EIcons.text, onPressed: () => onComingSoon('Text boxes')),
             const PillDivider(),
             for (final color in tokens.inkDefaults) quick(color),
-            ChromeButton(
-              label: 'More colors',
-              width: 40,
-              expanded: s.trayOpen,
-              background: s.trayOpen ? c.side : null,
-              onPressed: onToggleTray,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ColorDot(
-                    color: extras[0],
-                    size: 20,
-                    gradient: SweepGradient(
-                      transform: const GradientRotation(-math.pi / 2),
-                      colors: [
-                        for (final i in [0, 1, 3, 2]) ...[
-                          displayInk(extras[i], brightness),
-                          displayInk(extras[i], brightness),
+            if (showTrayButton)
+              ChromeButton(
+                label: 'More colors',
+                width: 40,
+                expanded: s.trayOpen,
+                background: s.trayOpen ? c.side : null,
+                onPressed: onToggleTray,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ColorDot(
+                      color: extras[0],
+                      size: 20,
+                      gradient: SweepGradient(
+                        transform: const GradientRotation(-math.pi / 2),
+                        colors: [
+                          for (final i in [0, 1, 3, 2]) ...[
+                            displayInk(extras[i], brightness),
+                            displayInk(extras[i], brightness),
+                          ],
                         ],
-                      ],
-                      stops: const [0, .25, .25, .5, .5, .75, .75, 1],
+                        stops: const [0, .25, .25, .5, .5, .75, .75, 1],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 1),
-                  Transform.rotate(
-                    angle: s.trayOpen ? math.pi : 0,
-                    child: EIcon(EIcons.trayChevron, size: 12, color: c.textMuted),
-                  ),
-                ],
+                    const SizedBox(height: 1),
+                    Transform.rotate(
+                      angle: s.trayOpen ? math.pi : 0,
+                      child: EIcon(EIcons.trayChevron, size: 12, color: c.textMuted),
+                    ),
+                  ],
+                ),
               ),
-            ),
             ChromeButton(
               label: 'Color and thickness',
               background: c.side,
@@ -468,6 +528,12 @@ class _QuickSettings extends ConsumerWidget {
                 ],
                 selected: {s.themeMode},
                 onSelectionChanged: (m) => settings.apply((st) => st.copyWith(themeMode: m.first)),
+              ),
+              TextFormField(
+                initialValue: s.userName ?? '',
+                decoration: const InputDecoration(labelText: 'Your name (for the Start page)'),
+                style: TextStyle(fontSize: 15, color: c.text),
+                onChanged: (v) => settings.apply((st) => st.copyWith(userName: () => v.trim().isEmpty ? null : v.trim())),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,

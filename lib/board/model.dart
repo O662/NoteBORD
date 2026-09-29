@@ -29,6 +29,8 @@ class Notebook {
     this.defaultPaper = Paper.dots,
     this.theme = 'paper',
     this.locked = false,
+    this.pinned = false,
+    this.trashedAt,
     Json? extra,
     Json? extraDefaults,
   })  : extra = extra ?? {},
@@ -43,7 +45,15 @@ class Notebook {
   final List<String> pageIds;
   Paper defaultPaper;
   String theme;
+
+  /// The whole notebook has a password (see lock.json).
   bool locked;
+
+  /// Shown under Pinned on the Start page.
+  bool pinned;
+
+  /// In the Trash since then; null when not deleted.
+  DateTime? trashedAt;
   final Json extra;
   final Json extraDefaults;
 }
@@ -63,7 +73,11 @@ class BoardPage {
   final String id;
   String title;
   Paper paper;
+
+  /// Built-in template id (e.g. `cornell`) drawn under the ink, or null.
   Object? template;
+
+  /// Has its own password (see lock.json).
   bool locked;
 
   /// In z-order: later items draw on top.

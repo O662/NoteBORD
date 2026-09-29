@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'dart:ui' show PointMode;
 
 import 'package:flutter/gestures.dart';
@@ -11,9 +12,11 @@ import '../board/ids.dart';
 import '../board/model.dart';
 import '../state/notebook.dart';
 import '../state/settings.dart';
+import '../templates/templates.dart';
 import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
 import 'page_runtime.dart';
+import 'pane.dart';
 import 'pens.dart';
 import 'stroke_geometry.dart';
 import 'canvas_view.dart';
@@ -30,9 +33,14 @@ const palmWindow = Duration(milliseconds: 600);
 /// A mouse draws with the left button and pans with the others, so the app
 /// can be tried on a desktop.
 class InkCanvas extends ConsumerStatefulWidget {
-  const InkCanvas({super.key, required this.view});
+  const InkCanvas({super.key, required this.pane, this.writable = true, this.onActivate});
 
-  final CanvasView view;
+  final Pane pane;
+
+  /// False for the unfocused side of Split view: the pen (or mouse) only
+  /// focuses it ([onActivate]); fingers still pan and zoom.
+  final bool writable;
+  final VoidCallback? onActivate;
 
   @override
   ConsumerState<InkCanvas> createState() => InkCanvasState();
@@ -54,10 +62,39 @@ class InkCanvasState extends ConsumerState<InkCanvas> {
   bool _stylusDown = false;
   double _panZoomScale = 1;
 
-  CanvasView get _vp => widget.view;
+  CanvasView get _vp => widget.pane.view;
+
+  NotebookNotifier get _notebook => ref.read(notebookProvider(widget.pane.notebookId).notifier);
+
+  PageRuntime get _page => ref.read(notebookProvider(widget.pane.notebookId)).pageAt(widget.pane.page);
+
+  /// Ink can go on the page: it is writable and not locked.
+  bool get _canInk =>
+      widget.writable && !ref.read(notebookProvider(widget.pane.notebookId)).isSealed(_page.id);
+
+  @override
+  void initState() {
+    super.initState();
+    widget.pane.addListener(_paneChanged);
+  }
+
+  @override
+  void didUpdateWidget(InkCanvas oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.pane != widget.pane) {
+      oldWidget.pane.removeListener(_paneChanged);
+      widget.pane.addListener(_paneChanged);
+    }
+  }
+
+  void _paneChanged() {
+    if (_drawPointer != null) _cancelInput();
+    setState(() {});
+  }
 
   @override
   void dispose() {
+    widget.pane.removeListener(_paneChanged);
     _hoverTimer?.cancel();
     active.dispose();
     _hover.dispose();
@@ -79,6 +116,12 @@ class InkCanvasState extends ConsumerState<InkCanvas> {
 
   void _onDown(PointerDownEvent e) {
     final settings = ref.read(settingsProvider);
+    final inks = _isStylus(e) || (e.kind == PointerDeviceKind.mouse && e.buttons & kPrimaryMouseButton != 0);
+    if (inks && !_canInk) {
+      if (_isStylus(e)) _lastStylus = e.timeStamp;
+      if (!widget.writable) widget.onActivate?.call();
+      return;
+    }
     if (_isStylus(e)) {
       _lastStylus = e.timeStamp;
       _stylusDown = true;
@@ -107,7 +150,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> {
       final at = active.lastScreen ?? e.localPosition;
       _cancelInput();
       _touches[first] = at;
-    } else if (settings.fingerDraws && _touches.isEmpty && _drawPointer == null) {
+    } else if (settings.fingerDraws && _canInk && _touches.isEmpty && _drawPointer == null) {
       _fingerDrawing = true;
       _startInput(e, erase: settings.tool == CanvasTool.eraser);
       return;
@@ -194,7 +237,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> {
     if (erase) {
       _erasing = true;
       _lastErase = page;
-      ref.read(notebookProvider.notifier).beginErase();
+      _notebook.beginErase(_page.id);
       _eraseTo(page);
     } else {
       active.begin(
@@ -221,22 +264,22 @@ class InkCanvasState extends ConsumerState<InkCanvas> {
     final from = _lastErase ?? page;
     _lastErase = page;
     final r = eraserRadius / _vp.scale;
-    final runtime = ref.read(notebookProvider).page;
+    final runtime = _page;
     final area = Rect.fromPoints(from, page).inflate(r + 30);
     final hits = [
       for (final id in runtime.index.query(area))
         if (runtime[id] case final StrokeItem s when strokeHit(s, from, page, r)) id,
     ];
-    if (hits.isNotEmpty) ref.read(notebookProvider.notifier).erase(hits);
+    if (hits.isNotEmpty) _notebook.erase(hits);
   }
 
   void _finishInput() {
-    final notifier = ref.read(notebookProvider.notifier);
+    final notifier = _notebook;
     if (_erasing) {
       notifier.endErase();
     } else if (active.isActive) {
-      final page = ref.read(notebookProvider).page;
-      notifier.addStroke(active.toItem(z: page.nextZ));
+      final page = _page;
+      notifier.addStroke(page.id, active.toItem(z: page.nextZ));
       active.clear();
     }
     _resetInput();
@@ -244,7 +287,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> {
 
   void _cancelInput() {
     if (_erasing) {
-      ref.read(notebookProvider.notifier).endErase();
+      _notebook.endErase();
     }
     active.clear();
     _resetInput();
@@ -259,11 +302,12 @@ class InkCanvasState extends ConsumerState<InkCanvas> {
 
   @override
   Widget build(BuildContext context) {
-    final notebook = ref.watch(notebookProvider);
+    final notebook = ref.watch(notebookProvider(widget.pane.notebookId));
     final settings = ref.watch(settingsProvider);
     final colors = context.colors;
     final brightness = Theme.of(context).brightness;
-    final page = notebook.page;
+    final page = notebook.pageAt(widget.pane.page);
+    final layout = layoutPicture(page.page.template, colors);
 
     return LayoutBuilder(builder: (context, constraints) {
       _vp.size = constraints.biggest;
@@ -285,6 +329,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> {
           RepaintBoundary(
             child: CustomPaint(painter: PaperPainter(_vp, page.page.paper, colors)),
           ),
+          if (layout != null) RepaintBoundary(child: CustomPaint(painter: LayoutPainter(_vp, layout))),
           RepaintBoundary(
             child: CustomPaint(
               painter: InkLayerPainter(_vp, page, notebook.revision, brightness, colors),
@@ -293,16 +338,17 @@ class InkCanvasState extends ConsumerState<InkCanvas> {
           RepaintBoundary(
             child: CustomPaint(painter: ActiveStrokePainter(active, _vp, brightness)),
           ),
-          IgnorePointer(
-            child: CustomPaint(
-              painter: HoverRingPainter(
-                _hover,
-                settings.tool == CanvasTool.eraser
-                    ? (eraserRadius * 2, colors.textMuted)
-                    : ((settings.strokeWidth * 2 + 8).roundToDouble(), displayInk(settings.color, brightness)),
+          if (_canInk)
+            IgnorePointer(
+              child: CustomPaint(
+                painter: HoverRingPainter(
+                  _hover,
+                  settings.tool == CanvasTool.eraser
+                      ? (eraserRadius * 2, colors.textMuted)
+                      : ((settings.strokeWidth * 2 + 8).roundToDouble(), displayInk(settings.color, brightness)),
+                ),
               ),
             ),
-          ),
         ]),
       );
     });
@@ -426,7 +472,7 @@ class PaperPainter extends CustomPainter {
         );
       case Paper.lines || Paper.grid:
         final paint = Paint()
-          ..color = colors.lineSoft
+          ..color = paper == Paper.lines ? colors.paperLine : colors.paperGrid
           ..strokeWidth = 1;
         for (var y = startY; y < size.height; y += step) {
           canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
@@ -435,6 +481,16 @@ class PaperPainter extends CustomPainter {
           for (var x = startX; x < size.width; x += step) {
             canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
           }
+        } else {
+          // Lined paper's margin rule, at page x = 80.
+          final x = 80 * s + t.dx;
+          canvas.drawLine(
+            Offset(x, 0),
+            Offset(x, size.height),
+            Paint()
+              ..color = colors.paperMargin
+              ..strokeWidth = 1.5,
+          );
         }
       case Paper.blank:
         break;
@@ -443,6 +499,27 @@ class PaperPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(PaperPainter old) => old.paper != paper || old.colors != colors || old.vp != vp;
+}
+
+/// A template's starting layout (Cornell rules, planner boxes…), under the ink.
+class LayoutPainter extends CustomPainter {
+  LayoutPainter(this.vp, this.picture) : super(repaint: vp);
+
+  final CanvasView vp;
+  final ui.Picture picture;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas
+      ..save()
+      ..translate(vp.translation.dx, vp.translation.dy)
+      ..scale(vp.scale)
+      ..drawPicture(picture)
+      ..restore();
+  }
+
+  @override
+  bool shouldRepaint(LayoutPainter old) => old.picture != picture || old.vp != vp;
 }
 
 /// Committed ink. Records the items near the view into a picture once, then

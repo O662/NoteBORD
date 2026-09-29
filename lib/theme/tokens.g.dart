@@ -40,6 +40,19 @@ const paperLight = EndlessColors(
   menuTile: Color(0xFFF3EEE3),
   clayDeep: Color(0xFF8E4220),
   greenDeep: Color(0xFF2F5D3A),
+  sideSelected: Color(0xFFE0D6C2),
+  lineDashed: Color(0xFFBFB49E),
+  accentWash: Color(0xFFEEF3F8),
+  switchOff: Color(0xFFB8AE9B),
+  warningTint: Color(0xFFF6E6D8),
+  onWarning: Color(0xFF5A2A12),
+  goldDeep: Color(0xFF5A4000),
+  moss: Color(0xFF4E7A52),
+  paperLine: Color(0xFFC9D6E3),
+  paperGrid: Color(0xFFD6DEE8),
+  paperMargin: Color(0x80C45446),
+  scrim: Color(0x6B1E1C19),
+  frost: Color(0x8CF6F1E7),
 );
 
 const paperDark = EndlessColors(
@@ -77,6 +90,19 @@ const paperDark = EndlessColors(
   menuTile: Color(0xFF34302A),
   clayDeep: Color(0xFFF0B090),
   greenDeep: Color(0xFFA8D8B2),
+  sideSelected: Color(0xFF3A352F),
+  lineDashed: Color(0xFF5A544A),
+  accentWash: Color(0xFF26303C),
+  switchOff: Color(0xFF5A544A),
+  warningTint: Color(0xFF3F2A1F),
+  onWarning: Color(0xFFF0C2A8),
+  goldDeep: Color(0xFFF3DE9A),
+  moss: Color(0xFF9CC4A0),
+  paperLine: Color(0xFF33414F),
+  paperGrid: Color(0xFF2E3842),
+  paperMargin: Color(0x80E07A6E),
+  scrim: Color(0x99000000),
+  frost: Color(0x8C1C1A17),
 );
 
 const inkDefaults = <Color>[
@@ -103,6 +129,16 @@ const extraInkAddable = <Color>[
 
 const extraInkMax = 10;
 
+/// Notebook spine and folder colors (stored colors; dark mode brightens them like ink).
+const coverColors = <Color>[
+  Color(0xFF2B5A8C),
+  Color(0xFFB5532A),
+  Color(0xFF4E7A52),
+  Color(0xFF7A4E73),
+  Color(0xFF1F6B75),
+  Color(0xFF8A6400),
+];
+
 /// Ink color shown in dark mode, keyed by the stored (light) color.
 const inkDisplayDark = <int, Color>{
   0xFF1E1C19: Color(0xFFEEE8DC),
@@ -113,6 +149,7 @@ const inkDisplayDark = <int, Color>{
   0xFF1F6B75: Color(0xFF7CC6CF),
   0xFF8A6400: Color(0xFFE8B730),
   0xFFA2445A: Color(0xFFE394A7),
+  0xFF4E7A52: Color(0xFF9CC4A0),
 };
 
 /// The 8 accent choices (light, dark). The first one is the theme default.

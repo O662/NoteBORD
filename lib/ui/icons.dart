@@ -123,6 +123,50 @@ abstract final class EIcons {
   static final map = EIconData([_p('M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z'), _p('M9 4v14M15 6v14')]);
   static final edit = EIconData([_p('M4 20l1-4L16 5l3 3L8 19z')], strokeWidth: 2);
   static final check = EIconData([_p('M5 12l5 5 9-10')], strokeWidth: 2);
+
+  // Start, Library, Templates, Lock and Split (Start.dc.html, Main.dc.html…).
+  static final logo = EIconData([
+    _p('M4 15c0-4 3-6 5.5-6S15 15 15 15s3 6 5.5 6S26 19 26 15s-3-6-5.5-6S15 15 15 15s-3 6-5.5 6S4 19 4 15z'),
+  ], strokeWidth: 2, viewBox: 30);
+  static final home = EIconData([_p('M4 11l8-7 8 7v9h-5v-6H9v6H4z')]);
+  static final notebook = EIconData([_p('M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z'), _p('M5 18a2 2 0 0 1 2-2h12')]);
+  static final calendar = EIconData([_p(_rect(4, 5, 16, 15, 2)), _p('M4 10h16M9 3v4M15 3v4')]);
+  static final trash = EIconData([_p('M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12')]);
+  static final folder = EIconData([_p('M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z')]);
+  static final gridView = EIconData([
+    _p(_rect(4, 4, 7, 7, 1)),
+    _p(_rect(13, 4, 7, 7, 1)),
+    _p(_rect(4, 13, 7, 7, 1)),
+    _p(_rect(13, 13, 7, 7, 1)),
+  ]);
+  static final listView = EIconData([_p('M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01')]);
+  static final download = EIconData([_p('M12 4v11M7 10l5 5 5-5M5 19h14')]);
+  static final scan = EIconData([
+    _p('M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16'),
+  ]);
+  static final gear = EIconData([
+    _p(_circle(12, 12, 3)),
+    _p('M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1'),
+  ]);
+
+  /// Saved on this device (sync comes in a later phase).
+  static final deviceSaved = EIconData([_p(_rect(5, 3, 14, 18, 2)), _p('M9 11.5l2 2 4-4.5')]);
+  static final swap = EIconData([_p('M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4')], strokeWidth: 2);
+  static final chevronLeft = EIconData([_p('M15 6l-6 6 6 6')], strokeWidth: 2.2);
+  static final fingerprint = EIconData([
+    _p('M7 11a5 5 0 0 1 10 0v2M12 11v6M9 20c.6-1.8.9-3.8.9-6M15 20c.3-1 .5-2.2.5-3.5M5 16c.3-1.5.3-3 0-4.5'
+        'M6.5 6.5A8 8 0 0 1 20 11v1.5'),
+  ], strokeWidth: 1.7);
+  static final warning = EIconData([_p('M12 3l10 18H2z'), _p('M12 10v5M12 18h.01')], strokeWidth: 1.9);
+  static final pin = EIconData([_p('M9 4h6l-1 6 3 3H7l3-3z'), _p('M12 13v7')]);
+  static final restore = EIconData([_p('M3 12a9 9 0 1 0 3-6.7'), _p('M3 4v5h5')]);
+  static final palette = EIconData([
+    _p('M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H17a4 4 0 0 0 4-4'
+        'c0-4.4-4-8.2-9-8.2z'),
+    _p(_circle(7.5, 11, 1)),
+    _p(_circle(10.5, 7, 1)),
+    _p(_circle(15, 7.5, 1)),
+  ]);
 }
 
 class _PathBuilder extends PathProxy {

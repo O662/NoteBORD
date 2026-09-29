@@ -10,6 +10,11 @@ import '../theme/tokens.g.dart' as tokens;
 
 enum CanvasTool { pen, marker, eraser }
 
+enum LibraryView { grid, list }
+
+/// How the library orders notebooks.
+enum LibrarySort { edited, title, created }
+
 /// Tool and chrome preferences. Saved to settings.json.
 @immutable
 class AppSettings {
@@ -31,6 +36,9 @@ class AppSettings {
     this.fingerDraws = false,
     this.themeMode = ThemeMode.system,
     this.lastNotebookId,
+    this.userName,
+    this.libraryView = LibraryView.grid,
+    this.librarySort = LibrarySort.edited,
   })  : penColor = penColor ?? tokens.inkDefaults[1],
         markerColor = markerColor ?? tokens.extraInkDefaults[3],
         extraColors = List.unmodifiable(extraColors ?? tokens.extraInkDefaults);
@@ -59,6 +67,11 @@ class AppSettings {
   final ThemeMode themeMode;
   final String? lastNotebookId;
 
+  /// For the Start page greeting ("Welcome back, …").
+  final String? userName;
+  final LibraryView libraryView;
+  final LibrarySort librarySort;
+
   InkTool get inkTool => tool == CanvasTool.marker ? InkTool.marker : InkTool.pen;
 
   /// Color of the pen or marker (the eraser shows the pen's).
@@ -86,6 +99,9 @@ class AppSettings {
     bool? fingerDraws,
     ThemeMode? themeMode,
     String? lastNotebookId,
+    String? Function()? userName,
+    LibraryView? libraryView,
+    LibrarySort? librarySort,
   }) =>
       AppSettings(
         tool: tool ?? this.tool,
@@ -105,6 +121,9 @@ class AppSettings {
         fingerDraws: fingerDraws ?? this.fingerDraws,
         themeMode: themeMode ?? this.themeMode,
         lastNotebookId: lastNotebookId ?? this.lastNotebookId,
+        userName: userName == null ? this.userName : userName(),
+        libraryView: libraryView ?? this.libraryView,
+        librarySort: librarySort ?? this.librarySort,
       );
 
   Json toJson() => {
@@ -125,6 +144,9 @@ class AppSettings {
         'fingerDraws': fingerDraws,
         'themeMode': themeMode.name,
         'lastNotebookId': lastNotebookId,
+        'userName': userName,
+        'libraryView': libraryView.name,
+        'librarySort': librarySort.name,
       };
 
   factory AppSettings.fromJson(Json j) {
@@ -153,6 +175,9 @@ class AppSettings {
       fingerDraws: j['fingerDraws'] as bool? ?? false,
       themeMode: pick(ThemeMode.values, j['themeMode'], ThemeMode.system),
       lastNotebookId: j['lastNotebookId'] as String?,
+      userName: j['userName'] as String?,
+      libraryView: pick(LibraryView.values, j['libraryView'], LibraryView.grid),
+      librarySort: pick(LibrarySort.values, j['librarySort'], LibrarySort.edited),
     );
   }
 }

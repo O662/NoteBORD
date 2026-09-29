@@ -9,7 +9,8 @@ import 'package:path_provider/path_provider.dart';
 
 import 'app.dart';
 import 'board/store.dart';
-import 'state/notebook.dart';
+import 'library/index_db.dart';
+import 'state/bootstrap.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,8 +20,10 @@ Future<void> main() async {
   await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
 
   final docs = await getApplicationDocumentsDirectory();
-  final store = FileBoardStore(Directory(p.join(docs.path, 'Endless')));
-  final overrides = await bootstrap(store);
+  final root = Directory(p.join(docs.path, 'Endless'));
+  await root.create(recursive: true);
+  final store = FileBoardStore(root);
+  final overrides = await bootstrap(store, index: IndexDb.file(File(p.join(root.path, 'index.sqlite'))));
 
   runApp(ProviderScope(overrides: overrides, child: const EndlessApp()));
 }

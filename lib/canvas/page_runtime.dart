@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 import 'dart:ui' show Brightness, Canvas, Paint, PaintingStyle, Radius, Rect, RRect;
 
 import '../board/model.dart';
+import '../templates/templates.dart';
 import '../theme/colors.dart';
 import 'pens.dart';
 import 'spatial_index.dart';
@@ -64,11 +65,12 @@ class PageRuntime {
   Rect? _bounds;
   int _boundsRevision = -1;
 
-  /// Union of all item bounds, or null for an empty page.
+  /// Union of all item bounds and the template layout, or null for an
+  /// empty page.
   Rect? get contentBounds {
     if (_boundsRevision != revision) {
       _boundsRevision = revision;
-      Rect? r;
+      Rect? r = layoutBounds(page.template);
       for (final i in page.items) {
         r = r == null ? i.bounds : r.expandToInclude(i.bounds);
       }
@@ -80,11 +82,11 @@ class PageRuntime {
   ui.Picture? _full;
   Brightness? _fullBrightness;
 
-  /// Every item, for the map and page thumbnails.
+  /// Every item over the template layout, for the map and page thumbnails.
   ui.Picture fullPicture(Brightness brightness, EndlessColors colors) {
     if (_full == null || _fullBrightness != brightness) {
       _full?.dispose();
-      _full = _record(page.items, brightness, colors);
+      _full = _record(page.items, brightness, colors, layout: layoutPicture(page.template, colors));
       _fullBrightness = brightness;
     }
     return _full!;
@@ -108,9 +110,10 @@ class PageRuntime {
     return _region!.picture;
   }
 
-  ui.Picture _record(List<Item> items, Brightness brightness, EndlessColors colors) {
+  ui.Picture _record(List<Item> items, Brightness brightness, EndlessColors colors, {ui.Picture? layout}) {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
+    if (layout != null) canvas.drawPicture(layout);
     for (final item in items) {
       paintItem(canvas, item, brightness, colors);
     }
