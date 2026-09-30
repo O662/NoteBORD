@@ -120,6 +120,7 @@ abstract final class EIcons {
   static final split = EIconData([_p(_rect(3, 4, 18, 16, 2)), _p('M12 4v16')]);
   static final search = EIconData([_p(_circle(11, 11, 7)), _p('M20 20l-3.5-3.5')]);
   static final lock = EIconData([_p(_rect(5, 11, 14, 9, 2)), _p('M8 11V8a4 4 0 0 1 8 0v3')]);
+  static final backspace = EIconData([_p('M9 5h11v14H9l-6-7z'), _p('M12 9l6 6M18 9l-6 6')]);
   static final close = EIconData([_p('M6 6l12 12M18 6L6 18')], strokeWidth: 2);
   static final chevronRight = EIconData([_p('M9 6l6 6-6 6')], strokeWidth: 2.2);
   static final chevronDown = EIconData([_p('M6 9l6 6 6-6')], strokeWidth: 2.2);

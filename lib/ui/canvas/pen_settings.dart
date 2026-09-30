@@ -190,7 +190,7 @@ class ScribbleSettings extends ConsumerWidget {
               children: [
                 for (final level in ScribbleLevel.values)
                   Expanded(
-                    child: _Segment(
+                    child: SettingsSegment(
                       label: scribbleLevelLabel(level),
                       selected: s.scribbleLevel == level,
                       onTap: () => settings.apply((st) => st.copyWith(scribbleLevel: level)),
@@ -206,10 +206,20 @@ class ScribbleSettings extends ConsumerWidget {
   }
 }
 
-class _Segment extends StatelessWidget {
-  const _Segment({required this.label, required this.selected, required this.onTap});
+/// One choice in a sunk segmented control (Scribble.dc.html sensitivity).
+class SettingsSegment extends StatelessWidget {
+  const SettingsSegment({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.semanticLabel,
+  });
 
   final String label;
+
+  /// Read out instead of [label] (for short labels like "in").
+  final String? semanticLabel;
   final bool selected;
   final VoidCallback onTap;
 
@@ -220,7 +230,7 @@ class _Segment extends StatelessWidget {
       button: true,
       inMutuallyExclusiveGroup: true,
       checked: selected,
-      label: label,
+      label: semanticLabel ?? label,
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,

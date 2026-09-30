@@ -369,15 +369,19 @@ class Flicks {
 }
 
 /// Finds a short hook back at either end of a line. The hook must be short
-/// (at most 45 screen px and 30% of the line), quick, fold back along the
-/// line (within 60°), and follow a smooth stretch, so zig-zags, check marks
-/// and long strokes back along the line stay ink.
-Flicks? detectFlicks(List<Offset> pts, {List<int>? times, double unit = 1}) {
+/// (at most 50 screen px and 35% of the line), quick, fold back along the
+/// line (within 75° at the end), and follow a smooth stretch, so zig-zags,
+/// check marks and long strokes back along the line stay ink.
+///
+/// A hook at the start must angle away from the line (15–50°): pens often
+/// land with a tiny backswing straight along the line, and that isn't an
+/// arrowhead. [why] hears why a likely hook was turned down (for tuning).
+Flicks? detectFlicks(List<Offset> pts, {List<int>? times, double unit = 1, void Function(String)? why}) {
   if (pts.length < 4) return null;
-  final end = _flickAtEnd(pts, times, unit, maxAngle: 60);
+  final end = _flickAtEnd(pts, times, unit, minAngle: 0, maxAngle: 75, minLen: 7, why: why);
   final rev = pts.reversed.toList();
   final revTimes = times?.reversed.map((t) => times.last - t).toList();
-  final startHit = _flickAtEnd(rev, revTimes, unit, maxAngle: 50);
+  final startHit = _flickAtEnd(rev, revTimes, unit, minAngle: 15, maxAngle: 50, minLen: 12);
   final to = end ?? pts.length - 1;
   final from = startHit == null ? 0 : pts.length - 1 - startHit;
   if (end == null && startHit == null) return null;
@@ -387,46 +391,74 @@ Flicks? detectFlicks(List<Offset> pts, {List<int>? times, double unit = 1}) {
 }
 
 /// Index of the tip where a flick at the end of [pts] starts, or null.
-int? _flickAtEnd(List<Offset> pts, List<int>? times, double unit, {required double maxAngle}) {
+int? _flickAtEnd(
+  List<Offset> pts,
+  List<int>? times,
+  double unit, {
+  required double minAngle,
+  required double maxAngle,
+  required double minLen,
+  void Function(String)? why,
+}) {
   final arc = arcLengths(pts);
   final total = arc.last;
   final e = pts.last;
-  final maxFlick = math.min(45 * unit, 0.3 * total);
+  final reach = math.min(50 * unit, 0.35 * total);
+  if (total < 50 * unit) return null;
 
-  // The sharpest turn within flick reach of the end is the tip.
-  int? tip;
-  var bestTurn = 0.0;
-  for (var i = pts.length - 2; i > 0; i--) {
-    if (total - arc[i] > maxFlick) break;
-    final before = _atArc(pts, arc, arc[i] - 4 * unit);
-    final after = _atArc(pts, arc, math.min(total, arc[i] + 4 * unit));
-    final t = angleBetween(pts[i] - before, after - pts[i]);
-    if (t > bestTurn) {
-      bestTurn = t;
+  // The line's direction just before the flick could start.
+  final a = _atArc(pts, arc, total - reach - 20 * unit), b = _atArc(pts, arc, total - reach);
+  final dir = b - a;
+  if (dir.distance == 0) return null;
+  final fwd = dir / dir.distance;
+
+  // The tip is the point the pen reached furthest along the line before
+  // turning back. Rounded or sharp, that's where the hook begins.
+  var tip = -1;
+  var best = -double.infinity;
+  for (var i = pts.length - 1; i > 0 && total - arc[i] <= reach; i--) {
+    final ahead = pts[i].dx * fwd.dx + pts[i].dy * fwd.dy;
+    if (ahead > best) {
+      best = ahead;
       tip = i;
     }
   }
-  if (tip == null || bestTurn < 180 - maxAngle) return null;
+  if (tip < 1 || tip >= pts.length - 1) return null; // no turn back at all
 
   final t = pts[tip];
   final flickLen = (e - t).distance;
-  if (flickLen < 6 * unit || flickLen > maxFlick) return null;
-  if (total - arc[tip] > 1.35 * flickLen) return null; // the hook must be fairly straight
-  final mainLen = arc[tip];
-  if (mainLen < 40 * unit || flickLen > 0.3 * mainLen) return null;
-  if (times != null && times.length == pts.length && times.last - times[tip] > 350) return null;
-
-  // Direction of the line arriving at the tip, and how far the hook folds back.
-  final inDir = t - _atArc(pts, arc, arc[tip] - 16 * unit);
-  if (angleBetween(e - t, -inDir) > maxAngle) return null;
-
-  // The line before the hook must be smooth: no zig-zag right before it.
-  final from = arc[tip] - math.min(40 * unit, 0.5 * mainLen);
-  for (var i = tip - 1; i > 0 && arc[i] > from; i--) {
-    final b = _atArc(pts, arc, arc[i] - 6 * unit);
-    final a = _atArc(pts, arc, math.min(arc[tip], arc[i] + 6 * unit));
-    if (angleBetween(pts[i] - b, a - pts[i]) > 60) return null;
+  if (flickLen < minLen * unit) return null; // a wobble at lift, not a hook
+  int? no(String reason) {
+    why?.call(reason);
+    return null;
   }
+
+  if (flickLen > reach) return no('hook too long (${flickLen.round()} px)');
+  if (total - arc[tip] > 1.8 * flickLen) return no('hook too curly');
+  if (times != null && times.length == pts.length && times.last - times[tip] > 500) {
+    return no('hook too slow (${times.last - times[tip]} ms)');
+  }
+
+  // How far the hook folds back from the line arriving at the tip.
+  final inDir = t - _atArc(pts, arc, arc[tip] - 16 * unit);
+  final fold = angleBetween(e - t, -inDir);
+  if (fold < minAngle || fold > maxAngle) return no('hook at ${fold.round()}° from the line');
+
+  // The smooth run of line before the hook, back to the previous sharp turn
+  // (the last few px may already be curving into the tip). The hook must be
+  // at most half of it, so the last leg of a zig-zag isn't an arrowhead.
+  var runFrom = 0.0;
+  for (var i = tip - 1; i > 0; i--) {
+    if (arc[i] > arc[tip] - 12 * unit) continue;
+    final before = _atArc(pts, arc, arc[i] - 8 * unit);
+    final after = _atArc(pts, arc, arc[i] + 8 * unit);
+    if (angleBetween(pts[i] - before, after - pts[i]) > 60) {
+      runFrom = arc[i];
+      break;
+    }
+  }
+  final run = arc[tip] - runFrom;
+  if (run < 40 * unit || flickLen > 0.5 * run) return no('zig-zag or short line before the hook');
   return tip;
 }
 
@@ -485,9 +517,9 @@ int countCusps(List<Offset> raw, {double unit = 1}) {
 bool looksLikeScribble(List<Offset> pts, ScribbleLevel level, {double unit = 1}) {
   if (pts.length < 6) return false;
   final (minCusps, minDensity) = switch (level) {
-    ScribbleLevel.light => (3, 1.8),
-    ScribbleLevel.normal => (5, 1.8),
-    ScribbleLevel.firm => (7, 3.0),
+    ScribbleLevel.light => (2, 1.5),
+    ScribbleLevel.normal => (3, 1.8),
+    ScribbleLevel.firm => (4, 3.0),
   };
   if (countCusps(pts, unit: unit) < minCusps) return false;
   final (_, angle) = principalAxis(pts);

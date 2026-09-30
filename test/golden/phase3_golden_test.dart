@@ -178,6 +178,23 @@ void main() {
     await t.pump();
   });
 
+  // Tapping the ruler's angle: presets, a number pad and units.
+  _golden('ruler_menu', setUp: (t, c) async {
+    await t.tap(byLabel('Ruler, laser & view'));
+    await t.pump();
+    await t.tap(find.text('Ruler'));
+    await t.pump();
+    canvasPane.ruler.setDegrees(30);
+    await _pen(t, [canvasPane.ruler.center + const Offset(0, 12)]);
+    await t.pumpAndSettle();
+    for (final k in ['2', '2', 'Decimal point', '5']) {
+      await t.tap(find.bySemanticsLabel(k));
+      await t.pump();
+    }
+    await t.pump(const Duration(seconds: 5));
+    return null;
+  });
+
   // Arrows.png and Scribble.png settings panels (in the stand-in Settings).
   _golden('settings', setUp: (t, c) async {
     await t.tap(byLabel('More options'));

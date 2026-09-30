@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:ui' show Size;
 import 'package:endless/board/codec.dart';
 import 'package:endless/board/model.dart';
 import 'package:endless/canvas/gestures.dart';
+import 'package:endless/canvas/ruler.dart';
 import 'package:endless/canvas/selection.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -166,6 +168,109 @@ void main() {
       expect(detectFlicks(_withHook(short, const Offset(24, 5))), isNull);
     });
 
+    /// A pen-like line: it slows into a rounded tip of [radius], turns back
+    /// by [180 - fold]°, and flicks [hook] px, curving by [curl]°.
+    (List<Offset>, List<int>) penFlick({
+      Offset from = const Offset(50, 300),
+      double heading = -20,
+      double length = 250,
+      double hook = 22,
+      double fold = 25,
+      double radius = 3,
+      double curl = 0,
+      double side = 1,
+      int seed = 1,
+    }) {
+      final r = math.Random(seed);
+      final pts = <Offset>[];
+      final times = <int>[];
+      var t = 0;
+      var p = from;
+      var a = heading * math.pi / 180;
+      void step(double len, int ms) {
+        p += Offset(math.cos(a), math.sin(a)) * len + Offset(r.nextDouble() - .5, r.nextDouble() - .5) * 0.4;
+        pts.add(p);
+        t += ms;
+        times.add(t);
+      }
+
+      pts.add(p);
+      times.add(0);
+      // The line, slowing down near its end.
+      for (var d = 0.0; d < length;) {
+        final len = d > length - 20 ? 1.5 : 5.0;
+        step(len, 4);
+        d += len;
+      }
+      // Round the tip: turn by 180 - fold degrees along a small arc.
+      final turn = (180 - fold) * math.pi / 180 * side;
+      final arcLen = math.max(radius * (180 - fold) * math.pi / 180, 0.1);
+      final n = math.max(1, (arcLen / 1).round());
+      for (var i = 0; i < n; i++) {
+        a += turn / n;
+        step(arcLen / n, 4);
+      }
+      // The flick, fast, curling a little.
+      final m = (hook / 3).round();
+      for (var i = 0; i < m; i++) {
+        a += curl * math.pi / 180 / m * side;
+        step(hook / m, 4);
+      }
+      return (pts, times);
+    }
+
+    test('pen-like flicks: rounded tips, curved hooks, either side', () {
+      for (final (radius, curl, side) in [(0.0, 0.0, 1.0), (3.0, 0.0, 1.0), (5.0, 15.0, -1.0), (4.0, -20.0, 1.0)]) {
+        final (pts, times) = penFlick(radius: radius, curl: curl, side: side);
+        final f = detectFlicks(pts, times: times);
+        expect(f, isNotNull, reason: 'radius $radius, curl $curl');
+        expect((f!.start, f.end), (false, true));
+      }
+    });
+
+    test('twenty flicks of all kinds make twenty arrows that point forward', () {
+      final r = math.Random(42);
+      for (var k = 0; k < 20; k++) {
+        final heading = r.nextDouble() * 360 - 180;
+        final (pts, times) = penFlick(
+          heading: heading,
+          length: 120 + r.nextDouble() * 300,
+          hook: 12 + r.nextDouble() * 24,
+          fold: 5 + r.nextDouble() * 50,
+          radius: r.nextDouble() * 5,
+          curl: r.nextDouble() * 30 - 15,
+          side: r.nextBool() ? 1 : -1,
+          seed: k,
+        );
+        final f = detectFlicks(pts, times: times);
+        expect(f, isNotNull, reason: 'flick $k');
+        expect((f!.start, f.end), (false, true), reason: 'flick $k');
+        // What's kept ends heading the way the line went.
+        final kept = pts.sublist(f.from, f.to + 1);
+        final h = heading * math.pi / 180;
+        final lastBit = kept.last - kept[kept.length - 6];
+        expect(lastBit.dx * math.cos(h) + lastBit.dy * math.sin(h), greaterThan(0), reason: 'flick $k');
+      }
+    });
+
+    test('a backswing as the pen lands is not an arrow; a real barb is', () {
+      final line = _line(const Offset(100, 300), const Offset(400, 300), n: 60, wobble: 0.5);
+      // Lands, goes back 8 px along the line, then draws forward.
+      final swing = [
+        for (var i = 0; i <= 4; i++) Offset(100 + 8 - i * 2.0, 300),
+        for (var i = 0; i <= 3; i++) Offset(100 + i * 2.7, 300),
+        ...line.skip(2),
+      ];
+      expect(detectFlicks(swing), isNull);
+      // A longer swing straight back along the line: still not a barb.
+      final long = [for (var i = 0; i <= 8; i++) Offset(100 + 20 - i * 2.5, 300.3), ...line];
+      expect(detectFlicks(long), isNull);
+      // A barb 30° off the line, drawn into the tip first: an arrowhead at the start.
+      final barb = [for (var i = 0; i <= 6; i++) Offset.lerp(const Offset(117, 290), line.first, i / 6)!, ...line.skip(1)];
+      final f = detectFlicks(barb)!;
+      expect((f.start, f.end), (true, false));
+    });
+
     test('a slow hook is deliberate ink, not a flick', () {
       final pts = _withHook(line, const Offset(306, 138));
       final fast = [for (var i = 0; i < pts.length; i++) i * 8];
@@ -188,13 +293,15 @@ void main() {
     });
 
     test('sensitivity: Light, Normal and Firm', () {
-      final two = _zigzag(Offset.zero, legs: 4);
-      final three = _zigzag(Offset.zero, legs: 6);
+      final one = _zigzag(Offset.zero, legs: 2); // 1 back-and-forth
+      final two = _zigzag(Offset.zero, legs: 3);
+      final three = _zigzag(Offset.zero, legs: 4);
+      expect(looksLikeScribble(one, ScribbleLevel.light), isFalse);
       expect(looksLikeScribble(two, ScribbleLevel.light), isTrue);
       expect(looksLikeScribble(two, ScribbleLevel.normal), isFalse);
       expect(looksLikeScribble(three, ScribbleLevel.normal), isTrue);
-      expect(looksLikeScribble(zig, ScribbleLevel.firm), isFalse);
-      final dense = _zigzag(Offset.zero, legs: 12, amp: 40, step: 4);
+      expect(looksLikeScribble(zig, ScribbleLevel.firm), isFalse); // not dense enough
+      final dense = _zigzag(Offset.zero, legs: 6, amp: 40, step: 4);
       expect(looksLikeScribble(dense, ScribbleLevel.firm), isTrue);
     });
 
@@ -228,6 +335,46 @@ void main() {
       expect(moved.id, s.id);
       expect(moved.width, s.width * 2);
       expect(moved.pagePoints.last, _near(const Offset(100, 120), 0.1));
+    });
+  });
+
+  group('ruler', () {
+    Ruler shown() => Ruler()..show(const Size(1280, 800));
+
+    test('angles are counter-clockwise and signed; fingers settle on whole degrees', () {
+      final r = shown();
+      r.rotateAbout(r.center, -20.4 * math.pi / 180); // fingers turn it up to the right
+      expect(r.degrees, closeTo(20, 1e-9));
+      r.rotateAbout(r.center, 30 * math.pi / 180); // on down past level
+      expect(r.degrees, closeTo(-10, 1e-9));
+      r.rotateAbout(r.center, -53.5 * math.pi / 180); // 43.5°: close to 45, it settles there
+      expect(r.degrees, closeTo(45, 1e-9));
+    });
+
+    test('an exact angle, to three decimals', () {
+      final r = shown()..setDegrees(22.125);
+      expect(r.degrees, closeTo(22.125, 1e-9));
+      expect(formatDegrees(r.degrees), '22.125°');
+      expect(formatDegrees(-8), '−8°');
+      expect(formatDegrees(30.5), '30.5°');
+      r.setDegrees(180);
+      expect(r.degrees, closeTo(180, 1e-9));
+    });
+
+    test('length stays between 240 and 2400; the chip is a big target', () {
+      final r = shown()..resizeBy(10);
+      expect(r.length, Ruler.maxLength);
+      r.resizeBy(0.01);
+      expect(r.length, Ruler.minLength);
+      expect(r.chipContains(r.center + const Offset(40, 20)), isTrue);
+      expect(r.chipContains(r.center + const Offset(100, 0)), isFalse);
+      expect(r.contains(r.center + const Offset(100, 0)), isTrue);
+    });
+
+    test('units read the page: an inch is 160 px', () {
+      expect(RulerUnit.inch.format(240), '1.50 in');
+      expect(RulerUnit.cm.format(160 / 2.54 * 4.2), '4.2 cm');
+      expect(RulerUnit.mm.format(160 / 2.54 * 4.2), '42 mm');
     });
   });
 

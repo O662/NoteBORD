@@ -323,6 +323,24 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
     });
 
+    testWidgets('a finger turns the selection by its knob', (tester) async {
+      final (c, a, _) = await lassoed(tester);
+      // The lasso's box is 430 ± 70, 400 ± 40, so the knob is at (430, 470).
+      const later = Duration(minutes: 5);
+      final f = await tester.createGesture(kind: PointerDeviceKind.touch);
+      await f.down(const Offset(430, 470), timeStamp: later);
+      for (var i = 1; i <= 10; i++) {
+        final t = math.pi / 2 - i / 10 * math.pi / 2;
+        await f.moveTo(const Offset(430, 400) + Offset(math.cos(t), math.sin(t)) * 70, timeStamp: later);
+      }
+      await f.up(timeStamp: later);
+      await tester.pump();
+      final turned = _strokes(c).first.bounds;
+      expect(turned.height, greaterThan(turned.width));
+      expect(canvasPane.view.translation, Offset.zero); // the page didn't pan
+      await tester.pump(const Duration(seconds: 1));
+    });
+
     testWidgets('copy, recolor and straighten', (tester) async {
       final (c, a, _) = await lassoed(tester);
       await tester.tap(find.bySemanticsLabel('Copy'));
@@ -428,6 +446,61 @@ void main() {
 
       await openRailItem(tester, 'Ruler');
       expect(canvasPane.ruler.visible, isFalse);
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('tap the angle for presets and a number pad; units; pinch to lengthen', (tester) async {
+      final c = await pumpCanvas(tester, store: _storeWith(const []));
+      await openRailItem(tester, 'Ruler');
+      final ruler = canvasPane.ruler;
+      final chip = ruler.center + const Offset(0, 12);
+
+      // The pen taps the chip; a preset turns the ruler.
+      await _pen(tester, [chip]);
+      await tester.pumpAndSettle();
+      expect(find.text('PRESETS'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('Set 45°'));
+      await tester.pumpAndSettle();
+      expect(ruler.degrees, closeTo(45, 1e-9));
+
+      // A finger taps it too; type −22.5 on the number pad.
+      const later = Duration(minutes: 5);
+      final f = await tester.createGesture(kind: PointerDeviceKind.touch, pointer: 40);
+      await f.down(ruler.center + const Offset(0, 12), timeStamp: later);
+      await f.up(timeStamp: later);
+      await tester.pumpAndSettle();
+      for (final k in ['2', '2', 'Decimal point', '5', 'Plus or minus']) {
+        await tester.tap(find.bySemanticsLabel(k));
+        await tester.pump();
+      }
+      expect(find.text('−22.5°'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('Inches'));
+      await tester.pump();
+      expect(c.read(settingsProvider).rulerUnit.name, 'inch');
+      await tester.tap(find.bySemanticsLabel('Set angle'));
+      await tester.pumpAndSettle();
+      expect(ruler.degrees, closeTo(-22.5, 1e-9));
+      ruler.setDegrees(0);
+
+      // A line along it is measured (page px; 160 = 1 in).
+      final y = ruler.center.dy - 44;
+      await _pen(tester, [for (var i = 0; i <= 20; i++) Offset(400 + i * 12.0, y)]);
+      expect(ruler.measure, closeTo(240, 1));
+
+      // Spreading two fingers along it makes it longer; small spreads don't.
+      final before = ruler.length;
+      final f1 = await tester.createGesture(kind: PointerDeviceKind.touch, pointer: 41);
+      final f2 = await tester.createGesture(kind: PointerDeviceKind.touch, pointer: 42);
+      await f1.down(ruler.center - const Offset(100, 0), timeStamp: later);
+      await f2.down(ruler.center + const Offset(100, 0), timeStamp: later);
+      await f2.moveTo(ruler.center + const Offset(110, 0), timeStamp: later);
+      await tester.pump();
+      expect(ruler.length, before);
+      await f2.moveTo(ruler.center + const Offset(200, 0), timeStamp: later);
+      await f1.up(timeStamp: later);
+      await f2.up(timeStamp: later);
+      await tester.pump();
+      expect(ruler.length, greaterThan(before * 1.3));
       await tester.pump(const Duration(seconds: 5));
     });
 

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../board/model.dart';
 import '../board/store.dart';
 import '../canvas/gestures.dart' show ScribbleLevel;
+import '../canvas/ruler.dart' show RulerUnit;
 import '../canvas/pens.dart';
 import '../theme/tokens.g.dart' as tokens;
 
@@ -46,6 +47,7 @@ class AppSettings {
     this.arrowStyle = ArrowStyle.open,
     this.scribbleLevel = ScribbleLevel.normal,
     this.laserColor = 0,
+    this.rulerUnit = RulerUnit.cm,
     List<Color>? extraColors,
     this.trayOpen = true,
     this.pagesOpen = true,
@@ -81,6 +83,9 @@ class AppSettings {
 
   /// Laser pointer color: 0 red, 1 green, 2 blue.
   final int laserColor;
+
+  /// What the ruler's ticks measure.
+  final RulerUnit rulerUnit;
 
   /// The "More colors" tray, up to [tokens.extraInkMax].
   final List<Color> extraColors;
@@ -121,6 +126,7 @@ class AppSettings {
     ArrowStyle? arrowStyle,
     ScribbleLevel? scribbleLevel,
     int? laserColor,
+    RulerUnit? rulerUnit,
     List<Color>? extraColors,
     bool? trayOpen,
     bool? pagesOpen,
@@ -146,6 +152,7 @@ class AppSettings {
         arrowStyle: arrowStyle ?? this.arrowStyle,
         scribbleLevel: scribbleLevel ?? this.scribbleLevel,
         laserColor: laserColor ?? this.laserColor,
+        rulerUnit: rulerUnit ?? this.rulerUnit,
         extraColors: extraColors ?? this.extraColors,
         trayOpen: trayOpen ?? this.trayOpen,
         pagesOpen: pagesOpen ?? this.pagesOpen,
@@ -172,6 +179,7 @@ class AppSettings {
         'arrowStyle': arrowStyle.name,
         'scribbleLevel': scribbleLevel.name,
         'laserColor': laserColor,
+        'rulerUnit': rulerUnit.name,
         'extraColors': [for (final c in extraColors) colorToHex(c)],
         'trayOpen': trayOpen,
         'pagesOpen': pagesOpen,
@@ -206,6 +214,7 @@ class AppSettings {
       arrowStyle: pick(ArrowStyle.values, j['arrowStyle'], ArrowStyle.open),
       scribbleLevel: pick(ScribbleLevel.values, j['scribbleLevel'], ScribbleLevel.normal),
       laserColor: ((j['laserColor'] as num?)?.toInt() ?? 0).clamp(0, 2),
+      rulerUnit: pick(RulerUnit.values, j['rulerUnit'], RulerUnit.cm),
       extraColors: (j['extraColors'] as List?)
           ?.whereType<String>()
           .map(colorFromHex)

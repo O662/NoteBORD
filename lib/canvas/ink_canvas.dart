@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'dart:ui' show PointMode;
 
-import 'package:flutter/foundation.dart' show setEquals;
+import 'package:flutter/foundation.dart' show kDebugMode, setEquals;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -17,6 +17,7 @@ import '../state/settings.dart';
 import '../templates/templates.dart';
 import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
+import '../ui/canvas/ruler_menu.dart';
 import '../ui/canvas/selection_toolbar.dart';
 import '../ui/common.dart';
 import 'canvas_status.dart';
@@ -54,7 +55,7 @@ const toastDuration = Duration(seconds: 4);
 const handleReach = 22.0;
 
 /// What the drawing pointer (pen, mouse, or a drawing finger) is doing.
-enum _Drag { none, ink, erase, laser, lasso, marquee, move, resize, rotate }
+enum _Drag { none, ink, erase, laser, lasso, marquee, move, resize, rotate, rulerChip }
 
 /// What the fingers are doing.
 enum _Touch { navigate, ruler, selection }
@@ -123,6 +124,17 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
   /// A stroke started on the ruler's edge follows it.
   RulerEdge? _rulerEdge;
+
+  /// Two fingers on the ruler: how much they've spread since they landed,
+  /// and whether that's become a resize (past a dead zone, so turning it
+  /// doesn't change its length by accident).
+  double _rulerPinch = 1;
+  bool _rulerSizing = false;
+
+  /// A tap on the ruler's angle chip (by the pen, or by this finger).
+  Offset _chipDown = Offset.zero;
+  bool _chipMoved = false;
+  int? _chipFinger;
   int _samples = 0;
 
   // Selection drags, in page coordinates.
@@ -277,6 +289,17 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       final page = _vp.toPage(e.localPosition);
       if (pane.ruler.contains(e.localPosition)) {
         _touch = _Touch.ruler;
+        if (pane.ruler.chipContains(e.localPosition)) {
+          _chipFinger = e.pointer;
+          _chipDown = e.localPosition;
+        }
+      } else if (_canInk && _grabHandle(e.localPosition, page)) {
+        // A finger on a corner or the rotate knob drags it, like the pen.
+        _drawPointer = e.pointer;
+        _fingerDrawing = true;
+        _strokeStart = e.timeStamp;
+        _dismissToast();
+        return;
       } else if (_canInk && _selection.isNotEmpty && _inSelection(page)) {
         _touch = _Touch.selection;
         _touchTransform = Similarity.identity;
@@ -287,8 +310,12 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       } else {
         _touch = _Touch.navigate;
       }
+    } else {
+      _chipFinger = null; // a second finger: not a tap
     }
     _touches[e.pointer] = e.localPosition;
+    _rulerPinch = 1;
+    _rulerSizing = false;
   }
 
   void _onMove(PointerMoveEvent e) {
@@ -351,7 +378,20 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       case _Touch.navigate:
         _vp.transform(fromFocal: before.$1, toFocal: after.$1, factor: factor);
       case _Touch.ruler:
+        if (pointer == _chipFinger) {
+          if ((to - _chipDown).distance <= 10) return; // still a tap
+          _chipFinger = null;
+        }
         pane.ruler.moveBy(after.$1 - before.$1);
+        if (_touches.length >= 2) {
+          _rulerPinch *= factor;
+          if (_rulerSizing) {
+            pane.ruler.resizeBy(factor);
+          } else if (_rulerPinch > 1.12 || _rulerPinch < 1 / 1.12) {
+            _rulerSizing = true;
+            pane.ruler.resizeBy(_rulerPinch);
+          }
+        }
         if (turn != 0) pane.ruler.rotateAbout(after.$1, turn);
       case _Touch.selection:
         final from = _vp.toPage(before.$1), to = _vp.toPage(after.$1);
@@ -363,6 +403,12 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
   void _liftTouch(int pointer) {
     if (_touches.remove(pointer) == null) return;
+    _rulerPinch = 1;
+    _rulerSizing = false;
+    if (pointer == _chipFinger) {
+      _chipFinger = null;
+      _openRulerMenu();
+    }
     if (_touches.isEmpty && _touch == _Touch.selection) {
       _land(_touchTransform);
       _touchTransform = Similarity.identity;
@@ -413,6 +459,13 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       _eraseTo(page);
       return;
     }
+    if (pane.ruler.chipContains(e.localPosition)) {
+      // Tapping the angle chip opens the ruler's menu.
+      _drag = _Drag.rulerChip;
+      _chipDown = e.localPosition;
+      _chipMoved = false;
+      return;
+    }
     switch (settings.tool) {
       case CanvasTool.laser:
         _drag = _Drag.laser;
@@ -428,6 +481,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _drag = _Drag.ink;
         _samples = 0;
         _rulerEdge = pane.ruler.edgeNear(e.localPosition);
+        pane.ruler.measure = null;
         active.begin(
           tool: settings.inkTool,
           penType: settings.penType,
@@ -470,6 +524,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         final quarter = (a / (math.pi / 2)).round() * (math.pi / 2);
         if ((a - quarter).abs() < 4 * math.pi / 180) a = quarter;
         _selection.live = Similarity.about(_dragPivot, rotation: a);
+      case _Drag.rulerChip:
+        if ((e.localPosition - _chipDown).distance > 10) _chipMoved = true;
       case _Drag.none:
         break;
     }
@@ -504,10 +560,17 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _finishMarquee();
       case _Drag.move || _Drag.resize || _Drag.rotate:
         _land(_selection.live);
+      case _Drag.rulerChip:
+        if (!_chipMoved) _openRulerMenu();
       case _Drag.none:
         break;
     }
     _resetInput();
+  }
+
+  void _openRulerMenu() {
+    _hover.value = null;
+    showRulerMenu(context, pane.ruler);
   }
 
   void _cancelInput() {
@@ -568,7 +631,11 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     }
     active.add(_inkPoint(e.localPosition), e.localPosition, _pressure(e), (e.timeStamp - _strokeStart).inMilliseconds);
     _samples++;
-    if (_rulerEdge != null) return;
+    if (_rulerEdge != null) {
+      // The chip shows how long the line along the ruler is.
+      pane.ruler.measure = (active.points.last - active.points.first).distance;
+      return;
+    }
     if ((e.localPosition - _holdAnchor).distance > holdSlop) {
       _holdAnchor = e.localPosition;
       _restartHold();
@@ -672,7 +739,13 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       final raw = active.toItem(z: page.nextZ);
       notifier.addStroke(page.id, raw);
       final flicks = settings.arrows && _rulerEdge == null
-          ? detectFlicks(active.points, times: active.times, unit: _unit)
+          ? detectFlicks(
+              active.points,
+              times: active.times,
+              unit: _unit,
+              // In debug builds (`flutter logs`), why a hook didn't count.
+              why: kDebugMode ? (w) => debugPrint('No arrow: $w') : null,
+            )
           : null;
       if (flicks != null) {
         final heads = ArrowHeads(start: flicks.start, end: flicks.end, style: settings.arrowStyle);
@@ -722,27 +795,34 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     return b == null ? null : Rect.fromPoints(_vp.toScreen(b.topLeft), _vp.toScreen(b.bottomRight));
   }
 
+  /// Starts dragging a corner handle or the rotate knob under [screen], if
+  /// there is one.
+  bool _grabHandle(Offset screen, Offset page) {
+    final box = _selection.isEmpty ? null : _screenBox();
+    if (box == null) return false;
+    _dragFrom = page;
+    final corners = [box.topLeft, box.topRight, box.bottomRight, box.bottomLeft];
+    for (var i = 0; i < 4; i++) {
+      if ((screen - corners[i]).distance <= handleReach) {
+        _drag = _Drag.resize;
+        _dragPivot = _vp.toPage(corners[(i + 2) % 4]);
+        return true;
+      }
+    }
+    if ((screen - rotateHandle(box)).distance <= handleReach) {
+      _drag = _Drag.rotate;
+      _dragPivot = _vp.toPage(box.center);
+      return true;
+    }
+    return false;
+  }
+
   void _startSelectionDrag(Offset screen, Offset page, {required bool lasso}) {
     _dragFrom = page;
-    final box = _selection.isEmpty ? null : _screenBox();
-    if (box != null) {
-      final corners = [box.topLeft, box.topRight, box.bottomRight, box.bottomLeft];
-      for (var i = 0; i < 4; i++) {
-        if ((screen - corners[i]).distance <= handleReach) {
-          _drag = _Drag.resize;
-          _dragPivot = _vp.toPage(corners[(i + 2) % 4]);
-          return;
-        }
-      }
-      if ((screen - rotateHandle(box)).distance <= handleReach) {
-        _drag = _Drag.rotate;
-        _dragPivot = _vp.toPage(box.center);
-        return;
-      }
-      if (_inSelection(page)) {
-        _drag = _Drag.move;
-        return;
-      }
+    if (_grabHandle(screen, page)) return;
+    if (_selection.isNotEmpty && _inSelection(page)) {
+      _drag = _Drag.move;
+      return;
     }
     _selection.clear();
     _colorsOpen = false;
@@ -958,7 +1038,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
             ),
             if (settings.tool == CanvasTool.laser || !_laser.isEmpty)
               IgnorePointer(child: CustomPaint(painter: LaserPainter(_laser, _vp, laserColor))),
-            IgnorePointer(child: CustomPaint(painter: RulerPainter(pane.ruler, colors))),
+            IgnorePointer(child: CustomPaint(painter: RulerPainter(pane.ruler, _vp, settings.rulerUnit, colors))),
             if (_canInk && hoverRing != null)
               IgnorePointer(child: CustomPaint(painter: HoverRingPainter(_hover, hoverRing))),
           ]),
