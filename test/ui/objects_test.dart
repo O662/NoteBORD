@@ -684,10 +684,10 @@ void main() {
       await tester.pump();
 
       // Later phases open a card and leave the menu open.
-      await tester.tap(find.text('Kanban board'));
+      await tester.tap(find.text('PowerPoint'));
       await tester.pumpAndSettle();
       expect(find.text('Coming soon'), findsOneWidget);
-      expect(find.text('To do, Doing and Done columns, with cards you can drag across.'), findsOneWidget);
+      expect(find.text('Slides on the board, one at a time, with your ink on top.'), findsOneWidget);
       await tester.tap(find.text('Got it'));
       await tester.pumpAndSettle();
       expect(find.text('Coming soon'), findsNothing);
@@ -728,7 +728,7 @@ void main() {
       ];
       expect(later.map((e) => e.label), [
         'Video', 'Audio', 'PDF', 'Word document', 'PowerPoint', 'Excel sheet', //
-        'Math', 'Graph', 'Table', 'Diagram', 'Timeline', 'Kanban board', 'Website', //
+        'Math', 'Graph', //
         'Calendar', 'Planner', 'Flashcards', 'Need to remember', 'Chart', 'Clock & date', 'Checklist', //
         'Google Drive', 'OneDrive', 'Scan a document',
       ]);

@@ -62,6 +62,7 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
     required this.cardLine,
     required this.plumDeep,
     required this.stickyDeep,
+    required this.previewBg,
   });
 
   final Color text;
@@ -159,6 +160,9 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
 
   /// Icons on a sticky-yellow tile.
   final Color stickyDeep;
+
+  /// Behind a website card's page preview.
+  final Color previewBg;
 
   /// Floating pill shadow: `0 6px 18px -12px shadow`.
   List<BoxShadow> get pillShadow => [
@@ -259,6 +263,7 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
       cardLine: l(cardLine, other.cardLine),
       plumDeep: l(plumDeep, other.plumDeep),
       stickyDeep: l(stickyDeep, other.stickyDeep),
+      previewBg: l(previewBg, other.previewBg),
     );
   }
 }

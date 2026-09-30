@@ -70,10 +70,13 @@ Every item has these fields:
 | `frame` | `w`, `h`, `paper` (lined-a4, grid-a4, dots-a4, blank-a4), `title`, `template?`, `unit?` |
 | `image` | `w`, `h`, `asset`, `crop?` |
 | `file` | `w`, `h`, `asset`, `mime` (pdf/docx/pptx/xlsx), `page?` |
-| `embed` | `w`, `h`, `url` (website) |
+| `embed` | `w`, `h`, `url` (website), `title`, `unit` |
+| `kanban` | `w`, `h`, `title`, `unit`, `columns: [{title, cards: [{text}]}]` |
+| `timeline` | `w`, `h`, `title`, `unit`, `events: [{date, label, state}]` |
+| `diagram` | `w`, `h`, `title`, `unit`, `nodes: [{id, text, shape, color}]`, `edges: [{from, to}]` |
 | `math` | `w`, `h`, `latex`, `sourceStrokes?: [id]` |
 | `graph` | `w`, `h`, `mode` (2d/3d), `functions: [{expr, color}]`, `view` |
-| `table` | `w`, `h`, `cells: [[…]]`, `header` |
+| `table` | `w`, `h`, `title`, `unit`, `cells: [[…]]`, `header` |
 | `chart` | `w`, `h`, `chartType`, `source: {kind: table/xlsx, ref, range}`, `linked: true`, `snapshot?` |
 | `widget` | `w`, `h`, `widget` (calendar/planner/flashcards/remember/clock/date/checklist/numberline/unitcircle/polar), `config` |
 | `audio` | `asset`, `durationMs`, `inkTimeline: [{strokeId, tMs}]`, `transcript?: [{tMs, speaker, text}]` |
@@ -95,6 +98,14 @@ Every item has these fields:
 - `frame`: a sheet of paper drawn under the ink. A lined A4 sheet is 560 × 792 px at 100%, ruled every 40 px from y = 96, with a margin at x = 80. `title` is the name shown above it ("Frame · Lab 4"); empty shows the paper's name ("Frame · Lined A4"). `template` is a built-in template id (`cornell`, `weekly`…) whose layout is drawn on the sheet, scaled to its width. `unit` (default 1) is how much the sheet has been scaled: its rules are 40 × `unit` apart. Ink written on a frame is ordinary page ink above it in `items`; it is not nested.
 - `image`: `asset` is the file's name in `assets/`, `<sha256 of the file>.<png|jpg|gif|webp|bmp>`. The same picture added twice is stored once. `crop` is kept but not used yet.
 - `shape`: `stroke` and `fill` are colors (`fill` null for none); `strokeWidth` is in page px. A `line` or `arrow` has `h: 0` and runs along the middle of its box from the left edge to the right, so its direction is `rotation`; the arrowhead is at the right end.
+
+**Cards built on the board, as implemented (v1):** `kanban`, `timeline`, `diagram`, `table` and `embed` are boxes with a header. `title` is the name in the header (empty shows what it is; a website shows its host). `unit` is the card's scale: its text and spacing are the design's sizes (Board.dc.html) × `unit`. New cards are written with `unit: 1.375`; a file without it is read as 1. Scaling a card by a corner changes `w`, `h` and `unit` together; stretching an edge changes only `w` or `h`, and what's inside reflows. Unknown fields inside columns, cards, events and nodes are kept.
+
+- `kanban`: `columns` in order, each with a `title` and its `cards` (`{"text": "…"}`). Cards in the last column are shown done (struck through), and those in the columns between the first and the last as in progress.
+- `timeline`: `events` in order. `date` is the text shown ("Sep 30"), `label` what happens, and `state` is `done`, `now` (up next) or `later`.
+- `diagram`: `nodes` are laid out in order, left to right, wrapping into rows. `shape` is `box`, `pill` or `diamond`; `color` is `blue`, `clay`, `green` or `plum` (a palette role, so it follows the theme). `edges` are arrows from one node `id` to another; the app's own diagrams join each node to the next.
+- `table`: `cells` is rows of strings. `header: true` means the first row is the column names.
+- `embed`: `url` is the page's address. Only `http` and `https` addresses are ever opened.
 
 `remember` is either `null` or `{ "why": "...", "remindAt": "...", "flashcard": false }`.
 

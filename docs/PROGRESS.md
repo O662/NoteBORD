@@ -155,8 +155,8 @@ The rest of Phase 3, as scoped for this round: text boxes, sticky notes and stac
 | Shapes (basic) | The tool pill's Shapes button, or Insert → Shape: rectangle, oval, triangle, line or arrow, picked in a strip under the tool pill. Drag to draw (a tap drops one at its usual size); it takes the pen's color and thickness, and is left selected. No fill, and no connectors that attach | `ShapeItem`, `ShapeKinds` |
 | Selecting objects | Select and Lasso take everything: a tap picks the topmost thing, a box or lasso what's mostly inside. A shape without a fill is picked by its outline, so what's inside stays reachable. One box on its own gets an outline that follows its tilt, square handles on its edges to stretch it (text and lines only sideways; pictures keep their shape) and a rotate knob that settles it upright | `SelectionFrame`, `stretchBox` |
 | Toolbar for objects | With no ink selected: Edit text / Fan out · Next note / Stack / Rename as fits, then Copy · Color · To front · To back · Delete. Color offers paper colors for sticky notes and ink colors for text and shapes. With ink in the selection it is the Phase 3a toolbar | `SelectionToolbar(objectActions:)` |
-| Insert menu (`Insert.png`) | Done, from the rail's "Everything else": the four groups and their 26 tiles, "Pick files from", the footer and Browse templates, at the design's sizes. Search works (by name, or the start of another word: "lined" finds Paper frame). Sticky note, Sticky stack, Text box, Paper frame, Shape, Image or photo, This tablet and Camera do their thing | `lib/ui/canvas/insert_menu.dart`, `insert_actions.dart` |
-| "Coming soon" card | Every tile outside this round opens a card with its icon, "Coming soon" and what it will do, and the menu stays open: Video, Audio, PDF, Word, PowerPoint, Excel, Math, Graph, Table, Diagram, Timeline, Kanban, Website, the seven live widgets, Google Drive, OneDrive and Scan. "Record audio" in the rail opens the same card | `lib/ui/canvas/coming_soon.dart` |
+| Insert menu (`Insert.png`) | Done, from the rail's "Everything else": the four groups and their 26 tiles, "Pick files from", the footer and Browse templates, at the design's sizes. Search works (by name, or the start of another word: "lined" finds Paper frame). Sticky note, Sticky stack, Text box, Paper frame, Shape, Image or photo, This tablet and Camera do their thing (and, since Phase 3c, Table, Diagram, Timeline, Kanban board and Website) | `lib/ui/canvas/insert_menu.dart`, `insert_actions.dart` |
+| "Coming soon" card | Every tile that isn't built yet opens a card with its icon, "Coming soon" and what it will do, and the menu stays open: Video, Audio, PDF, Word, PowerPoint, Excel, Math, Graph, the seven live widgets, Google Drive, OneDrive and Scan. "Record audio" in the rail opens the same card | `lib/ui/canvas/coming_soon.dart` |
 | Whole board (`Board.png`) | The zoom pill's board button glides out to fit everything on the page, hides every menu except the zoom pill, and shows a hint. Two fingers still pan and zoom. A tap (pen or finger) glides back in, centered there, at the zoom you had; the button or Esc goes back to exactly where you were. Nothing can be written there | `CanvasScreen._toggleBoard`, `InkCanvas(onBoardTap:)` |
 | Status messages | "Added a sticky note to the page · Undo" and the like, in the same place as the pen gestures' messages | `Pane.toast` |
 | Tokens | Added `cardLine`, `plumDeep`, `stickyDeep` (light and dark) and the `stickies` paper colors | `design/tokens.json` |
@@ -165,7 +165,7 @@ The rest of Phase 3, as scoped for this round: text boxes, sticky notes and stac
 
 ### Not done yet / known limits
 - **Not tried on the tablet yet.** In particular: the photo picker and camera, the keyboard over a text box near the bottom of the screen, and how finger taps for dropping things feel next to panning.
-- **Left out of this round, still in SPEC Phase 3:** Kanban, timeline, diagram, website and Word / PowerPoint / Excel previews (they are on `Board.png` and open the "coming soon" card), and connectors that attach to shapes.
+- Kanban, timeline, diagram, table and website followed in Phase 3c. Word, PowerPoint and Excel previews moved to Phase 4. Connectors that attach to shapes are still not built.
 - Shapes have no fill and no corner radius, and a line can't be dragged by its ends (rotate it and stretch it instead).
 - A text box has one font, size and color for all of its text.
 - The eraser only takes ink. Objects are deleted with Select → Delete.
@@ -176,6 +176,34 @@ The rest of Phase 3, as scoped for this round: text boxes, sticky notes and stac
 - The camera isn't offered on Windows (the plugin has none there).
 - Frame names are drawn on the page, so they get small on the whole board.
 - Split view has no strip for picking the shape; it draws the last one picked.
+
+## Phase 3c: Kanban, timeline, diagram, table and website — built, not yet tried on the tablet
+
+The cards on `Board.png` that Phase 3b left out. **Scope change (2026-09-30, from the owner):** Word, PowerPoint and Excel previews moved from Phase 3 to Phase 4, next to PDF import, because they share its file picking and rendering (`docs/SPEC.md` says so now). Their Insert tiles keep the "coming soon" card until then.
+
+| Item | Status | Where |
+|---|---|---|
+| Item types | `kanban`, `timeline`, `diagram`, `table`, `embed`: one `CardItem` (a box with a name and a scale) holding the type's data. Unknown fields are kept, inside columns, cards, events and steps too | `lib/board/model.dart` (`CardItem`, `CardData`), `lib/board/codec.dart` |
+| Drawing (`Board.png`) | In the page picture with the ink, to the design's measurements: header with icon, name and chip; column backgrounds and counts ("TO DO · 2"), the in-progress bar and struck-through done cards; the timeline's line and dots; boxes, pills and diamonds with arrows; the table's header row; the website's striped preview area, host and Open button. Light and dark | `lib/canvas/cards.dart` |
+| Size | New cards are the sizes on `Board.png` × 1.375, the scale they're drawn at (a Kanban board is 578 × 374 at 100%), so text reads well and parts are big enough to touch. A card grows when what it holds needs more room, and never shrinks by itself | `cardNaturalSize`, `fitCard` |
+| Insert | Insert menu → Table, Diagram, Timeline, Kanban board or Website puts one in the middle of the view, selected, with "Added a … to the page · Undo". Each starts with something to edit: three empty columns; today, a week on and two weeks on; Start → Step → Done?; a 3 × 4 table. Website asks for the address first | `insertCard`, `starter…` |
+| Move and resize | Like everything else: drag to move, corner handles scale the whole card, edge handles change its width or height and the content reflows (never narrower than its columns need), rotate, copy, To front / To back, delete. Ink written on a card goes where the card goes | `stretchBox`, `_riders` |
+| Editing | Select → **Edit** opens the card's editor; Save is one undo step, Cancel changes nothing | `lib/ui/canvas/card_editors.dart` |
+| Kanban editor | Name; up to five columns (rename, add, remove); cards with text, move left / right and delete; Add card. Empty cards aren't kept | `_KanbanEditor` |
+| Timeline editor | Name; up to eight events, each with when, what and a dot that steps through done, up next and to come; reorder and delete | `_TimelineEditor` |
+| Diagram editor | Name; up to twelve steps, each with text, a shape (box, rounded, decision) and a color (blue, terracotta, green, plum) that change with a tap; reorder and delete. Each step points to the next; steps wrap into rows when the card is narrow. Arrows that came from another app are kept | `_DiagramEditor` |
+| Table editor | Name; cells; add or remove the last row or column (up to 8 × 30); whether the first row is the column names | `_TableEditor` |
+| Website | The card shows the name (or the site's host) and an **Open** button. Open, from the toolbar or a finger tap on the card's button, opens the page in the browser (`url_launcher` 6.3.2). Only http and https addresses are opened, whatever a file says | `EmbedData.link`, `lib/state/links.dart` |
+| Tokens | Added `previewBg` (light and dark) | `design/tokens.json` |
+
+### Not done yet / known limits
+- **Not tried on the tablet yet**, including opening a page in the browser.
+- **The website card has no live preview of the page.** `Board.png` shows a "[Live page preview]" placeholder there; the card draws the same striped area with "Open to see this page". A real preview needs a web view inside the zooming page.
+- Cards are edited in their editor, not in place: you can't drag a Kanban card between columns on the page, or type straight into a table cell.
+- A diagram is a flow of steps, each pointing to the next. Branches can't be made here (arrows from another app are drawn and kept).
+- A timeline's dates are text ("Sep 30"), not calendar dates, so they don't sort or link to the calendar.
+- Tables have no formulas, column widths or number formats, and don't feed charts yet (Phase 7).
+- Rows, cards or steps that don't fit a card you made smaller are clipped, until the next edit grows it again.
 
 ## Storage layout
 
@@ -201,10 +229,11 @@ The rest of Phase 3, as scoped for this round: text boxes, sticky notes and stac
 - `test/state`: loading, undo/redo per page, replace/remove/insert as single steps, eraser undo, adding pages with a template, autosave timing, saving when a notebook is closed right after a change, a library rename while the notebook is open, settings. Phase 3b (`items_state_test.dart`): combined edits and reordering as one undo step, erasing ink on a note, objects on disk within a second, adding an image (and refusing a file that isn't one), templates leaving pictures out, and images sealed, reopened and unsealed with page and notebook passwords.
 - `test/ui`: the Canvas screen (as before); pen gestures end to end with S Pen and finger events (hold to straighten and its Undo, arrows, scribble and sensitivity, the popover toggles, lasso and Select, move/resize/rotate/pinch, copy/recolor/straighten/delete, the Remember toolbar, the ruler, the laser); Start and Library (labels, Start → Library → notebook → back, New note, grid/list, sort, new folder, rename, pin, trash, restore, delete forever, folder rename and delete); Templates (categories, new page, save as template, new notebook from Start); Password protect (mismatch, lock, wrong password, fingerprint, remove, a locked notebook); Split view (focus, the pen only writing in the focused side, undo, page arrows, Same/Other note, swap, closing a side, opening from Start).
 - `test/ui/objects_test.dart` (Phase 3b): dropping a sticky note with the pen and a finger, writing on it, hold to straighten and scribble on a note, the eraser on a note, stacks (fan out, next note, stack, the badge), text boxes (type, edit, restyle, clear, Esc, recolor, stretch), frames (under the ink, carrying it when moved, copied and deleted; from Templates), shapes (drag, stretch, rotate, tap), images (from the picker, with and without a camera, resizing, ink riding along), selecting objects and the lasso with ink, the Insert menu (every tile, search, every "coming soon" card, Browse templates), the whole board (in, tap, back, Esc, finger), and everything saved and loaded again.
+- Phase 3c: `test/board/cards_test.dart` (round trips for the five card types, unknown fields kept inside them, unreadable cards kept as they were, web addresses, sizes, growing, scaling and stretching), `test/ui/cards_test.dart` (each card from the Insert menu, every editor, undo, the website prompt and Open with a fake browser, an unsafe address refused, move / stretch / scale / copy / delete, ink riding along, saved and loaded again) and 10 goldens (`cards_board`, `cards_board_dark`, `cards_selected`, `cards_bottom`, the five `editor_*` and `editor_kanban_dark`). `test/sample_board.dart` is `Board.png` made of real items.
 - `test/golden`: Phase 3b in 10 images (`insert`, `insert_dark`, `insert_search`, `insert_coming_soon`, `board`, `board_dark`, `objects`, `objects_selected`, `text_editing`, `shapes`). Canvas at 1280×800 in 8 states; the pen gestures in 9 (`gestures_*.png`: lasso, remember, hold, straightened, scribble, arrows, ruler and laser, ruler menu, settings); plus Start, Library (grid and list), Templates, Password protect, a locked notebook and Split view, using the design's sample library (`test/sample_library.dart`). Goldens were rendered on Windows; regenerate with `flutter test --update-goldens test/golden` after an intended visual change.
 - `test/tokens_sync_test.dart`: generated tokens match `design/tokens.json`.
 
 ## Next
-- Try Phase 3b on the tablet: drop and write on sticky notes, type a text box with the on-screen keyboard, add a photo from the gallery and the camera, and the whole board. (Dragging the ruler's ends from Phase 3a is still to try as well.)
-- Decide whether the rest of SPEC Phase 3 (Kanban, timeline, diagram, website and Office previews, connectors) comes before Phase 4, import and export.
-- Then Phase 4: export to PDF and `.board`, import PDF, images and `.board` files.
+- Try Phase 3b and 3c on the tablet: drop and write on sticky notes, type a text box with the on-screen keyboard, add a photo from the gallery and the camera, the whole board, the card editors with the on-screen keyboard, and opening a website. (Dragging the ruler's ends from Phase 3a is still to try as well.)
+- Phase 3 is complete except connectors that attach to shapes.
+- Then Phase 4: export to PDF and `.board`; import PDF, images and `.board` files; and Word, PowerPoint and Excel previews on the board.

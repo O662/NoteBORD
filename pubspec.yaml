@@ -31,6 +31,8 @@ dependencies:
   # 3.x builds or downloads SQLite through a build hook on every platform,
   # so no sqlite3_flutter_libs.
   sqlite3: 3.5.2
+  # Opens a website card's page in the browser (first-party; every platform).
+  url_launcher: 6.3.2
 
 dev_dependencies:
   flutter_test:

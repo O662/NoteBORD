@@ -10,7 +10,22 @@ import 'coming_soon.dart';
 
 /// What picking something in the Insert menu does. Everything else in the
 /// menu opens a "coming soon" card.
-enum InsertAction { sticky, stack, text, frame, shape, image, tablet, camera, templates }
+enum InsertAction {
+  sticky,
+  stack,
+  text,
+  frame,
+  shape,
+  image,
+  tablet,
+  camera,
+  templates,
+  table,
+  diagram,
+  timeline,
+  kanban,
+  website,
+}
 
 /// One tile of the Insert menu (Insert.dc.html).
 class InsertEntry {
@@ -125,16 +140,11 @@ final List<InsertSection> insertSections = [
         soon: 'Write an equation by hand and it turns into typeset math as you go.'),
     InsertEntry('Graph', icon: EIcons.graph, tile: _blue, tint: _blueInk, small: true, keywords: 'plot function xy xyz',
         soon: 'Plot functions in 2D or 3D, trace them and find where they cross.'),
-    InsertEntry('Table', icon: EIcons.table, tile: _blue, tint: _blueInk, keywords: 'rows columns grid cells',
-        soon: 'Rows and columns you can type or write in. Charts can follow a table.'),
-    InsertEntry('Diagram', icon: EIcons.diagram, tile: _plum, tint: _plumInk, keywords: 'flowchart boxes connectors',
-        soon: 'Boxes and connectors that stay attached as you move them.'),
-    InsertEntry('Timeline', icon: EIcons.timeline, tile: _plum, tint: _plumInk, keywords: 'dates schedule milestones',
-        soon: 'Dates along a line: mark what’s done and what’s next.'),
-    InsertEntry('Kanban board', icon: EIcons.kanban, tile: _plum, tint: _plumInk, keywords: 'tasks to do doing done cards',
-        soon: 'To do, Doing and Done columns, with cards you can drag across.'),
-    InsertEntry('Website', icon: EIcons.globe, tile: _blue, tint: _blueInk, keywords: 'web page link url embed',
-        soon: 'A live preview of a web page on the board, with a button to open it.'),
+    InsertEntry('Table', icon: EIcons.table, tile: _blue, tint: _blueInk, action: InsertAction.table, keywords: 'rows columns grid cells'),
+    InsertEntry('Diagram', icon: EIcons.diagram, tile: _plum, tint: _plumInk, action: InsertAction.diagram, keywords: 'flowchart flow steps boxes arrows'),
+    InsertEntry('Timeline', icon: EIcons.timeline, tile: _plum, tint: _plumInk, action: InsertAction.timeline, keywords: 'dates schedule milestones events'),
+    InsertEntry('Kanban board', icon: EIcons.kanban, tile: _plum, tint: _plumInk, action: InsertAction.kanban, keywords: 'tasks to do doing done cards'),
+    InsertEntry('Website', icon: EIcons.globe, tile: _blue, tint: _blueInk, action: InsertAction.website, keywords: 'web page link url embed'),
   ]),
   InsertSection('Live widgets', 7, [
     InsertEntry('Calendar', icon: EIcons.calendar, tile: _blue, tint: _blueInk, keywords: 'events month week',

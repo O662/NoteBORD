@@ -53,11 +53,11 @@ Each feature names the screen that shows it (`design/screens/<Name>.png`, with s
 - **Laser pointer:** the trail fades after 1 s and is never saved. Red, green or blue. **[Tools]**
 - **Insert menu** with search: **[Insert]**
   - On the page: sticky, sticky stack, text box, paper frame, shape.
-  - Files: video, audio, image/photo, PDF, Word, PowerPoint, Excel. Files show a live preview and can be written on.
+  - Files: video, audio, image/photo, PDF, Word, PowerPoint, Excel. Files show a live preview and can be written on. (Word, PowerPoint and Excel previews are built in Phase 4, with PDF import; until then their tiles open the "coming soon" card.)
   - Build on the board: math, graph, table, diagram, timeline, Kanban, website embed.
   - Live widgets: calendar, planner, flashcards, need to remember, chart, clock and date, checklist.
   - Pick files from the tablet, Google Drive, OneDrive, camera or document scan.
-- **Whole-board view** with frames, stickies, a Kanban, a timeline, a diagram, a website preview and DOCX/PPTX embeds. **[Board]**
+- **Whole-board view** with frames, stickies, a Kanban, a timeline, a diagram, a table and a website preview. **[Board]** (The DOCX, PPTX and XLSX cards on that screen come in Phase 4.)
 
 ## Phase 4: Import and export
 - **Export:** this page, some pages, or the whole notebook.
@@ -65,6 +65,7 @@ Each feature names the screen that shows it (`design/screens/<Name>.png`, with s
   - Endless pages either "fit page to its ink" or split into A4/Letter.
   - Save to the tablet, Google Drive, OneDrive, or the share sheet. **[Export]**
 - **Import:** PDF (annotate on top), images, and .board files.
+- **Office files on the board:** Word, PowerPoint and Excel previews (the Insert menu's file tiles, and the DOCX, PPTX and XLSX cards on **[Board]**). Moved here from Phase 3, because they share PDF import's file picking and rendering.
 
 ## Phase 5: Handwriting intelligence
 - **Handwriting search:** full text across notebooks, with filters for handwriting, typed text, inside PDFs, folder and date. Results show the matched ink highlighted, and "Open at this spot" jumps there. Works offline. **[Search]**

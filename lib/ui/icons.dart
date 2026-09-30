@@ -91,6 +91,13 @@ abstract final class EIcons {
     for (final x in [6.0, 12.0, 18.0]) IconPart(_circle(x, 12, 2), fill: true),
     _p('M6 12V6M12 12v6M18 12V6'),
   ]);
+
+  /// The timeline card's header icon (Board.dc.html): dots on a line.
+  static final timelineDots = EIconData([
+    _p('M2 12h20'),
+    for (final x in [6.0, 12.0, 18.0]) _p(_circle(x, 12, 2)),
+  ], strokeWidth: 2);
+  static final chevronUp = EIconData([_p('M6 15l6-6 6 6')], strokeWidth: 2.2);
   static final kanban = EIconData([_p(_rect(3, 4, 5, 12, 1)), _p(_rect(9.5, 4, 5, 8, 1)), _p(_rect(16, 4, 5, 15, 1))]);
   static final globe = EIconData([
     _p(_circle(12, 12, 9)),
@@ -260,6 +267,31 @@ Path _pathFor(IconPart part) => _paths[part] ??= () {
       }
       return dashed;
     }();
+
+/// Draws [data] at [at], [size] px square, on a canvas (for the cards drawn
+/// on the page). [color] is the icon's own color.
+void paintEIcon(Canvas canvas, EIconData data, Offset at, double size, Color color) {
+  canvas
+    ..save()
+    ..translate(at.dx, at.dy)
+    ..scale(size / data.viewBox);
+  for (final part in data.parts) {
+    final path = _pathFor(part);
+    if (part.fill) canvas.drawPath(path, Paint()..color = color);
+    if (part.stroke) {
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = data.strokeWidth
+          ..strokeCap = ui.StrokeCap.round
+          ..strokeJoin = ui.StrokeJoin.round
+          ..color = color,
+      );
+    }
+  }
+  canvas.restore();
+}
 
 class EIcon extends StatelessWidget {
   const EIcon(this.data, {super.key, this.size = 20, this.color});

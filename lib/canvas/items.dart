@@ -8,6 +8,7 @@ import '../board/model.dart';
 import '../templates/templates.dart';
 import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
+import 'cards.dart';
 import 'page_runtime.dart' show paintStroke;
 import 'stroke_geometry.dart' show segmentDistance;
 
@@ -85,6 +86,8 @@ void paintBoxItem(Canvas canvas, BoxItem item, Brightness brightness, EndlessCol
       _paintFrame(canvas, f, c);
     case ImageItem i:
       _paintImage(canvas, i, c, images);
+    case CardItem card:
+      paintCard(canvas, card, c);
     case ShapeItem s:
       final path = shapePath(s);
       if (s.fill != null) canvas.drawPath(path, Paint()..color = displayInk(s.fill!, brightness));
@@ -356,18 +359,21 @@ List<int> stretchSides(BoxItem item) => switch (item) {
 BoxItem stretchBox(BoxItem item, int side, Offset page, {double min = 24}) {
   final p = item.toLocal(page);
   var w = item.w, h = item.h;
+  // A card keeps room for its columns and at least its header.
+  final minW = item is CardItem ? cardMinWidth(item.data) * item.unit : min;
+  final minH = item is CardItem ? 80 * item.unit : min;
   // The corner that doesn't move, as a fraction of the box.
   var anchor = Offset.zero;
   switch (side) {
     case 0:
-      h = math.max(min, item.h - p.dy);
+      h = math.max(minH, item.h - p.dy);
       anchor = const Offset(0, 1);
     case 1:
-      w = math.max(min, p.dx);
+      w = math.max(minW, p.dx);
     case 2:
-      h = math.max(min, p.dy);
+      h = math.max(minH, p.dy);
     case 3:
-      w = math.max(min, item.w - p.dx);
+      w = math.max(minW, item.w - p.dx);
       anchor = const Offset(1, 0);
   }
   final fixed = item.toPage(Offset(anchor.dx * item.w, anchor.dy * item.h));

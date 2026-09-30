@@ -12,17 +12,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../board/ids.dart';
 import '../board/model.dart';
+import '../state/links.dart';
 import '../state/notebook.dart';
 import '../state/settings.dart';
 import '../templates/templates.dart';
 import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
+import '../ui/canvas/card_editors.dart';
 import '../ui/canvas/ruler_menu.dart';
 import '../ui/canvas/selection_toolbar.dart';
 import '../ui/canvas/text_editor.dart';
 import '../ui/common.dart';
 import '../ui/dialogs.dart';
 import 'canvas_view.dart';
+import 'cards.dart';
 import 'gesture_overlay.dart';
 import 'gestures.dart';
 import 'items.dart';
@@ -395,8 +398,9 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         return;
       } else {
         _touch = _Touch.navigate;
-        if (settings.tool.places && _canInk) {
-          // A finger tap drops one too; a drag still pans.
+        if (_canInk) {
+          // A finger tap drops what the tool drops, or presses a website
+          // card's Open button; a drag still pans.
           _tapFinger = e.pointer;
           _tapDown = e.localPosition;
         }
@@ -1008,12 +1012,12 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     return items.isNotEmpty && items.every((i) => i is StickyItem);
   }
 
-  /// What's written on the selected frames and pictures (above them, with
-  /// its middle on them): it goes where they go.
+  /// What's written on the selected frames, pictures and cards (above
+  /// them, with its middle on them): it goes where they go.
   List<Item> _riders() {
     final frames = [
       for (final i in _selected)
-        if (i is FrameItem || i is ImageItem) i as BoxItem,
+        if (i is FrameItem || i is ImageItem || i is CardItem) i as BoxItem,
     ];
     if (frames.isEmpty) return const [];
     final page = _page;
@@ -1230,6 +1234,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     final one = items.length == 1 ? items.single : null;
     return [
       if (one is TextItem || (one is StickyItem && !one.isStack)) SelectionAction.edit,
+      if (one is CardItem) SelectionAction.editCard,
+      if (one is CardItem && one.data is EmbedData) SelectionAction.open,
       if (one is StickyItem && one.isStack) ...[SelectionAction.fanOut, SelectionAction.nextNote],
       if (one == null && _onlyStickies) SelectionAction.stack,
       if (one is FrameItem) SelectionAction.rename,
@@ -1326,6 +1332,10 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _colorsOpen = false;
       case SelectionAction.edit:
         if (items.singleOrNull case final BoxItem b) _beginEdit(b);
+      case SelectionAction.editCard:
+        if (items.singleOrNull case final CardItem card) _editCard(card);
+      case SelectionAction.open:
+        if (items.singleOrNull case final CardItem card) _openLink(card);
       case SelectionAction.fanOut:
         if (items.singleOrNull case final StickyItem s) _fanOut(s);
       case SelectionAction.nextNote:
@@ -1358,6 +1368,34 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     ]);
     _selection.select(_selection.ids, outline: loop, revision: _nb.revision);
     setState(() => _colorsOpen = false);
+  }
+
+  // Cards: Kanban, timeline, diagram, table and website.
+
+  /// Opens the card's editor; what's saved there is one undo step.
+  Future<void> _editCard(CardItem card) async {
+    final pageId = _page.id;
+    final edited = await showCardEditor(context, card);
+    if (edited == null || !mounted || _page.id != pageId || _page[card.id] is! CardItem) return;
+    _dismissToast();
+    _notebook.replaceItems(pageId, [edited]);
+  }
+
+  /// Opens a website card's page in the browser.
+  Future<void> _openLink(CardItem card) async {
+    final link = switch (card.data) {
+      final EmbedData e => e.link,
+      _ => null,
+    };
+    var opened = false;
+    if (link != null) {
+      try {
+        opened = await ref.read(linkOpenerProvider).open(link);
+      } on Object catch (e) {
+        debugPrint('Opening $link failed: $e');
+      }
+    }
+    if (!opened && mounted) showNote(context, 'Couldn’t open that address');
   }
 
   // Sticky stacks.
@@ -1453,6 +1491,13 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     final page = _page;
     final now = DateTime.now().toUtc();
     final settings = ref.read(settingsProvider);
+    if (!settings.tool.places) {
+      // Any other tool: a tap only presses a website card's Open button.
+      if (topBoxAt(page.items, at) case final CardItem card when card.data is EmbedData) {
+        if (embedOpenRect(card).contains(card.toLocal(at))) _openLink(card);
+      }
+      return;
+    }
     switch (settings.tool) {
       case CanvasTool.text:
         _textTap(at);

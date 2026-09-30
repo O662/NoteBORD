@@ -1040,6 +1040,293 @@ class ShapeItem extends BoxItem {
       };
 }
 
+/// What a card built on the board holds: a Kanban board, a timeline, a
+/// diagram, a table or a website. Each is an item type of its own in the
+/// file (`kanban`, `timeline`, `diagram`, `table`, `embed`).
+sealed class CardData {
+  const CardData();
+
+  /// The item's `type`.
+  String get type;
+
+  /// The fields of this type, for the item's JSON.
+  Json toJson();
+
+  /// The type-specific fields, to tell them from unknown ones.
+  Set<String> get keys;
+}
+
+/// A card on a Kanban board. Fields this version doesn't know are kept.
+@immutable
+class KanbanCard {
+  const KanbanCard(this.text, {this.extra = const {}});
+
+  final String text;
+  final Json extra;
+
+  Json toJson() => {...extra, 'text': text};
+}
+
+@immutable
+class KanbanColumn {
+  const KanbanColumn(this.title, [this.cards = const [], this.extra = const {}]);
+
+  final String title;
+  final List<KanbanCard> cards;
+  final Json extra;
+
+  Json toJson() => {...extra, 'title': title, 'cards': [for (final c in cards) c.toJson()]};
+}
+
+/// Columns of cards. Cards in the last column are done (struck through);
+/// those between the first and the last are in progress.
+class KanbanData extends CardData {
+  const KanbanData(this.columns);
+
+  final List<KanbanColumn> columns;
+
+  @override
+  String get type => 'kanban';
+
+  @override
+  Set<String> get keys => const {'columns'};
+
+  @override
+  Json toJson() => {'columns': [for (final c in columns) c.toJson()]};
+}
+
+/// Where a timeline's event stands: behind you, up next, or still to come.
+enum EventState { done, now, later }
+
+@immutable
+class TimelineEvent {
+  const TimelineEvent({required this.date, required this.label, this.state = EventState.later, this.extra = const {}});
+
+  /// When, as shown ("Sep 30").
+  final String date;
+  final String label;
+  final EventState state;
+  final Json extra;
+
+  Json toJson() => {...extra, 'date': date, 'label': label, 'state': state.name};
+}
+
+class TimelineData extends CardData {
+  const TimelineData(this.events);
+
+  final List<TimelineEvent> events;
+
+  @override
+  String get type => 'timeline';
+
+  @override
+  Set<String> get keys => const {'events'};
+
+  @override
+  Json toJson() => {'events': [for (final e in events) e.toJson()]};
+}
+
+/// A step's outline: a box, a pill (start and end), or a decision diamond.
+enum NodeShape { box, pill, diamond }
+
+/// A step's color, by palette role so it follows the theme and dark mode.
+enum NodeColor { blue, clay, green, plum }
+
+@immutable
+class DiagramNode {
+  const DiagramNode({
+    required this.id,
+    required this.text,
+    this.shape = NodeShape.box,
+    this.color = NodeColor.blue,
+    this.extra = const {},
+  });
+
+  final String id;
+  final String text;
+  final NodeShape shape;
+  final NodeColor color;
+  final Json extra;
+
+  Json toJson() => {...extra, 'id': id, 'text': text, 'shape': shape.name, 'color': color.name};
+}
+
+/// Steps and the arrows between them. The steps are laid out in order, left
+/// to right; `edges` name the steps each arrow joins.
+class DiagramData extends CardData {
+  const DiagramData(this.nodes, this.edges);
+
+  /// Steps joined one after the other.
+  factory DiagramData.flow(List<DiagramNode> nodes) =>
+      DiagramData(nodes, [for (var i = 0; i + 1 < nodes.length; i++) (nodes[i].id, nodes[i + 1].id)]);
+
+  final List<DiagramNode> nodes;
+  final List<(String, String)> edges;
+
+  @override
+  String get type => 'diagram';
+
+  @override
+  Set<String> get keys => const {'nodes', 'edges'};
+
+  @override
+  Json toJson() => {
+        'nodes': [for (final n in nodes) n.toJson()],
+        'edges': [
+          for (final (from, to) in edges) {'from': from, 'to': to},
+        ],
+      };
+}
+
+/// Rows of cells. With [header], the first row is the column names.
+class TableData extends CardData {
+  const TableData(this.cells, {this.header = true});
+
+  final List<List<String>> cells;
+  final bool header;
+
+  int get rows => cells.length;
+  int get columns => cells.isEmpty ? 0 : cells.map((r) => r.length).reduce(math.max);
+
+  @override
+  String get type => 'table';
+
+  @override
+  Set<String> get keys => const {'cells', 'header'};
+
+  @override
+  Json toJson() => {'cells': cells, 'header': header};
+}
+
+/// A website on the board.
+class EmbedData extends CardData {
+  const EmbedData(this.url);
+
+  final String url;
+
+  /// The address as a link that may be opened: http or https only.
+  Uri? get link {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null || uri.host.isEmpty || (uri.scheme != 'http' && uri.scheme != 'https')) return null;
+    return uri;
+  }
+
+  /// The site's name as shown on the card: "example.com".
+  String get host {
+    final h = link?.host ?? url.trim();
+    return h.startsWith('www.') ? h.substring(4) : h;
+  }
+
+  /// [typed] as a web address: "example.com/lab" becomes
+  /// "https://example.com/lab". Null if it isn't one.
+  static String? normalize(String typed) {
+    final t = typed.trim();
+    if (t.isEmpty || t.contains(' ')) return null;
+    final withScheme = t.contains('://') ? t : 'https://$t';
+    final data = EmbedData(withScheme);
+    final uri = data.link;
+    return uri == null || !uri.host.contains('.') ? null : uri.toString();
+  }
+
+  @override
+  String get type => 'embed';
+
+  @override
+  Set<String> get keys => const {'url'};
+
+  @override
+  Json toJson() => {'url': url};
+}
+
+/// A card built on the board (Board.dc.html): a header with its name, and
+/// its [data] drawn underneath. `unit` is how much the card is scaled: its
+/// text and spacing are the design's sizes times `unit`.
+class CardItem extends BoxItem {
+  CardItem({
+    required super.id,
+    required super.x,
+    required super.y,
+    super.rotation,
+    required super.z,
+    required super.createdAt,
+    super.author,
+    super.remember,
+    super.extra,
+    required this.w,
+    required this.h,
+    required this.data,
+    this.title = '',
+    this.unit = defaultUnit,
+  });
+
+  /// New cards are drawn at this scale, so they read well and their parts
+  /// are big enough to touch at 100%.
+  static const defaultUnit = 1.375;
+
+  @override
+  final double w;
+  @override
+  final double h;
+  final CardData data;
+  final String title;
+  final double unit;
+
+  @override
+  Rect get paintRect => (Offset.zero & Size(w, h)).inflate(30 * unit);
+
+  @override
+  String get type => data.type;
+
+  CardItem copyWith({CardData? data, String? title, double? h}) => CardItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        w: w,
+        h: h ?? this.h,
+        data: data ?? this.data,
+        title: title ?? this.title,
+        unit: unit,
+      );
+
+  @override
+  CardItem withBox({
+    String? id,
+    int? z,
+    DateTime? createdAt,
+    required double x,
+    required double y,
+    required double w,
+    required double h,
+    double? rotation,
+    double scale = 1,
+  }) =>
+      CardItem(
+        id: id ?? this.id,
+        x: x,
+        y: y,
+        rotation: rotation ?? this.rotation,
+        z: z ?? this.z,
+        createdAt: createdAt ?? this.createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        w: w,
+        h: h,
+        data: data,
+        title: title,
+        unit: unit * scale,
+      );
+
+  @override
+  Json toJson() => {...boxJson(), 'title': title, 'unit': round3(unit), ...data.toJson()};
+}
+
 /// An item type this version can't show yet. Kept verbatim.
 class UnknownItem extends Item {
   UnknownItem(this.raw)

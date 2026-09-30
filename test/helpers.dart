@@ -12,6 +12,7 @@ import 'package:endless/canvas/pane.dart';
 import 'package:endless/library/index_db.dart';
 import 'package:endless/state/assets.dart';
 import 'package:endless/state/biometric.dart';
+import 'package:endless/state/links.dart';
 import 'package:endless/state/bootstrap.dart';
 import 'package:endless/state/notebook.dart';
 import 'package:endless/state/photos.dart';
@@ -83,6 +84,18 @@ class FakePhotoPicker implements PhotoPicker {
   Future<Uint8List?> pick(PhotoOrigin origin) async {
     asked.add(origin);
     return bytes;
+  }
+}
+
+/// A browser that records what it was asked to open.
+class FakeLinkOpener implements LinkOpener {
+  final opened = <Uri>[];
+  bool works = true;
+
+  @override
+  Future<bool> open(Uri link) async {
+    opened.add(link);
+    return works;
   }
 }
 

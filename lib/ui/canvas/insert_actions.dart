@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../board/model.dart';
+import '../../canvas/cards.dart';
 import '../../canvas/new_items.dart';
 import '../../canvas/pane.dart';
 import '../../canvas/selection.dart';
@@ -17,6 +18,7 @@ import '../common.dart';
 import '../dialogs.dart';
 import '../icons.dart';
 import '../templates/templates_dialog.dart';
+import 'card_editors.dart';
 import 'insert_menu.dart';
 
 /// What the tools that drop something say when picked.
@@ -59,6 +61,18 @@ Future<void> runInsert(
       await insertImage(context, ref, pane, PhotoOrigin.tablet);
     case InsertAction.camera:
       await insertImage(context, ref, pane, PhotoOrigin.camera);
+    case InsertAction.kanban:
+      insertCard(ref, pane, starterKanban());
+    case InsertAction.timeline:
+      insertCard(ref, pane, starterTimeline(DateTime.now()));
+    case InsertAction.diagram:
+      insertCard(ref, pane, starterDiagram());
+    case InsertAction.table:
+      insertCard(ref, pane, starterTable());
+    case InsertAction.website:
+      // A website needs its address first.
+      final site = await showWebsitePrompt(context);
+      if (site != null && context.mounted) insertCard(ref, pane, EmbedData(site.url), title: site.title);
     case InsertAction.image:
       // With a camera, ask where the picture comes from.
       final origin = ref.read(photoPickerProvider).hasCamera ? await showImageSources(context) : PhotoOrigin.tablet;
@@ -99,6 +113,22 @@ Future<void> insertImage(BuildContext context, WidgetRef ref, Pane pane, PhotoOr
     ..menu = SelectionMenu.convert
     ..select([item.id]);
   pane.toast('Added an image to the page', undoPageId: pageId);
+}
+
+/// Puts a new card holding [data] in the middle of the view, selected, so
+/// Edit is one tap away. Returns it, or null if the page can't be written to.
+CardItem? insertCard(WidgetRef ref, Pane pane, CardData data, {String title = ''}) {
+  final nb = ref.read(notebookProvider(pane.notebookId));
+  final page = nb.pageAt(pane.page);
+  if (nb.isSealed(page.id)) return null;
+  final card = newCard(data, pane.view.visiblePage.center, z: page.nextZ, now: DateTime.now().toUtc(), title: title);
+  ref.read(notebookProvider(pane.notebookId).notifier).insertItems(page.id, [card]);
+  ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: CanvasTool.select));
+  pane.selection
+    ..menu = SelectionMenu.convert
+    ..select([card.id]);
+  pane.toast('Added a ${cardNoun(data)} to the page', undoPageId: page.id);
+  return card;
 }
 
 /// Puts a paper frame with [template] near the top of the view ("Use for:

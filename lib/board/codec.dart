@@ -238,7 +238,85 @@ Item? _decodeKnown(Json json) {
         fill: json['fill'] is String ? colorFromHex(json['fill'] as String) : null,
         strokeWidth: _num(json['strokeWidth'], 2.5),
       );
+    case 'kanban' || 'timeline' || 'diagram' || 'table' || 'embed':
+      final data = _cardData(json);
+      return CardItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, {..._boxKeys, 'title', 'unit', ...data.keys}),
+        w: (json['w'] as num).toDouble(),
+        h: (json['h'] as num).toDouble(),
+        data: data,
+        title: json['title'] as String? ?? '',
+        unit: _num(json['unit'], 1),
+      );
     default:
       return null;
+  }
+}
+
+Json _map(Object? v) => (v as Map).cast<String, dynamic>();
+
+T _named<T extends Enum>(List<T> values, Object? name, T fallback) =>
+    values.firstWhere((v) => v.name == name, orElse: () => fallback);
+
+/// What a card holds, by its item type.
+CardData _cardData(Json json) {
+  switch (json['type']) {
+    case 'kanban':
+      return KanbanData([
+        for (final c in (json['columns'] as List).map(_map))
+          KanbanColumn(
+            c['title'] as String? ?? '',
+            [
+              for (final card in (c['cards'] as List? ?? const []).map(_map))
+                KanbanCard(card['text'] as String? ?? '', extra: _unknown(card, const {'text'})),
+            ],
+            _unknown(c, const {'title', 'cards'}),
+          ),
+      ]);
+    case 'timeline':
+      return TimelineData([
+        for (final e in (json['events'] as List).map(_map))
+          TimelineEvent(
+            date: e['date'] as String? ?? '',
+            label: e['label'] as String? ?? '',
+            state: _named(EventState.values, e['state'], EventState.later),
+            extra: _unknown(e, const {'date', 'label', 'state'}),
+          ),
+      ]);
+    case 'diagram':
+      return DiagramData(
+        [
+          for (final n in (json['nodes'] as List).map(_map))
+            DiagramNode(
+              id: n['id'] as String,
+              text: n['text'] as String? ?? '',
+              shape: _named(NodeShape.values, n['shape'], NodeShape.box),
+              color: _named(NodeColor.values, n['color'], NodeColor.blue),
+              extra: _unknown(n, const {'id', 'text', 'shape', 'color'}),
+            ),
+        ],
+        [
+          for (final e in (json['edges'] as List? ?? const []).map(_map)) (e['from'] as String, e['to'] as String),
+        ],
+      );
+    case 'table':
+      // `header` says whether the first row is the column names.
+      if (json['header'] != null && json['header'] is! bool) throw const FormatException('table.header');
+      return TableData(
+        [
+          for (final row in json['cells'] as List) [for (final cell in row as List) '${cell ?? ''}'],
+        ],
+        header: json['header'] != false,
+      );
+    default:
+      return EmbedData(json['url'] as String);
   }
 }

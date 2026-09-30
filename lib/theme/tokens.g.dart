@@ -61,6 +61,7 @@ const paperLight = EndlessColors(
   cardLine: Color(0xFFE4DCCB),
   plumDeep: Color(0xFF5F3A59),
   stickyDeep: Color(0xFF7A5A06),
+  previewBg: Color(0xFFE6DECD),
 );
 
 const paperDark = EndlessColors(
@@ -119,6 +120,7 @@ const paperDark = EndlessColors(
   cardLine: Color(0xFF3B3731),
   plumDeep: Color(0xFFE8C4E1),
   stickyDeep: Color(0xFFF3DE9A),
+  previewBg: Color(0xFF34302A),
 );
 
 const inkDefaults = <Color>[

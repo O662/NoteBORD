@@ -16,8 +16,10 @@ enum SelectionAction {
   color,
   straighten,
   delete,
-  // For text boxes, sticky notes, frames, images and shapes.
+  // For text boxes, sticky notes, frames, images, shapes and cards.
   edit,
+  editCard,
+  open,
   fanOut,
   nextNote,
   stack,
@@ -28,6 +30,8 @@ enum SelectionAction {
 
 const _objectLabels = {
   SelectionAction.edit: 'Edit text',
+  SelectionAction.editCard: 'Edit',
+  SelectionAction.open: 'Open',
   SelectionAction.fanOut: 'Fan out',
   SelectionAction.nextNote: 'Next note',
   SelectionAction.stack: 'Stack',
@@ -59,7 +63,7 @@ class SelectionToolbar extends StatelessWidget {
   final bool colorsOpen;
 
   /// What can be done with the selected objects (no ink among them). The
-  /// first one is the main action when it's Edit text, Fan out or Stack.
+  /// first one is the main action when it's Edit text, Edit, Fan out or Stack.
   final List<SelectionAction>? objectActions;
 
   @override
@@ -87,13 +91,17 @@ class SelectionToolbar extends StatelessWidget {
           ]),
         );
 
-    const leads = {SelectionAction.edit, SelectionAction.fanOut, SelectionAction.stack};
+    const leads = {SelectionAction.edit, SelectionAction.editCard, SelectionAction.fanOut, SelectionAction.stack};
     final objects = objectActions;
     final children = objects != null
         ? [
             for (final (i, a) in objects.indexed)
               if (i == 0 && leads.contains(a))
-                lead(a, _objectLabels[a]!, icon: a == SelectionAction.edit ? EIcons.convertText : null)
+                lead(a, _objectLabels[a]!, icon: switch (a) {
+                  SelectionAction.edit => EIcons.convertText,
+                  SelectionAction.editCard => EIcons.edit,
+                  _ => null,
+                })
               else
                 plain(a, _objectLabels[a]!, expanded: colorsOpen),
           ]
