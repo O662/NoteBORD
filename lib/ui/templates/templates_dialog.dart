@@ -11,6 +11,7 @@ import '../../state/notebook.dart';
 import '../../templates/templates.dart';
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart';
+import '../canvas/insert_actions.dart' show insertTemplateFrame;
 import '../common.dart';
 import '../dialogs.dart';
 import '../icons.dart';
@@ -106,8 +107,14 @@ class _TemplatesDialogState extends ConsumerState<TemplatesDialog> {
     final host = widget.hostContext;
     switch (_target) {
       case TemplateTarget.frame:
+        // A sheet of this paper (or this layout) on the page you're on.
+        // My templates bring their paper and layout, not their ink.
+        final def = builtIn ??
+            templateById(user!.layout) ??
+            TemplateDef(user!.id, user.name, const {}, paper: user.paper, layout: false);
+        final added = insertTemplateFrame(ref, widget.pane!, def);
         Navigator.of(context).pop();
-        showComingSoon(host, 'Paper frames');
+        if (!added && host.mounted) showNote(host, 'Unlock this page to add a frame');
       case TemplateTarget.newPage:
         final pane = widget.pane!;
         final i = ref

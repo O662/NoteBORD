@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:endless/app.dart';
@@ -9,9 +10,11 @@ import 'package:endless/board/store.dart';
 import 'package:endless/canvas/page_runtime.dart';
 import 'package:endless/canvas/pane.dart';
 import 'package:endless/library/index_db.dart';
+import 'package:endless/state/assets.dart';
 import 'package:endless/state/biometric.dart';
 import 'package:endless/state/bootstrap.dart';
 import 'package:endless/state/notebook.dart';
+import 'package:endless/state/photos.dart';
 import 'package:endless/state/settings.dart';
 import 'package:endless/theme/tokens.g.dart' as tokens;
 import 'package:endless/ui/canvas/canvas_screen.dart';
@@ -66,6 +69,56 @@ class FakeBiometric implements BiometricUnlock {
   Future<void> delete(String slot) async => saved.remove(slot);
 }
 
+/// A photo picker that hands back [bytes] (null: the user backed out).
+class FakePhotoPicker implements PhotoPicker {
+  FakePhotoPicker(this.bytes, {this.hasCamera = false});
+
+  Uint8List? bytes;
+  final asked = <PhotoOrigin>[];
+
+  @override
+  final bool hasCamera;
+
+  @override
+  Future<Uint8List?> pick(PhotoOrigin origin) async {
+    asked.add(origin);
+    return bytes;
+  }
+}
+
+/// Bytes that start like a PNG file. Tests decode them with [decodeAs].
+Uint8List fakePng([int seed = 1]) =>
+    Uint8List.fromList([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, for (var i = 0; i < 40; i++) (seed * 31 + i) % 256]);
+
+/// A picture made without a codec (which needs real async): a sky, a hill
+/// and a sun, [w] × [h].
+ui.Image testPicture({int w = 400, int h = 300}) {
+  final recorder = ui.PictureRecorder();
+  final canvas = ui.Canvas(recorder);
+  final size = Size(w.toDouble(), h.toDouble());
+  canvas
+    ..drawRect(Offset.zero & size, ui.Paint()..color = const Color(0xFFBFD7EA))
+    ..drawCircle(Offset(size.width * 0.75, size.height * 0.3), size.height * 0.12, ui.Paint()..color = const Color(0xFFF6DE7A))
+    ..drawPath(
+      ui.Path()
+        ..moveTo(0, size.height)
+        ..lineTo(size.width * 0.35, size.height * 0.45)
+        ..lineTo(size.width * 0.6, size.height * 0.8)
+        ..lineTo(size.width * 0.8, size.height * 0.6)
+        ..lineTo(size.width, size.height * 0.85)
+        ..lineTo(size.width, size.height)
+        ..close(),
+      ui.Paint()..color = const Color(0xFF4E7A52),
+    );
+  final picture = recorder.endRecording();
+  final image = picture.toImageSync(w, h);
+  picture.dispose();
+  return image;
+}
+
+/// Makes every image file decode to (a copy of) [image].
+Override decodeAs(ui.Image image) => imageDecoderProvider.overrideWithValue((_) async => image.clone());
+
 /// Bootstraps [store] with the test clock, crypto and fingerprint reader.
 Future<List<Override>> testOverrides(
   MemoryBoardStore store, {
@@ -91,13 +144,14 @@ Future<ProviderContainer> pumpApp(
   String location = Routes.start,
   FakeBiometric? biometric,
   IndexDb? index,
+  List<Override> extra = const [],
 }) async {
   tester.view.physicalSize = tokens.Sizes.tabletFrame;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final overrides =
       await testOverrides(store ?? MemoryBoardStore(), location: location, biometric: biometric, index: index);
-  await tester.pumpWidget(ProviderScope(overrides: overrides, child: const EndlessApp()));
+  await tester.pumpWidget(ProviderScope(overrides: [...overrides, ...extra], child: const EndlessApp()));
   await tester.pump();
   await tester.pump();
   return ProviderScope.containerOf(tester.element(find.byType(EndlessApp)));
@@ -128,10 +182,11 @@ Future<ProviderContainer> pumpCanvas(
   MemoryBoardStore? store,
   String? notebookId,
   FakeBiometric? biometric,
+  List<Override> extra = const [],
 }) async {
   final s = store ?? MemoryBoardStore();
   final id = notebookId ?? (s.notebooks.isEmpty ? addUntitled(s) : s.notebooks.keys.first);
-  final c = await pumpApp(tester, store: s, location: Routes.notebook(id), biometric: biometric);
+  final c = await pumpApp(tester, store: s, location: Routes.notebook(id), biometric: biometric, extra: extra);
   canvasPane = tester.widget<CanvasScreen>(find.byType(CanvasScreen)).pane;
   return c;
 }

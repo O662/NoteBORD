@@ -16,13 +16,26 @@ enum CanvasTool {
   eraser,
   select,
   lasso,
-  laser;
+  laser,
+  text,
+  sticky,
+  stack,
+  frame,
+  shape;
 
   /// The pen or marker: tools that put ink down.
   bool get inks => this == pen || this == marker;
 
   /// Select and lasso.
   bool get selects => this == select || this == lasso;
+
+  /// Tools that put something on the page where you tap: a text box, a
+  /// sticky note, a stack of notes, a paper frame or a shape.
+  bool get places => this == text || this == sticky || this == stack || this == frame || this == shape;
+
+  /// Tools for a moment (the laser, and the ones that drop something): the
+  /// app reopens on the pen instead.
+  bool get momentary => this == laser || places;
 }
 
 enum LibraryView { grid, list }
@@ -48,6 +61,7 @@ class AppSettings {
     this.scribbleLevel = ScribbleLevel.normal,
     this.laserColor = 0,
     this.rulerUnit = RulerUnit.cm,
+    this.shapeKind = ShapeType.rect,
     List<Color>? extraColors,
     this.trayOpen = true,
     this.pagesOpen = true,
@@ -86,6 +100,9 @@ class AppSettings {
 
   /// What the ruler's ticks measure.
   final RulerUnit rulerUnit;
+
+  /// The shape the Shapes tool draws.
+  final ShapeType shapeKind;
 
   /// The "More colors" tray, up to [tokens.extraInkMax].
   final List<Color> extraColors;
@@ -127,6 +144,7 @@ class AppSettings {
     ScribbleLevel? scribbleLevel,
     int? laserColor,
     RulerUnit? rulerUnit,
+    ShapeType? shapeKind,
     List<Color>? extraColors,
     bool? trayOpen,
     bool? pagesOpen,
@@ -153,6 +171,7 @@ class AppSettings {
         scribbleLevel: scribbleLevel ?? this.scribbleLevel,
         laserColor: laserColor ?? this.laserColor,
         rulerUnit: rulerUnit ?? this.rulerUnit,
+        shapeKind: shapeKind ?? this.shapeKind,
         extraColors: extraColors ?? this.extraColors,
         trayOpen: trayOpen ?? this.trayOpen,
         pagesOpen: pagesOpen ?? this.pagesOpen,
@@ -180,6 +199,7 @@ class AppSettings {
         'scribbleLevel': scribbleLevel.name,
         'laserColor': laserColor,
         'rulerUnit': rulerUnit.name,
+        'shapeKind': shapeKind.name,
         'extraColors': [for (final c in extraColors) colorToHex(c)],
         'trayOpen': trayOpen,
         'pagesOpen': pagesOpen,
@@ -197,9 +217,10 @@ class AppSettings {
         values.firstWhere((v) => v.name == name, orElse: () => fallback);
     int size(Object? v) => ((v as num?)?.toInt() ?? 1).clamp(0, penSizes.length - 1);
     return AppSettings(
-      // The laser is for a moment; the app always reopens on a real tool.
+      // The laser and the "tap to drop one" tools are for a moment; the app
+      // always reopens on a real tool.
       tool: switch (pick(CanvasTool.values, j['tool'], CanvasTool.pen)) {
-        CanvasTool.laser => CanvasTool.pen,
+        final t when t.momentary => CanvasTool.pen,
         final t => t,
       },
       penColor: j['penColor'] is String ? colorFromHex(j['penColor'] as String) : null,
@@ -215,6 +236,7 @@ class AppSettings {
       scribbleLevel: pick(ScribbleLevel.values, j['scribbleLevel'], ScribbleLevel.normal),
       laserColor: ((j['laserColor'] as num?)?.toInt() ?? 0).clamp(0, 2),
       rulerUnit: pick(RulerUnit.values, j['rulerUnit'], RulerUnit.cm),
+      shapeKind: pick(ShapeType.values, j['shapeKind'], ShapeType.rect),
       extraColors: (j['extraColors'] as List?)
           ?.whereType<String>()
           .map(colorFromHex)
@@ -269,6 +291,8 @@ class SettingsNotifier extends Notifier<AppSettings> {
   void pickColor(Color c) => apply((s) => switch (s.tool) {
         CanvasTool.marker => s.copyWith(markerColor: c),
         CanvasTool.pen => s.copyWith(penColor: c),
+        // Text and shapes take the pen's color, so picking one keeps the tool.
+        CanvasTool.text || CanvasTool.shape => s.copyWith(penColor: c),
         _ => s.copyWith(penColor: c, tool: CanvasTool.pen),
       });
 

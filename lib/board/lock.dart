@@ -189,6 +189,19 @@ class LockCrypto {
     return background ? Isolate.run(run) : Future.sync(run);
   }
 
+  /// Seals a file (an image on a locked page), in the same layout as a page.
+  Future<Uint8List> sealBytes(Uint8List key, Uint8List clear) {
+    final nonce = _randomBytes(12);
+    Uint8List run() => _seal(key, nonce, clear);
+    return background ? Isolate.run(run) : Future.value(run());
+  }
+
+  /// Throws [SecretBoxAuthenticationError] for a wrong key or a damaged file.
+  Future<Uint8List> unsealBytes(Uint8List key, Uint8List sealed) {
+    Uint8List run() => Uint8List.fromList(_unseal(key, sealed));
+    return background ? Isolate.run(run) : Future.sync(run);
+  }
+
   static Uint8List _seal(Uint8List key, Uint8List nonce, List<int> clear) {
     final box = DartAesGcm.with256bits().encryptSync(clear, secretKeyData: SecretKeyData(key), nonce: nonce);
     return Uint8List.fromList([..._magic, ...nonce, ...box.mac.bytes, ...box.cipherText]);

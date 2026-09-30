@@ -15,8 +15,10 @@ class GestureOverlayState extends ChangeNotifier {
   ShapeFit? _snapped;
   ShapeFit? _glow;
   Set<String> _scribble = const {};
+  List<StrokeItem> _scribbleInk = const [];
   List<Offset> _lasso = [];
   Rect? _marquee;
+  Item? _ghost;
 
   /// While the pen is held: the shape it will snap to (dashed).
   ShapeFit? get holdFit => _holdFit;
@@ -30,10 +32,21 @@ class GestureOverlayState extends ChangeNotifier {
   ShapeFit? get glow => _glow;
   set glow(ShapeFit? v) => _set(() => _glow = v);
 
-  /// Strokes the scribble in progress would erase. A new set each time it
-  /// changes (the ink layer caches on the instance).
+  /// Page strokes the scribble in progress would erase, which the ink layer
+  /// leaves out. A new set each time it changes (the ink layer caches on the
+  /// instance).
   Set<String> get scribble => _scribble;
   set scribble(Set<String> v) => _set(() => _scribble = v);
+
+  /// The ink the scribble would erase, in page space, shown faded red. It
+  /// includes ink on a sticky note, which can't be left out of the note.
+  List<StrokeItem> get scribbleInk => _scribbleInk;
+  set scribbleInk(List<StrokeItem> v) => _set(() => _scribbleInk = v);
+
+  /// An item as it will be when the drag ends: a shape being drawn, a box
+  /// being stretched, or a sticky note while its text is typed.
+  Item? get ghost => _ghost;
+  set ghost(Item? v) => _set(() => _ghost = v);
 
   /// The lasso loop being drawn (page space). Add points, then [ping].
   List<Offset> get lasso => _lasso;
@@ -62,6 +75,31 @@ Path dashed(Path source, double dash, double gap) {
   return out;
 }
 
+/// Where the selection's handles are, on screen.
+@immutable
+class SelectionHandles {
+  const SelectionHandles({required this.corners, required this.sides, required this.stem, required this.knob});
+
+  /// Resize handles: top-left, top-right, bottom-right, bottom-left.
+  final List<Offset> corners;
+
+  /// Stretch handles on the edges of a single box (may be empty).
+  final List<Offset> sides;
+
+  /// The rotate knob, and the middle of the bottom edge its stem starts at.
+  final Offset stem;
+  final Offset knob;
+
+  /// Everything the handles cover.
+  Rect get bounds {
+    var r = Rect.fromCircle(center: knob, radius: 11);
+    for (final p in corners) {
+      r = r.expandToInclude(Rect.fromCircle(center: p, radius: 6));
+    }
+    return r;
+  }
+}
+
 class GestureOverlayPainter extends CustomPainter {
   GestureOverlayPainter({
     required this.overlay,
@@ -69,6 +107,8 @@ class GestureOverlayPainter extends CustomPainter {
     required this.page,
     required this.selection,
     required this.outline,
+    required this.handles,
+    required this.moving,
     required this.hold,
     required this.holdAt,
     required this.inkColor,
@@ -83,6 +123,12 @@ class GestureOverlayPainter extends CustomPainter {
 
   /// The selection outline in page space (null when nothing is selected).
   final Path? Function() outline;
+
+  /// The selection's handles (null while it's being dragged).
+  final SelectionHandles? Function() handles;
+
+  /// What a drag is moving: the selection and whatever rides on its frames.
+  final Set<String> Function() moving;
 
   /// Progress of the hold to straighten (0–1).
   final Animation<double> hold;
@@ -99,23 +145,33 @@ class GestureOverlayPainter extends CustomPainter {
 
     // Selected items while they're dragged (the ink layer leaves them out).
     if (live != null) {
+      final ids = moving();
       canvas
         ..save()
         ..transform(vp.matrix.storage)
         ..transform(live.matrix.storage);
-      for (final id in selection.ids) {
-        if (page[id] case final item?) paintItem(canvas, item, brightness, colors);
+      for (final item in page.items) {
+        if (ids.contains(item.id)) paintItem(canvas, item, brightness, colors, images: page.images);
       }
       canvas.restore();
     }
 
-    // What a scribble is about to erase (Scribble.dc.html: faded red).
-    if (overlay.scribble.isNotEmpty) {
+    // A shape being drawn, or a box being stretched.
+    if (overlay.ghost case final ghost?) {
       canvas
         ..save()
         ..transform(vp.matrix.storage);
-      for (final id in overlay.scribble) {
-        if (page[id] case final StrokeItem s) paintStroke(canvas, s, colors.scribbleMark, opacity: 0.45);
+      paintItem(canvas, ghost, brightness, colors, images: page.images);
+      canvas.restore();
+    }
+
+    // What a scribble is about to erase (Scribble.dc.html: faded red).
+    if (overlay.scribbleInk.isNotEmpty) {
+      canvas
+        ..save()
+        ..transform(vp.matrix.storage);
+      for (final s in overlay.scribbleInk) {
+        paintStroke(canvas, s, colors.scribbleMark, opacity: 0.45);
       }
       canvas.restore();
     }
@@ -134,7 +190,7 @@ class GestureOverlayPainter extends CustomPainter {
       canvas
         ..drawPath(screen, fill)
         ..drawPath(dashed(screen, 7, 6), dash);
-      if (live == null) _handles(canvas, screen.getBounds());
+      if (handles() case final h?) _handles(canvas, h);
     }
 
     // A lasso being drawn, or the Select tool's box.
@@ -177,23 +233,33 @@ class GestureOverlayPainter extends CustomPainter {
     if (line != null && line.kind == ShapeKind.line) _lineMarks(canvas, line);
   }
 
-  void _handles(Canvas canvas, Rect box) {
+  void _handles(Canvas canvas, SelectionHandles h) {
     final fill = Paint()..color = colors.surface;
     final ring = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2
       ..color = colors.accent;
-    for (final c in [box.topLeft, box.topRight, box.bottomRight, box.bottomLeft]) {
+    // Rotate: a knob on a short stem below the selection.
+    final knob = h.knob;
+    final along = knob - h.stem;
+    final stemEnd = along.distance > 11 ? knob - along / along.distance * 11.0 : knob;
+    canvas.drawLine(h.stem, stemEnd, ring..strokeWidth = 1.5);
+    ring.strokeWidth = 2;
+    // Stretch: a small square on each edge of a single box.
+    for (final s in h.sides) {
+      final square = RRect.fromRectAndRadius(Rect.fromCenter(center: s, width: 10, height: 10), const Radius.circular(2.5));
+      canvas
+        ..drawRRect(square, fill)
+        ..drawRRect(square, ring);
+    }
+    for (final c in h.corners) {
       canvas
         ..drawCircle(c, 6, fill)
         ..drawCircle(c, 6, ring);
     }
-    // Rotate: a knob on a short stem below the selection.
-    final knob = box.bottomCenter + const Offset(0, 30);
     canvas
-      ..drawLine(box.bottomCenter, knob - const Offset(0, 11), ring..strokeWidth = 1.5)
       ..drawCircle(knob, 11, fill)
-      ..drawCircle(knob, 11, ring..strokeWidth = 2);
+      ..drawCircle(knob, 11, ring);
     final arrow = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.6

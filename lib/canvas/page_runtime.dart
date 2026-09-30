@@ -4,6 +4,7 @@ import 'dart:ui' show Brightness, Canvas, Color, Paint, PaintingStyle, Path, Rad
 import '../board/model.dart';
 import '../templates/templates.dart';
 import '../theme/colors.dart';
+import 'items.dart';
 import 'pens.dart';
 import 'spatial_index.dart';
 import 'stroke_geometry.dart';
@@ -11,7 +12,7 @@ import 'stroke_geometry.dart';
 /// A page open in the editor: its items plus the indexes and caches the
 /// canvas needs. Mutated only by the notebook notifier's commands.
 class PageRuntime {
-  PageRuntime(this.page) {
+  PageRuntime(this.page, {this.images}) {
     for (final item in page.items) {
       _byId[item.id] = item;
       index.insert(item.id, item.bounds);
@@ -19,6 +20,9 @@ class PageRuntime {
   }
 
   final BoardPage page;
+
+  /// The notebook's decoded images, for the pictures on this page.
+  final ImageLookup? images;
   final index = SpatialIndex();
   final _byId = <String, Item>{};
 
@@ -66,6 +70,9 @@ class PageRuntime {
     return (at, item);
   }
 
+  /// Drops the cached pictures (an image on the page finished loading).
+  void invalidate() => _changed();
+
   void _changed() {
     revision++;
     _full?.dispose();
@@ -79,14 +86,14 @@ class PageRuntime {
   Rect? _bounds;
   int _boundsRevision = -1;
 
-  /// Union of all item bounds and the template layout, or null for an
-  /// empty page.
+  /// Union of every item and the template layout, or null for an empty
+  /// page.
   Rect? get contentBounds {
     if (_boundsRevision != revision) {
       _boundsRevision = revision;
       Rect? r = layoutBounds(page.template);
       for (final i in page.items) {
-        r = r == null ? i.bounds : r.expandToInclude(i.bounds);
+        r = r == null ? i.extent : r.expandToInclude(i.extent);
       }
       _bounds = r;
     }
@@ -141,7 +148,7 @@ class PageRuntime {
     final canvas = Canvas(recorder);
     if (layout != null) canvas.drawPicture(layout);
     for (final item in items) {
-      paintItem(canvas, item, brightness, colors);
+      paintItem(canvas, item, brightness, colors, images: images);
     }
     return recorder.endRecording();
   }
@@ -162,10 +169,12 @@ class _RegionPicture {
   final ui.Picture picture;
 }
 
-void paintItem(Canvas canvas, Item item, Brightness brightness, EndlessColors colors) {
+void paintItem(Canvas canvas, Item item, Brightness brightness, EndlessColors colors, {ImageLookup? images}) {
   switch (item) {
     case StrokeItem s:
       paintStroke(canvas, s, displayInk(s.color, brightness));
+    case BoxItem b:
+      paintBoxItem(canvas, b, brightness, colors, images: images);
     case UnknownItem u:
       // Kept and saved, but not drawable by this version: show its footprint.
       canvas.drawRRect(

@@ -19,12 +19,15 @@ import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
 import '../ui/canvas/ruler_menu.dart';
 import '../ui/canvas/selection_toolbar.dart';
+import '../ui/canvas/text_editor.dart';
 import '../ui/common.dart';
-import 'canvas_status.dart';
+import '../ui/dialogs.dart';
 import 'canvas_view.dart';
 import 'gesture_overlay.dart';
 import 'gestures.dart';
+import 'items.dart';
 import 'laser.dart';
+import 'new_items.dart';
 import 'page_runtime.dart';
 import 'pane.dart';
 import 'pens.dart';
@@ -48,14 +51,29 @@ const holdPreview = Duration(milliseconds: 150);
 /// …and this long, the stroke snaps to the shape.
 const holdSnap = Duration(milliseconds: 500);
 
-/// How long "Line straightened · Undo" and friends stay up.
-const toastDuration = Duration(seconds: 4);
-
 /// Handles on the selection outline are this easy to hit (screen px).
 const handleReach = 22.0;
 
 /// What the drawing pointer (pen, mouse, or a drawing finger) is doing.
-enum _Drag { none, ink, erase, laser, lasso, marquee, move, resize, rotate, rulerChip, rulerEnd }
+enum _Drag {
+  none,
+  ink,
+  erase,
+  laser,
+  lasso,
+  marquee,
+  move,
+  resize,
+  rotate,
+  rulerChip,
+  rulerEnd,
+  // A tap that drops something (text, sticky note, frame) or, on the whole
+  // board, zooms in.
+  tap,
+  // Dragging out a shape, and dragging one edge of a box.
+  shape,
+  stretch,
+}
 
 /// What the fingers are doing.
 enum _Touch { navigate, ruler, selection }
@@ -67,13 +85,15 @@ enum _Touch { navigate, ruler, selection }
 ///
 /// Pen gestures (docs/SPEC.md Phase 3) live here too: hold to straighten,
 /// flick back for an arrow, scribble to erase, select and lasso, the ruler
-/// and the laser pointer.
+/// and the laser pointer. So do the things that sit on the page: text
+/// boxes, sticky notes, paper frames, images and shapes.
 class InkCanvas extends ConsumerStatefulWidget {
   const InkCanvas({
     super.key,
     required this.pane,
     this.writable = true,
     this.onActivate,
+    this.onBoardTap,
     this.chrome = const EdgeInsets.fromLTRB(12, 84, 12, 12),
   });
 
@@ -83,6 +103,10 @@ class InkCanvas extends ConsumerStatefulWidget {
   /// focuses it ([onActivate]); fingers still pan and zoom.
   final bool writable;
   final VoidCallback? onActivate;
+
+  /// Set while the whole board is showing: nothing can be written, and a
+  /// tap (pen or finger) on the page calls this with the page point.
+  final ValueChanged<Offset>? onBoardTap;
 
   /// How far the floating chrome reaches in from each edge. The selection
   /// toolbar stays inside, going below the selection when the top is taken.
@@ -145,13 +169,41 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   Offset _dragPivot = Offset.zero;
   bool _colorsOpen = false;
 
+  /// What a selection drag moves: the selection plus what's written on its
+  /// frames. The same instance for the whole drag (the ink layer caches on it).
+  Set<String> _moving = const {};
+
+  /// The edge being dragged (0 top, 1 right, 2 bottom, 3 left), its box,
+  /// and where the middle of that edge was when the drag began.
+  int _stretchSide = 0;
+  BoxItem? _stretching;
+  Offset _stretchEdge = Offset.zero;
+
+  /// A tap with a "drop one here" tool, or on the whole board: by the pen
+  /// (or mouse), or by this finger.
+  Offset _tapDown = Offset.zero;
+  bool _tapMoved = false;
+  int? _tapFinger;
+
+  /// The sticky note the stroke being drawn started on: it's written on the
+  /// note and moves with it.
+  String? _inkTarget;
+
+  /// Every stroke the scribble in progress would erase.
+  Set<String> _scribbleIds = const {};
+
+  /// The shape being dragged out keeps one id.
+  String _shapeId = '';
+
+  /// Typing in a text box or on a sticky note.
+  TextEditSession? _edit;
+  Set<String> _editHidden = const {};
+
   final _laser = LaserTrail();
   late final Ticker _laserTicker = createTicker((elapsed) {
     _laser.tick(elapsed);
     if (_laser.isEmpty && !_laser.down) _laserTicker.stop();
   });
-
-  Timer? _statusTimer;
 
   Pane get pane => widget.pane;
   CanvasView get _vp => pane.view;
@@ -166,13 +218,17 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
   PageRuntime get _page => _nb.pageAt(pane.page);
 
+  /// The whole board is showing: look, pan, zoom and tap to go somewhere.
+  bool get _board => widget.onBoardTap != null;
+
   /// Ink can go on the page: it is writable and not locked.
-  bool get _canInk => widget.writable && !_nb.isSealed(_page.id);
+  bool get _canInk => widget.writable && !_board && !_nb.isSealed(_page.id);
 
   @override
   void initState() {
     super.initState();
     pane.addListener(_paneChanged);
+    pane.status.addListener(_statusChanged);
     _selection.addListener(_overlay.ping);
   }
 
@@ -181,25 +237,34 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     super.didUpdateWidget(oldWidget);
     if (oldWidget.pane != widget.pane) {
       oldWidget.pane.removeListener(_paneChanged);
+      oldWidget.pane.status.removeListener(_statusChanged);
       oldWidget.pane.selection.removeListener(_overlay.ping);
       widget.pane.addListener(_paneChanged);
+      widget.pane.status.addListener(_statusChanged);
       widget.pane.selection.addListener(_overlay.ping);
     }
   }
 
   void _paneChanged() {
     if (_drawPointer != null) _cancelInput();
+    _commitEdit();
     _laser.clear();
     setState(() {});
+  }
+
+  /// A straightened line's marks go when its "Undo" message does.
+  void _statusChanged() {
+    if (pane.status.value == null) _overlay.glow = null;
   }
 
   @override
   void dispose() {
     pane.removeListener(_paneChanged);
+    pane.status.removeListener(_statusChanged);
     _selection.removeListener(_overlay.ping);
+    _edit?.dispose();
     _hoverTimer?.cancel();
     _holdTimer?.cancel();
-    _statusTimer?.cancel();
     _hold.dispose();
     _laserTicker.dispose();
     _laser.dispose();
@@ -211,27 +276,13 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
   // Status and "… · Undo" messages.
 
-  void _status(String? text) {
-    _statusTimer?.cancel();
-    pane.status.value = text == null ? null : CanvasStatus(text);
-  }
+  void _status(String? text) => pane.showStatus(text);
 
-  void _toast(String text, {bool undo = true}) {
-    _statusTimer?.cancel();
-    final s = CanvasStatus(text, undoPageId: undo ? _page.id : null);
-    pane.status.value = s;
-    _statusTimer = Timer(toastDuration, () {
-      if (pane.status.value == s) pane.status.value = null;
-      _overlay.glow = null;
-    });
-  }
+  void _toast(String text, {bool undo = true}) => pane.toast(text, undoPageId: undo ? _page.id : null);
 
   /// A new edit makes an old "Undo" mean something else, so it goes.
   void _dismissToast() {
-    if (pane.status.value == null) return;
-    _statusTimer?.cancel();
-    pane.status.value = null;
-    _overlay.glow = null;
+    if (pane.status.value != null) pane.showStatus(null);
   }
 
   // Raw pointers.
@@ -252,6 +303,26 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   void _onDown(PointerDownEvent e) {
     final settings = ref.read(settingsProvider);
     final inks = _isStylus(e) || (e.kind == PointerDeviceKind.mouse && e.buttons & kPrimaryMouseButton != 0);
+    if (_edit != null) {
+      // A tap outside the text being typed finishes it, and does no more.
+      if (_isStylus(e)) {
+        _lastStylus = e.timeStamp;
+        _stylusDown = true;
+      }
+      _commitEdit();
+      _ignored.add(e.pointer);
+      return;
+    }
+    if (inks && _board) {
+      // On the whole board the pen (or mouse) taps to zoom in there.
+      if (_isStylus(e)) {
+        _lastStylus = e.timeStamp;
+        _stylusDown = true;
+        _endTouches();
+      }
+      _startTap(e);
+      return;
+    }
     if (inks && !_canInk) {
       if (_isStylus(e)) _lastStylus = e.timeStamp;
       if (!widget.writable) widget.onActivate?.call();
@@ -292,7 +363,11 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     } else if (_touches.isEmpty && _drawPointer == null) {
       // The first finger decides what the fingers move.
       final page = _vp.toPage(e.localPosition);
-      if (pane.ruler.endAt(e.localPosition) case final side?) {
+      if (_board) {
+        _touch = _Touch.navigate;
+        _tapFinger = e.pointer;
+        _tapDown = e.localPosition;
+      } else if (pane.ruler.endAt(e.localPosition) case final side?) {
         // A finger on either end of the ruler swings and stretches it.
         _startRulerEnd(e, side);
         _fingerDrawing = true;
@@ -313,15 +388,23 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       } else if (_canInk && _selection.isNotEmpty && _inSelection(page)) {
         _touch = _Touch.selection;
         _touchTransform = Similarity.identity;
+        _beginMoving();
       } else if (settings.fingerDraws && _canInk) {
         _fingerDrawing = true;
         _startInput(e, erase: settings.tool == CanvasTool.eraser);
         return;
       } else {
         _touch = _Touch.navigate;
+        if (settings.tool.places && _canInk) {
+          // A finger tap drops one too; a drag still pans.
+          _tapFinger = e.pointer;
+          _tapDown = e.localPosition;
+        }
       }
     } else {
-      _chipFinger = null; // a second finger: not a tap
+      // A second finger: not a tap.
+      _chipFinger = null;
+      _tapFinger = null;
     }
     _touches[e.pointer] = e.localPosition;
     _rulerPinch = 1;
@@ -379,6 +462,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   // rotate the ruler, or move, pinch and turn the selection.
 
   void _moveTouch(int pointer, Offset to) {
+    if (pointer == _tapFinger && (to - _tapDown).distance > 10) _tapFinger = null;
     final before = _touchFrame();
     _touches[pointer] = to;
     final after = _touchFrame();
@@ -419,6 +503,10 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       _chipFinger = null;
       _openRulerMenu();
     }
+    if (pointer == _tapFinger) {
+      _tapFinger = null;
+      _tapped(_tapDown);
+    }
     if (_touches.isEmpty && _touch == _Touch.selection) {
       _land(_touchTransform);
       _touchTransform = Similarity.identity;
@@ -430,6 +518,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   void _endTouches() {
     if (_touch == _Touch.selection && _touches.isNotEmpty) _land(_touchTransform);
     _touches.clear();
+    _tapFinger = null;
     _touch = _Touch.navigate;
     _touchTransform = Similarity.identity;
   }
@@ -491,10 +580,25 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _laser.start(page);
       case CanvasTool.select || CanvasTool.lasso:
         _startSelectionDrag(e.localPosition, page, lasso: settings.tool == CanvasTool.lasso);
+      case CanvasTool.text || CanvasTool.sticky || CanvasTool.stack || CanvasTool.frame:
+        _selection.clear();
+        _drag = _Drag.tap;
+        _tapDown = e.localPosition;
+        _tapMoved = false;
+      case CanvasTool.shape:
+        _selection.clear();
+        _drag = _Drag.shape;
+        _dragFrom = page;
+        _shapeId = newId('it');
       case CanvasTool.pen || CanvasTool.marker || CanvasTool.eraser:
         _selection.clear();
         _drag = _Drag.ink;
         _samples = 0;
+        // Ink that starts on a sticky note is written on the note.
+        _inkTarget = switch (topBoxAt(_page.items, page)) {
+          final StickyItem s => s.id,
+          _ => null,
+        };
         _rulerEdge = pane.ruler.edgeNear(e.localPosition);
         pane.ruler.measure = null;
         active.begin(
@@ -508,6 +612,16 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _holdAnchor = e.localPosition;
         _restartHold();
     }
+  }
+
+  /// The pen (or mouse) is down for a tap on the whole board.
+  void _startTap(PointerDownEvent e) {
+    _drawPointer = e.pointer;
+    _drawAt = e.localPosition;
+    _hover.value = null;
+    _drag = _Drag.tap;
+    _tapDown = e.localPosition;
+    _tapMoved = false;
   }
 
   /// Drags the ruler's [side] end (−1 left, 1 right) with this pointer.
@@ -545,10 +659,21 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
           _selection.live = Similarity.about(_dragPivot, scale: s);
         }
       case _Drag.rotate:
+        // A single box settles upright (or on its side), whatever tilt it had.
+        final tilt = _singleBox?.angle ?? 0;
         var a = _wrap(_angle(page - _dragPivot) - _angle(_dragFrom - _dragPivot));
-        final quarter = (a / (math.pi / 2)).round() * (math.pi / 2);
-        if ((a - quarter).abs() < 4 * math.pi / 180) a = quarter;
+        final quarter = ((tilt + a) / (math.pi / 2)).round() * (math.pi / 2);
+        if ((tilt + a - quarter).abs() < 4 * math.pi / 180) a = quarter - tilt;
         _selection.live = Similarity.about(_dragPivot, rotation: a);
+      case _Drag.tap:
+        if ((e.localPosition - _tapDown).distance > 12) _tapMoved = true;
+      case _Drag.shape:
+        _overlay.ghost = _shapeTo(page);
+      case _Drag.stretch:
+        if (_stretching case final box?) {
+          // The edge moves as far as the pen has (the handle sits a little outside it).
+          _overlay.ghost = stretchBox(box, _stretchSide, _stretchEdge + (page - _dragFrom), min: 24 * _unit);
+        }
       case _Drag.rulerChip:
         if ((e.localPosition - _chipDown).distance > 10) _chipMoved = true;
       case _Drag.rulerEnd:
@@ -566,11 +691,22 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     final r = eraserRadius / _vp.scale;
     final runtime = _page;
     final area = Rect.fromPoints(from, page).inflate(r + 30);
+    final near = runtime.index.query(area);
     final hits = [
-      for (final id in runtime.index.query(area))
+      for (final id in near)
         if (runtime[id] case final StrokeItem s when strokeHit(s, from, page, r)) id,
     ];
     if (hits.isNotEmpty) _notebook.erase(hits);
+    // Ink on a sticky note rubs off the note; the note itself stays.
+    for (final id in near) {
+      if (runtime[id] case final StickyItem note when note.ink.isNotEmpty) {
+        final rubbed = {
+          for (final ink in note.pageInk)
+            if (strokeHit(ink, from, page, r)) ink.id,
+        };
+        if (rubbed.isNotEmpty) _notebook.eraseInk(note.id, rubbed);
+      }
+    }
   }
 
   void _finishInput() {
@@ -591,6 +727,16 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         if (!_chipMoved) _openRulerMenu();
       case _Drag.rulerEnd:
         pane.ruler.releaseEnd();
+      case _Drag.tap:
+        final at = _tapDown;
+        final tapped = !_tapMoved;
+        _resetInput();
+        if (tapped) _tapped(at);
+        return;
+      case _Drag.shape:
+        _finishShape();
+      case _Drag.stretch:
+        _finishStretch();
       case _Drag.none:
         break;
     }
@@ -610,6 +756,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _laser.end();
       case _Drag.move || _Drag.resize || _Drag.rotate:
         _selection.live = null;
+        _moving = const {};
       default:
         break;
     }
@@ -626,14 +773,21 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     _lastErase = null;
     _fingerDrawing = false;
     _rulerEdge = null;
+    _inkTarget = null;
+    _stretching = null;
+    if (_selection.live == null) _moving = const {};
+    _scribbleIds = const {};
     _holdTimer?.cancel();
     _hold.reset();
     _overlay
       ..holdFit = null
       ..snapped = null
       ..scribble = const {}
+      ..scribbleInk = const []
       ..lasso = []
       ..marquee = null;
+    // While typing on a sticky note, the ghost is the note without its text.
+    if (_edit == null) _overlay.ghost = null;
   }
 
   // Ink and its gestures.
@@ -688,7 +842,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   }
 
   void _holdBegan() {
-    if (_drag != _Drag.ink || _overlay.scribble.isNotEmpty) return;
+    if (_drag != _Drag.ink || _scribbleIds.isNotEmpty) return;
     final fit = fitShape(active.points, unit: _unit);
     if (fit == null) return;
     _overlay.holdFit = fit;
@@ -715,18 +869,26 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     // A scribble is quick and compact; a long line of writing isn't one, and
     // re-checking it every few samples would get slow.
     if (!settings.scribble || active.points.length < 8 || active.points.length > 1500) return;
-    var ids = const <String>{};
+    var targets = const <StrokeItem>[];
+    final note = _targetNote;
     if (looksLikeScribble(active.points, settings.scribbleLevel, unit: _unit)) {
       final page = _page;
       final area = _boundsOf(active.points).inflate(8 * _unit);
-      final candidates = [
-        for (final id in page.index.query(area))
-          if (page[id] case final StrokeItem s) s,
-      ];
-      ids = {for (final s in scribbleTargets(active.points, candidates, unit: _unit)) s.id};
+      // A scribble on a sticky note erases ink on that note only.
+      final candidates = note != null
+          ? note.pageInk
+          : [
+              for (final id in page.index.query(area))
+                if (page[id] case final StrokeItem s) s,
+            ];
+      targets = scribbleTargets(active.points, candidates, unit: _unit);
     }
-    if (setEquals(ids, _overlay.scribble)) return;
-    _overlay.scribble = ids;
+    final ids = {for (final s in targets) s.id};
+    if (setEquals(ids, _scribbleIds)) return;
+    _scribbleIds = ids;
+    _overlay
+      ..scribble = note == null ? ids : const {}
+      ..scribbleInk = targets;
     active.opacity = ids.isEmpty ? 1 : 0.25;
     if (ids.isNotEmpty) {
       _holdTimer?.cancel();
@@ -752,23 +914,27 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     final notifier = _notebook;
     final page = _page;
     final snapped = _overlay.snapped;
-    final scribble = _overlay.scribble;
+    final scribble = _scribbleIds;
     _status(null);
 
     if (scribble.isNotEmpty) {
       // The scribble itself is never kept.
-      notifier.removeItems(page.id, scribble);
+      if (_targetNote case final note?) {
+        notifier.replaceItems(page.id, [note.withoutInk(scribble)]);
+      } else {
+        notifier.removeItems(page.id, scribble);
+      }
       _toast('Erased ${_strokes(scribble.length)}');
     } else if (snapped != null) {
       // Two steps: the ink as drawn, then the shape. Undo gives the ink back.
       final raw = active.toItem(z: page.nextZ);
-      notifier.addStroke(page.id, raw);
-      notifier.replaceItems(page.id, [raw.copyWith(pagePoints: active.snappedInk(), shape: () => snapped.kind.name)]);
+      _putStroke(raw);
+      _swapStroke(raw.copyWith(pagePoints: active.snappedInk(), shape: () => snapped.kind.name));
       _toast('${_shapeName(snapped.kind)} straightened');
       if (snapped.kind == ShapeKind.line) _overlay.glow = snapped;
     } else {
       final raw = active.toItem(z: page.nextZ);
-      notifier.addStroke(page.id, raw);
+      _putStroke(raw);
       final flicks = settings.arrows && _rulerEdge == null
           ? detectFlicks(
               active.points,
@@ -780,13 +946,35 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
           : null;
       if (flicks != null) {
         final heads = ArrowHeads(start: flicks.start, end: flicks.end, style: settings.arrowStyle);
-        notifier.replaceItems(page.id, [
-          raw.copyWith(pagePoints: raw.pageInk.sublist(flicks.from, flicks.to + 1), arrow: () => heads),
-        ]);
+        _swapStroke(raw.copyWith(pagePoints: raw.pageInk.sublist(flicks.from, flicks.to + 1), arrow: () => heads));
         _toast('Made an arrow');
       }
     }
     active.clear();
+  }
+
+  /// The sticky note the stroke being drawn is written on, if any.
+  StickyItem? get _targetNote => switch (_inkTarget == null ? null : _page[_inkTarget!]) {
+        final StickyItem s => s,
+        _ => null,
+      };
+
+  /// Puts a finished stroke on the page, or on the sticky note it started on.
+  void _putStroke(StrokeItem stroke) {
+    if (_targetNote case final note?) {
+      _notebook.replaceItems(_page.id, [note.withInk(stroke)]);
+    } else {
+      _notebook.addStroke(_page.id, stroke);
+    }
+  }
+
+  /// Swaps a stroke just put down for [after] (same id), as its own undo step.
+  void _swapStroke(StrokeItem after) {
+    if (_targetNote case final note?) {
+      _notebook.replaceItems(_page.id, [note.replaceInk(after.id, after)]);
+    } else {
+      _notebook.replaceItems(_page.id, [after]);
+    }
   }
 
   static String _shapeName(ShapeKind k) => switch (k) {
@@ -799,23 +987,78 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
   // Select and lasso.
 
-  List<StrokeItem> get _selected => [
+  /// What's selected, in no particular order.
+  List<Item> get _selected => [
         for (final id in _selection.ids)
-          if (_page[id] case final StrokeItem s) s,
+          if (_page[id] case final Item i when i is! UnknownItem) i,
       ];
+
+  /// The one box selected on its own (not lassoed): its outline follows its
+  /// rotation and its edges can be dragged.
+  BoxItem? get _singleBox {
+    if (_selection.ids.length != 1 || _selection.outlineAt(_nb.revision) != null) return null;
+    return switch (_page[_selection.ids.single]) {
+      final BoxItem b => b,
+      _ => null,
+    };
+  }
+
+  bool get _onlyStickies {
+    final items = _selected;
+    return items.isNotEmpty && items.every((i) => i is StickyItem);
+  }
+
+  /// What's written on the selected frames and pictures (above them, with
+  /// its middle on them): it goes where they go.
+  List<Item> _riders() {
+    final frames = [
+      for (final i in _selected)
+        if (i is FrameItem || i is ImageItem) i as BoxItem,
+    ];
+    if (frames.isEmpty) return const [];
+    final page = _page;
+    final order = {for (final (i, item) in page.items.indexed) item.id: i};
+    final out = <String, Item>{};
+    for (final f in frames) {
+      for (final id in page.index.query(f.extent)) {
+        final item = page[id];
+        if (item == null || item is UnknownItem || _selection.ids.contains(id)) continue;
+        if (order[id]! > order[f.id]! && f.contains(item.extent.center)) out[id] = item;
+      }
+    }
+    return out.values.toList();
+  }
+
+  /// Fixes what the drag that's starting will move.
+  void _beginMoving() => _moving = Set.unmodifiable({..._selection.ids, for (final r in _riders()) r.id});
+
+  /// The selection's box in page space.
+  SelectionFrame? _frame() {
+    final u = _unit;
+    final stretched = _drag == _Drag.stretch ? _overlay.ghost : null;
+    if ((stretched ?? _singleBox) case final BoxItem b) {
+      return SelectionFrame(b.center, Size(b.w + 16 * u, b.h + 16 * u), b.angle);
+    }
+    final items = _selected;
+    if (items.isEmpty) return null;
+    final loop = _selection.outlineAt(_nb.revision);
+    if (loop != null) return SelectionFrame.around(loop.getBounds());
+    var r = items.first.extent;
+    for (final i in items) {
+      r = r.expandToInclude(i.extent);
+    }
+    return SelectionFrame.around(r.inflate(8 * u));
+  }
 
   /// The selection's outline in page space: the lasso loop while it still
   /// fits, otherwise a rounded box around the items.
   Path? _outline() {
-    final items = _selected;
-    if (items.isEmpty) return null;
-    final loop = _selection.outlineAt(_nb.revision);
-    if (loop != null) return loop;
-    var r = items.first.bounds;
-    for (final s in items) {
-      r = r.expandToInclude(s.bounds);
+    if (_selection.isEmpty) return null;
+    if (_drag != _Drag.stretch) {
+      final loop = _selection.outlineAt(_nb.revision);
+      if (loop != null && _selected.isNotEmpty) return loop;
     }
-    return Path()..addRRect(RRect.fromRectAndRadius(r.inflate(8 * _unit), Radius.circular(10 * _unit)));
+    return _frame()?.path(10 * _unit);
   }
 
   bool _inSelection(Offset page) => _outline()?.getBounds().inflate(4 * _unit).contains(page) ?? false;
@@ -826,24 +1069,59 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     return b == null ? null : Rect.fromPoints(_vp.toScreen(b.topLeft), _vp.toScreen(b.bottomRight));
   }
 
-  /// Starts dragging a corner handle or the rotate knob under [screen], if
-  /// there is one.
+  /// Where the handles are on screen (none while the selection is dragged).
+  SelectionHandles? _handles() {
+    if (_selection.isEmpty || _selection.live != null || _drag == _Drag.stretch || !_canInk) return null;
+    final f = _frame();
+    if (f == null) return null;
+    final stem = _vp.toScreen(f.sides[2]);
+    final box = _singleBox;
+    return SelectionHandles(
+      corners: [for (final p in f.corners) _vp.toScreen(p)],
+      sides: [
+        if (box != null)
+          for (final s in stretchSides(box)) _vp.toScreen(f.sides[s]),
+      ],
+      stem: stem,
+      knob: stem + f.down * 30,
+    );
+  }
+
+  /// Starts dragging a corner handle, the rotate knob or an edge handle
+  /// under [screen], if there is one.
   bool _grabHandle(Offset screen, Offset page) {
-    final box = _selection.isEmpty ? null : _screenBox();
-    if (box == null) return false;
+    final f = _selection.isEmpty ? null : _frame();
+    if (f == null) return false;
     _dragFrom = page;
-    final corners = [box.topLeft, box.topRight, box.bottomRight, box.bottomLeft];
+    final corners = f.corners;
     for (var i = 0; i < 4; i++) {
-      if ((screen - corners[i]).distance <= handleReach) {
+      if ((screen - _vp.toScreen(corners[i])).distance <= handleReach) {
         _drag = _Drag.resize;
-        _dragPivot = _vp.toPage(corners[(i + 2) % 4]);
+        _dragPivot = corners[(i + 2) % 4];
+        _beginMoving();
         return true;
       }
     }
-    if ((screen - rotateHandle(box)).distance <= handleReach) {
+    if ((screen - (_vp.toScreen(f.sides[2]) + f.down * 30)).distance <= handleReach) {
       _drag = _Drag.rotate;
-      _dragPivot = _vp.toPage(box.center);
+      _dragPivot = f.center;
+      _beginMoving();
       return true;
+    }
+    if (_singleBox case final box?) {
+      for (final side in stretchSides(box)) {
+        if ((screen - _vp.toScreen(f.sides[side])).distance <= handleReach) {
+          _drag = _Drag.stretch;
+          _stretchSide = side;
+          _stretching = box;
+          _stretchEdge = box.toPage(
+            [Offset(box.w / 2, 0), Offset(box.w, box.h / 2), Offset(box.w / 2, box.h), Offset(0, box.h / 2)][side],
+          );
+          _moving = Set.unmodifiable({box.id});
+          _overlay.ghost = box;
+          return true;
+        }
+      }
     }
     return false;
   }
@@ -853,6 +1131,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     if (_grabHandle(screen, page)) return;
     if (_selection.isNotEmpty && _inSelection(page)) {
       _drag = _Drag.move;
+      _beginMoving();
       return;
     }
     _selection.clear();
@@ -866,16 +1145,19 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     }
   }
 
+  /// Everything near [area] that can be selected.
+  List<Item> _selectable(Rect area) {
+    final page = _page;
+    return [
+      for (final id in page.index.query(area))
+        if (page[id] case final Item i when i is! UnknownItem) i,
+    ];
+  }
+
   void _finishLasso() {
     final loop = _overlay.lasso;
     if (loop.length < 3 || pathLength(loop) < 20 * _unit) return;
-    final page = _page;
-    final area = _boundsOf(loop);
-    final near = [
-      for (final id in page.index.query(area))
-        if (page[id] case final StrokeItem s) s,
-    ];
-    final picked = itemsInPolygon(loop, near);
+    final picked = itemsInPolygon(loop, _selectable(_boundsOf(loop)));
     if (picked.isEmpty) return;
     _selection.select(
       [for (final i in picked) i.id],
@@ -889,34 +1171,74 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     if (rect == null) return;
     final page = _page;
     if (rect.longestSide < 6 * _unit) {
-      // A tap: the topmost stroke under the pen.
+      // A tap: the topmost thing under the pen.
       final at = rect.center;
       final r = 10 * _unit;
       final ids = page.index.query(Rect.fromCircle(center: at, radius: r));
       for (final item in page.items.reversed) {
-        if (ids.contains(item.id) && item is StrokeItem && strokeHit(item, at, at, r)) {
-          _selection.select([item.id]);
-          return;
+        if (!ids.contains(item.id)) continue;
+        switch (item) {
+          case StrokeItem s when strokeHit(s, at, at, r):
+            _selection.select([s.id]);
+            return;
+          case StickyItem s when s.isStack && stackBadgeRect(s).contains(s.toLocal(at)):
+            // Tapping a stack's "5 notes" badge fans it out.
+            _fanOut(s);
+            return;
+          case BoxItem b when boxHit(b, at, slop: 4 * _unit):
+            _selection.select([b.id]);
+            return;
+          default:
+            continue;
         }
       }
       return;
     }
-    final near = [
-      for (final id in page.index.query(rect))
-        if (page[id] case final StrokeItem s) s,
-    ];
-    final picked = itemsInPolygon([rect.topLeft, rect.topRight, rect.bottomRight, rect.bottomLeft], near);
+    final picked = itemsInPolygon([rect.topLeft, rect.topRight, rect.bottomRight, rect.bottomLeft], _selectable(rect));
     if (picked.isNotEmpty) _selection.select([for (final i in picked) i.id]);
   }
 
   /// Puts a dragged move, resize or rotation onto the page (one undo step).
   void _land(Similarity? t) {
+    final moving = _moving;
+    _moving = const {};
     if (t == null || t.isIdentity || _selected.isEmpty) {
       _selection.live = null;
       return;
     }
-    _notebook.replaceItems(_page.id, [for (final s in _selected) t.applyTo(s)]);
+    final page = _page;
+    _notebook.replaceItems(page.id, [
+      for (final id in moving.isEmpty ? _selection.ids : moving)
+        if (page[id] case final item?) t.applyToItem(item),
+    ]);
     _selection.landed(t, _nb.revision);
+  }
+
+  void _finishStretch() {
+    final box = _stretching;
+    final ghost = _overlay.ghost;
+    _moving = const {};
+    if (box == null || ghost is! BoxItem || _page[box.id] == null) return;
+    if (ghost.w != box.w || ghost.h != box.h) _notebook.replaceItems(_page.id, [ghost]);
+  }
+
+  /// The toolbar for text boxes, sticky notes, frames, images and shapes
+  /// (null when ink is selected: that gets Convert to text or Remember).
+  List<SelectionAction>? _objectActions() {
+    final items = _selected;
+    if (items.isEmpty || items.any((i) => i is StrokeItem)) return null;
+    final one = items.length == 1 ? items.single : null;
+    return [
+      if (one is TextItem || (one is StickyItem && !one.isStack)) SelectionAction.edit,
+      if (one is StickyItem && one.isStack) ...[SelectionAction.fanOut, SelectionAction.nextNote],
+      if (one == null && _onlyStickies) SelectionAction.stack,
+      if (one is FrameItem) SelectionAction.rename,
+      SelectionAction.copy,
+      if (items.any((i) => i is TextItem || i is StickyItem || i is ShapeItem)) SelectionAction.color,
+      SelectionAction.toFront,
+      SelectionAction.toBack,
+      SelectionAction.delete,
+    ];
   }
 
   void _onAction(SelectionAction action) {
@@ -932,33 +1254,55 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       case SelectionAction.color:
         setState(() => _colorsOpen = !_colorsOpen);
       case SelectionAction.copy:
-        // A copy lands just below and right of the original, selected.
-        final t = Similarity.translate(Offset(24, 24) * _unit);
-        final z = _page.nextZ;
+        // A copy lands just below and right of the original, selected. What's
+        // written on a frame is copied with it.
+        final shift = const Offset(24, 24) * _unit;
+        final t = Similarity.translate(shift);
+        final riders = {for (final r in _riders()) r.id};
         final now = DateTime.now().toUtc();
-        final copies = [
-          for (final (i, s) in items.indexed)
-            StrokeItem.fromPagePoints(
-              id: newId('it'),
-              z: z + i,
-              createdAt: now,
-              tool: s.tool,
-              penType: s.penType,
-              color: s.color,
-              width: s.width,
-              usePressure: s.usePressure,
-              pagePoints: t.applyTo(s).pageInk,
-              arrow: s.arrow,
-              straightened: s.straightened,
-            ),
-        ];
+        var z = _page.nextZ;
+        final copies = <Item>[];
+        final picked = <String>[];
+        for (final item in _page.items) {
+          final chosen = _selection.ids.contains(item.id);
+          if (!chosen && !riders.contains(item.id)) continue;
+          final Item? copy = switch (item) {
+            StrokeItem s => StrokeItem.fromPagePoints(
+                id: newId('it'),
+                z: z,
+                createdAt: now,
+                tool: s.tool,
+                penType: s.penType,
+                color: s.color,
+                width: s.width,
+                usePressure: s.usePressure,
+                pagePoints: t.applyTo(s).pageInk,
+                arrow: s.arrow,
+                straightened: s.straightened,
+              ),
+            BoxItem b => b.withBox(
+                id: newId('it'),
+                z: z,
+                createdAt: now,
+                x: b.x + shift.dx,
+                y: b.y + shift.dy,
+                w: b.w,
+                h: b.h,
+              ),
+            UnknownItem _ => null,
+          };
+          if (copy == null) continue;
+          z++;
+          copies.add(copy);
+          if (chosen) picked.add(copy.id);
+        }
         final loop = _selection.outlineAt(_nb.revision)?.transform(t.matrix.storage);
         _notebook.insertItems(pageId, copies);
-        _selection.select([for (final c in copies) c.id], outline: loop, revision: _nb.revision);
+        _selection.select(picked, outline: loop, revision: _nb.revision);
       case SelectionAction.straighten:
         final unit = _unit;
         final straightened = [
-          for (final s in items)
+          for (final s in items.whereType<StrokeItem>())
             if (s.straightened == null)
               if (fitShape(s.pagePoints.toList(), unit: unit) case final fit?)
                 s.copyWith(
@@ -976,17 +1320,345 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _selection.select(_selection.ids, outline: loop, revision: _nb.revision);
         _toast(straightened.length == 1 ? 'Straightened 1 stroke' : 'Straightened ${straightened.length} strokes');
       case SelectionAction.delete:
-        _notebook.removeItems(pageId, [for (final s in items) s.id]);
+        // A frame takes what's written on it along.
+        _notebook.removeItems(pageId, [..._selection.ids, for (final r in _riders()) r.id]);
         _selection.clear();
         _colorsOpen = false;
+      case SelectionAction.edit:
+        if (items.singleOrNull case final BoxItem b) _beginEdit(b);
+      case SelectionAction.fanOut:
+        if (items.singleOrNull case final StickyItem s) _fanOut(s);
+      case SelectionAction.nextNote:
+        if (items.singleOrNull case final StickyItem s) _nextNote(s);
+      case SelectionAction.stack:
+        _stackSelected();
+      case SelectionAction.rename:
+        if (items.singleOrNull case final FrameItem f) _renameFrame(f);
+      case SelectionAction.toFront || SelectionAction.toBack:
+        final loop = _selection.outlineAt(_nb.revision);
+        _notebook.reorder(pageId, _selection.ids, toFront: action == SelectionAction.toFront);
+        _selection.select(_selection.ids, outline: loop, revision: _nb.revision);
     }
   }
 
   void _recolor(Color color) {
     final loop = _selection.outlineAt(_nb.revision);
-    _notebook.replaceItems(_page.id, [for (final s in _selected) s.copyWith(color: color)]);
+    // The swatches are paper colors when only sticky notes are selected,
+    // and ink colors otherwise.
+    final paper = _onlyStickies;
+    _notebook.replaceItems(_page.id, [
+      for (final item in _selected)
+        ?switch (item) {
+          StickyItem s when paper => s.copyWith(color: color),
+          StrokeItem s when !paper => s.copyWith(color: color),
+          TextItem t when !paper => t.copyWith(color: color),
+          ShapeItem s when !paper => s.copyWith(stroke: color),
+          _ => null,
+        },
+    ]);
     _selection.select(_selection.ids, outline: loop, revision: _nb.revision);
     setState(() => _colorsOpen = false);
+  }
+
+  // Sticky stacks.
+
+  /// The notes under a stack's top one. A stack from another app may only
+  /// say how many there are: those are blank.
+  static List<StickyNote> _notesUnder(StickyItem s) => [
+        ...s.under,
+        for (var i = s.under.length; i < s.count - 1; i++) StickyNote(color: s.color),
+      ];
+
+  /// Spreads a stack into separate notes, side by side (one undo step).
+  void _fanOut(StickyItem stack) {
+    final page = _page;
+    final now = DateTime.now().toUtc();
+    final top = stack.copyWith(under: const [], count: 1);
+    final rest = [
+      for (final (i, n) in _notesUnder(stack).indexed)
+        StickyItem(
+          id: newId('it'),
+          x: stack.x + (i + 1) * stack.w * 1.08,
+          y: stack.y,
+          z: stack.z,
+          createdAt: now,
+          w: stack.w,
+          h: stack.h,
+          color: n.color,
+          items: n.items,
+        ),
+    ];
+    _notebook.edit(page.id, replace: [top], insert: rest, insertAt: page.items.indexOf(stack) + 1);
+    _selection.select([top.id, for (final r in rest) r.id]);
+    _colorsOpen = false;
+    _toast('Fanned out ${stackLabel(stack.count)}');
+  }
+
+  /// Brings the next note of a stack to the top; the top one goes to the bottom.
+  void _nextNote(StickyItem stack) {
+    final notes = _notesUnder(stack);
+    if (notes.isEmpty) return;
+    _notebook.replaceItems(_page.id, [
+      stack.copyWith(
+        color: notes.first.color,
+        items: notes.first.items,
+        under: [...notes.skip(1), StickyNote(color: stack.color, items: stack.items)],
+      ),
+    ]);
+  }
+
+  /// Gathers the selected sticky notes into one stack, where the topmost
+  /// of them is (one undo step).
+  void _stackSelected() {
+    final notes = [
+      for (final i in _page.items)
+        if (i is StickyItem && _selection.ids.contains(i.id)) i,
+    ];
+    if (notes.length < 2) return;
+    final top = notes.last;
+    final under = <StickyNote>[..._notesUnder(top)];
+    for (final n in notes.reversed.skip(1)) {
+      // A note of another size is scaled to the top one, with its ink.
+      final fitted = n.withBox(x: 0, y: 0, w: top.w, h: top.h, scale: top.w / n.w);
+      under
+        ..add(StickyNote(color: fitted.color, items: fitted.items))
+        ..addAll(_notesUnder(fitted));
+    }
+    final stacked = top.copyWith(under: under, rotation: 0);
+    _notebook.edit(_page.id, replace: [stacked], remove: [for (final n in notes.take(notes.length - 1)) n.id]);
+    _selection.select([top.id]);
+    _colorsOpen = false;
+    _toast('Stacked ${stackLabel(stacked.count)}');
+  }
+
+  Future<void> _renameFrame(FrameItem frame) async {
+    final pageId = _page.id;
+    final name = await showNamePrompt(context, title: 'Name this frame', initial: frame.title, action: 'Rename');
+    if (name == null || !mounted) return;
+    if (_page.id == pageId && _page[frame.id] is FrameItem) {
+      _notebook.replaceItems(pageId, [(_page[frame.id]! as FrameItem).copyWith(title: name)]);
+    }
+  }
+
+  // Things dropped on the page with a tap.
+
+  /// A tap on the page: by the pen, or by a finger.
+  void _tapped(Offset screen) {
+    final at = _vp.toPage(screen);
+    if (widget.onBoardTap case final zoomIn?) {
+      zoomIn(at);
+      return;
+    }
+    if (!_canInk) return;
+    final page = _page;
+    final now = DateTime.now().toUtc();
+    final settings = ref.read(settingsProvider);
+    switch (settings.tool) {
+      case CanvasTool.text:
+        _textTap(at);
+      case CanvasTool.sticky:
+        _drop(newSticky(at, z: page.nextZ, now: now), 'Added a sticky note to the page');
+      case CanvasTool.stack:
+        _drop(newStickyStack(at, z: page.nextZ, now: now), 'Added a stack of notes to the page');
+      case CanvasTool.frame:
+        // Paper goes under what's already written there.
+        final z = page.isEmpty ? 1 : page.items.first.z - 1;
+        _drop(newFrame(at, z: z, now: now), 'Added a paper frame to the page', at: 0);
+      case CanvasTool.shape:
+        _addShape(_shapeAt(at));
+      default:
+        break;
+    }
+  }
+
+  /// Puts [item] on the page and goes back to the pen, so it can be written on.
+  void _drop(Item item, String message, {int? at}) {
+    _dismissToast();
+    _notebook.insertItems(_page.id, [item], at: at);
+    ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: CanvasTool.pen));
+    _toast(message);
+  }
+
+  /// The shape being dragged out, or null while it's still too small.
+  ShapeItem? _shapeTo(Offset to) {
+    if ((to - _dragFrom).distance < 6 * _unit) return null;
+    final s = ref.read(settingsProvider);
+    return shapeBetween(
+      s.shapeKind,
+      _dragFrom,
+      to,
+      id: _shapeId,
+      z: _page.nextZ,
+      now: DateTime.now().toUtc(),
+      color: s.penColor,
+      strokeWidth: penSizes[s.penSize].width,
+    );
+  }
+
+  ShapeItem _shapeAt(Offset center) {
+    final s = ref.read(settingsProvider);
+    return shapeAt(
+      s.shapeKind,
+      center,
+      z: _page.nextZ,
+      now: DateTime.now().toUtc(),
+      color: s.penColor,
+      strokeWidth: penSizes[s.penSize].width,
+    );
+  }
+
+  void _finishShape() => _addShape(switch (_overlay.ghost) {
+        final ShapeItem dragged => dragged,
+        _ => _shapeAt(_dragFrom), // a tap drops one at its usual size
+      });
+
+  /// Puts a new shape on the page, selected so it can be adjusted.
+  void _addShape(ShapeItem shape) {
+    _dismissToast();
+    _notebook.insertItems(_page.id, [shape]);
+    ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: CanvasTool.select));
+    _selection
+      ..menu = SelectionMenu.convert
+      ..select([shape.id]);
+    final name = shapeName(shape.kind).toLowerCase();
+    _toast('Added ${'aeiou'.contains(name[0]) ? 'an' : 'a'} $name to the page');
+  }
+
+  // Typing: text boxes, and the text on sticky notes.
+
+  /// The Text tool tapped the page: edit the text box or sticky note there,
+  /// or start a new text box.
+  void _textTap(Offset at) {
+    switch (topBoxAt(_page.items, at, slop: 4 * _unit)) {
+      case final TextItem t:
+        _beginEdit(t);
+      case final StickyItem s:
+        _beginEdit(s);
+      default:
+        // The tap is the middle of the first line.
+        _beginEdit(null, at: at - const Offset(0, 22 * 1.3 / 2));
+    }
+  }
+
+  void _beginEdit(BoxItem? target, {Offset at = Offset.zero}) {
+    _commitEdit();
+    _selection.clear();
+    _colorsOpen = false;
+    _dismissToast();
+    final pageId = _page.id;
+    final TextEditSession session;
+    switch (target) {
+      case final TextItem t:
+        session = TextEditSession(
+          pageId: pageId,
+          target: t,
+          origin: t.toPage(Offset.zero),
+          angle: t.angle,
+          wrap: t.wrap,
+          autoWidth: t.autoWidth,
+          font: t.font,
+          size: t.size,
+          color: t.color,
+          text: t.text,
+        );
+      case final StickyItem note:
+        final typed = note.items.whereType<TextItem>().firstOrNull;
+        session = TextEditSession(
+          pageId: pageId,
+          target: note,
+          origin: note.toPage(typed == null ? StickyItem.textOrigin : Offset(typed.x, typed.y)),
+          angle: note.angle,
+          wrap: typed?.wrap ?? note.textWrap,
+          autoWidth: false,
+          font: typed?.font ?? 'ui',
+          size: typed?.size ?? 20,
+          color: typed?.color ?? inkDefaults[0],
+          text: note.text,
+          onPaper: true,
+        );
+        // The note shows without its typed text while the field is over it.
+        _overlay.ghost = note.withText('', color: session.color, at: note.createdAt);
+      default:
+        session = TextEditSession(
+          pageId: pageId,
+          origin: at,
+          wrap: textAutoWrap,
+          autoWidth: true,
+          font: 'ui',
+          size: 22,
+          color: ref.read(settingsProvider).penColor,
+        );
+    }
+    _editHidden = target == null ? const {} : Set.unmodifiable({target.id});
+    setState(() => _edit = session);
+  }
+
+  /// Puts what was typed on the page (one undo step) and closes the field.
+  void _commitEdit() {
+    final e = _edit;
+    if (e == null) return;
+    _edit = null;
+    _editHidden = const {};
+    _overlay.ghost = null;
+    final text = e.controller.text.trimRight();
+    final blank = text.trim().isEmpty;
+    final nb = _nb;
+    final page = nb.pages.where((p) => p.id == e.pageId).firstOrNull;
+    if (page != null && !nb.isSealed(page.id)) {
+      final now = DateTime.now().toUtc();
+      switch (e.target == null ? null : page[e.target!.id]) {
+        case final TextItem t:
+          if (blank) {
+            _notebook.removeItems(page.id, [t.id]);
+          } else if (text != t.text || e.font != t.font || e.size != t.size) {
+            _notebook.replaceItems(page.id, [_typed(e, text, id: t.id, z: t.z, createdAt: t.createdAt, was: t)]);
+          }
+        case final StickyItem note:
+          final typed = note.items.whereType<TextItem>().firstOrNull;
+          if (text != note.text || (typed != null && (typed.font != e.font || typed.size != e.size))) {
+            _notebook.replaceItems(page.id, [
+              note.withText(blank ? '' : text, color: e.color, at: now, font: e.font, size: e.size),
+            ]);
+          }
+        default:
+          if (e.target == null && !blank) {
+            _notebook.insertItems(page.id, [_typed(e, text, id: newId('it'), z: page.nextZ, createdAt: now)]);
+          }
+      }
+    }
+    // The field is still on screen for the rest of this frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) => e.dispose());
+    if (mounted) setState(() {});
+  }
+
+  /// The text box for what was typed, its top-left corner where the field's was.
+  TextItem _typed(
+    TextEditSession e,
+    String text, {
+    required String id,
+    required int z,
+    required DateTime createdAt,
+    TextItem? was,
+  }) {
+    final flat = TextItem(
+      id: id,
+      x: 0,
+      y: 0,
+      rotation: was?.rotation ?? 0,
+      z: z,
+      createdAt: createdAt,
+      author: was?.author ?? localAuthor,
+      remember: was?.remember,
+      extra: was?.extra,
+      wrap: e.wrap,
+      text: text,
+      font: e.font,
+      size: e.size,
+      color: e.color,
+      autoWidth: e.autoWidth,
+    );
+    final corner = flat.toPage(Offset.zero);
+    return flat.copyWith(x: e.origin.dx - corner.dx, y: e.origin.dy - corner.dy);
   }
 
   @override
@@ -1000,7 +1672,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
     // Leaving select and lasso (or an undo removing items) updates the selection.
     if (_selection.isNotEmpty) {
-      final keep = settings.tool.selects && widget.writable;
+      final keep = settings.tool.selects && widget.writable && !_board;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         if (!keep) {
@@ -1056,6 +1728,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
                   page: page,
                   selection: _selection,
                   outline: _outline,
+                  handles: _handles,
+                  moving: () => _moving,
                   hold: _hold,
                   holdAt: () => active.lastScreen,
                   inkColor: displayInk(active.isActive ? active.color : settings.color, brightness),
@@ -1069,37 +1743,56 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
             ),
             if (settings.tool == CanvasTool.laser || !_laser.isEmpty)
               IgnorePointer(child: CustomPaint(painter: LaserPainter(_laser, _vp, laserColor))),
-            IgnorePointer(child: CustomPaint(painter: RulerPainter(pane.ruler, _vp, settings.rulerUnit, colors))),
+            if (!_board)
+              IgnorePointer(child: CustomPaint(painter: RulerPainter(pane.ruler, _vp, settings.rulerUnit, colors))),
             if (_canInk && hoverRing != null)
               IgnorePointer(child: CustomPaint(painter: HoverRingPainter(_hover, hoverRing))),
           ]),
         ),
-        if (_canInk) _toolbar(),
+        if (_edit case final session?)
+          TextEditor(
+            key: ObjectKey(session),
+            session: session,
+            view: _vp,
+            onDone: _commitEdit,
+            onStyle: () => setState(() {}),
+            chrome: widget.chrome,
+          )
+        else if (_canInk)
+          _toolbar(),
       ]);
     });
   }
 
   /// Items drawn by the overlay instead of the ink layer: a selection being
-  /// dragged, or strokes a scribble is about to erase.
+  /// dragged, a box being stretched, text being typed, or strokes a
+  /// scribble is about to erase.
   Set<String> _hidden() {
-    if (_selection.live != null) return _selection.ids;
+    if (_selection.live != null || _drag == _Drag.stretch) return _moving;
+    if (_edit != null) return _editHidden;
     return _overlay.scribble;
   }
 
   Widget _toolbar() => ListenableBuilder(
-        listenable: Listenable.merge([_selection, _vp]),
+        listenable: Listenable.merge([_selection, _vp, _overlay]),
         builder: (context, _) {
-          final box = _selection.isEmpty || _selection.live != null ? null : _screenBox();
-          if (box == null) return const SizedBox.shrink();
+          final handles = _handles();
+          final box = handles == null ? null : _screenBox();
+          if (handles == null || box == null) return const SizedBox.shrink();
           return CustomSingleChildLayout(
-            delegate: _ToolbarLayout(box, widget.chrome),
+            delegate: _ToolbarLayout(box, widget.chrome, math.max(box.bottom, handles.bounds.bottom)),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               spacing: 8,
               children: [
-                SelectionToolbar(menu: _selection.menu, colorsOpen: _colorsOpen, onAction: _onAction),
-                if (_colorsOpen) SelectionColors(onPick: _recolor),
+                SelectionToolbar(
+                  menu: _selection.menu,
+                  colorsOpen: _colorsOpen,
+                  onAction: _onAction,
+                  objectActions: _objectActions(),
+                ),
+                if (_colorsOpen) SelectionColors(onPick: _recolor, sticky: _onlyStickies),
               ],
             ),
           );
@@ -1107,17 +1800,17 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       );
 }
 
-/// Where the rotate handle sits under a selection's screen box.
-Offset rotateHandle(Rect box) => box.bottomCenter + const Offset(0, 30);
-
 /// Puts the selection toolbar 12 px above the selection, left-aligned with
 /// it (Convert.dc.html), or below it (RememberMark.dc.html) when the top
 /// chrome is in the way.
 class _ToolbarLayout extends SingleChildLayoutDelegate {
-  _ToolbarLayout(this.box, this.chrome);
+  _ToolbarLayout(this.box, this.chrome, this.handlesBottom);
 
   final Rect box;
   final EdgeInsets chrome;
+
+  /// Where the handles (with the rotate knob) end, on screen.
+  final double handlesBottom;
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) => constraints.loosen();
@@ -1129,13 +1822,14 @@ class _ToolbarLayout extends SingleChildLayoutDelegate {
     var top = box.top - 12 - 46;
     if (top < chrome.top) {
       // Below, clear of the rotate handle.
-      top = math.min(rotateHandle(box).dy + handleReach + 12, size.height - child.height - chrome.bottom);
+      top = math.min(handlesBottom + handleReach - 11 + 12, size.height - child.height - chrome.bottom);
     }
     return Offset(left, top);
   }
 
   @override
-  bool shouldRelayout(_ToolbarLayout old) => old.box != box || old.chrome != chrome;
+  bool shouldRelayout(_ToolbarLayout old) =>
+      old.box != box || old.chrome != chrome || old.handlesBottom != handlesBottom;
 }
 
 /// The stroke being drawn. Only this layer repaints while the pen moves.

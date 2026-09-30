@@ -74,6 +74,43 @@ abstract final class EIcons {
   static final frame = EIconData([_p(_rect(5, 3, 14, 18, 1.5)), _p('M8 8h8M8 12h8M8 16h5')]);
   static final image = EIconData([_p(_rect(3, 5, 18, 14, 2)), _p(_circle(9, 10, 1.8)), _p('M21 16l-5-5-8 8')]);
   static final templates = EIconData([_p(_rect(4, 4, 16, 16, 2)), _p('M4 9h16M9 9v11')]);
+
+  // The Insert menu (Insert.dc.html).
+  static final stickyStack = EIconData([_p('M8 3h13v13'), _p('M5.5 5.5H18.5V18.5'), _p(_rect(3, 8, 13, 13, 1))]);
+  static final video = EIconData([_p(_rect(3, 5, 18, 14, 2)), const IconPart('M10 9l5 3-5 3z', fill: true)]);
+  static final graph = EIconData([_p('M4 3v17h17'), _p('M6 17c3-9 6-11 8-6s3 4 6-4')]);
+  static final table = EIconData([_p(_rect(3, 4, 18, 16, 1.5)), _p('M3 9h18M3 14h18M9 4v16M15 4v16')]);
+  static final diagram = EIconData([
+    _p(_rect(3, 3, 7, 6, 1)),
+    _p(_rect(14, 15, 7, 6, 1)),
+    _p(_rect(14, 3, 7, 6, 1)),
+    _p('M10 6h4M17.5 9v6'),
+  ]);
+  static final timeline = EIconData([
+    _p('M2 12h20'),
+    for (final x in [6.0, 12.0, 18.0]) IconPart(_circle(x, 12, 2), fill: true),
+    _p('M6 12V6M12 12v6M18 12V6'),
+  ]);
+  static final kanban = EIconData([_p(_rect(3, 4, 5, 12, 1)), _p(_rect(9.5, 4, 5, 8, 1)), _p(_rect(16, 4, 5, 15, 1))]);
+  static final globe = EIconData([
+    _p(_circle(12, 12, 9)),
+    _p('M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18'),
+  ]);
+  static final planner = EIconData([_p(_rect(4, 4, 16, 17, 2)), _p('M8 9h8M8 13h8M8 17h5'), _p('M8 2v4M16 2v4')]);
+  static final chart = EIconData([_p('M4 20V10M10 20V4M16 20v-7M22 20H2')], strokeWidth: 1.9);
+  static final clock = EIconData([_p(_circle(12, 12, 9)), _p('M12 7v5l3 2')]);
+  static final checklist = EIconData([_p('M4 6l2 2 3-3M4 13l2 2 3-3M4 20h.01'), _p('M12 7h8M12 14h8M12 20h8')]);
+  static final camera = EIconData([
+    _p('M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z'),
+    _p(_circle(12, 13, 3.5)),
+  ]);
+
+  // What the Shapes tool draws.
+  static final shapeRect = EIconData([_p(_rect(4, 6, 16, 12, 1.5))]);
+  static final shapeEllipse = EIconData([_p(_circle(12, 12, 8))]);
+  static final shapeTriangle = EIconData([_p('M12 5l8 14H4z')]);
+  static final shapeLine = EIconData([_p('M5 19L19 5')]);
+  static final shapeArrow = EIconData([_p('M5 19L19 5'), _p('M10 5h9v9')]);
   static final star = EIconData([
     const IconPart('M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z',
         fill: true, fillTint: IconTint.star, tint: IconTint.gold),
@@ -86,6 +123,9 @@ abstract final class EIcons {
   static final convertText = EIconData([_p('M4 7V4h16v3M12 4v16M9 20h6')], strokeWidth: 2);
   /// ∑, drawn so it doesn't depend on the serif font having the glyph.
   static final sigma = EIconData([_p('M17 5H7l6 7-6 7h10')]);
+
+  /// π, drawn for the same reason (the Insert menu's Math tile).
+  static final pi = EIconData([_p('M5 7h14M9.5 7v12M15 7v9.5a2.5 2.5 0 0 0 3.5 2.3')]);
   static final cap = EIconData([_p('M2 9l10-5 10 5-10 5z M6 11v5c3 2.5 9 2.5 12 0v-5 M22 9v6')]);
   static final spellPlain = EIconData([_p('M3 14l3.5-9 3.5 9M4.3 11h4.4 M13 13l3 3 6-7')]);
   static final book = EIconData([_p('M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z M4 19V5 M8 7h7M8 11h5')]);

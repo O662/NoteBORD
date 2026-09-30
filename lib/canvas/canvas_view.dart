@@ -70,13 +70,26 @@ class CanvasView extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Fits [content] (page coords) inside [area] (screen coords).
-  void fit(Rect content, Rect area) {
-    if (content.isEmpty || area.isEmpty) return;
+  /// The scale and translation that fit [content] (page coords) inside
+  /// [area] (screen coords), never zooming in past 100%.
+  (double, Offset)? fitted(Rect content, Rect area) {
+    if (content.isEmpty || area.isEmpty) return null;
     final s = (area.width / content.width).clamp(minScale, 1.0).toDouble();
     final s2 = (area.height / content.height).clamp(minScale, 1.0).toDouble();
-    _scale = s < s2 ? s : s2;
-    _translation = area.center - content.center * _scale;
+    final scale = s < s2 ? s : s2;
+    return (scale, area.center - content.center * scale);
+  }
+
+  /// Fits [content] (page coords) inside [area] (screen coords).
+  void fit(Rect content, Rect area) {
+    final f = fitted(content, area);
+    if (f != null) jumpTo(f.$1, f.$2);
+  }
+
+  /// Sets the zoom and pan at once.
+  void jumpTo(double scale, Offset translation) {
+    _scale = scale.clamp(minScale, maxScale);
+    _translation = translation;
     notifyListeners();
   }
 

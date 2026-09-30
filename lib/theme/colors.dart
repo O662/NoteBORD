@@ -59,6 +59,9 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
     required this.laserBlue,
     required this.scribbleMark,
     required this.onStar,
+    required this.cardLine,
+    required this.plumDeep,
+    required this.stickyDeep,
   });
 
   final Color text;
@@ -147,6 +150,15 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
 
   /// Text and icons on the yellow star (the Remember button).
   final Color onStar;
+
+  /// Outline of the Insert menu's tiles.
+  final Color cardLine;
+
+  /// Icons on a plum tile.
+  final Color plumDeep;
+
+  /// Icons on a sticky-yellow tile.
+  final Color stickyDeep;
 
   /// Floating pill shadow: `0 6px 18px -12px shadow`.
   List<BoxShadow> get pillShadow => [
@@ -244,6 +256,9 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
       laserBlue: l(laserBlue, other.laserBlue),
       scribbleMark: l(scribbleMark, other.scribbleMark),
       onStar: l(onStar, other.onStar),
+      cardLine: l(cardLine, other.cardLine),
+      plumDeep: l(plumDeep, other.plumDeep),
+      stickyDeep: l(stickyDeep, other.stickyDeep),
     );
   }
 }

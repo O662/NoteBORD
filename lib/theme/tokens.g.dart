@@ -58,6 +58,9 @@ const paperLight = EndlessColors(
   laserBlue: Color(0xFF2F6FD6),
   scribbleMark: Color(0xFFC44A3C),
   onStar: Color(0xFF1E1C19),
+  cardLine: Color(0xFFE4DCCB),
+  plumDeep: Color(0xFF5F3A59),
+  stickyDeep: Color(0xFF7A5A06),
 );
 
 const paperDark = EndlessColors(
@@ -113,6 +116,9 @@ const paperDark = EndlessColors(
   laserBlue: Color(0xFF5B93F0),
   scribbleMark: Color(0xFFE07A6E),
   onStar: Color(0xFF1E1C19),
+  cardLine: Color(0xFF3B3731),
+  plumDeep: Color(0xFFE8C4E1),
+  stickyDeep: Color(0xFFF3DE9A),
 );
 
 const inkDefaults = <Color>[
@@ -147,6 +153,14 @@ const coverColors = <Color>[
   Color(0xFF7A4E73),
   Color(0xFF1F6B75),
   Color(0xFF8A6400),
+];
+
+/// Sticky note papers. They look the same in light and dark mode.
+const stickyColors = <Color>[
+  Color(0xFFF6DE7A),
+  Color(0xFFF3CBD6),
+  Color(0xFFF4C9A8),
+  Color(0xFFC9DFC2),
 ];
 
 /// Ink color shown in dark mode, keyed by the stored (light) color.

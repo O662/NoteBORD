@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -19,6 +20,8 @@ import '../templates/templates_dialog.dart';
 import '../../canvas/selection.dart';
 import 'color_tray.dart';
 import 'gesture_status.dart';
+import 'insert_actions.dart';
+import 'insert_menu.dart';
 import 'left_rail.dart';
 import 'panels.dart';
 import 'pen_popover.dart';
@@ -31,7 +34,10 @@ const toolHints = {
   CanvasTool.select: 'Tap anything to select it · drag to move · pinch to resize',
   CanvasTool.lasso: 'Circle ink, shapes or stickies to select them together',
   CanvasTool.laser: 'Laser fades after a second · it’s never saved to the page',
+  ...placeHints,
 };
+
+const boardHint = 'The whole board · tap anywhere to zoom in there';
 
 const rulerHint = 'Two fingers rotate the ruler · the pen snaps to its edge';
 
@@ -69,6 +75,19 @@ void handleRailItem(
   final settings = ref.read(settingsProvider.notifier);
   void useTool(CanvasTool tool) => settings.apply((s) => s.copyWith(tool: tool));
   switch (item.label) {
+    case 'Sticky note':
+      runInsert(context, ref, pane, InsertAction.sticky, hint: hint);
+    case 'Paper frame':
+      runInsert(context, ref, pane, InsertAction.frame, hint: hint);
+    case 'Image':
+      runInsert(context, ref, pane, InsertAction.image, hint: hint);
+    case 'Record audio':
+      // Audio comes with a later phase: the same card as in the Insert menu.
+      showEntryComingSoon(context, insertSections[1].entries.firstWhere((e) => e.label == 'Audio'));
+    case 'Everything else':
+      showInsertMenu(context).then((action) {
+        if (action != null && context.mounted) runInsert(context, ref, pane, action, hint: hint);
+      });
     case 'Templates':
       showTemplatesDialog(context, pane: pane);
     case 'Split view':
@@ -138,7 +157,7 @@ class CanvasScreen extends ConsumerStatefulWidget {
   ConsumerState<CanvasScreen> createState() => _CanvasScreenState();
 }
 
-class _CanvasScreenState extends ConsumerState<CanvasScreen> {
+class _CanvasScreenState extends ConsumerState<CanvasScreen> with SingleTickerProviderStateMixin {
   final penLink = LayerLink();
   final markerLink = LayerLink();
   late final AppLifecycleListener _lifecycle;
@@ -154,14 +173,30 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
   /// Full screen hides every menu except the zoom pill.
   bool _full = false;
 
+  /// The whole board is showing (design/screens/Board.png): everything on
+  /// the page at once, no menus. A tap zooms in there.
+  bool _board = false;
+
+  /// The zoom and pan to go back to from the whole board.
+  (double, Offset)? _before;
+
+  /// Glides the view to a zoom and place.
+  late final AnimationController _glide;
+  void Function(double t)? _glideStep;
+
   Pane get pane => widget.pane;
 
   @override
   void initState() {
     super.initState();
+    _glide = AnimationController(vsync: this, duration: const Duration(milliseconds: 280))
+      ..addListener(() => _glideStep?.call(Curves.easeInOutCubic.transform(_glide.value)));
     // Anything unsaved is written as soon as the app leaves the foreground.
     _lifecycle = AppLifecycleListener(onStateChange: (state) {
-      if (state != AppLifecycleState.resumed) ref.read(notebookProvider(pane.notebookId).notifier).flush();
+      if (state == AppLifecycleState.resumed) return;
+      // Text still being typed goes on the page first.
+      if (state != AppLifecycleState.inactive) pane.dismiss();
+      ref.read(notebookProvider(pane.notebookId).notifier).flush();
     });
     pane.addListener(_paneChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _recordOpened());
@@ -173,6 +208,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
     pane.removeListener(_paneChanged);
     _lifecycle.dispose();
     _hintTimer?.cancel();
+    _glide.dispose();
     super.dispose();
   }
 
@@ -279,16 +315,63 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
     ref.read(settingsProvider.notifier).apply((s) => s.copyWith(mapOpen: open));
   }
 
-  void _fit() {
+  /// Glides from the current zoom and pan to [scale] and [translation].
+  void _glideTo(double scale, Offset translation) {
+    final view = pane.view;
+    final mid = view.size.center(Offset.zero);
+    final s0 = view.scale;
+    final c0 = view.toPage(mid), c1 = (mid - translation) / scale;
+    _glideStep = (t) {
+      final s = s0 * math.pow(scale / s0, t);
+      view.jumpTo(s, mid - Offset.lerp(c0, c1, t)! * s);
+    };
+    _glide
+      ..stop()
+      ..value = 0
+      ..forward();
+  }
+
+  /// The zoom pill's "whole board" button: everything on the page at once,
+  /// or back to where you were.
+  void _toggleBoard() {
+    if (_board) {
+      _leaveBoard();
+      return;
+    }
     final content = ref.read(notebookProvider(pane.notebookId)).pageAt(pane.page).contentBounds;
     final view = pane.view;
     if (content == null) {
       view.reset();
+      _showHint('Nothing on this page yet');
       return;
     }
+    _before = (view.scale, view.translation);
+    pane
+      ..dismiss()
+      ..selection.clear();
+    setState(() {
+      _board = true;
+      _fly = null;
+      _pinned = false;
+      _more = false;
+      _popover = false;
+    });
     final size = view.size;
-    // Leave room for the floating chrome.
-    view.fit(content.inflate(24), Rect.fromLTRB(90, 90, size.width - 130, size.height - 90));
+    // The menus are hidden, so the board gets the whole screen (Board.png).
+    final fit = view.fitted(content.inflate(32), Rect.fromLTRB(36, 56, size.width - 36, size.height - 72));
+    if (fit != null) _glideTo(fit.$1, fit.$2);
+    _showHint(boardHint);
+  }
+
+  /// Leaves the whole board: back to the zoom you had, at the same place
+  /// or, after a tap, centered [at] that page point.
+  void _leaveBoard({Offset? at}) {
+    if (!_board) return;
+    final view = pane.view;
+    final (scale, translation) = _before ?? (1.0, view.home);
+    setState(() => _board = false);
+    _glideTo(scale, at == null ? translation : view.size.center(Offset.zero) - at * scale);
+    _showHint(toolHints[ref.read(settingsProvider).tool]);
   }
 
   void _back() => leaveNotebook(context);
@@ -300,7 +383,8 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
     final notebook = ref.read(notebookProvider(pane.notebookId).notifier);
     final pageId = nb.pageAt(pane.page).id;
     final sealed = nb.isSealed(pageId);
-    final chrome = !_full;
+    if (sealed && _board) _board = false;
+    final chrome = !_full && !_board;
     final tools = chrome && !sealed;
     final mapShown = tools && settings.mapOpen;
     final blocking = tools && (_more || (_pinned && _fly != null));
@@ -314,7 +398,10 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
           const SingleActivator(LogicalKeyboardKey.keyY, control: true): () => notebook.redo(pageId),
           const SingleActivator(LogicalKeyboardKey.escape): () {
             _closeMenus();
-            pane.selection.clear();
+            pane
+              ..dismiss()
+              ..selection.clear();
+            _leaveBoard();
             setState(() => _popover = false);
           },
         },
@@ -325,13 +412,17 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
               child: Listener(
                 onPointerDown: (_) {
                   if (_popover) setState(() => _popover = false);
+                  _glide.stop(); // a touch takes over from a glide
                 },
                 child: InkCanvas(
                   pane: pane,
+                  onBoardTap: _board ? (at) => _leaveBoard(at: at) : null,
                   // Clear of the rail, the top pills (and the color tray), and the pages rail.
                   chrome: EdgeInsets.fromLTRB(
                     80,
-                    tools && (settings.trayOpen || settings.tool == CanvasTool.laser) ? 128 : 84,
+                    tools && (settings.trayOpen || settings.tool == CanvasTool.laser || settings.tool == CanvasTool.shape)
+                        ? 128
+                        : 84,
                     chrome && settings.pagesOpen ? 124 : 60,
                     16,
                   ),
@@ -378,6 +469,8 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
                     ),
                   if (tools && settings.tool == CanvasTool.laser && !_popover)
                     const Positioned(top: 74, left: 0, right: 0, child: Center(child: LaserColors()))
+                  else if (tools && settings.tool == CanvasTool.shape && !_popover)
+                    const Positioned(top: 74, left: 0, right: 0, child: Center(child: ShapeKinds()))
                   else if (tools && settings.trayOpen && !_popover)
                     const Positioned(top: 70, left: 0, right: 0, child: Center(child: ColorTray())),
                   if (chrome)
@@ -403,8 +496,9 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
                         if (mapShown) MapPanel(pane: pane, onHide: () => _setMap(false)),
                         ZoomPill(
                           view: pane.view,
-                          onFit: _fit,
-                          showMapButton: !mapShown,
+                          onFit: _toggleBoard,
+                          board: _board,
+                          showMapButton: !mapShown && !_board,
                           onShowMap: () => _setMap(true),
                           fullScreen: _full,
                           onToggleFullScreen: _toggleFull,

@@ -91,17 +91,42 @@ BoardPage decodePage(String source) {
 }
 
 Item decodeItem(Json json) {
+  try {
+    return _decodeKnown(json) ?? UnknownItem(json);
+  } on TypeError {
+    // A known type with fields this version can't read: keep it as it is.
+    return UnknownItem(json);
+  } on FormatException {
+    return UnknownItem(json);
+  }
+}
+
+const _boxKeys = {..._itemKeys, 'w', 'h'};
+
+double _num(Object? v, [double fallback = 0]) => (v as num?)?.toDouble() ?? fallback;
+
+List<Item> _nested(Object? list) => [for (final i in (list as List? ?? const [])) decodeItem((i as Map).cast<String, dynamic>())];
+
+Item? _decodeKnown(Json json) {
+  final id = json['id'] as String;
+  final x = (json['x'] as num).toDouble();
+  final y = (json['y'] as num).toDouble();
+  final rotation = _num(json['rotation']);
+  final z = (json['z'] as num?)?.toInt() ?? 0;
+  final createdAt = DateTime.parse(json['createdAt'] as String);
+  final author = json['author'] as String? ?? localAuthor;
+  final remember = (json['remember'] as Map?)?.cast<String, dynamic>();
   switch (json['type']) {
     case 'stroke':
       return StrokeItem(
-        id: json['id'] as String,
-        x: (json['x'] as num).toDouble(),
-        y: (json['y'] as num).toDouble(),
-        rotation: (json['rotation'] as num?)?.toDouble() ?? 0,
-        z: (json['z'] as num?)?.toInt() ?? 0,
-        createdAt: DateTime.parse(json['createdAt'] as String),
-        author: json['author'] as String? ?? localAuthor,
-        remember: (json['remember'] as Map?)?.cast<String, dynamic>(),
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
         extra: _unknown(json, _strokeKeys),
         tool: InkTool.values.firstWhere((t) => t.name == json['tool'], orElse: () => InkTool.pen),
         penType: PenType.values.firstWhere((t) => t.name == json['penType'], orElse: () => PenType.ballpoint),
@@ -120,7 +145,100 @@ Item decodeItem(Json json) {
             ),
         ],
       );
+    case 'text':
+      return TextItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, const {..._itemKeys, 'w', 'text', 'font', 'size', 'color', 'autoWidth'}),
+        wrap: (json['w'] as num).toDouble(),
+        text: json['text'] as String,
+        font: json['font'] as String? ?? 'ui',
+        size: _num(json['size'], 22),
+        color: colorFromHex(json['color'] as String),
+        autoWidth: json['autoWidth'] == true,
+      );
+    case 'sticky':
+      final stack = json['stack'] as Map?;
+      return StickyItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, const {..._boxKeys, 'color', 'items', 'stack'}),
+        w: (json['w'] as num).toDouble(),
+        h: (json['h'] as num).toDouble(),
+        color: colorFromHex(json['color'] as String),
+        items: _nested(json['items']),
+        under: [
+          for (final n in (stack?['notes'] as List? ?? const []))
+            StickyNote(color: colorFromHex((n as Map)['color'] as String), items: _nested(n['items'])),
+        ],
+        count: (stack?['count'] as num?)?.toInt(),
+      );
+    case 'frame':
+      return FrameItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, const {..._boxKeys, 'paper', 'title', 'template', 'unit'}),
+        w: (json['w'] as num).toDouble(),
+        h: (json['h'] as num).toDouble(),
+        paper: json['paper'] as String? ?? 'lined-a4',
+        title: json['title'] as String? ?? '',
+        template: json['template'] as String?,
+        unit: _num(json['unit'], 1),
+      );
+    case 'image':
+      return ImageItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, const {..._boxKeys, 'asset'}),
+        w: (json['w'] as num).toDouble(),
+        h: (json['h'] as num).toDouble(),
+        asset: json['asset'] as String,
+      );
+    case 'shape':
+      final kind = ShapeType.values.where((k) => k.name == json['kind']).firstOrNull;
+      if (kind == null) return null;
+      return ShapeItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, const {..._boxKeys, 'kind', 'stroke', 'fill', 'strokeWidth'}),
+        kind: kind,
+        w: (json['w'] as num).toDouble(),
+        h: (json['h'] as num).toDouble(),
+        stroke: colorFromHex(json['stroke'] as String),
+        fill: json['fill'] is String ? colorFromHex(json['fill'] as String) : null,
+        strokeWidth: _num(json['strokeWidth'], 2.5),
+      );
     default:
-      return UnknownItem(json);
+      return null;
   }
 }

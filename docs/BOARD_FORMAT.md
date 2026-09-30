@@ -10,6 +10,7 @@ My notebook.board
 │   └── ...
 ├── assets/
 │   ├── <sha256>.png     # images, PDFs, audio, video (content-addressed)
+│   ├── <sha256>.jpg.enc # the same, sealed, on a locked page or notebook
 │   └── ...
 └── index/
     └── recognition.json # optional cache: handwriting text per stroke group
@@ -58,13 +59,15 @@ Every item has these fields:
 ```
 `x` and `y` are unbounded page coordinates in logical px, since the page is endless.
 
+`items` is the z-order: later items draw on top. For every type with `w` and `h` (a box), `x`/`y` is the top-left corner before rotation, and `rotation` is in degrees, clockwise, about the box's center.
+
 | type | extra fields |
 |---|---|
 | `stroke` | `tool` (pen/marker), `color`, `width`, `points: [[x,y,pressure,tMs], …]`, `arrow: {start?, end?, style}`, `straightened?: "line"/"circle"/…` |
-| `shape` | `kind` (line/rect/ellipse/triangle/arrow), `w`, `h`, `stroke`, `fill` |
-| `text` | `w`, `text`, `font`, `size`, `color` |
-| `sticky` | `w`, `h`, `color`, `items` (nested ink/text), `stack?: {count}` |
-| `frame` | `w`, `h`, `paper` (lined-a4, grid…), `title` |
+| `shape` | `kind` (line/rect/ellipse/triangle/arrow), `w`, `h`, `stroke`, `fill`, `strokeWidth` |
+| `text` | `w`, `text`, `font`, `size`, `color`, `autoWidth?` |
+| `sticky` | `w`, `h`, `color`, `items` (nested ink/text), `stack?: {count, notes?}` |
+| `frame` | `w`, `h`, `paper` (lined-a4, grid-a4, dots-a4, blank-a4), `title`, `template?`, `unit?` |
 | `image` | `w`, `h`, `asset`, `crop?` |
 | `file` | `w`, `h`, `asset`, `mime` (pdf/docx/pptx/xlsx), `page?` |
 | `embed` | `w`, `h`, `url` (website) |
@@ -83,6 +86,15 @@ Every item has these fields:
 - `arrow` is present only on arrows: `{"start": true, "end": true, "style": "open"}`, with `start`/`end` written only when true and `style` one of `open`, `filled`, `ink`. The heads are not points; they are drawn from the first/last points, the stroke's color and `width`.
 - `straightened` is present only when a hold (or "Straighten lines") turned the stroke into a shape: `line`, `circle`, `ellipse`, `rect` or `triangle`. The points are the shape itself.
 - Moving, resizing and rotating a stroke rewrites its points (and scales `width`); `rotation` stays 0 for strokes.
+
+**Text, sticky notes, frames, images and shapes, as implemented (v1):**
+
+- `text`: `w` is where the text wraps. `font` is `ui` (Figtree), `serif` (Newsreader) or `hand` (Caveat); `size` is in page px with a line height of 1.3. With `autoWidth: true` (a new box, until it is stretched to a width) the box hugs the text and `w` is only the most it may grow to. The height is not stored; it follows from the text.
+- `sticky`: `color` is the paper (`#F6DE7A` yellow, `#F3CBD6` pink, `#F4C9A8` peach, `#C9DFC2` green). `items` holds the ink written on the note and at most one `text` item for typed text, with `x`/`y` relative to the note's top-left corner (before its rotation), so they move, turn and scale with it. What's on a note is clipped to it, and keeps its own colors in dark mode.
+- A stack is a sticky with `stack: {"count": 5, "notes": [{"color": "#F4C9A8", "items": []}, …]}`. The sticky itself is the top note; `notes` are the ones under it, from just under the top down. `count` is the top note plus `notes`; if `count` is larger (a file that only says how many), the missing notes are blank.
+- `frame`: a sheet of paper drawn under the ink. A lined A4 sheet is 560 × 792 px at 100%, ruled every 40 px from y = 96, with a margin at x = 80. `title` is the name shown above it ("Frame · Lab 4"); empty shows the paper's name ("Frame · Lined A4"). `template` is a built-in template id (`cornell`, `weekly`…) whose layout is drawn on the sheet, scaled to its width. `unit` (default 1) is how much the sheet has been scaled: its rules are 40 × `unit` apart. Ink written on a frame is ordinary page ink above it in `items`; it is not nested.
+- `image`: `asset` is the file's name in `assets/`, `<sha256 of the file>.<png|jpg|gif|webp|bmp>`. The same picture added twice is stored once. `crop` is kept but not used yet.
+- `shape`: `stroke` and `fill` are colors (`fill` null for none); `strokeWidth` is in page px. A `line` or `arrow` has `h: 0` and runs along the middle of its box from the left edge to the right, so its direction is `rotation`; the arrowhead is at the right end.
 
 `remember` is either `null` or `{ "why": "...", "remindAt": "...", "flashcard": false }`.
 
@@ -108,11 +120,12 @@ Every item has these fields:
 - A sealed file is `EBL1` (4 bytes) · nonce (12) · GCM tag (16) · ciphertext of the page JSON.
 - The password and key are never written. `biometric` means this device keeps the key in the platform's secure storage for fingerprint or face unlock.
 - Order of writes: lock.json before the first sealed page; when a lock is removed, the plain page before lock.json loses the entry. If both `pages/<id>.json` and `.json.enc` exist, the sealed one wins.
+- Images on a page with a password are sealed the same way, with the same key, as `assets/<name>.enc` (the item's `asset` stays `<name>`). When a page is locked, its images are sealed and their clear copies deleted, along with any clear image no unlocked page still uses; when the password is removed they are written in the clear again.
 
 ## Outside the packages
 The app's data folder also holds `settings.json`, `library.json` (folders: `{"version": 1, "folders": [{"path": ["School", "Physics"], "color": "#2B5A8C"}]}`), `templates/<id>.json` (My templates: `format: "endless.template"`, `name`, `paper`, `template`, `items`) and `index.sqlite` (the library index, a cache rebuilt from the packages).
 
 ## Rules
-- Unknown item types and fields must be kept on load and written back on save, so newer files survive older apps.
+- Unknown item types and fields must be kept on load and written back on save, so newer files survive older apps. A known type whose fields can't be read (a missing `w`, a bad color) is kept as it is too.
 - Stroke points are stored as flat numbers rounded to 0.1 px. A future binary encoding can come in v2.
 - Sync merges at item level by `id`, so two devices never overwrite each other's strokes.

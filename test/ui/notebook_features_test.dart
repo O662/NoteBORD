@@ -257,6 +257,34 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
     });
 
+    testWidgets('sticky notes and text go in the focused side', (tester) async {
+      final c = await _openPhysics(tester);
+      await tester.tap(byLabel('Ruler, laser & view'));
+      await tester.pump();
+      await tester.tap(find.text('Split view'));
+      await _pump(tester);
+      List<Item> items(String id, int page) => c.read(notebookProvider(id)).pages[page].items;
+      final calcBefore = items('nb_calc', 0).length;
+
+      await tester.tap(byLabel('Insert'));
+      await tester.pump();
+      await tester.tap(find.text('Sticky note'));
+      await tester.pump();
+      await _stylus(tester, const [Offset(400, 600)]);
+      expect(items('nb_physics', 2).whereType<StickyItem>(), hasLength(1));
+      expect(items('nb_calc', 0), hasLength(calcBefore));
+      expect(find.text('Added a sticky note to the page'), findsOneWidget);
+
+      await tester.tap(byLabel('Text'));
+      await tester.pump();
+      await _stylus(tester, const [Offset(300, 300)], start: const Duration(seconds: 20));
+      await tester.enterText(find.byType(TextField), 'See page 4');
+      await tester.tap(byLabel('Done typing'));
+      await tester.pump();
+      expect(items('nb_physics', 2).whereType<TextItem>().single.text, 'See page 4');
+      await tester.pump(const Duration(seconds: 5));
+    });
+
     testWidgets('opens from Continue writing on the Start page', (tester) async {
       final (store, db) = await sampleLibrary();
       await pumpApp(tester, store: store, index: db);

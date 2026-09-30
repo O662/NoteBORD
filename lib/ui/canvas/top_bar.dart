@@ -67,7 +67,6 @@ class TopBar extends StatelessWidget {
           onPickTool: onPickTool,
           onTogglePopover: onTogglePopover,
           onToggleTray: onToggleTray,
-          onComingSoon: onComingSoon,
         );
         // The tool pill is centered on screen; the title takes what's left on
         // the left. As in the design, the right pill may use part of the gap.
@@ -190,7 +189,6 @@ class ToolPill extends ConsumerWidget {
     required this.onPickTool,
     required this.onTogglePopover,
     required this.onToggleTray,
-    required this.onComingSoon,
   });
 
   final Pane pane;
@@ -201,7 +199,6 @@ class ToolPill extends ConsumerWidget {
   final ValueChanged<CanvasTool> onPickTool;
   final VoidCallback onTogglePopover;
   final VoidCallback onToggleTray;
-  final ValueChanged<String> onComingSoon;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => ListenableBuilder(
@@ -224,7 +221,12 @@ class ToolPill extends ConsumerWidget {
       width: 36,
       selected: false,
       onPressed: () => ref.read(settingsProvider.notifier).pickColor(color),
-      child: ColorDot(color: displayInk(color, brightness), selected: s.tool.inks && s.color == color),
+      // Text and shapes use the pen's color too.
+      child: ColorDot(
+        color: displayInk(color, brightness),
+        selected: (s.tool.inks && s.color == color) ||
+            ((s.tool == CanvasTool.text || s.tool == CanvasTool.shape) && s.penColor == color),
+      ),
     );
 
     return Semantics(
@@ -287,8 +289,18 @@ class ToolPill extends ConsumerWidget {
               selected: s.tool == CanvasTool.eraser,
               onPressed: () => onPickTool(CanvasTool.eraser),
             ),
-            ChromeButton(label: 'Shapes', icon: EIcons.shapes, onPressed: () => onComingSoon('Shapes')),
-            ChromeButton(label: 'Text', icon: EIcons.text, onPressed: () => onComingSoon('Text boxes')),
+            ChromeButton(
+              label: 'Shapes',
+              icon: EIcons.shapes,
+              selected: s.tool == CanvasTool.shape,
+              onPressed: () => onPickTool(CanvasTool.shape),
+            ),
+            ChromeButton(
+              label: 'Text',
+              icon: EIcons.text,
+              selected: s.tool == CanvasTool.text,
+              onPressed: () => onPickTool(CanvasTool.text),
+            ),
             const PillDivider(),
             for (final color in tokens.inkDefaults) quick(color),
             if (showTrayButton)

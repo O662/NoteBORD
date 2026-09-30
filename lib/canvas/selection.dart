@@ -50,11 +50,55 @@ class Similarity {
 
     return s.copyWith(pagePoints: [for (final p in s.pageInk) move(p)], width: s.width * scale);
   }
+
+  /// Any item moved by this transform: a box turns and scales about its
+  /// center, and what's inside it scales with it.
+  Item applyToItem(Item item) => switch (item) {
+        StrokeItem s => applyTo(s),
+        BoxItem b => b.placed(center: apply(b.center), rotation: b.rotation + rotation * 180 / math.pi, scale: scale),
+        UnknownItem u => u,
+      };
 }
 
 /// Which primary action the selection toolbar leads with: Convert.png or
 /// RememberMark.png.
 enum SelectionMenu { convert, remember }
+
+/// The selection's box in page space: around one box item it follows the
+/// item's rotation; otherwise it is upright.
+@immutable
+class SelectionFrame {
+  const SelectionFrame(this.center, this.size, [this.angle = 0]);
+
+  factory SelectionFrame.around(Rect r) => SelectionFrame(r.center, r.size);
+
+  final Offset center;
+  final Size size;
+  final double angle;
+
+  Offset _at(double fx, double fy) {
+    final d = Offset(fx * size.width, fy * size.height);
+    final c = math.cos(angle), s = math.sin(angle);
+    return center + Offset(c * d.dx - s * d.dy, s * d.dx + c * d.dy);
+  }
+
+  /// Top-left, top-right, bottom-right, bottom-left.
+  List<Offset> get corners => [_at(-.5, -.5), _at(.5, -.5), _at(.5, .5), _at(-.5, .5)];
+
+  /// Middle of the top, right, bottom and left edges.
+  List<Offset> get sides => [_at(0, -.5), _at(.5, 0), _at(0, .5), _at(-.5, 0)];
+
+  /// Which way is down along the box (a unit vector).
+  Offset get down => Offset(-math.sin(angle), math.cos(angle));
+
+  Path path(double radius) {
+    final rect = Rect.fromCenter(center: Offset.zero, width: size.width, height: size.height);
+    final m = Matrix4.identity()
+      ..translateByDouble(center.dx, center.dy, 0, 1)
+      ..rotateZ(angle);
+    return (Path()..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)))).transform(m.storage);
+  }
+}
 
 /// What's selected in a pane, its dashed outline, and any move, resize or
 /// rotation being dragged right now.

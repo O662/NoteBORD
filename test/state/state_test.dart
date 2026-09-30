@@ -178,6 +178,28 @@ void main() {
       expect(entry.updatedAt, testNow.toUtc());
     });
 
+    testWidgets('closing a notebook right after a change still saves it', (tester) async {
+      final store = MemoryBoardStore();
+      final id = addUntitled(store);
+      final c = ProviderContainer(overrides: await testOverrides(store));
+      addTearDown(c.dispose);
+      c.listen(loadedNotebookProvider(id), (_, _) {});
+      await c.read(loadedNotebookProvider(id).future);
+      final open = c.listen(notebookProvider(id), (_, _) {});
+      c.listen(libraryProvider, (_, _) {});
+      final pageId = c.read(notebookProvider(id)).pages.first.id;
+      store.pageWrites = 0;
+
+      c.read(notebookProvider(id).notifier).addStroke(pageId, _line(10));
+      // Nothing shows the notebook any more, well before the save timer fires.
+      open.close();
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(seconds: 1));
+      expect(c.exists(notebookProvider(id)), isFalse);
+      expect(store.pageWrites, 1);
+      expect(decodePage(store.pages[id]![pageId]!).items, hasLength(1));
+    });
+
     testWidgets('flush writes immediately, and a new page lands in notebook.json', (tester) async {
       final store = MemoryBoardStore();
       final id = addUntitled(store);

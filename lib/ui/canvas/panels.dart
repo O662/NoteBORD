@@ -256,9 +256,13 @@ class ZoomPill extends StatelessWidget {
     required this.onShowMap,
     required this.fullScreen,
     required this.onToggleFullScreen,
+    this.board = false,
   });
 
   final CanvasView view;
+
+  /// The whole board is showing: its button goes back.
+  final bool board;
   final VoidCallback onFit;
   final bool showMapButton;
   final VoidCallback onShowMap;
@@ -328,7 +332,10 @@ class ZoomPill extends StatelessWidget {
         cell(44, button('Zoom in', EIcons.plus, () => view.zoomStep(1))),
         Container(width: 1, height: 24, margin: const EdgeInsets.symmetric(horizontal: 2), color: c.line),
         if (showMapButton) cell(40, button('Show map', EIcons.map, onShowMap, expanded: false)),
-        cell(40, button('Zoom out to the whole board', EIcons.board, onFit)),
+        cell(
+          40,
+          button(board ? 'Back from the whole board' : 'Zoom out to the whole board', EIcons.board, onFit, selected: board),
+        ),
         cell(
           40,
           button(

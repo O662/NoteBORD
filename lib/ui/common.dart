@@ -5,12 +5,15 @@ import '../theme/tokens.g.dart';
 import 'icons.dart';
 
 /// Shows the "coming soon" snackbar for a feature that isn't built yet.
-void showComingSoon(BuildContext context, String feature) {
+void showComingSoon(BuildContext context, String feature) => showNote(context, '$feature is coming soon');
+
+/// Shows a short message at the bottom of the screen.
+void showNote(BuildContext context, String message) {
   final messenger = ScaffoldMessenger.of(context);
   messenger.hideCurrentSnackBar();
   messenger.showSnackBar(
     SnackBar(
-      content: Text('$feature is coming soon', textAlign: TextAlign.center),
+      content: Text(message, textAlign: TextAlign.center),
       width: 360,
       duration: const Duration(seconds: 2),
     ),

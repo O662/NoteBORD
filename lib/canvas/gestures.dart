@@ -574,6 +574,7 @@ List<Item> itemsInPolygon(List<Offset> poly, Iterable<Item> items) {
   for (final item in items) {
     final pts = switch (item) {
       StrokeItem s => s.pagePoints.toList(),
+      BoxItem b => [...b.corners, b.center],
       _ => [item.bounds.topLeft, item.bounds.topRight, item.bounds.bottomLeft, item.bounds.bottomRight, item.bounds.center],
     };
     var inside = 0;

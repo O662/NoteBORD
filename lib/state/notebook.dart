@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
+import 'dart:ui' show Offset, Size;
 
+import 'package:cryptography/cryptography.dart' show SecretBoxAuthenticationError;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,6 +13,7 @@ import '../board/model.dart';
 import '../board/store.dart';
 import '../canvas/page_runtime.dart';
 import '../library/library.dart';
+import 'assets.dart';
 import 'biometric.dart';
 import 'settings.dart';
 
@@ -174,6 +178,14 @@ class NotebookNotifier extends Notifier<NotebookState> {
   late LibraryNotifier _library;
   late DateTime Function() _clock;
   late LiveEditor _editor;
+  late ImageDecoder _decode;
+  late NotebookImages _images;
+
+  /// The notebook and its pages, as in [state]. Saving reads these, since
+  /// the last save runs while the provider is being disposed, when [state]
+  /// can't be read any more.
+  late Notebook _notebook;
+  late List<PageRuntime> _pages;
 
   late LockFile _lock;
   Uint8List? _notebookKey;
@@ -195,7 +207,10 @@ class NotebookNotifier extends Notifier<NotebookState> {
     _sealed
       ..clear()
       ..addAll(loaded.sealed);
-    final pages = [for (final p in loaded.pages) PageRuntime(p)];
+    _decode = ref.read(imageDecoderProvider);
+    final images = _images = NotebookImages(read: _readAsset, decode: _decode, onLoaded: _imageLoaded);
+    final pages = _pages = [for (final p in loaded.pages) PageRuntime(p, images: images.lookup)];
+    _notebook = loaded.notebook;
 
     _editor = (change) {
       change(state.notebook);
@@ -213,6 +228,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
       for (final p in pages) {
         p.dispose();
       }
+      images.dispose();
     });
     return NotebookState(
       notebook: loaded.notebook,
@@ -295,14 +311,179 @@ class NotebookNotifier extends Notifier<NotebookState> {
     _commit(page, steps);
   }
 
-  /// Adds items on top of the page, as one undo step.
-  void insertItems(String pageId, Iterable<Item> items) {
+  /// Adds items on top of the page (or at [at] in the z-order: 0 is the
+  /// bottom), as one undo step.
+  void insertItems(String pageId, Iterable<Item> items, {int? at}) => edit(pageId, insert: items, insertAt: at);
+
+  /// Replaces, removes and adds items as one undo step. [insertAt] is where
+  /// the new items go in the z-order once the removed ones are gone
+  /// (default: on top).
+  void edit(
+    String pageId, {
+    Iterable<Item> replace = const [],
+    Iterable<String> remove = const [],
+    Iterable<Item> insert = const [],
+    int? insertAt,
+  }) {
     if (!_editable(pageId)) return;
     final page = _pageById(pageId)!;
+    final gone = remove.toSet();
     final steps = <EditStep>[
-      for (final (i, item) in items.indexed) InsertStep(page.items.length + i, item),
+      for (final item in replace)
+        if (page[item.id] case final before? when !gone.contains(item.id))
+          ReplaceStep(page.items.indexOf(before), item, before),
+      // Highest index first, so each recorded position is right when replayed.
+      for (final (i, item) in page.items.indexed.toList().reversed)
+        if (gone.contains(item.id)) RemoveStep(i, item),
     ];
+    final left = page.items.length - steps.whereType<RemoveStep>().length;
+    final base = insertAt == null ? left : insertAt.clamp(0, left);
+    steps.addAll([for (final (i, item) in insert.indexed) InsertStep(base + i, item)]);
     _commit(page, steps);
+  }
+
+  /// Moves items to the top or the bottom of the z-order, keeping their
+  /// order among themselves. One undo step.
+  void reorder(String pageId, Iterable<String> ids, {required bool toFront}) {
+    if (!_editable(pageId)) return;
+    final page = _pageById(pageId)!;
+    final wanted = ids.toSet();
+    final moving = [for (final i in page.items) if (wanted.contains(i.id)) i];
+    if (moving.isEmpty) return;
+    final base = toFront ? page.items.length - moving.length : 0;
+    _commit(page, [
+      for (final (i, item) in page.items.indexed.toList().reversed)
+        if (wanted.contains(item.id)) RemoveStep(i, item),
+      for (final (i, item) in moving.indexed) InsertStep(base + i, item),
+    ]);
+  }
+
+  /// Stores an image file in the notebook's assets and puts it on the page,
+  /// centered on [center] and no bigger than [fit] (one undo step). Returns
+  /// null if the page can't be written to; throws if [bytes] isn't an image.
+  Future<ImageItem?> addImage(
+    String pageId,
+    Uint8List bytes, {
+    required Offset center,
+    Size fit = const Size(480, 360),
+  }) async {
+    if (!_editable(pageId)) return null;
+    final key = _keyFor(pageId);
+    if (key == null && _needsKey(pageId)) return null;
+    final image = await _decode(bytes);
+    final name = assetNameFor(bytes);
+    // On a page with a password the file is sealed like the page itself.
+    await _queue.run(() async => key == null
+        ? _store.saveAsset(id, name, bytes)
+        : _store.saveAsset(id, '$name.enc', await _crypto.sealBytes(key, bytes)));
+    if (!ref.mounted || !_editable(pageId)) {
+      image.dispose();
+      return null;
+    }
+    _images.put(name, image);
+    final scale = math.min(1.0, math.min(fit.width / image.width, fit.height / image.height));
+    final w = image.width * scale, h = image.height * scale;
+    final item = ImageItem(
+      id: newId('it'),
+      x: center.dx - w / 2,
+      y: center.dy - h / 2,
+      z: _pageById(pageId)!.nextZ,
+      createdAt: _clock().toUtc(),
+      w: w,
+      h: h,
+      asset: name,
+    );
+    insertItems(pageId, [item]);
+    return item;
+  }
+
+  // Image files.
+
+  void _imageLoaded(String asset) {
+    if (!ref.mounted) return;
+    for (final p in state.pages) {
+      if (_assetsOn(p.page).contains(asset)) p.invalidate();
+    }
+    state = state.copyWith(revision: state.revision + 1);
+  }
+
+  static Set<String> _assetsOn(BoardPage page) => {
+        for (final item in page.items)
+          if (item is! StrokeItem) ...assetRefs(item.toJson()),
+      };
+
+  Future<Uint8List?> _readAsset(String name) async {
+    await _queue.idle;
+    return _assetBytes(name);
+  }
+
+  /// The file in the clear: as stored, or opened with a key we hold.
+  Future<Uint8List?> _assetBytes(String name, {List<Uint8List> oldKeys = const []}) async {
+    final clear = await _store.loadAsset(id, name);
+    if (clear != null) return clear;
+    final sealed = await _store.loadAsset(id, '$name.enc');
+    if (sealed == null) return null;
+    for (final key in [?_notebookKey, ..._pageKeys.values, ...oldKeys]) {
+      try {
+        return await _crypto.unsealBytes(key, sealed);
+      } on SecretBoxAuthenticationError {
+        continue;
+      }
+    }
+    return null;
+  }
+
+  /// A page with no password (and not locked), whose images are stored in
+  /// the clear.
+  bool _storedClear(String pageId) => !_sealed.containsKey(pageId) && !_needsKey(pageId);
+
+  /// Rewrites the image files of [pages] the way each page is stored now:
+  /// sealed with its key, or in the clear. [oldKeys] open files that were
+  /// sealed under a password that has just been removed.
+  Future<void> _rewriteAssets(Iterable<PageRuntime> pages, {List<Uint8List> oldKeys = const []}) async {
+    final usedClear = {
+      for (final p in state.pages)
+        if (_storedClear(p.id)) ..._assetsOn(p.page),
+    };
+    for (final p in pages) {
+      final key = _keyFor(p.id);
+      if (key == null && _needsKey(p.id)) continue;
+      for (final name in _assetsOn(p.page)) {
+        await _queue.run(() async {
+          final bytes = await _assetBytes(name, oldKeys: oldKeys);
+          if (bytes == null) return;
+          if (key == null) {
+            await _store.saveAsset(id, name, bytes);
+            await _store.deleteAsset(id, '$name.enc');
+          } else {
+            await _store.saveAsset(id, '$name.enc', await _crypto.sealBytes(key, bytes));
+            if (!usedClear.contains(name)) await _store.deleteAsset(id, name);
+          }
+        });
+      }
+    }
+  }
+
+  /// Deletes image files left in the clear that no unprotected page uses
+  /// (or could bring back with Undo), so a picture deleted from a page
+  /// before it was locked doesn't stay readable.
+  Future<void> _dropUnusedClearAssets() async {
+    final used = <String>{};
+    for (final p in state.pages) {
+      if (!_storedClear(p.id)) continue;
+      used.addAll(_assetsOn(p.page));
+      for (final c in [...?_undo[p.id], ...?_redo[p.id]]) {
+        for (final s in c.steps) {
+          used.addAll(assetRefs(s.item.toJson()));
+          if (s is ReplaceStep) used.addAll(assetRefs(s.before.toJson()));
+        }
+      }
+    }
+    await _queue.run(() async {
+      for (final name in await _store.listAssets(id)) {
+        if (!name.endsWith('.enc') && !used.contains(name)) await _store.deleteAsset(id, name);
+      }
+    });
   }
 
   void _commit(PageRuntime page, List<EditStep> steps) {
@@ -333,6 +514,20 @@ class NotebookNotifier extends Notifier<NotebookState> {
       }
     }
     if (any) state = state.copyWith(revision: state.revision + 1);
+  }
+
+  /// Rubs ink off a sticky note during an eraser drag.
+  void eraseInk(String stickyId, Set<String> inkIds) {
+    final steps = _erasing;
+    final page = _erasePage == null ? null : _pageById(_erasePage!);
+    if (steps == null || page == null) return;
+    if (page[stickyId] case final StickyItem before) {
+      final after = before.withoutInk(inkIds);
+      if (after.items.length == before.items.length) return;
+      steps.add(ReplaceStep(page.items.indexOf(before), after, before));
+      page.replace(after);
+      state = state.copyWith(revision: state.revision + 1);
+    }
   }
 
   void endErase() {
@@ -374,7 +569,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
     );
     final at = after == null ? state.pages.length : (after + 1).clamp(0, state.pages.length);
     nb.pageIds.insert(at, page.id);
-    state.pages.insert(at, PageRuntime(page));
+    state.pages.insert(at, PageRuntime(page, images: _images.lookup));
     _metaDirty = true;
     _changed(page.id);
     return at;
@@ -397,10 +592,10 @@ class NotebookNotifier extends Notifier<NotebookState> {
   Future<void> flush() {
     _saveTimer?.cancel();
     if (_dirtyPages.isEmpty && !_metaDirty) return _queue.idle;
-    final nb = state.notebook;
+    final nb = _notebook;
     final pages = <(BoardPage, Uint8List?)>[];
     for (final pageId in _dirtyPages) {
-      final page = _pageById(pageId);
+      final page = _pages.where((p) => p.id == pageId).firstOrNull;
       // Never write over a page that is still locked.
       if (page == null || _sealed.containsKey(pageId)) continue;
       final key = _keyFor(pageId);
@@ -412,7 +607,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
     _dirtyPages.clear();
     _metaDirty = false;
     _contentChanged = false;
-    final allPages = [for (final p in state.pages) p.page];
+    final allPages = [for (final p in _pages) p.page];
     final sealed = {..._sealed.keys};
     return _queue.run(() => _write(nb, pages, allPages, sealed, written));
   }
@@ -455,7 +650,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
     final i = state.indexOf(pageId);
     if (i < 0) return;
     state.pages[i].dispose();
-    state.pages[i] = PageRuntime(page);
+    state.pages[i] = PageRuntime(page, images: _images.lookup);
     _undo.remove(pageId);
     _redo.remove(pageId);
   }
@@ -505,6 +700,8 @@ class NotebookNotifier extends Notifier<NotebookState> {
         debugPrint('Could not open page $pid: $e');
       }
     }
+    // Pictures on the pages that just opened can be read now.
+    _images.retryMissing();
     _lockChanged();
   }
 
@@ -520,6 +717,8 @@ class NotebookNotifier extends Notifier<NotebookState> {
     page.page.locked = true;
     if (biometric) await _biometric.save(biometricSlot(id, pageId), key);
     _dirtyPages.add(pageId);
+    await _rewriteAssets([page]);
+    await _dropUnusedClearAssets();
     await lockNow();
   }
 
@@ -531,23 +730,30 @@ class NotebookNotifier extends Notifier<NotebookState> {
     _notebookKey = key;
     state.notebook.locked = true;
     if (biometric) await _biometric.save(biometricSlot(id, null), key);
-    for (final p in state.pages) {
-      if (!_lock.pages.containsKey(p.id) && !_sealed.containsKey(p.id)) _dirtyPages.add(p.id);
-    }
+    final covered = [
+      for (final p in state.pages)
+        if (!_lock.pages.containsKey(p.id) && !_sealed.containsKey(p.id)) p,
+    ];
+    _dirtyPages.addAll([for (final p in covered) p.id]);
     _metaDirty = true;
+    await _rewriteAssets(covered);
+    await _dropUnusedClearAssets();
     await lockNow();
   }
 
   /// Saves, then locks every unlocked page that has a password again.
   Future<void> lockNow() async {
     await flush();
+    final pictures = <String>{};
     for (final p in [...state.pages]) {
       if (_sealed.containsKey(p.id)) continue;
       final key = _keyFor(p.id);
       if (key == null) continue;
+      pictures.addAll(_assetsOn(p.page));
       _sealed[p.id] = await _crypto.seal(key, encodePage(p.page));
       _replacePage(p.id, BoardPage(id: p.id, locked: true));
     }
+    _images.evict(pictures);
     _notebookKey = null;
     _pageKeys.clear();
     _lockChanged();
@@ -561,28 +767,33 @@ class NotebookNotifier extends Notifier<NotebookState> {
     final page = _pageById(pageId);
     if (page == null || _sealed.containsKey(pageId) || !_lock.pages.containsKey(pageId)) return;
     _lock.pages.remove(pageId);
-    _pageKeys.remove(pageId);
+    final old = _pageKeys.remove(pageId);
     page.page.locked = false;
     await _biometric.delete(biometricSlot(id, pageId));
     _dirtyPages.add(pageId);
     // The page is rewritten first; lock.json loses the entry only after.
     await flush();
+    await _rewriteAssets([page], oldKeys: [?old]);
     await _queue.run(() => _store.saveLock(id, _lock.isEmpty ? null : _lock.toJson()));
     _lockChanged();
   }
 
   /// Removes the notebook's password (it must be unlocked).
   Future<void> removeNotebookLock() async {
-    if (_lock.notebook == null || _notebookKey == null) return;
+    final old = _notebookKey;
+    if (_lock.notebook == null || old == null) return;
     _lock.notebook = null;
     _notebookKey = null;
     state.notebook.locked = false;
     await _biometric.delete(biometricSlot(id, null));
-    for (final p in state.pages) {
-      if (!_lock.pages.containsKey(p.id) && !_sealed.containsKey(p.id)) _dirtyPages.add(p.id);
-    }
+    final uncovered = [
+      for (final p in state.pages)
+        if (!_lock.pages.containsKey(p.id) && !_sealed.containsKey(p.id)) p,
+    ];
+    _dirtyPages.addAll([for (final p in uncovered) p.id]);
     _metaDirty = true;
     await flush();
+    await _rewriteAssets(uncovered, oldKeys: [old]);
     await _queue.run(() => _store.saveLock(id, _lock.isEmpty ? null : _lock.toJson()));
     _lockChanged();
   }

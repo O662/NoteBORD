@@ -32,6 +32,10 @@ class LoadedNotebook {
 /// <root>/templates/<id>.json          "My templates"
 /// <root>/notebooks/<id>.board/        one package per notebook
 /// ```
+///
+/// A package's `assets/` holds its images, named by content
+/// (`<sha256>.<ext>`). On a locked page or notebook they are stored sealed,
+/// as `<name>.enc`.
 abstract class BoardStore {
   Future<Json?> loadSettings();
   Future<void> saveSettings(Json settings);
@@ -56,6 +60,12 @@ abstract class BoardStore {
   /// Removes the whole package. Used by "Delete forever".
   Future<void> deleteNotebook(String id);
 
+  /// File names in the package's `assets/` folder.
+  Future<List<String>> listAssets(String notebookId);
+  Future<Uint8List?> loadAsset(String notebookId, String name);
+  Future<void> saveAsset(String notebookId, String name, Uint8List bytes);
+  Future<void> deleteAsset(String notebookId, String name);
+
   Future<List<Json>> loadTemplates();
   Future<void> saveTemplate(String id, Json template);
   Future<void> deleteTemplate(String id);
@@ -73,6 +83,10 @@ class FileBoardStore implements BoardStore {
   File _pageFile(String nb, String page) => File(p.join(_notebookDir(nb).path, 'pages', '$page.json'));
   File _sealedFile(String nb, String page) => File(p.join(_notebookDir(nb).path, 'pages', '$page.json.enc'));
   File _lockFile(String nb) => File(p.join(_notebookDir(nb).path, 'lock.json'));
+  Directory _assetDir(String nb) => Directory(p.join(_notebookDir(nb).path, 'assets'));
+
+  /// Asset names never leave the assets folder.
+  File _assetFile(String nb, String name) => File(p.join(_assetDir(nb).path, p.basename(name)));
 
   Future<Json?> _readJson(File f) async {
     if (!await f.exists()) return null;
@@ -168,6 +182,29 @@ class FileBoardStore implements BoardStore {
   }
 
   @override
+  Future<List<String>> listAssets(String notebookId) async {
+    final dir = _assetDir(notebookId);
+    if (!await dir.exists()) return [];
+    return [
+      await for (final e in dir.list())
+        if (e is File && !e.path.endsWith('.tmp')) p.basename(e.path),
+    ];
+  }
+
+  @override
+  Future<Uint8List?> loadAsset(String notebookId, String name) async {
+    final f = _assetFile(notebookId, name);
+    return await f.exists() ? f.readAsBytes() : null;
+  }
+
+  @override
+  Future<void> saveAsset(String notebookId, String name, Uint8List bytes) =>
+      _writeAtomicBytes(_assetFile(notebookId, name), bytes);
+
+  @override
+  Future<void> deleteAsset(String notebookId, String name) => _deleteIfExists(_assetFile(notebookId, name));
+
+  @override
   Future<List<Json>> loadTemplates() async {
     if (!await _templates.exists()) return [];
     final out = <Json>[];
@@ -216,6 +253,7 @@ class MemoryBoardStore implements BoardStore {
   final sealedPages = <String, Map<String, Uint8List>>{};
   final locks = <String, Json>{};
   final templates = <String, Json>{};
+  final assets = <String, Map<String, Uint8List>>{};
   int pageWrites = 0;
 
   static Json _copy(Json j) => jsonDecode(jsonEncode(j)) as Json;
@@ -292,7 +330,21 @@ class MemoryBoardStore implements BoardStore {
     pages.remove(id);
     sealedPages.remove(id);
     locks.remove(id);
+    assets.remove(id);
   }
+
+  @override
+  Future<List<String>> listAssets(String notebookId) async => [...?assets[notebookId]?.keys];
+
+  @override
+  Future<Uint8List?> loadAsset(String notebookId, String name) async => assets[notebookId]?[name];
+
+  @override
+  Future<void> saveAsset(String notebookId, String name, Uint8List bytes) async =>
+      (assets[notebookId] ??= {})[name] = bytes;
+
+  @override
+  Future<void> deleteAsset(String notebookId, String name) async => assets[notebookId]?.remove(name);
 
   @override
   Future<List<Json>> loadTemplates() async => [for (final t in templates.values) _copy(t)];

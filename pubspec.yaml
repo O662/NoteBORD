@@ -21,6 +21,9 @@ dependencies:
   flutter_riverpod: 3.3.2
   flutter_secure_storage: 11.2.0
   go_router: 17.5.0
+  # Images from the tablet's photos, files or camera (first-party; Android,
+  # iOS, web, Windows, Linux and macOS).
+  image_picker: 1.2.3
   local_auth: 3.0.2
   path: 1.9.1
   path_parsing: 1.1.0

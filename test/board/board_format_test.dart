@@ -40,8 +40,8 @@ void main() {
 {"id":"pg_9","title":"From a newer app","paper":"grid","template":{"kind":"cornell"},"locked":false,
  "futureField":{"a":1},
  "items":[
-  {"id":"it_1","type":"sticky","x":10,"y":20,"rotation":0,"z":1,"createdAt":"2026-09-01T00:00:00.000Z",
-   "author":"user_x","remember":null,"w":200,"h":180,"color":"#FBEFC4","items":[],"stack":{"count":3}},
+  {"id":"it_1","type":"hologram","x":10,"y":20,"rotation":0,"z":1,"createdAt":"2026-09-01T00:00:00.000Z",
+   "author":"user_x","remember":null,"w":200,"h":180,"color":"#FBEFC4","items":[],"depth":{"layers":3}},
   {"id":"it_2","type":"stroke","x":0,"y":0,"rotation":0,"z":2,"createdAt":"2026-09-01T00:00:00.000Z",
    "author":"user_x","remember":{"why":"exam","remindAt":null,"flashcard":false},
    "tool":"pen","color":"#2B5A8C","width":2.5,"points":[[0,0,0.5,0],[10,5,0.6,8]],

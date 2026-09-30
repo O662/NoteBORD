@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 import 'canvas_status.dart';
@@ -25,6 +27,31 @@ class Pane extends ChangeNotifier {
 
   /// A status or "… · Undo" message from a pen gesture, shown at the bottom.
   final status = ValueNotifier<CanvasStatus?>(null);
+  Timer? _statusTimer;
+
+  /// How long "Line straightened · Undo" and friends stay up.
+  static const toastDuration = Duration(seconds: 4);
+
+  /// Shows a status while something is going on ([text] null clears it).
+  void showStatus(String? text) {
+    _statusTimer?.cancel();
+    status.value = text == null ? null : CanvasStatus(text);
+  }
+
+  /// Shows what just happened for a few seconds, with an Undo button for
+  /// the last step on [undoPageId].
+  void toast(String text, {String? undoPageId}) {
+    _statusTimer?.cancel();
+    final s = CanvasStatus(text, undoPageId: undoPageId);
+    status.value = s;
+    _statusTimer = Timer(toastDuration, () {
+      if (status.value == s) status.value = null;
+    });
+  }
+
+  /// Esc, or a tap on the chrome: the canvas finishes what it was in the
+  /// middle of (typing in a text box, a drag).
+  void dismiss() => notifyListeners();
 
   String get notebookId => _notebookId;
 
@@ -53,6 +80,7 @@ class Pane extends ChangeNotifier {
 
   @override
   void dispose() {
+    _statusTimer?.cancel();
     view.dispose();
     selection.dispose();
     ruler.dispose();
