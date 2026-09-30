@@ -504,6 +504,54 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
     });
 
+    testWidgets('drag an end with a finger or the pen to swing and stretch it', (tester) async {
+      await pumpCanvas(tester, store: _storeWith(const []));
+      await openRailItem(tester, 'Ruler');
+      final ruler = canvasPane.ruler;
+      const later = Duration(minutes: 5);
+
+      // A finger on the right end pulls it up and out; the left end stays.
+      final f = await tester.createGesture(kind: PointerDeviceKind.touch, pointer: 50);
+      await f.down(const Offset(930, 496), timeStamp: later);
+      for (var i = 1; i <= 10; i++) {
+        await f.moveTo(Offset(930 + i * 5.0, 496 - i * 12.0), timeStamp: later);
+      }
+      await f.up(timeStamp: later);
+      await tester.pump();
+      expect(ruler.degrees, closeTo(10, 1e-9)); // atan(120 / 650) = 10.46°, settled to whole degrees
+      expect(ruler.length, greaterThan(620));
+      final u = Offset(math.cos(ruler.angle), math.sin(ruler.angle));
+      final left = ruler.center - u * (ruler.length / 2);
+      expect(left.dx, closeTo(330, 0.5));
+      expect(canvasPane.view.translation, Offset.zero); // the page didn't pan
+
+      // The pen on the left end swings it back level.
+      final right = ruler.center + u * (ruler.length / 2);
+      final grab = left + u * 20;
+      await _pen(tester, [
+        for (var i = 0; i <= 10; i++) Offset.lerp(grab, Offset(right.dx - 400, right.dy), i / 10)!,
+      ]);
+      expect(ruler.degrees, closeTo(0, 1e-9));
+      expect(ruler.length, closeTo(420, 1));
+      expect(_items(ProviderScope.containerOf(tester.element(find.byType(MaterialApp)))), isEmpty); // no ink
+
+      // A second finger joining an end drag moves the ruler, not the page.
+      final f1 = await tester.createGesture(kind: PointerDeviceKind.touch, pointer: 51);
+      final f2 = await tester.createGesture(kind: PointerDeviceKind.touch, pointer: 52);
+      final r0 = ruler.center + Offset(ruler.length / 2 - 20, 0);
+      await f1.down(r0, timeStamp: later);
+      await f2.down(ruler.center, timeStamp: later);
+      final before = ruler.center;
+      await f1.moveTo(r0 + const Offset(0, 40), timeStamp: later);
+      await f2.moveTo(before + const Offset(0, 40), timeStamp: later);
+      await f1.up(timeStamp: later);
+      await f2.up(timeStamp: later);
+      await tester.pump();
+      expect(ruler.center.dy, closeTo(before.dy + 40, 1));
+      expect(canvasPane.view.translation, Offset.zero);
+      await tester.pump(const Duration(seconds: 5));
+    });
+
     testWidgets('the laser draws a fading trail and saves nothing', (tester) async {
       final store = _storeWith(const []);
       final c = await pumpCanvas(tester, store: store);

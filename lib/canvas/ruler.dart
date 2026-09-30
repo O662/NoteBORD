@@ -53,8 +53,10 @@ class RulerEdge {
 
 /// The on-screen ruler (Tools.dc.html): 72 px tall, 620 long to start. It
 /// lives in screen space so it stays put while the page pans. Fingers move,
-/// turn and (pinching along it) lengthen it; the pen snaps to whichever
-/// long edge it starts near; tapping the angle chip sets an exact angle.
+/// turn and (pinching along it) lengthen it; dragging either end (finger or
+/// pen) swings and stretches it about the other end; the pen snaps to
+/// whichever long edge it starts near; tapping the angle chip sets an exact
+/// angle.
 class Ruler extends ChangeNotifier {
   static const thickness = 72.0;
   static const minLength = 240.0;
@@ -63,12 +65,21 @@ class Ruler extends ChangeNotifier {
   /// The pen snaps when it starts this close (screen px) outside an edge.
   static const reach = 28.0;
 
+  /// How far in from each end a drag grabs that end.
+  static const endZone = 48.0;
+
   bool _visible = false;
   Offset _center = Offset.zero;
   double _length = 620;
   double _fingerAngle = 0;
   double _angle = 0;
   double? _measure;
+
+  // An end being dragged: which (−1 left, 1 right), the other end (which
+  // stays put), and how far in from the end it was grabbed.
+  int _grabSide = 0;
+  Offset _anchor = Offset.zero;
+  double _grabInset = 0;
 
   bool get visible => _visible;
   Offset get center => _center;
@@ -120,11 +131,51 @@ class Ruler extends ChangeNotifier {
   /// settles on whole degrees, and on multiples of 45° within 2°.
   void rotateAbout(Offset focal, double radians) {
     _fingerAngle += radians;
-    var deg = _fingerAngle * 180 / math.pi;
+    _turnTo(_settle(_fingerAngle), focal);
+  }
+
+  /// Whole degrees, and multiples of 45° within 2° (radians in and out).
+  static double _settle(double radians) {
+    var deg = radians * 180 / math.pi;
     final nearest = (deg / 45).round() * 45.0;
     deg = (deg - nearest).abs() < 2 ? nearest : deg.roundToDouble();
-    _turnTo(deg * math.pi / 180, focal);
+    return deg * math.pi / 180;
   }
+
+  /// Which end [p] grabs: −1 the left, 1 the right, or null.
+  int? endAt(Offset p) {
+    if (!contains(p)) return null;
+    final (pu, _) = _local(p);
+    if (pu > _length / 2 - endZone) return 1;
+    if (pu < -_length / 2 + endZone) return -1;
+    return null;
+  }
+
+  /// Starts dragging the end [side] (see [endAt]), grabbed at [p].
+  void grabEnd(int side, Offset p) {
+    final (pu, _) = _local(p);
+    _grabSide = side;
+    _grabInset = _length / 2 - side * pu;
+    _anchor = _center - _u * (side * _length / 2);
+  }
+
+  /// Moves the grabbed end to follow [p]: the other end stays put, and the
+  /// ruler swings (settling like [rotateAbout]) and stretches to reach it.
+  void dragEnd(Offset p) {
+    if (_grabSide == 0) return;
+    final d = (p - _anchor) * _grabSide.toDouble(); // pointing left to right
+    if (d.distance < 20) return; // too close to the pinned end to aim
+    final a = _settle(math.atan2(d.dy, d.dx));
+    final u = Offset(math.cos(a), math.sin(a));
+    final reach = (p - _anchor).dx * u.dx * _grabSide + (p - _anchor).dy * u.dy * _grabSide;
+    _length = (reach + _grabInset).clamp(minLength, maxLength);
+    _angle = _fingerAngle = a;
+    _center = _anchor + u * (_grabSide * _length / 2);
+    _measure = null;
+    notifyListeners();
+  }
+
+  void releaseEnd() => _grabSide = 0;
 
   /// Sets the angle exactly: [deg] counter-clockwise from level.
   void setDegrees(double deg) {
@@ -231,6 +282,17 @@ class RulerPainter extends CustomPainter {
         ..strokeWidth = 1
         ..color = colors.text.withValues(alpha: 0.35),
     );
+    // Grips at both ends: drag one to swing and stretch the ruler.
+    final grip = Paint()
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round
+      ..color = colors.textFaint;
+    for (final side in [-1.0, 1.0]) {
+      final x = side * (ruler.length / 2 - 16);
+      for (final dx in [-4.0, 0.0, 4.0]) {
+        canvas.drawLine(Offset(x + dx, 10), Offset(x + dx, 28), grip);
+      }
+    }
 
     final measure = ruler.measure;
     final text = measure == null ? formatDegrees(ruler.degrees) : '${formatDegrees(ruler.degrees)} · ${unit.format(measure)}';

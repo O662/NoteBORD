@@ -55,7 +55,7 @@ const toastDuration = Duration(seconds: 4);
 const handleReach = 22.0;
 
 /// What the drawing pointer (pen, mouse, or a drawing finger) is doing.
-enum _Drag { none, ink, erase, laser, lasso, marquee, move, resize, rotate, rulerChip }
+enum _Drag { none, ink, erase, laser, lasso, marquee, move, resize, rotate, rulerChip, rulerEnd }
 
 /// What the fingers are doing.
 enum _Touch { navigate, ruler, selection }
@@ -136,6 +136,9 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   bool _chipMoved = false;
   int? _chipFinger;
   int _samples = 0;
+
+  /// Where the drawing pointer is on screen.
+  Offset? _drawAt;
 
   // Selection drags, in page coordinates.
   Offset _dragFrom = Offset.zero;
@@ -278,16 +281,23 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       return;
     }
     if (_fingerDrawing && _drawPointer != null) {
-      // A second finger means navigate, not draw.
+      // A second finger means navigate, not draw (or, on a ruler end, that
+      // both fingers now move the ruler).
       final first = _drawPointer!;
-      final at = active.lastScreen ?? e.localPosition;
+      final at = _drawAt ?? e.localPosition;
+      final onRuler = _drag == _Drag.rulerEnd;
       _cancelInput();
-      _touch = _Touch.navigate;
+      _touch = onRuler ? _Touch.ruler : _Touch.navigate;
       _touches[first] = at;
     } else if (_touches.isEmpty && _drawPointer == null) {
       // The first finger decides what the fingers move.
       final page = _vp.toPage(e.localPosition);
-      if (pane.ruler.contains(e.localPosition)) {
+      if (pane.ruler.endAt(e.localPosition) case final side?) {
+        // A finger on either end of the ruler swings and stretches it.
+        _startRulerEnd(e, side);
+        _fingerDrawing = true;
+        return;
+      } else if (pane.ruler.contains(e.localPosition)) {
         _touch = _Touch.ruler;
         if (pane.ruler.chipContains(e.localPosition)) {
           _chipFinger = e.pointer;
@@ -448,6 +458,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   void _startInput(PointerDownEvent e, {required bool erase}) {
     final settings = ref.read(settingsProvider);
     _drawPointer = e.pointer;
+    _drawAt = e.localPosition;
     _strokeStart = e.timeStamp;
     _hover.value = null;
     _dismissToast();
@@ -457,6 +468,10 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       _lastErase = page;
       _notebook.beginErase(_page.id);
       _eraseTo(page);
+      return;
+    }
+    if (pane.ruler.endAt(e.localPosition) case final side?) {
+      _startRulerEnd(e, side);
       return;
     }
     if (pane.ruler.chipContains(e.localPosition)) {
@@ -495,7 +510,17 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     }
   }
 
+  /// Drags the ruler's [side] end (−1 left, 1 right) with this pointer.
+  void _startRulerEnd(PointerDownEvent e, int side) {
+    _drawPointer = e.pointer;
+    _drawAt = e.localPosition;
+    _hover.value = null;
+    _drag = _Drag.rulerEnd;
+    pane.ruler.grabEnd(side, e.localPosition);
+  }
+
   void _addSample(PointerEvent e) {
+    _drawAt = e.localPosition;
     final page = _vp.toPage(e.localPosition);
     switch (_drag) {
       case _Drag.erase:
@@ -526,6 +551,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _selection.live = Similarity.about(_dragPivot, rotation: a);
       case _Drag.rulerChip:
         if ((e.localPosition - _chipDown).distance > 10) _chipMoved = true;
+      case _Drag.rulerEnd:
+        pane.ruler.dragEnd(e.localPosition);
       case _Drag.none:
         break;
     }
@@ -562,6 +589,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _land(_selection.live);
       case _Drag.rulerChip:
         if (!_chipMoved) _openRulerMenu();
+      case _Drag.rulerEnd:
+        pane.ruler.releaseEnd();
       case _Drag.none:
         break;
     }
@@ -590,7 +619,9 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   }
 
   void _resetInput() {
+    if (_drag == _Drag.rulerEnd) pane.ruler.releaseEnd();
     _drawPointer = null;
+    _drawAt = null;
     _drag = _Drag.none;
     _lastErase = null;
     _fingerDrawing = false;

@@ -371,6 +371,34 @@ void main() {
       expect(r.contains(r.center + const Offset(100, 0)), isTrue);
     });
 
+    test('dragging an end swings and stretches it about the other end', () {
+      final r = shown(); // center (640, 496), 620 long: ends at x 330 and 950
+      expect(r.endAt(const Offset(930, 496)), 1);
+      expect(r.endAt(const Offset(350, 496)), -1);
+      expect(r.endAt(const Offset(640, 496)), isNull);
+      expect(r.endAt(const Offset(930, 560)), isNull); // off the ruler
+
+      // Grab the right end 20 px in, pull it up and out to 30°.
+      r.grabEnd(1, const Offset(930, 496));
+      final target = const Offset(330, 496) + Offset(math.cos(-math.pi / 6), math.sin(-math.pi / 6)) * 780;
+      r.dragEnd(target + const Offset(0.3, 0.4)); // a hair off: it settles on 30°
+      r.releaseEnd();
+      expect(r.degrees, closeTo(30, 1e-9));
+      expect(r.length, closeTo(800, 0.5)); // 780 to the finger + the 20 px it was grabbed in
+      final left = r.center - Offset(math.cos(r.angle), math.sin(r.angle)) * (r.length / 2);
+      expect(left.dx, closeTo(330, 0.01));
+      expect(left.dy, closeTo(496, 0.01));
+
+      // The left end, dragged in close, shortens it, down to the minimum.
+      final right = r.center + Offset(math.cos(r.angle), math.sin(r.angle)) * (r.length / 2);
+      r.grabEnd(-1, left + Offset(math.cos(r.angle), math.sin(r.angle)) * 10);
+      r.dragEnd(right - Offset(math.cos(r.angle), math.sin(r.angle)) * 100);
+      expect(r.length, Ruler.minLength);
+      final newRight = r.center + Offset(math.cos(r.angle), math.sin(r.angle)) * (r.length / 2);
+      expect(newRight.dx, closeTo(right.dx, 0.01));
+      expect(newRight.dy, closeTo(right.dy, 0.01));
+    });
+
     test('units read the page: an inch is 160 px', () {
       expect(RulerUnit.inch.format(240), '1.50 in');
       expect(RulerUnit.cm.format(160 / 2.54 * 4.2), '4.2 cm');
