@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'dart:ui' show Color, Locale, Offset, Rect, Size;
 
 import 'package:endless/board/model.dart';
+import 'package:endless/canvas/new_items.dart';
 import 'package:endless/transfer/pdf_export.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -76,27 +77,74 @@ void main() {
     final page = BoardPage(id: 'p', items: [
       strokeFrom([const Offset(100, 100), const Offset(700, 400)]),
     ]);
-    final sheets = pdfSheets(page, const PdfOptions());
-    expect(sheets, hasLength(1));
-    expect(sheets.single.contains(const Offset(100, 100)), isTrue);
-    expect(sheets.single.contains(const Offset(700, 400)), isTrue);
-    expect(sheets.single.width, closeTo(600 + 2 * fitMargin + page.items.first.bounds.width - 600, 0.01));
+    final sheet = pdfSheets(page, const PdfOptions()).single;
+    expect(sheet.area, page.items.single.bounds.inflate(fitMargin));
+    expect(sheet.size, sheet.area.size, reason: 'one page px is one point');
     final sizes = _pageSizes(_text(await _pdf(tester, [page])));
-    expect(sizes, hasLength(1));
-    expect(sizes.single[0], closeTo(sheets.single.width, 0.01));
+    expect(sizes.single[0], closeTo(sheet.size.width, 0.01));
   });
 
-  testWidgets('split into A4 or Letter: paper-sized sheets, empty ones left out', (tester) async {
+  // What the tablet did (2026-10-01): a lined A4 frame came out as four
+  // quarters of a 2 × 2 grid, the writing where they met.
+  testWidgets('split: a lined A4 sheet with writing is one page, from the top', (tester) async {
+    final frame = newFrame(const Offset(400, 300), z: 1, now: testNow);
+    final page = BoardPage(id: 'p', items: [
+      frame,
+      for (var i = 0; i < 4; i++)
+        strokeFrom([for (var x = 0; x <= 20; x++) Offset(frame.x + 120 + x * 8.0, frame.y + 130 + i * 40 + (x.isEven ? 0 : 8))], z: 2 + i),
+    ]);
+    for (final paper in PaperSize.values) {
+      final all = pdfSheets(page, PdfOptions(pages: EndlessPages.split, paper: paper));
+      expect(all, hasLength(1), reason: '$paper');
+      final sheet = all.single;
+      expect(sheet.size, paper.size);
+      final ink = pageContent(page)!;
+      expect(sheet.clip.expandToInclude(ink), sheet.clip, reason: 'nothing is cut off');
+      // The ink starts half an inch from the top, centered across.
+      expect((ink.top - sheet.area.top) * sheet.scale, closeTo(paperMargin, 0.01));
+      expect((ink.center.dx - sheet.area.left) * sheet.scale, closeTo(paper.size.width / 2, 0.01));
+    }
+  });
+
+  testWidgets('split: long pages go onto several sheets, cut between lines of writing', (tester) async {
+    final lines = [
+      for (var i = 0; i < 40; i++)
+        strokeFrom([for (var x = 0; x <= 30; x++) Offset(x * 15.0, i * 44.0 + (x.isEven ? 0 : 14))], z: i + 1),
+    ];
+    final page = BoardPage(id: 'p', items: lines);
+    final sheets = pdfSheets(page, const PdfOptions(pages: EndlessPages.split));
+    expect(sheets.length, greaterThan(1));
+    for (final (i, s) in sheets.indexed) {
+      expect(s.size, PaperSize.a4.size);
+      expect(s.scale, 1, reason: 'narrower than the paper: kept at its size');
+      if (i > 0) expect(s.clip.top, sheets[i - 1].clip.bottom, reason: 'nothing skipped or repeated');
+      for (final l in lines) {
+        expect(l.bounds.top < s.clip.bottom && l.bounds.bottom > s.clip.bottom && s != sheets.last, isFalse, reason: 'no line cut in half');
+      }
+    }
+    expect(sheets.last.clip.bottom, pageContent(page)!.bottom);
+  });
+
+  testWidgets('split: wide ink turns the paper sideways and shrinks to fit, down to half size', (tester) async {
+    final wide = BoardPage(id: 'p', items: [strokeFrom([const Offset(0, 0), const Offset(1200, 300)])]);
+    final sheet = pdfSheets(wide, const PdfOptions(pages: EndlessPages.split)).single;
+    expect(sheet.size, Size(PaperSize.a4.size.height, PaperSize.a4.size.width));
+    expect(sheet.scale, lessThan(1));
+    expect(sheet.clip.width * sheet.scale, closeTo(sheet.size.width - 2 * paperMargin, 0.01));
+
+    final huge = BoardPage(id: 'p', items: [strokeFrom([const Offset(0, 0), const Offset(4000, 300)])]);
+    final sheets = pdfSheets(huge, const PdfOptions(pages: EndlessPages.split));
+    expect(sheets.length, 3, reason: 'side by side at half size');
+    for (final s in sheets) {
+      expect(s.scale, closeTo(minPaperScale, 1e-9));
+    }
+  });
+
+  testWidgets('split into Letter: empty stretches are left out', (tester) async {
     final page = BoardPage(id: 'p', items: [
       strokeFrom([const Offset(0, 0), const Offset(500, 40)]),
       strokeFrom([const Offset(0, 1500), const Offset(500, 1540)]),
     ]);
-    final a4 = pdfSheets(page, const PdfOptions(pages: EndlessPages.split));
-    expect(a4.length, 2, reason: 'the middle of the page has no ink');
-    for (final s in a4) {
-      expect(s.width, closeTo(PaperSize.a4.size.width, 0.001));
-      expect(s.height, closeTo(PaperSize.a4.size.height, 0.001));
-    }
     final letter = _pageSizes(_text(await _pdf(tester, [page], options: const PdfOptions(pages: EndlessPages.split, paper: PaperSize.letter))));
     expect(letter, [
       [612, 792],
@@ -105,13 +153,15 @@ void main() {
   });
 
   testWidgets('an empty page is one blank sheet', (tester) async {
-    expect(pdfSheets(BoardPage(id: 'p'), const PdfOptions()), [Offset.zero & PaperSize.a4.size]);
+    final sheet = pdfSheets(BoardPage(id: 'p'), const PdfOptions()).single;
+    expect((sheet.area, sheet.size), (Offset.zero & PaperSize.a4.size, PaperSize.a4.size));
   });
 
   testWidgets('an imported PDF page with writing inside it goes out at its own size', (tester) async {
     final file = FileItem(id: 'f', x: 0, y: 0, z: 1, createdAt: testNow, w: 612, h: 792, asset: 'a.pdf', mime: 'pdf', page: 1, preview: 'a.png');
     final page = BoardPage(id: 'p', items: [file, strokeFrom([const Offset(100, 100), const Offset(200, 120)], z: 2)]);
-    expect(pdfSheets(page, const PdfOptions()), [const Rect.fromLTWH(0, 0, 612, 792)]);
+    final sheet = pdfSheets(page, const PdfOptions()).single;
+    expect((sheet.area, sheet.size), (const Rect.fromLTWH(0, 0, 612, 792), const Size(612, 792)));
   });
 
   testWidgets('the dot background is optional', (tester) async {

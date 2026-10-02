@@ -116,34 +116,107 @@ Rect? pageContent(BoardPage page) {
   return r;
 }
 
-/// The parts of [page] that become PDF pages, in reading order (page px).
-List<Rect> pdfSheets(BoardPage page, PdfOptions options) {
+/// One PDF page: [area] of the endless page (page px) printed onto a sheet
+/// of [size] (points), drawing only what is in [clip].
+class PdfSheet {
+  PdfSheet(this.area, this.size, {Rect? clip}) : clip = clip ?? area;
+
+  final Rect area;
+  final Size size;
+  final Rect clip;
+
+  /// Points per page px.
+  double get scale => size.width / area.width;
+
+  @override
+  String toString() => 'PdfSheet($area → $size, clip $clip)';
+}
+
+/// The margin around the ink on a sheet of paper, in points (half an inch).
+const paperMargin = 36.0;
+
+/// Ink is never shrunk below this to fit the paper's width; wider pages
+/// go on several sheets side by side.
+const minPaperScale = 0.5;
+
+/// The parts of [page] that become PDF pages, in reading order.
+///
+/// Fit: one sheet the size of the ink plus [fitMargin], one page px to a
+/// point (an imported PDF page with everything written inside it goes out
+/// exactly as it came in). Split: like printing. The ink is shrunk to fit
+/// the paper's width inside [paperMargin] (turning the paper sideways when
+/// the ink is wide), then cut into sheets from the top, between lines of
+/// writing where it can.
+List<PdfSheet> pdfSheets(BoardPage page, PdfOptions options) {
   final content = pageContent(page);
   final paper = options.paper.size;
-  if (content == null) return [Offset.zero & paper];
+  if (content == null) return [PdfSheet(Offset.zero & paper, paper)];
   if (options.pages == EndlessPages.fit) {
-    // An imported page with everything written inside it goes out as it came in.
     for (final f in page.items.whereType<FileItem>()) {
       if (f.rotation == 0 && page.items.every((i) => identical(i, f) || _inside(i.bounds, f.extent))) {
-        return [f.extent];
+        return [_fitted(f.extent)];
       }
     }
-    return [content.inflate(fitMargin)];
+    return [_fitted(content.inflate(fitMargin))];
   }
-  final area = content.inflate(fitMargin / 2);
-  final cols = math.max(1, (area.width / paper.width).ceil());
-  final rows = math.max(1, (area.height / paper.height).ceil());
-  final origin = area.center - Offset(cols * paper.width / 2, rows * paper.height / 2);
-  final sheets = <Rect>[
-    for (var r = 0; r < rows; r++)
-      for (var c = 0; c < cols; c++) (origin + Offset(c * paper.width, r * paper.height)) & paper,
-  ];
-  final layout = layoutBounds(page.template);
-  final used = [
-    for (final s in sheets)
-      if (page.items.any((i) => i.bounds.overlaps(s)) || (layout?.overlaps(s) ?? false)) s,
-  ];
-  return used.isEmpty ? [sheets.first] : used;
+
+  // Sideways when the ink is wider than tall and won't fit upright.
+  final portraitWidth = paper.width - 2 * paperMargin;
+  final landscape = content.width > content.height && content.width > portraitWidth;
+  final sheet = landscape ? Size(paper.height, paper.width) : paper;
+  final printable = Size(sheet.width - 2 * paperMargin, sheet.height - 2 * paperMargin);
+  var k = (printable.width / content.width).clamp(minPaperScale, 1.0);
+  // Just over one sheet (an A4 frame on Letter): shrink it onto one.
+  if (content.height * k > printable.height && content.height * k <= printable.height * 1.25) {
+    k = math.max(minPaperScale, printable.height / content.height);
+  }
+  // Page px that fit across and down one sheet.
+  final across = printable.width / k, down = printable.height / k;
+  final cols = math.max(1, (content.width / across - 0.001).ceil());
+  final left = cols == 1 ? content.center.dx - across / 2 : content.left;
+
+  final sheets = <PdfSheet>[];
+  for (var c = 0; c < cols; c++) {
+    final x = left + c * across;
+    final column = Rect.fromLTRB(x, content.top, x + across, content.bottom);
+    final spans = [
+      for (final i in page.items)
+        if (i.bounds.overlaps(column)) i.bounds,
+    ];
+    var y = content.top;
+    while (y < content.bottom - 0.01) {
+      final end = _cut(spans, y, math.min(y + down, content.bottom));
+      final clip = Rect.fromLTRB(x, y, x + across, end);
+      if (spans.any((b) => b.overlaps(clip)) || (layoutBounds(page.template)?.overlaps(clip) ?? false)) {
+        final margin = paperMargin / k;
+        sheets.add(PdfSheet(Rect.fromLTWH(x - margin, y - margin, sheet.width / k, sheet.height / k), sheet, clip: clip));
+      }
+      y = end;
+    }
+  }
+  return sheets.isEmpty ? [PdfSheet(Offset.zero & paper, paper)] : sheets;
+}
+
+/// A sheet for [area] at one point per page px, scaled down to the biggest
+/// page readers handle.
+PdfSheet _fitted(Rect area) {
+  final k = math.min(1.0, maxSheet / math.max(area.width, area.height));
+  return PdfSheet(area, area.size * k);
+}
+
+/// Where to end a sheet that starts at [top] and can reach [limit]: in the
+/// lowest gap between the [spans] (what's drawn) in its bottom 40%, so a
+/// line of writing isn't cut in half; else at [limit].
+double _cut(List<Rect> spans, double top, double limit) {
+  if (!spans.any((b) => b.bottom > limit)) return limit;
+  final lowest = top + (limit - top) * 0.6;
+  var cut = limit;
+  while (true) {
+    final across = spans.where((b) => b.top < cut && b.bottom > cut);
+    if (across.isEmpty) return cut;
+    cut = across.map((b) => b.top).reduce(math.min) - 0.5;
+    if (cut < lowest) return limit;
+  }
 }
 
 bool _inside(Rect a, Rect b) => a.left >= b.left - 0.5 && a.top >= b.top - 0.5 && a.right <= b.right + 0.5 && a.bottom <= b.bottom + 0.5;
@@ -206,30 +279,30 @@ class _PdfWriter {
 
   void _transform(Matrix4 m) => g.setTransform(m);
 
-  Future<void> sheet(BoardPage page, Rect sheet, List<TextRun> runs) async {
-    final k = math.min(1.0, maxSheet / math.max(sheet.width, sheet.height));
-    final format = PdfPageFormat(sheet.width * k, sheet.height * k);
+  Future<void> sheet(BoardPage page, PdfSheet sheet, List<TextRun> runs) async {
+    final format = PdfPageFormat(sheet.size.width, sheet.size.height);
     final pdfPage = PdfPage(doc, pageFormat: format);
+    final k = sheet.scale, area = sheet.area, clip = sheet.clip;
     g = pdfPage.getGraphics();
     g.saveContext();
     // Page px, y down, onto PDF points, y up.
     _transform(Matrix4.identity()
-      ..translateByDouble(-sheet.left * k, format.height + sheet.top * k, 0, 1)
+      ..translateByDouble(-area.left * k, format.height + area.top * k, 0, 1)
       ..scaleByDouble(k, -k, 1, 1));
     g
-      ..drawRect(sheet.left, sheet.top, sheet.width, sheet.height)
+      ..drawRect(clip.left, clip.top, clip.width, clip.height)
       ..clipPath();
 
-    if (options.background) _paper(page.paper, sheet);
+    if (options.background) _paper(page.paper, clip);
     final layout = layoutBounds(page.template);
-    if (layout != null && layout.overlaps(sheet)) {
+    if (layout != null && layout.overlaps(clip)) {
       final picture = layoutPicture(page.template, c);
       if (picture != null) await _raster(layout, (canvas) => canvas.drawPicture(picture));
     }
 
     final text = <TextRun>[...runs];
     for (final item in page.items) {
-      if (!item.bounds.overlaps(sheet)) continue;
+      if (!item.bounds.overlaps(clip)) continue;
       switch (item) {
         case StrokeItem s:
           _stroke(s, s.color);
@@ -243,7 +316,7 @@ class _PdfWriter {
     if (options.searchable) {
       final font = await _font(FontFamilies.ui);
       for (final run in text) {
-        if (run.rect.overlaps(sheet)) _invisible(font, run);
+        if (run.rect.overlaps(clip)) _invisible(font, run);
       }
     }
     g.restoreContext();
