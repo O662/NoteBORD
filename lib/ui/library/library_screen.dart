@@ -11,6 +11,7 @@ import '../common.dart';
 import '../dialogs.dart';
 import '../icons.dart';
 import '../routes.dart';
+import '../transfer/transfer_dialog.dart';
 import '../templates/templates_dialog.dart';
 import 'format.dart';
 import 'sidebar.dart';
@@ -218,7 +219,7 @@ class _Header extends ConsumerWidget {
           icon: EIcons.download,
           height: 46,
           filled: true,
-          onPressed: () => showComingSoon(context, 'Importing PDFs and files'),
+          onPressed: () => showTransferDialog(context, mode: TransferMode.import, folder: folder),
         ),
         SecondaryButton(
           label: 'New notebook',

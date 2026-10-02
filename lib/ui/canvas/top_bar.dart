@@ -31,7 +31,7 @@ class TopBar extends StatelessWidget {
     required this.onToggleTray,
     required this.moreOpen,
     required this.onToggleMore,
-    required this.onComingSoon,
+    required this.onShare,
   });
 
   /// The left pill: [TitlePill] on the canvas, the split title in Split view.
@@ -52,7 +52,9 @@ class TopBar extends StatelessWidget {
   final VoidCallback onToggleTray;
   final bool moreOpen;
   final VoidCallback onToggleMore;
-  final ValueChanged<String> onComingSoon;
+
+  /// Opens the Share dialog.
+  final VoidCallback onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +90,7 @@ class TopBar extends StatelessWidget {
               if (showActions)
                 Align(
                   alignment: Alignment.centerRight,
-                  child: ActionsPill(moreOpen: moreOpen, onToggleMore: onToggleMore, onComingSoon: onComingSoon),
+                  child: ActionsPill(moreOpen: moreOpen, onToggleMore: onToggleMore, onShare: onShare),
                 ),
             ],
           ),
@@ -353,13 +355,13 @@ class ToolPill extends ConsumerWidget {
   }
 }
 
-/// Share (dark) and ⋯. Export lives in the ⋯ menu and, later, the Share dialog.
+/// Share (dark) and ⋯. Export lives in the ⋯ menu and the Share dialog.
 class ActionsPill extends StatelessWidget {
-  const ActionsPill({super.key, required this.moreOpen, required this.onToggleMore, required this.onComingSoon});
+  const ActionsPill({super.key, required this.moreOpen, required this.onToggleMore, required this.onShare});
 
   final bool moreOpen;
   final VoidCallback onToggleMore;
-  final ValueChanged<String> onComingSoon;
+  final VoidCallback onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -375,7 +377,7 @@ class ActionsPill extends StatelessWidget {
             padding: 15,
             background: c.inverse,
             foreground: c.onInverse,
-            onPressed: () => onComingSoon('Sharing'),
+            onPressed: onShare,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               spacing: 8,

@@ -332,8 +332,11 @@ void main() {
       expect(find.text(item), findsOneWidget, reason: item);
     }
     await tester.tap(find.text('Export'));
-    await tester.pump();
-    expect(find.text('Export is coming soon'), findsOneWidget);
+    await tester.pumpAndSettle();
+    // Export opens Import and export (tested in test/ui/transfer_test.dart).
+    expect(find.text('WHAT TO EXPORT'), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('Close'));
+    await tester.pumpAndSettle();
     expect(find.text('Import'), findsNothing);
 
     // Tapping outside closes it.

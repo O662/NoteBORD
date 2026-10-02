@@ -933,6 +933,9 @@ class ImageItem extends BoxItem {
   final double h;
   final String asset;
 
+  /// The `assets/` file that is drawn.
+  String get picture => asset;
+
   @override
   String get type => 'image';
 
@@ -965,6 +968,94 @@ class ImageItem extends BoxItem {
 
   @override
   Json toJson() => {...boxJson(), 'asset': asset};
+}
+
+/// One page of a file on the board, written on like a picture: an imported
+/// PDF page. `asset` is the file itself, [preview] a picture of [page] made
+/// from it when it was imported, and [text] the page's own text, kept so it
+/// stays searchable.
+class FileItem extends ImageItem {
+  FileItem({
+    required super.id,
+    required super.x,
+    required super.y,
+    super.rotation,
+    required super.z,
+    required super.createdAt,
+    super.author,
+    super.remember,
+    super.extra,
+    required super.w,
+    required super.h,
+    required super.asset,
+    required this.mime,
+    this.page,
+    this.preview,
+    this.name = '',
+    this.text = '',
+  });
+
+  /// `pdf` (later `docx`, `pptx`, `xlsx`).
+  final String mime;
+
+  /// Which page of the file, from 1.
+  final int? page;
+
+  /// The picture of the page in `assets/`, or null if there is none.
+  final String? preview;
+
+  /// The file's name when it was imported ("Lecture 3.pdf").
+  final String name;
+  final String text;
+
+  @override
+  String get picture => preview ?? '';
+
+  @override
+  String get type => 'file';
+
+  @override
+  FileItem withBox({
+    String? id,
+    int? z,
+    DateTime? createdAt,
+    required double x,
+    required double y,
+    required double w,
+    required double h,
+    double? rotation,
+    double scale = 1,
+  }) =>
+      FileItem(
+        id: id ?? this.id,
+        x: x,
+        y: y,
+        rotation: rotation ?? this.rotation,
+        z: z ?? this.z,
+        createdAt: createdAt ?? this.createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        w: w,
+        h: h,
+        asset: asset,
+        mime: mime,
+        page: page,
+        preview: preview,
+        name: name,
+        text: text,
+      );
+
+  @override
+  Json toJson() => {
+        ...boxJson(),
+        'asset': asset,
+        'mime': mime,
+        if (page != null) 'page': page,
+        if (preview != null) 'preview': preview,
+        if (name.isNotEmpty) 'name': name,
+        if (text.isNotEmpty) 'text': text,
+      };
 }
 
 enum ShapeType { rect, ellipse, triangle, line, arrow }

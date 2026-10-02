@@ -18,6 +18,10 @@ import 'package:endless/state/notebook.dart';
 import 'package:endless/state/photos.dart';
 import 'package:endless/state/settings.dart';
 import 'package:endless/theme/tokens.g.dart' as tokens;
+import 'package:endless/transfer/board_file.dart' show ImportProblem;
+import 'package:endless/transfer/files.dart';
+import 'package:endless/transfer/pdf_import.dart';
+import 'package:endless/transfer/transfer.dart';
 import 'package:endless/ui/canvas/canvas_screen.dart';
 import 'package:endless/ui/common.dart';
 import 'package:endless/ui/routes.dart';
@@ -295,4 +299,81 @@ LoadedNotebook sampleNotebook() {
     pageIds: [for (final p in pages) p.id],
   );
   return LoadedNotebook(nb, pages);
+}
+
+/// Files in and out: what was saved, shared and printed, and what the next
+/// pick returns.
+class FakeFileTransfer implements FileTransfer {
+  List<PickedFile> toPick = [];
+  bool saveAnswer = true;
+  final saved = <ExportFile>[];
+  final shared = <ExportFile>[];
+  final printed = <ExportFile>[];
+
+  @override
+  Future<List<PickedFile>> pick() async => toPick;
+
+  @override
+  Future<bool> save(String name, Uint8List bytes, String mime) async {
+    if (saveAnswer) saved.add(ExportFile(name, bytes, mime));
+    return saveAnswer;
+  }
+
+  @override
+  Future<void> share(String name, Uint8List bytes, String mime) async => shared.add(ExportFile(name, bytes, mime));
+
+  @override
+  Future<void> print(String name, Uint8List pdf) async => printed.add(ExportFile(name, pdf, pdfMime));
+}
+
+/// A PDF of [pages] (points) whose pages draw as [fakePng] and say
+/// "Page n".
+class FakePdfReader implements PdfReader {
+  FakePdfReader({this.pages = const [Size(612, 792), Size(612, 792)], this.password = false});
+
+  final List<Size> pages;
+  final bool password;
+
+  @override
+  Future<PdfSource> open(Uint8List bytes, {String name = ''}) async {
+    if (password) throw const ImportProblem('This PDF has a password.');
+    return _FakePdf(pages);
+  }
+}
+
+class _FakePdf implements PdfSource {
+  _FakePdf(this.pages);
+
+  final List<Size> pages;
+
+  @override
+  int get pageCount => pages.length;
+
+  @override
+  Size pageSize(int index) => pages[index];
+
+  @override
+  Future<Uint8List> renderPng(int index, {required double scale}) async => fakePng(100 + index);
+
+  @override
+  Future<String> text(int index) async => 'Page ${index + 1}';
+
+  @override
+  Future<void> close() async {}
+}
+
+/// Bytes that start like a PDF file.
+Uint8List fakePdfBytes([int seed = 1]) => Uint8List.fromList([...'%PDF-1.7\n'.codeUnits, for (var i = 0; i < 40; i++) (seed * 13 + i) % 256]);
+
+/// Runs real async work (PDF and picture encoding) until [done], pumping
+/// frames in between.
+Future<void> settleReal(WidgetTester tester, bool Function() done, {Duration timeout = const Duration(seconds: 30)}) async {
+  final end = DateTime.now().add(timeout);
+  while (!done()) {
+    if (DateTime.now().isAfter(end)) throw TestFailure('Timed out waiting');
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+    // With a duration, so zero-length timers (yielding between pages) fire.
+    await tester.pump(const Duration(milliseconds: 1));
+  }
+  await tester.pump();
 }

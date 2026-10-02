@@ -8,13 +8,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 typedef ImageDecoder = Future<ui.Image> Function(Uint8List bytes);
 
-/// Decodes an image file. Throws if the bytes aren't an image.
+/// The longest side a picture is decoded at. Photos from the picker are
+/// stored at most this big; files imported as they are may be larger, and
+/// are shown at this size (the file keeps its own).
+const maxDecodedSide = 2400;
+
+/// Decodes an image file, no bigger than [maxDecodedSide]. Throws if the
+/// bytes aren't an image.
 Future<ui.Image> decodeImageBytes(Uint8List bytes) async {
-  final codec = await ui.instantiateImageCodec(bytes);
+  final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+  final ui.ImageDescriptor descriptor;
+  try {
+    descriptor = await ui.ImageDescriptor.encoded(buffer);
+  } finally {
+    buffer.dispose();
+  }
+  final w = descriptor.width, h = descriptor.height;
+  final big = w > maxDecodedSide || h > maxDecodedSide;
+  final codec = await descriptor.instantiateCodec(
+    targetWidth: big && w >= h ? maxDecodedSide : null,
+    targetHeight: big && h > w ? maxDecodedSide : null,
+  );
   try {
     return (await codec.getNextFrame()).image;
   } finally {
     codec.dispose();
+    descriptor.dispose();
   }
 }
 
@@ -37,22 +56,23 @@ String imageExtension(Uint8List b) {
   if (starts(const [0x47, 0x49, 0x46])) return 'gif';
   if (starts(const [0x52, 0x49, 0x46, 0x46]) && starts(const [0x57, 0x45, 0x42, 0x50], 8)) return 'webp';
   if (starts(const [0x42, 0x4D])) return 'bmp';
+  if (starts(const [0x25, 0x50, 0x44, 0x46])) return 'pdf';
   return 'img';
 }
 
-/// The content-addressed file name for an image: `<sha256>.<ext>`.
+/// The content-addressed file name for an image or PDF: `<sha256>.<ext>`.
 String assetNameFor(Uint8List bytes) {
   final hash = const DartSha256().hashSync(bytes).bytes;
   final hex = [for (final v in hash) v.toRadixString(16).padLeft(2, '0')].join();
   return '$hex.${imageExtension(bytes)}';
 }
 
-/// Every `asset` named anywhere in an item's JSON (nested items and item
-/// types this version doesn't know included).
+/// Every `asset` (and a file page's `preview`) named anywhere in an item's
+/// JSON (nested items and item types this version doesn't know included).
 Iterable<String> assetRefs(Object? json) sync* {
   if (json is Map) {
     for (final e in json.entries) {
-      if ((e.key == 'asset') && e.value is String) {
+      if ((e.key == 'asset' || e.key == 'preview') && e.value is String) {
         yield e.value as String;
       } else {
         yield* assetRefs(e.value);

@@ -255,7 +255,7 @@ void _rules(Canvas canvas, Rect rect, Paper paper, double step, EndlessColors c,
 
 void _paintImage(Canvas canvas, ImageItem i, EndlessColors c, ImageLookup? images) {
   final rect = Offset.zero & Size(i.w, i.h);
-  final image = images?.call(i.asset);
+  final image = i.picture.isEmpty ? null : images?.call(i.picture);
   if (image == null) {
     // Still loading, or the file is missing: show where it goes.
     canvas

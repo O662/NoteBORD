@@ -398,6 +398,38 @@ class NotebookNotifier extends Notifier<NotebookState> {
     return item;
   }
 
+  /// Adds [pages] after page [after] (default: at the end), storing [files]
+  /// (asset name → bytes) first, and returns the first new page's index.
+  /// In a notebook with a password the files are sealed with its key; null
+  /// if it is locked right now.
+  Future<int?> addPagesWithFiles(List<BoardPage> pages, Map<String, Uint8List> files, {int? after}) async {
+    final key = _notebookKey;
+    if (key == null && _lock.notebook != null) return null;
+    await _queue.run(() async {
+      for (final e in files.entries) {
+        if (key == null) {
+          await _store.saveAsset(id, e.key, e.value);
+        } else {
+          await _store.saveAsset(id, '${e.key}.enc', await _crypto.sealBytes(key, e.value));
+        }
+      }
+    });
+    if (!ref.mounted) return null;
+    final nb = state.notebook;
+    final at = after == null ? state.pages.length : (after + 1).clamp(0, state.pages.length);
+    for (final (i, page) in pages.indexed) {
+      nb.pageIds.insert(at + i, page.id);
+      state.pages.insert(at + i, PageRuntime(page, images: _images.lookup));
+      _changed(page.id);
+    }
+    _metaDirty = true;
+    return at;
+  }
+
+  /// An `assets/` file in the clear (opened with a key held now), or null
+  /// if it is missing or locked. For exports.
+  Future<Uint8List?> readAsset(String name) => _readAsset(name);
+
   // Image files.
 
   void _imageLoaded(String asset) {

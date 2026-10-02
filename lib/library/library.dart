@@ -341,6 +341,15 @@ class LibraryNotifier extends Notifier<LibraryState> {
     return nb.id;
   }
 
+  /// Lists a notebook that was just written to storage (an import).
+  Future<void> addFromStore(String id) async {
+    final loaded = await _store.loadNotebook(id);
+    if (loaded == null) return;
+    final folder = loaded.notebook.folderPath;
+    if (folder.isNotEmpty) await _ensureFolder(folder);
+    _put(NotebookEntry.fromLoaded(loaded));
+  }
+
   Future<void> rename(String id, String title) {
     final t = title.trim();
     if (t.isEmpty) return Future.value();

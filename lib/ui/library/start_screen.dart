@@ -11,6 +11,7 @@ import '../common.dart';
 import '../dialogs.dart';
 import '../icons.dart';
 import '../routes.dart';
+import '../transfer/transfer_dialog.dart';
 import '../templates/templates_dialog.dart';
 import 'format.dart';
 import 'sidebar.dart';
@@ -113,7 +114,7 @@ class _Actions extends ConsumerWidget {
           label: 'Import PDF or file',
           icon: EIcons.download,
           iconColor: c.clay,
-          onTap: () => showComingSoon(context, 'Importing PDFs and files'),
+          onTap: () => showTransferDialog(context, mode: TransferMode.import),
         ),
       ),
       Expanded(

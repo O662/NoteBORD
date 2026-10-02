@@ -318,6 +318,18 @@ void main() {
         expect((decoded.width, decoded.height), (64, 48));
         decoded.dispose();
         await expectLater(decodeImageBytes(Uint8List.fromList([1, 2, 3, 4])), throwsException);
+        expect(imageExtension(Uint8List.fromList('%PDF-1.7'.codeUnits)), 'pdf');
+      });
+    });
+
+    testWidgets('a huge picture is decoded no bigger than 2400 px, in proportion', (tester) async {
+      await tester.runAsync(() async {
+        final source = testPicture(w: 3000, h: 600);
+        final png = (await source.toByteData(format: ui.ImageByteFormat.png))!.buffer.asUint8List();
+        source.dispose();
+        final decoded = await decodeImageBytes(png);
+        expect((decoded.width, decoded.height), (maxDecodedSide, 480));
+        decoded.dispose();
       });
     });
 

@@ -17,6 +17,8 @@ import '../lock/lock_dialog.dart';
 import '../lock/unlock.dart';
 import '../routes.dart';
 import '../templates/templates_dialog.dart';
+import '../transfer/share_dialog.dart';
+import '../transfer/transfer_dialog.dart';
 import '../../canvas/selection.dart';
 import 'color_tray.dart';
 import 'gesture_status.dart';
@@ -43,9 +45,6 @@ const rulerHint = 'Two fingers rotate the ruler · the pen snaps to its edge';
 
 /// What the ⋯ menu items open, until their screens exist.
 const _moreFeatures = {
-  'Export': 'Export',
-  'Import': 'Import',
-  'Print': 'Printing',
   'Page & paper': 'Page & paper',
   'Version history': 'Version history',
 };
@@ -57,6 +56,12 @@ void handleMoreItem(BuildContext context, Pane pane, MoreItem item, ValueChanged
       showQuickSettings(context);
     case 'Password protect':
       showLockDialog(context, pane);
+    case 'Export':
+      showTransferDialog(context, pane: pane);
+    case 'Import':
+      showTransferDialog(context, pane: pane, mode: TransferMode.import);
+    case 'Print':
+      printNotebook(context, pane);
     default:
       comingSoon(_moreFeatures[item.label] ?? item.label);
   }
@@ -464,7 +469,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with SingleTickerPr
                         onToggleTray: _toggleTray,
                         moreOpen: _more,
                         onToggleMore: _toggleMore,
-                        onComingSoon: _comingSoon,
+                        onShare: () => showShareDialog(context, pane),
                       ),
                     ),
                   if (tools && settings.tool == CanvasTool.laser && !_popover)

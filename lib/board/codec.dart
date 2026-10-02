@@ -220,6 +220,26 @@ Item? _decodeKnown(Json json) {
         h: (json['h'] as num).toDouble(),
         asset: json['asset'] as String,
       );
+    case 'file':
+      return FileItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, const {..._boxKeys, 'asset', 'mime', 'page', 'preview', 'name', 'text'}),
+        w: (json['w'] as num).toDouble(),
+        h: (json['h'] as num).toDouble(),
+        asset: json['asset'] as String,
+        mime: json['mime'] as String,
+        page: (json['page'] as num?)?.toInt(),
+        preview: json['preview'] as String?,
+        name: json['name'] as String? ?? '',
+        text: json['text'] as String? ?? '',
+      );
     case 'shape':
       final kind = ShapeType.values.where((k) => k.name == json['kind']).firstOrNull;
       if (kind == null) return null;

@@ -10,6 +10,7 @@ My notebook.board
 │   └── ...
 ├── assets/
 │   ├── <sha256>.png     # images, PDFs, audio, video (content-addressed)
+│   ├── <sha256>.pdf     # an imported PDF; its pages' pictures are .png
 │   ├── <sha256>.jpg.enc # the same, sealed, on a locked page or notebook
 │   └── ...
 └── index/
@@ -69,7 +70,7 @@ Every item has these fields:
 | `sticky` | `w`, `h`, `color`, `items` (nested ink/text), `stack?: {count, notes?}` |
 | `frame` | `w`, `h`, `paper` (lined-a4, grid-a4, dots-a4, blank-a4), `title`, `template?`, `unit?` |
 | `image` | `w`, `h`, `asset`, `crop?` |
-| `file` | `w`, `h`, `asset`, `mime` (pdf/docx/pptx/xlsx), `page?` |
+| `file` | `w`, `h`, `asset`, `mime` (pdf/docx/pptx/xlsx), `page?`, `preview?`, `name?`, `text?` |
 | `embed` | `w`, `h`, `url` (website), `title`, `unit` |
 | `kanban` | `w`, `h`, `title`, `unit`, `columns: [{title, cards: [{text}]}]` |
 | `timeline` | `w`, `h`, `title`, `unit`, `events: [{date, label, state}]` |
@@ -108,6 +109,14 @@ Every item has these fields:
 - `table`: `cells` is rows of strings. `header: true` means the first row is the column names.
 - `embed`: `url` is the page's address. Only `http` and `https` addresses are ever opened.
 
+**Imported files, as implemented (v1):** a `file` item is one page of a file, written on like a picture (ink on it rides along when it moves).
+
+- `asset` is the file itself in `assets/` (`<sha256>.pdf`), stored once however many pages use it. `page` is which page, from 1. `mime` is `pdf` for now.
+- `preview` is a PNG of the page made when it was imported (`<sha256>.png`, 2 px per PDF point, at most 4096 px on its longest side). The canvas, thumbnails and exports draw it; the PDF itself isn't read again.
+- `w` and `h` are the page's size in PDF points: one point is one page px. An imported PDF page sits at `x: 0, y: 0`, one per notebook page, under what is written on it.
+- `name` is the file's name when it was imported. `text` is the page's own text (what PDFium reads), kept so it stays searchable; it goes into an exported PDF's invisible text layer.
+- Like an `image`, its files are sealed (`.enc`) on a page with a password.
+
 `remember` is either `null` or `{ "why": "...", "remindAt": "...", "flashcard": false }`.
 
 ## Locks
@@ -133,6 +142,13 @@ Every item has these fields:
 - The password and key are never written. `biometric` means this device keeps the key in the platform's secure storage for fingerprint or face unlock.
 - Order of writes: lock.json before the first sealed page; when a lock is removed, the plain page before lock.json loses the entry. If both `pages/<id>.json` and `.json.enc` exist, the sealed one wins.
 - Images on a page with a password are sealed the same way, with the same key, as `assets/<name>.enc` (the item's `asset` stays `<name>`). When a page is locked, its images are sealed and their clear copies deleted, along with any clear image no unlocked page still uses; when the password is removed they are written in the clear again.
+
+## Export and import
+A `.board` file is the package zipped, with `notebook.json` at the top of the zip (a zip holding one `<name>.board/` folder is read too). Pictures and PDFs are stored without compressing them again.
+
+- **Export** writes what is on disk, after the open notebook is saved. Locked pages stay sealed (`.json.enc`), with their `lock.json` entries, so the password still protects them. Exporting some pages writes a `notebook.json` listing only those pages, only their entries in `lock.json`, and only the files their clear pages use (plus every sealed file, if a locked page goes along, since which pages use them can't be read without the password). Without images, `assets/` is left out and pictures show as empty boxes.
+- **Import** makes a new notebook: a new `id`, the folder picked in Import into, `pinned` false, `trashedAt` null, `updatedAt` now. Everything else in `notebook.json` and every page and item, ids included, comes in as it was. Only `notebook.json`, `lock.json`, `pages/<pageId>.json(.enc)` for page ids listed in `notebook.json` (letters, digits, `_` and `-`), and `assets/<name>` with a plain file name are read: nothing else in the zip is written anywhere. A page whose file is damaged comes in empty. Fingerprint unlock has to be turned on again for the copy.
+- `index/` is not exported or imported yet (Phase 5).
 
 ## Outside the packages
 The app's data folder also holds `settings.json`, `library.json` (folders: `{"version": 1, "folders": [{"path": ["School", "Physics"], "color": "#2B5A8C"}]}`), `templates/<id>.json` (My templates: `format: "endless.template"`, `name`, `paper`, `template`, `items`) and `index.sqlite` (the library index, a cache rebuilt from the packages).

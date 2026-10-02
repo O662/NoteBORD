@@ -140,6 +140,8 @@ abstract final class EIcons {
   static final grid = EIconData([_p('M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z')]);
   static final import = EIconData([_p('M12 4v11M7 10l5 5 5-5 M5 14v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5')]);
   static final exportRow = EIconData([_p('M12 15V4M7 9l5-5 5 5 M5 14v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5')]);
+  // Export.dc.html: the Import drop zone.
+  static final importDrop = EIconData([_p('M12 4v11M7 10l5 5 5-5M5 19h14')], strokeWidth: 1.6);
   static final print = EIconData([_p('M7 9V3h10v6 M6 18H4v-7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7h-2 M7 14h10v7H7z')]);
   static final lockRow =
       EIconData([_p('M7 11h10a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2z M8 11V8a4 4 0 0 1 8 0v3')]);

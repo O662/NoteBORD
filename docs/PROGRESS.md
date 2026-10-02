@@ -31,7 +31,7 @@ Not yet checked there: how the pen feels, latency, and palm rejection.
 | Item | Status | Notes |
 |---|---|---|
 | Canvas chrome matching `Canvas.png` | Done | Title pill, tool pill, Share/Export/⋯, left rail, pages rail, map, zoom pill, hint pill, More colors tray, pen popover. Icons use the exact SVG paths from `Canvas.dc.html` |
-| Buttons not wired yet | "… is coming soon" snackbar | Search, Share, ⋯ items except Settings and Password protect, Custom color, and the Study & math and Writing help menus. (Select and Lasso work since Phase 3a; Shapes, Text and the Insert menu since Phase 3b.) |
+| Buttons not wired yet | "… is coming soon" snackbar | Search, ⋯ → Page & paper and Version history, Custom color, and the Study & math and Writing help menus. (Select and Lasso work since Phase 3a; Shapes, Text and the Insert menu since Phase 3b; Share, Export, Import and Print since Phase 4a.) |
 | Endless page, dot background | Done | Lines, grid and blank papers are implemented; no UI to choose them until Templates |
 | Stylus drawing with pressure | Done | Variable-width outline from S Pen pressure (`lib/canvas/stroke_geometry.dart`) |
 | Pen types | Ballpoint, Fountain (more pressure range), Pencil (softer, 85% opacity) | |
@@ -64,8 +64,8 @@ Not yet checked there: how the pen feels, latency, and palm rejection.
 | Rail menus: hover (S Pen hover or mouse) previews, tap pins ("Pinned" + ×) | Done. Pinned menus close on a tap outside (which doesn't draw), a re-tap, the ×, Esc, or picking an item | `LeftRail`, `CanvasScreen` |
 | Menu items | Ruler, Laser pointer, Templates and Split view work; "Need to remember" and "Convert to text" start a lasso (Phase 3a); the whole Insert menu is wired (Phase 3b). The rest are "coming soon" | |
 | Top right: dark Share + ⋯ | Done; Export button and top-bar spell check removed | `ActionsPill` |
-| ⋯ menu: Export, Import, Print, Password protect, Page & paper, Version history, Settings | Done. Settings opens a small stand-in (Light/Dark/Match tablet, Draw with finger); the rest are "coming soon" | `MoreMenu`, `showQuickSettings` |
-| Share dialog "Export a copy" row | Waits for the Share dialog (Phase 9) | |
+| ⋯ menu: Export, Import, Print, Password protect, Page & paper, Version history, Settings | Done. Settings opens a small stand-in (Light/Dark/Match tablet, Draw with finger); Export, Import and Print work since Phase 4a; Page & paper and Version history are "coming soon" | `MoreMenu`, `showQuickSettings` |
+| Share dialog "Export a copy" row | Done in Phase 4a, in a stand-in Share dialog | `lib/ui/transfer/share_dialog.dart` |
 | Map card above the zoom pill, both 236 dp, right-aligned | Done | `MapPanel`, `ZoomPill` |
 | Zoom pill: −, %, +, show map (when hidden), whole board, full screen | Done. With the map button the pill's buttons narrow to 34–36 dp to fit 236, as in the design. Whole board is the Phase 3b view | |
 | Full screen hides every menu except the zoom pill | Done; "Show map" in full screen brings the menus back with the map | |
@@ -99,7 +99,7 @@ The app now opens on the Start page. Start → Library → a notebook → Canvas
 
 ### Not done yet / known limits
 - **Not yet tried on the tablet**, including the fingerprint prompt. It has been checked in tests, a debug APK build, and a Windows build that starts on the Start page.
-- Search, Import, Scan, Calendar, Flashcards, Remember and cloud sync are "coming soon" (later phases). Flashcards and Remember show no counts until those features exist.
+- Search, Scan, Calendar, Flashcards, Remember and cloud sync are "coming soon" (later phases). Import works since Phase 4a. Flashcards and Remember show no counts until those features exist.
 - Locked content is dropped from memory when you leave the notebook, not when the app goes to the background.
 - A page locked with its own password inside a locked notebook keeps its own password; unlocking the notebook doesn't open it.
 - Library covers show the page this tablet last had open (or else the first page with ink). The small Recent cards show the notebook's color only, as in the design.
@@ -226,6 +226,39 @@ Arrows and lines that join things on the page ("snaps to shapes, moves with them
 - Where an end sits on an edge comes from the point itself; another device that moves an item without updating the connector (sync, Phase 9) would leave the end where it was until the next change.
 - The ink bends to follow; it isn't re-routed around other items.
 
+## Phase 4a: export and import — built, not yet tried on the tablet
+
+Export to PDF, a board file or a picture; import PDFs, pictures and board files (`Export.png`). The other half of Phase 4, Word, PowerPoint and Excel previews on the board, is Phase 4b.
+
+| Item | Status | Where |
+|---|---|---|
+| Import and export dialog (`Export.png`) | Done, at the design's sizes: Export and Import tabs, What to export, Format, the options box, Save to, Cancel and Export PDF / Export board file. Opened from ⋯ → Export and ⋯ → Import; from the library (Start's "Import PDF or file" and the Library's Import) it has the Import tab only | `lib/ui/transfer/transfer_dialog.dart` |
+| What to export | This page, Some pages (a picker with page thumbnails; the page you're on is ticked to start with; the card then says "Pages 1–3, 5"), Whole notebook | `_PagePicker` |
+| PDF | Ink is vector fills, built from the same polygons the canvas draws (`InkShape`), with pen opacity; arrowheads and connector dots too. Shapes, frame paper, sticky notes (with the notes fanned under a stack) and the page's dots, lines or grid are vectors. Typed text is real text in the bundled fonts, broken into lines as the canvas breaks them. Photos and imported PDF pages are embedded pictures (JPEGs as they are); Kanban, timeline, diagram, table and website cards, and template layouts, are drawn by the app's own painters at 3× and embedded. Colors are the light palette and the ink as written. Title and creator are set | `lib/transfer/pdf_export.dart` |
+| Searchable text layer | An invisible text layer (render mode 3) from `HandwritingText`, which has nothing to say until Phase 5's recognition, plus what's written in cards and the text of imported PDF pages, so those stay searchable. "Make handwriting searchable inside the PDF" turns the layer off. Checked with PDFium: our PDF's text reads back | `HandwritingText`, `cardText` |
+| Endless pages | Fit page to its ink (everything plus 32 pt; an imported PDF page with all the writing inside it goes out at exactly its own size), or Split into A4 / Letter (sheets of paper centered on the ink, empty ones left out; a Paper row picks A4 or Letter, starting from the tablet's region). One page px is one PDF point. Pages over 200 inches are scaled down to fit | `pdfSheets`, `paperForLocale` |
+| Dot background | Optional; the label follows the page's paper (dots, ruled lines, grid) | `_backgroundLabel` |
+| Board file | The notebook's package zipped: lossless, every item and field, locked pages still sealed with their `lock.json` entries, pictures and PDFs byte for byte. Some pages make a smaller package with only what they use. "Include images and attached PDFs" can leave the files out. The design's "Include recognized handwriting text" waits for Phase 5 | `lib/transfer/board_file.dart` |
+| Picture | Share → Export a copy → Image: this page as a PNG at 2×, on its paper, fitted to its ink (at most 8192 px), then Save to this tablet or Share… | `lib/transfer/image_export.dart` |
+| Save to | This tablet (the system Save dialog: Downloads, Drive's folder…) or Share… (the share sheet). Google Drive and OneDrive are shown and say they come with cloud sync, and to use Share… for now (Phase 9) | `lib/transfer/files.dart` (`file_picker` 13.1.0, `share_plus` 13.3.1) |
+| Print | ⋯ → Print: the whole notebook split into A4 or Letter, in the system print dialog (`printing` 5.14.3) | `printNotebook` |
+| Locked pages | Left out of PDFs and pictures unless they're unlocked. When every page picked is locked, the dialog says so, keeps Export PDF off and suggests a board file, which keeps them locked | `_blocked` |
+| Import | PDFs, pictures (PNG, JPEG, GIF, WebP, BMP) and board files, several at once, told apart by their first bytes. Into: This notebook (from a notebook; PDF pages go after the page you're on, pictures onto it), All notebooks, or a folder (a new notebook named after the first file, opened). Each board file becomes its own notebook. "Added 2 pages · Added 1 picture", "Imported “Lecture 3”". A file it can't read, a PDF with a password or a damaged PDF says so in the dialog | `lib/transfer/transfer.dart` |
+| PDF import | PDFium (`pdfrx` 2.2.24): each page becomes a notebook page holding a `file` item at the page's size with a picture of it (2× its points, at most 4096 px), its text, and the PDF stored once (docs/BOARD_FORMAT.md). Write on it like a frame | `lib/transfer/pdf_import.dart`, `FileItem` |
+| Board file import | A new notebook with a new id, in the folder picked; pages, items (ids kept), locks and files exactly as exported. Paths in the zip are never used as paths: only listed page ids and plain file names are read | `importBoardFile` |
+| Share dialog | A stand-in for `Share.png`: the title, a note that inviting people and links come with cloud sync, the "Export a copy" row (PDF and Board file open Export ready to go with the whole notebook; Image saves or shares this page as a PNG) and Done | `lib/ui/transfer/share_dialog.dart` |
+| Pictures in memory | Every picture is decoded at most 2400 px on its longest side (photos from the picker already were; files imported as they are may be larger) | `decodeImageBytes` |
+
+### Not done yet / known limits
+- **Not tried on the tablet yet**: the Save dialog, the share sheet, the print dialog, PDFium on Android, and big PDFs. Checked: unit and widget tests, the Windows build rendering a real PDF through PDFium, and a debug APK build.
+- An imported PDF page is a picture made at import (sharp to about 200% zoom), not re-rendered as you zoom, and exporting it again embeds that picture, not the original page. Each page's picture stays in memory once seen; a 100-page PDF read through to the end holds about 100 of them (roughly 7 MB each). Tiles that follow the zoom are the next step if this matters.
+- Cards and template layouts are pictures in exported PDFs (with their words in the invisible layer), not vectors.
+- Google Drive and OneDrive as places to save come with cloud sync (Phase 9). Share… reaches them meanwhile.
+- The Share dialog's people, invites, link access and This page / Notebook / Folder come in Phase 9.
+- Library covers still show only ink, so a notebook made from a PDF has a plain cover until it's written on.
+- `pdfrx` bundles PDFium's WASM module (about 4 MB) for the web. Before a release build, run `dart run pdfrx:remove_wasm_modules` (see the pdfrx README).
+- The Endless pages buttons and the Share dialog's format chips are 36 dp tall, as in the design (under the 44 dp target).
+
 ## Storage layout
 
 ```
@@ -238,7 +271,7 @@ Arrows and lines that join things on the page ("snaps to shapes, moves with them
     ├── notebook.json
     ├── lock.json                  # only when a page or the notebook has a password
     ├── pages/<pageId>.json        # or <pageId>.json.enc while locked
-    └── assets/<sha256>.<ext>      # images; <name>.enc on a locked page
+    └── assets/<sha256>.<ext>      # images, imported PDFs and their pages' pictures; <name>.enc on a locked page
 ```
 
 ## Tests
@@ -253,9 +286,10 @@ Arrows and lines that join things on the page ("snaps to shapes, moves with them
 - Phase 3d: `test/canvas/connectors_test.dart` (joining at both ends, the 16 px reach, frames and pictures, the topmost item, ovals and turned boxes, one end at a time, following moves, resizes and turns, the rubber band, saving), `test/state/connectors_state_test.dart` (following in the same undo step, moving with and without the items, deleting and Undo), `test/ui/connectors_test.dart` (an arrow and a straightened line between boxes, Undo, following a moved and a stretched box, dragging an end off and back on, deleting, copying, sticky notes) and 3 goldens (`connectors`, `connectors_selected`, `connectors_moved`).
 - Phase 3c: `test/board/cards_test.dart` (round trips for the five card types, unknown fields kept inside them, unreadable cards kept as they were, web addresses, sizes, growing, scaling and stretching), `test/ui/cards_test.dart` (each card from the Insert menu, every editor, undo, the website prompt and Open with a fake browser, an unsafe address refused, move / stretch / scale / copy / delete, ink riding along, saved and loaded again) and 10 goldens (`cards_board`, `cards_board_dark`, `cards_selected`, `cards_bottom`, the five `editor_*` and `editor_kanban_dark`). `test/sample_board.dart` is `Board.png` made of real items.
 - `test/golden`: Phase 3b in 10 images (`insert`, `insert_dark`, `insert_search`, `insert_coming_soon`, `board`, `board_dark`, `objects`, `objects_selected`, `text_editing`, `shapes`). Canvas at 1280×800 in 8 states; the pen gestures in 9 (`gestures_*.png`: lasso, remember, hold, straightened, scribble, arrows, ruler and laser, ruler menu, settings); plus Start, Library (grid and list), Templates, Password protect, a locked notebook and Split view, using the design's sample library (`test/sample_library.dart`). Goldens were rendered on Windows; regenerate with `flutter test --update-goldens test/golden` after an intended visual change.
+- Phase 4a: `test/transfer/board_file_test.dart` (the round trip: a notebook with every item type, ink with an arrow, a straightened line and a connector joined at both ends, shapes, text, sticky notes and a stack, plain and template frames, a picture, an imported PDF page, the five cards, an item type from a newer app, a page with a template and lined paper, and a page with its own password, exported to `.board`, imported, compared page by page and field by field, the locked page opened with its password, every file byte for byte, and exported again to the same files; some pages; leaving images out; zips that aren't board files, paths that climb out, odd file names, a zipped package folder and a damaged page), `test/transfer/pdf_export_test.dart` (vector ink, the invisible text layer and its switch, fit and split sheets in A4 and Letter, empty pages, imported pages at their own size, the dot background, line breaks of typed text), `test/ui/transfer_test.dart` (export this page as a PDF and a cancelled Save dialog, the whole notebook as a board file through the share sheet, some pages, a locked page, Google Drive's note, the Share dialog's PDF / Board file / Image, Print, importing a PDF from Start, a PDF and a picture into this notebook, a board file into a folder from the Library and checking nothing was lost, files it can't import, a PDF with a password, and Import into) and 6 goldens (`export`, `export_dark`, `export_board`, `export_split`, `import`, `share`). `test/transfer/everything.dart` builds the every-item notebook.
 - `test/tokens_sync_test.dart`: generated tokens match `design/tokens.json`.
 
 ## Next
-- Try Phase 3b, 3c and 3d on the tablet: drop and write on sticky notes, type a text box with the on-screen keyboard, add a photo from the gallery and the camera, the whole board, the card editors with the on-screen keyboard, opening a website, and drawing arrows between boxes and moving them. (Dragging the ruler's ends from Phase 3a is still to try as well.)
-- Phase 3 is complete.
-- Then Phase 4: export to PDF and `.board`; import PDF, images and `.board` files; and Word, PowerPoint and Excel previews on the board.
+- Try Phase 4a on the tablet: export a page as a PDF to the tablet and through the share sheet, a board file round trip, Print, the Share dialog's Image, and importing a real PDF (a long one too).
+- Still to try from Phase 3: sticky notes, text boxes with the on-screen keyboard, photos from the gallery and the camera, the whole board, the card editors, opening a website, arrows between boxes, and dragging the ruler's ends.
+- Then Phase 4b: Word, PowerPoint and Excel previews on the board (the Insert menu's file tiles and the DOCX, PPTX and XLSX cards on `Board.png`).

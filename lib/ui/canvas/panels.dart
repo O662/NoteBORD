@@ -187,7 +187,7 @@ class _PageThumb extends StatelessWidget {
               else
                 Positioned.fill(
                   child: CustomPaint(
-                    painter: _ThumbPainter(page, revision, Theme.of(context).brightness, c),
+                    painter: PageThumbPainter(page, revision, Theme.of(context).brightness, c),
                   ),
                 ),
               Positioned(
@@ -222,8 +222,8 @@ void paintPageFitted(Canvas canvas, Rect area, Rect content, PageRuntime page, B
     ..restore();
 }
 
-class _ThumbPainter extends CustomPainter {
-  _ThumbPainter(this.page, this.revision, this.brightness, this.colors);
+class PageThumbPainter extends CustomPainter {
+  PageThumbPainter(this.page, this.revision, this.brightness, this.colors);
 
   final PageRuntime page;
   final int revision;
@@ -239,7 +239,7 @@ class _ThumbPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ThumbPainter old) =>
+  bool shouldRepaint(PageThumbPainter old) =>
       old.page != page || old.revision != revision || old.brightness != brightness || old.colors != colors;
 }
 

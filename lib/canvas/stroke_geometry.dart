@@ -17,9 +17,45 @@ Path strokeOutline({
   required double width,
   required PenType penType,
   required bool usePressure,
+}) =>
+    strokeShape(points: points, pressures: pressures, width: width, penType: penType, usePressure: usePressure).toPath();
+
+/// A filled ink outline: closed polygons that all wind the same way (fill
+/// them non-zero), or a single [dot]. Drawn on screen as a [Path] and
+/// written to exported PDFs as vectors.
+class InkShape {
+  const InkShape(this.polygons, {this.dot});
+
+  final List<List<Offset>> polygons;
+
+  /// A stroke of one sample: a round dot.
+  final Rect? dot;
+
+  Path toPath() {
+    final path = Path();
+    if (dot != null) path.addOval(dot!);
+    for (final poly in polygons) {
+      if (poly.isEmpty) continue;
+      path.moveTo(poly.first.dx, poly.first.dy);
+      for (final p in poly.skip(1)) {
+        path.lineTo(p.dx, p.dy);
+      }
+      path.close();
+    }
+    return path;
+  }
+}
+
+/// The outline of a stroke as polygons; see [strokeOutline].
+InkShape strokeShape({
+  required List<Offset> points,
+  required List<double> pressures,
+  required double width,
+  required PenType penType,
+  required bool usePressure,
 }) {
-  final path = Path();
-  if (points.isEmpty) return path;
+  final pieces = <List<Offset>>[];
+  if (points.isEmpty) return const InkShape([]);
 
   // Radius per input point, with pressure lightly smoothed to hide jitter.
   final pts = <Offset>[];
@@ -39,7 +75,7 @@ Path strokeOutline({
   }
 
   if (pts.length == 1) {
-    return path..addOval(Rect.fromCircle(center: pts.first, radius: radii.first));
+    return InkShape(const [], dot: Rect.fromCircle(center: pts.first, radius: radii.first));
   }
 
   final (centers, rs) = _resample(pts, radii);
@@ -52,12 +88,12 @@ Path strokeOutline({
     if (a.distance == 0 || b.distance == 0) continue;
     final cos = (a.dx * b.dx + a.dy * b.dy) / (a.distance * b.distance);
     if (cos < 0.26) {
-      _addPiece(path, centers, rs, start, k);
+      _addPiece(pieces, centers, rs, start, k);
       start = k;
     }
   }
-  _addPiece(path, centers, rs, start, centers.length - 1);
-  return path;
+  _addPiece(pieces, centers, rs, start, centers.length - 1);
+  return InkShape(pieces);
 }
 
 /// Quadratic midpoint smoothing, sampled about every 1.5 px.
@@ -88,7 +124,7 @@ Path strokeOutline({
   return (c, rr);
 }
 
-void _addPiece(Path path, List<Offset> c, List<double> r, int from, int to) {
+void _addPiece(List<List<Offset>> out, List<Offset> c, List<double> r, int from, int to) {
   if (to <= from) return;
   final n = to - from + 1;
   final tangents = List<Offset>.filled(n, const Offset(1, 0));
@@ -102,37 +138,40 @@ void _addPiece(Path path, List<Offset> c, List<double> r, int from, int to) {
   }
   Offset normal(int k) => Offset(-tangents[k].dy, tangents[k].dx);
 
-  path.moveTo(c[from].dx + normal(0).dx * r[from], c[from].dy + normal(0).dy * r[from]);
+  final poly = <Offset>[Offset(c[from].dx + normal(0).dx * r[from], c[from].dy + normal(0).dy * r[from])];
   for (var k = 1; k < n; k++) {
     final i = from + k;
     final nn = normal(k);
-    path.lineTo(c[i].dx + nn.dx * r[i], c[i].dy + nn.dy * r[i]);
+    poly.add(Offset(c[i].dx + nn.dx * r[i], c[i].dy + nn.dy * r[i]));
   }
-  _cap(path, c[to], normal(n - 1), tangents[n - 1], r[to]);
+  _cap(poly, c[to], normal(n - 1), tangents[n - 1], r[to]);
   for (var k = n - 1; k >= 0; k--) {
     final i = from + k;
     final nn = normal(k);
-    path.lineTo(c[i].dx - nn.dx * r[i], c[i].dy - nn.dy * r[i]);
+    poly.add(Offset(c[i].dx - nn.dx * r[i], c[i].dy - nn.dy * r[i]));
   }
-  _cap(path, c[from], -normal(0), -tangents[0], r[from]);
-  path.close();
+  _cap(poly, c[from], -normal(0), -tangents[0], r[from]);
+  out.add(poly);
 }
 
 /// Half circle from `center + n·r` round the `t` side to `center − n·r`.
-void _cap(Path path, Offset center, Offset n, Offset t, double r) {
+void _cap(List<Offset> poly, Offset center, Offset n, Offset t, double r) {
   final segments = (r * 1.5).clamp(4, 12).round();
   for (var j = 1; j < segments; j++) {
     final a = math.pi * j / segments;
     final cos = math.cos(a), sin = math.sin(a);
-    path.lineTo(
+    poly.add(Offset(
       center.dx + n.dx * r * cos + t.dx * r * sin,
       center.dy + n.dy * r * cos + t.dy * r * sin,
-    );
+    ));
   }
 }
 
 /// Outline of a stored stroke in page space.
-Path outlineFor(StrokeItem s) => strokeOutline(
+Path outlineFor(StrokeItem s) => inkShapeFor(s).toPath();
+
+/// Outline of a stored stroke in page space, as polygons.
+InkShape inkShapeFor(StrokeItem s) => strokeShape(
       points: s.pagePoints.toList(),
       pressures: [for (final p in s.points) p.pressure],
       width: s.width,
@@ -195,13 +234,16 @@ double segmentDistance(Offset a1, Offset a2, Offset b1, Offset b2) {
 const _headHalfAngle = 30 * math.pi / 180;
 
 /// Fill paths for a stroke's arrowheads in page space (empty without arrows).
-List<Path> arrowHeadPaths(StrokeItem s) {
+List<Path> arrowHeadPaths(StrokeItem s) => [for (final h in arrowHeadShapes(s)) h.toPath()];
+
+/// A stroke's arrowheads in page space, as polygons.
+List<InkShape> arrowHeadShapes(StrokeItem s) {
   final heads = s.arrow;
   if (heads == null) return const [];
   final pts = s.pagePoints.toList();
   if (pts.length < 2) return const [];
   final len = arrowHeadLength(s.width);
-  final out = <Path>[];
+  final out = <InkShape>[];
   if (heads.end) out.addAll(_head(s, pts.last, _pointBack(pts.reversed, len * 0.8), len, heads.style));
   if (heads.start) out.addAll(_head(s, pts.first, _pointBack(pts, len * 0.8), len, heads.style));
   return out;
@@ -222,7 +264,7 @@ Offset _pointBack(Iterable<Offset> fromTip, double dist) {
   return prev!;
 }
 
-List<Path> _head(StrokeItem s, Offset tip, Offset from, double len, ArrowStyle style) {
+List<InkShape> _head(StrokeItem s, Offset tip, Offset from, double len, ArrowStyle style) {
   final d = tip - from;
   if (d.distance == 0) return const [];
   final back = -d / d.distance;
@@ -231,7 +273,7 @@ List<Path> _head(StrokeItem s, Offset tip, Offset from, double len, ArrowStyle s
   final b2 = tip + rot(back, -_headHalfAngle) * len;
   List<Offset> dense(Offset a, Offset b) =>
       [for (var i = 0; i <= 8; i++) Offset.lerp(a, b, i / 8)!];
-  Path outline(List<Offset> pts, List<double> pressures, {bool pressure = false}) => strokeOutline(
+  InkShape outline(List<Offset> pts, List<double> pressures, {bool pressure = false}) => strokeShape(
         points: pts,
         pressures: pressures,
         width: s.width,
@@ -244,11 +286,9 @@ List<Path> _head(StrokeItem s, Offset tip, Offset from, double len, ArrowStyle s
       final pts = [...dense(b1, tip), ...dense(tip, b2).skip(1)];
       return [outline(pts, List.filled(pts.length, 0.5))];
     case ArrowStyle.filled:
-      final tri = Path()
-        ..moveTo(tip.dx, tip.dy)
-        ..lineTo(b1.dx, b1.dy)
-        ..lineTo(b2.dx, b2.dy)
-        ..close();
+      final tri = InkShape([
+        [tip, b1, b2],
+      ]);
       final edge = [...dense(b1, tip), ...dense(tip, b2).skip(1), ...dense(b2, b1).skip(1)];
       return [tri, outline(edge, List.filled(edge.length, 0.5))];
     case ArrowStyle.ink:

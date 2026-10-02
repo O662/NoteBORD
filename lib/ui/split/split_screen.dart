@@ -20,6 +20,7 @@ import '../icons.dart';
 import '../library/format.dart';
 import '../lock/unlock.dart';
 import '../routes.dart';
+import '../transfer/share_dialog.dart';
 
 /// Two notes side by side, or two pages of one note
 /// (design/screens/Split.png). The pen writes in the focused side.
@@ -259,7 +260,7 @@ class _SplitScreenState extends ConsumerState<SplitScreen> {
                       _pinned = false;
                       _popover = false;
                     }),
-                    onComingSoon: _comingSoon,
+                    onShare: () => showShareDialog(context, _active),
                   ),
                 ),
               ),
