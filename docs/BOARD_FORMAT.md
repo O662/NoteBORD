@@ -63,7 +63,7 @@ Every item has these fields:
 
 | type | extra fields |
 |---|---|
-| `stroke` | `tool` (pen/marker), `color`, `width`, `points: [[x,y,pressure,tMs], …]`, `arrow: {start?, end?, style}`, `straightened?: "line"/"circle"/…` |
+| `stroke` | `tool` (pen/marker), `color`, `width`, `points: [[x,y,pressure,tMs], …]`, `arrow: {start?, end?, style}`, `straightened?: "line"/"circle"/…`, `startItemId?`, `endItemId?` |
 | `shape` | `kind` (line/rect/ellipse/triangle/arrow), `w`, `h`, `stroke`, `fill`, `strokeWidth` |
 | `text` | `w`, `text`, `font`, `size`, `color`, `autoWidth?` |
 | `sticky` | `w`, `h`, `color`, `items` (nested ink/text), `stack?: {count, notes?}` |
@@ -88,6 +88,7 @@ Every item has these fields:
 
 - `arrow` is present only on arrows: `{"start": true, "end": true, "style": "open"}`, with `start`/`end` written only when true and `style` one of `open`, `filled`, `ink`. The heads are not points; they are drawn from the first/last points, the stroke's color and `width`.
 - `straightened` is present only when a hold (or "Straighten lines") turned the stroke into a shape: `line`, `circle`, `ellipse`, `rect` or `triangle`. The points are the shape itself.
+- `startItemId` / `endItemId` are present only on a connector (an arrow or a straightened line) whose first / last point is attached to the edge of a box item on the same page (a shape, sticky note, frame, picture, text box or card). The point itself lies on that item's outline; where on the edge is not stored separately, it is read from the point. When the item moves, turns or is resized, the end goes to the same spot of its edge and the ink bends to follow (each point moves by a share of the end's move that follows how far along the line it is). An attached end without an arrowhead is drawn with a dot. If the item is gone, the id is dropped; an id that names nothing is ignored.
 - Moving, resizing and rotating a stroke rewrites its points (and scales `width`); `rotation` stays 0 for strokes.
 
 **Text, sticky notes, frames, images and shapes, as implemented (v1):**

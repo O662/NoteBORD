@@ -214,6 +214,8 @@ class StrokeItem extends Item {
     this.usePressure = true,
     this.arrow,
     this.straightened,
+    this.startItemId,
+    this.endItemId,
   });
 
   /// Builds a stroke from page-space points, storing them relative to the
@@ -230,9 +232,13 @@ class StrokeItem extends Item {
     required List<InkPoint> pagePoints,
     ArrowHeads? arrow,
     String? straightened,
+    String? startItemId,
+    String? endItemId,
   }) {
     final (ox, oy, points) = _relative(pagePoints);
     return StrokeItem(
+      startItemId: startItemId,
+      endItemId: endItemId,
       id: id,
       x: ox,
       y: oy,
@@ -272,6 +278,8 @@ class StrokeItem extends Item {
     double? width,
     ArrowHeads? Function()? arrow,
     String? Function()? shape,
+    String? Function()? startItemId,
+    String? Function()? endItemId,
   }) {
     final (ox, oy, pts) = pagePoints == null ? (x, y, points) : _relative(pagePoints);
     return StrokeItem(
@@ -292,6 +300,8 @@ class StrokeItem extends Item {
       usePressure: usePressure,
       arrow: arrow == null ? this.arrow : arrow(),
       straightened: shape == null ? straightened : shape(),
+      startItemId: startItemId == null ? this.startItemId : startItemId(),
+      endItemId: endItemId == null ? this.endItemId : endItemId(),
     );
   }
 
@@ -325,6 +335,19 @@ class StrokeItem extends Item {
   /// `rect`, `triangle`), or null for freehand ink.
   final String? straightened;
 
+  /// The items a connector's first and last points are attached to (on
+  /// their edge), or null. The stroke follows them when they move.
+  final String? startItemId;
+  final String? endItemId;
+
+  /// An arrow or a straight line: what can join two things on the page.
+  bool get isConnector => arrow != null || straightened == 'line';
+
+  bool get isAttached => startItemId != null || endItemId != null;
+
+  /// How big the dot at an attached end is (Arrows.dc.html: 5 for 3.5).
+  double get attachDotRadius => math.max(3.5, width * 1.43);
+
   @override
   String get type => 'stroke';
 
@@ -341,8 +364,10 @@ class StrokeItem extends Item {
       if (p.x > maxX) maxX = p.x;
       if (p.y > maxY) maxY = p.y;
     }
-    // Arrowheads reach up to their length past the end points.
-    final pad = arrow == null ? maxWidth / 2 + 1 : arrowHeadLength(width) + maxWidth / 2 + 1;
+    // Arrowheads reach up to their length past the end points, and the dot
+    // at an attached end past the line's width.
+    var pad = arrow == null ? maxWidth / 2 + 1 : arrowHeadLength(width) + maxWidth / 2 + 1;
+    if (isAttached) pad = math.max(pad, attachDotRadius + 1);
     return Rect.fromLTRB(x, y, x + maxX, y + maxY).inflate(pad);
   }();
 
@@ -356,6 +381,8 @@ class StrokeItem extends Item {
         'usePressure': usePressure,
         if (arrow != null) 'arrow': arrow!.toJson(),
         if (straightened != null) 'straightened': straightened,
+        if (startItemId != null) 'startItemId': startItemId,
+        if (endItemId != null) 'endItemId': endItemId,
         'points': [
           for (final p in points) [p.x, p.y, p.pressure, p.t],
         ],

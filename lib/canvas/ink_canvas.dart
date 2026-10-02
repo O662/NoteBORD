@@ -26,6 +26,7 @@ import '../ui/common.dart';
 import '../ui/dialogs.dart';
 import 'canvas_view.dart';
 import 'cards.dart';
+import 'connectors.dart';
 import 'gesture_overlay.dart';
 import 'gestures.dart';
 import 'items.dart';
@@ -73,9 +74,10 @@ enum _Drag {
   // A tap that drops something (text, sticky note, frame) or, on the whole
   // board, zooms in.
   tap,
-  // Dragging out a shape, and dragging one edge of a box.
+  // Dragging out a shape, one edge of a box, and one end of a connector.
   shape,
   stretch,
+  connectorEnd,
 }
 
 /// What the fingers are doing.
@@ -181,6 +183,13 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   int _stretchSide = 0;
   BoxItem? _stretching;
   Offset _stretchEdge = Offset.zero;
+
+  /// The connector whose end is being dragged, and which end.
+  StrokeItem? _connector;
+  bool _connectorStart = false;
+
+  /// Within this many screen px of a box's edge, a connector's end joins it.
+  static const _attachReach = 16.0;
 
   /// A tap with a "drop one here" tool, or on the whole board: by the pen
   /// (or mouse), or by this finger.
@@ -673,6 +682,21 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         if ((e.localPosition - _tapDown).distance > 12) _tapMoved = true;
       case _Drag.shape:
         _overlay.ghost = _shapeTo(page);
+      case _Drag.connectorEnd:
+        if (_connector case final s?) {
+          final d = page - _dragFrom;
+          final moved = s.copyWith(
+            pagePoints: rubberBand(s.pageInk, _connectorStart ? d : Offset.zero, _connectorStart ? Offset.zero : d),
+          );
+          final others = [for (final i in _page.items) if (i.id != s.id) i];
+          _overlay.ghost = attachEnds(
+            moved,
+            others,
+            slop: _attachReach * _unit,
+            start: _connectorStart,
+            end: !_connectorStart,
+          );
+        }
       case _Drag.stretch:
         if (_stretching case final box?) {
           // The edge moves as far as the pen has (the handle sits a little outside it).
@@ -741,6 +765,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _finishShape();
       case _Drag.stretch:
         _finishStretch();
+      case _Drag.connectorEnd:
+        _finishConnectorEnd();
       case _Drag.none:
         break;
     }
@@ -779,6 +805,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     _rulerEdge = null;
     _inkTarget = null;
     _stretching = null;
+    _connector = null;
     if (_selection.live == null) _moving = const {};
     _scribbleIds = const {};
     _holdTimer?.cancel();
@@ -929,32 +956,53 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         notifier.removeItems(page.id, scribble);
       }
       _toast('Erased ${_strokes(scribble.length)}');
-    } else if (snapped != null) {
-      // Two steps: the ink as drawn, then the shape. Undo gives the ink back.
-      final raw = active.toItem(z: page.nextZ);
-      _putStroke(raw);
-      _swapStroke(raw.copyWith(pagePoints: active.snappedInk(), shape: () => snapped.kind.name));
-      _toast('${_shapeName(snapped.kind)} straightened');
-      if (snapped.kind == ShapeKind.line) _overlay.glow = snapped;
     } else {
+      // Two steps: the ink as drawn, then what the gesture makes of it (a
+      // shape or an arrow, joined to what its ends are on). Undo gives the
+      // ink back.
       final raw = active.toItem(z: page.nextZ);
+      StrokeItem? shaped;
+      String? message;
+      if (snapped != null) {
+        shaped = raw.copyWith(pagePoints: active.snappedInk(), shape: () => snapped.kind.name);
+        message = '${_shapeName(snapped.kind)} straightened';
+      } else {
+        shaped = _arrowFrom(raw, settings);
+        if (shaped != null) message = 'Made an arrow';
+      }
+      if (shaped != null && shaped.isConnector) {
+        final note = _targetNote;
+        // An arrow that leaves the sticky note it started on joins it from
+        // the page; one drawn on the note stays on the note.
+        if (note == null || !shaped.pagePoints.every(note.contains)) {
+          _inkTarget = null;
+          shaped = attachEnds(shaped, page.items, slop: _attachReach * _unit);
+        }
+      }
       _putStroke(raw);
-      final flicks = settings.arrows && _rulerEdge == null
-          ? detectFlicks(
-              active.points,
-              times: active.times,
-              unit: _unit,
-              // In debug builds (`flutter logs`), why a hook didn't count.
-              why: kDebugMode ? (w) => debugPrint('No arrow: $w') : null,
-            )
-          : null;
-      if (flicks != null) {
-        final heads = ArrowHeads(start: flicks.start, end: flicks.end, style: settings.arrowStyle);
-        _swapStroke(raw.copyWith(pagePoints: raw.pageInk.sublist(flicks.from, flicks.to + 1), arrow: () => heads));
-        _toast('Made an arrow');
+      if (shaped != null) {
+        _swapStroke(shaped);
+        _toast(message!);
+        if (snapped?.kind == ShapeKind.line && !shaped.isAttached) _overlay.glow = snapped;
       }
     }
     active.clear();
+  }
+
+  /// [raw] with the flick at either end turned into an arrowhead, or null.
+  StrokeItem? _arrowFrom(StrokeItem raw, AppSettings settings) {
+    final flicks = settings.arrows && _rulerEdge == null
+        ? detectFlicks(
+            active.points,
+            times: active.times,
+            unit: _unit,
+            // In debug builds (`flutter logs`), why a hook didn't count.
+            why: kDebugMode ? (w) => debugPrint('No arrow: $w') : null,
+          )
+        : null;
+    if (flicks == null) return null;
+    final heads = ArrowHeads(start: flicks.start, end: flicks.end, style: settings.arrowStyle);
+    return raw.copyWith(pagePoints: raw.pageInk.sublist(flicks.from, flicks.to + 1), arrow: () => heads);
   }
 
   /// The sticky note the stroke being drawn is written on, if any.
@@ -1027,6 +1075,11 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       for (final id in page.index.query(f.extent)) {
         final item = page[id];
         if (item == null || item is UnknownItem || _selection.ids.contains(id)) continue;
+        // A connector joined to something that stays bends to follow instead.
+        if (item is StrokeItem &&
+            [item.startItemId, item.endItemId].any((a) => a != null && !_selection.ids.contains(a))) {
+          continue;
+        }
         if (order[id]! > order[f.id]! && f.contains(item.extent.center)) out[id] = item;
       }
     }
@@ -1075,12 +1128,25 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
   /// Where the handles are on screen (none while the selection is dragged).
   SelectionHandles? _handles() {
-    if (_selection.isEmpty || _selection.live != null || _drag == _Drag.stretch || !_canInk) return null;
+    if (_selection.isEmpty ||
+        _selection.live != null ||
+        _drag == _Drag.stretch ||
+        _drag == _Drag.connectorEnd ||
+        !_canInk) {
+      return null;
+    }
     final f = _frame();
     if (f == null) return null;
     final stem = _vp.toScreen(f.sides[2]);
     final box = _singleBox;
+    final connector = _singleConnector;
     return SelectionHandles(
+      ends: [
+        if (connector != null) ...[
+          _vp.toScreen(connector.pagePoints.first),
+          _vp.toScreen(connector.pagePoints.last),
+        ],
+      ],
       corners: [for (final p in f.corners) _vp.toScreen(p)],
       sides: [
         if (box != null)
@@ -1091,12 +1157,34 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     );
   }
 
-  /// Starts dragging a corner handle, the rotate knob or an edge handle
-  /// under [screen], if there is one.
+  /// The one arrow or line selected on its own, whose ends can be dragged.
+  StrokeItem? get _singleConnector {
+    if (_selection.ids.length != 1) return null;
+    return switch (_page[_selection.ids.single]) {
+      final StrokeItem s when s.isConnector || s.isAttached => s,
+      _ => null,
+    };
+  }
+
+  /// Starts dragging a connector's end, a corner handle, the rotate knob or
+  /// an edge handle under [screen], if there is one.
   bool _grabHandle(Offset screen, Offset page) {
     final f = _selection.isEmpty ? null : _frame();
     if (f == null) return false;
     _dragFrom = page;
+    if (_singleConnector case final s?) {
+      for (final atStart in [true, false]) {
+        final end = atStart ? s.pagePoints.first : s.pagePoints.last;
+        if ((screen - _vp.toScreen(end)).distance <= handleReach) {
+          _drag = _Drag.connectorEnd;
+          _connector = s;
+          _connectorStart = atStart;
+          _moving = Set.unmodifiable({s.id});
+          _overlay.ghost = s;
+          return true;
+        }
+      }
+    }
     final corners = f.corners;
     for (var i = 0; i < 4; i++) {
       if ((screen - _vp.toScreen(corners[i])).distance <= handleReach) {
@@ -1218,6 +1306,21 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     _selection.landed(t, _nb.revision);
   }
 
+  /// Puts a dragged connector end down: joined to the box it's on, or let go.
+  void _finishConnectorEnd() {
+    final s = _connector;
+    final ghost = _overlay.ghost;
+    _moving = const {};
+    if (s == null || ghost is! StrokeItem || _page[s.id] == null) return;
+    final before = _connectorStart ? s.startItemId : s.endItemId;
+    final after = _connectorStart ? ghost.startItemId : ghost.endItemId;
+    final moved = (ghost.pagePoints.first - s.pagePoints.first).distance > 0.01 ||
+        (ghost.pagePoints.last - s.pagePoints.last).distance > 0.01;
+    if (!moved && before == after) return;
+    _notebook.replaceItems(_page.id, [ghost]);
+    if (before != after) _toast(after == null ? 'Let go' : 'Joined');
+  }
+
   void _finishStretch() {
     final box = _stretching;
     final ghost = _overlay.ghost;
@@ -1265,6 +1368,10 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         final shift = const Offset(24, 24) * _unit;
         final t = Similarity.translate(shift);
         final riders = {for (final r in _riders()) r.id};
+        final copyIds = {
+          for (final i in _page.items)
+            if (_selection.ids.contains(i.id) || riders.contains(i.id)) i.id: newId('it'),
+        };
         final now = DateTime.now().toUtc();
         var z = _page.nextZ;
         final copies = <Item>[];
@@ -1273,8 +1380,10 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
           final chosen = _selection.ids.contains(item.id);
           if (!chosen && !riders.contains(item.id)) continue;
           final Item? copy = switch (item) {
+            // A copied connector joins the copies of what it joined, and
+            // lets go of anything that wasn't copied.
             StrokeItem s => StrokeItem.fromPagePoints(
-                id: newId('it'),
+                id: copyIds[s.id]!,
                 z: z,
                 createdAt: now,
                 tool: s.tool,
@@ -1285,9 +1394,11 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
                 pagePoints: t.applyTo(s).pageInk,
                 arrow: s.arrow,
                 straightened: s.straightened,
+                startItemId: copyIds[s.startItemId],
+                endItemId: copyIds[s.endItemId],
               ),
             BoxItem b => b.withBox(
-                id: newId('it'),
+                id: copyIds[b.id]!,
                 z: z,
                 createdAt: now,
                 x: b.x + shift.dx,
@@ -1813,7 +1924,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   /// dragged, a box being stretched, text being typed, or strokes a
   /// scribble is about to erase.
   Set<String> _hidden() {
-    if (_selection.live != null || _drag == _Drag.stretch) return _moving;
+    if (_selection.live != null || _drag == _Drag.stretch || _drag == _Drag.connectorEnd) return _moving;
     if (_edit != null) return _editHidden;
     return _overlay.scribble;
   }

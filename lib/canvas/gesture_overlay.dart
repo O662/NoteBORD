@@ -78,7 +78,13 @@ Path dashed(Path source, double dash, double gap) {
 /// Where the selection's handles are, on screen.
 @immutable
 class SelectionHandles {
-  const SelectionHandles({required this.corners, required this.sides, required this.stem, required this.knob});
+  const SelectionHandles({
+    required this.corners,
+    required this.sides,
+    required this.stem,
+    required this.knob,
+    this.ends = const [],
+  });
 
   /// Resize handles: top-left, top-right, bottom-right, bottom-left.
   final List<Offset> corners;
@@ -89,6 +95,9 @@ class SelectionHandles {
   /// The rotate knob, and the middle of the bottom edge its stem starts at.
   final Offset stem;
   final Offset knob;
+
+  /// A connector's two ends, which can be dragged onto a box or off it.
+  final List<Offset> ends;
 
   /// Everything the handles cover.
   Rect get bounds {
@@ -260,6 +269,12 @@ class GestureOverlayPainter extends CustomPainter {
     canvas
       ..drawCircle(knob, 11, fill)
       ..drawCircle(knob, 11, ring);
+    // Connector ends: solid dots in a ring of paper.
+    for (final e in h.ends) {
+      canvas
+        ..drawCircle(e, 8, fill)
+        ..drawCircle(e, 6, Paint()..color = colors.accent);
+    }
     final arrow = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.6

@@ -1,5 +1,5 @@
 import 'dart:ui' as ui;
-import 'dart:ui' show Brightness, Canvas, Color, Paint, PaintingStyle, Path, Radius, Rect, RRect;
+import 'dart:ui' show Brightness, Canvas, Color, Offset, Paint, PaintingStyle, Path, Radius, Rect, RRect;
 
 import '../board/model.dart';
 import '../templates/templates.dart';
@@ -192,9 +192,15 @@ void paintItem(Canvas canvas, Item item, Brightness brightness, EndlessColors co
 void paintStroke(Canvas canvas, StrokeItem s, Color color, {double opacity = 1}) {
   final alpha = inkOpacity(s.tool, s.penType) * opacity;
   final heads = s.arrow == null ? const <Path>[] : cachedArrowHeads(s);
-  // Translucent ink with a head is drawn opaque in a layer, so the head
-  // doesn't darken where it overlaps the line.
-  final layered = heads.isNotEmpty && alpha < 1;
+  // An attached end without a head gets a dot where it meets its box
+  // (Arrows.dc.html).
+  final dots = <Offset>[
+    if (s.startItemId != null && !(s.arrow?.start ?? false) && s.points.isNotEmpty) s.pagePoints.first,
+    if (s.endItemId != null && !(s.arrow?.end ?? false) && s.points.isNotEmpty) s.pagePoints.last,
+  ];
+  // Translucent ink with a head or a dot is drawn opaque in a layer, so
+  // they don't darken where they overlap the line.
+  final layered = (heads.isNotEmpty || dots.isNotEmpty) && alpha < 1;
   if (layered) canvas.saveLayer(s.bounds, Paint()..color = Color.fromRGBO(0, 0, 0, alpha));
   final paint = Paint()
     ..color = layered ? color : color.withValues(alpha: alpha)
@@ -202,6 +208,9 @@ void paintStroke(Canvas canvas, StrokeItem s, Color color, {double opacity = 1})
   canvas.drawPath(cachedOutline(s), paint);
   for (final h in heads) {
     canvas.drawPath(h, paint);
+  }
+  for (final d in dots) {
+    canvas.drawCircle(d, s.attachDotRadius, paint);
   }
   if (layered) canvas.restore();
 }

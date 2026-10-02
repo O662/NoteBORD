@@ -11,6 +11,7 @@ import '../board/ids.dart';
 import '../board/lock.dart';
 import '../board/model.dart';
 import '../board/store.dart';
+import '../canvas/connectors.dart';
 import '../canvas/page_runtime.dart';
 import '../library/library.dart';
 import 'assets.dart';
@@ -488,10 +489,76 @@ class NotebookNotifier extends Notifier<NotebookState> {
 
   void _commit(PageRuntime page, List<EditStep> steps) {
     if (steps.isEmpty) return;
-    final c = Command(page.id, steps);
+    final c = Command(page.id, _withConnectors(page, steps));
     _apply(c);
     _push(c);
     _changed(page.id);
+  }
+
+  /// [steps] plus what they do to connectors, in the same undo step: an
+  /// end attached to a box that moved, turned or was resized goes with it;
+  /// an end whose box was removed lets go; and a connector moved on its own
+  /// lets go of a box its end is no longer on (moved with the box at its
+  /// other end, it bends back onto the one that stayed).
+  List<EditStep> _withConnectors(PageRuntime page, List<EditStep> steps) {
+    final changed = <String, (BoxItem, BoxItem)>{};
+    final removed = <String>{};
+    final strokes = <String, int>{}; // replaced strokes: where their step is
+    for (final (i, s) in steps.indexed) {
+      switch (s) {
+        case ReplaceStep(item: final BoxItem after, before: final BoxItem before):
+          changed[after.id] = (before, after);
+        case ReplaceStep(item: StrokeItem _):
+          strokes[s.item.id] = i;
+        case RemoveStep(item: final item):
+          removed.add(item.id);
+        default:
+          break;
+      }
+    }
+    final out = [...steps];
+    for (final (at, item) in page.items.indexed) {
+      if (item is! StrokeItem || !item.isAttached || removed.contains(item.id)) continue;
+      final step = strokes[item.id];
+      final was = item;
+      var now = step == null ? item : out[step].item as StrokeItem;
+      for (final atStart in [true, false]) {
+        final id = atStart ? now.startItemId : now.endItemId;
+        if (id == null) continue;
+        String? Function() none() => () => null;
+        if (removed.contains(id)) {
+          now = atStart ? now.copyWith(startItemId: none()) : now.copyWith(endItemId: none());
+        } else if (changed[id] case (final before, final after)) {
+          // Only this end: [followBox] moves each end attached to the box.
+          final single = atStart ? now.copyWith(endItemId: none()) : now.copyWith(startItemId: none());
+          final followed = followBox(single, before, after, was: was);
+          now = followed.copyWith(startItemId: () => now.startItemId, endItemId: () => now.endItemId);
+        } else if (step != null) {
+          if (page[id] case final BoxItem box when !endOnEdge(now, box, atStart: atStart, tolerance: 2)) {
+            final withABox = changed.containsKey(was.startItemId) || changed.containsKey(was.endItemId);
+            if (withABox) {
+              // Moved along with the box at its other end: this end bends
+              // back to the box it's on, which stayed.
+              final old = atStart ? was.pagePoints.first : was.pagePoints.last;
+              final cur = atStart ? now.pagePoints.first : now.pagePoints.last;
+              now = now.copyWith(
+                pagePoints: rubberBand(now.pageInk, atStart ? old - cur : Offset.zero, atStart ? Offset.zero : old - cur),
+              );
+            } else {
+              // The connector moved on its own: an end that left its box lets go.
+              now = atStart ? now.copyWith(startItemId: none()) : now.copyWith(endItemId: none());
+            }
+          }
+        }
+      }
+      if (step != null) {
+        final s = out[step] as ReplaceStep;
+        out[step] = ReplaceStep(s.at, now, s.before);
+      } else if (!identical(now, item)) {
+        out.add(ReplaceStep(at, now, item));
+      }
+    }
+    return out;
   }
 
   /// Starts an eraser drag. Everything erased until [endErase] is one undo step.
