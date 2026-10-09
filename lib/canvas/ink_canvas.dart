@@ -12,8 +12,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../board/ids.dart';
 import '../board/model.dart';
+import '../office/office_model.dart';
 import '../state/links.dart';
 import '../state/notebook.dart';
+import '../state/office_docs.dart';
 import '../state/settings.dart';
 import '../templates/templates.dart';
 import '../theme/colors.dart';
@@ -32,6 +34,7 @@ import 'gestures.dart';
 import 'items.dart';
 import 'laser.dart';
 import 'new_items.dart';
+import 'office_cards.dart';
 import 'page_runtime.dart';
 import 'pane.dart';
 import 'pens.dart';
@@ -605,13 +608,19 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _shapeId = newId('it');
       case CanvasTool.pen || CanvasTool.marker || CanvasTool.eraser:
         _selection.clear();
+        final top = topBoxAt(_page.items, page);
+        if (top is OfficeItem && officeButtonAt(top, top.toLocal(page)) != null) {
+          // The pen presses an Office card's Open and page arrows.
+          _drag = _Drag.tap;
+          _tapDown = e.localPosition;
+          _tapMoved = false;
+          return;
+        }
         _drag = _Drag.ink;
         _samples = 0;
-        // Ink that starts on a sticky note is written on the note.
-        _inkTarget = switch (topBoxAt(_page.items, page)) {
-          final StickyItem s => s.id,
-          _ => null,
-        };
+        // Ink that starts on a sticky note (or an Office file's page) is
+        // written on it.
+        _inkTarget = top != null && top is InkHolder && (top as InkHolder).takesInkAt(page) ? top.id : null;
         _rulerEdge = pane.ruler.edgeNear(e.localPosition);
         pane.ruler.measure = null;
         active.begin(
@@ -725,14 +734,15 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         if (runtime[id] case final StrokeItem s when strokeHit(s, from, page, r)) id,
     ];
     if (hits.isNotEmpty) _notebook.erase(hits);
-    // Ink on a sticky note rubs off the note; the note itself stays.
+    // Ink on a sticky note (or an Office file's page) rubs off it; the
+    // note itself stays.
     for (final id in near) {
-      if (runtime[id] case final StickyItem note when note.ink.isNotEmpty) {
+      if (runtime[id] case final InkHolder holder when holder.ink.isNotEmpty) {
         final rubbed = {
-          for (final ink in note.pageInk)
+          for (final ink in holder.pageInk)
             if (strokeHit(ink, from, page, r)) ink.id,
         };
-        if (rubbed.isNotEmpty) _notebook.eraseInk(note.id, rubbed);
+        if (rubbed.isNotEmpty) _notebook.eraseInk(id, rubbed);
       }
     }
   }
@@ -974,7 +984,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         final note = _targetNote;
         // An arrow that leaves the sticky note it started on joins it from
         // the page; one drawn on the note stays on the note.
-        if (note == null || !shaped.pagePoints.every(note.contains)) {
+        if (note == null || !shaped.pagePoints.every((note as BoxItem).contains)) {
           _inkTarget = null;
           shaped = attachEnds(shaped, page.items, slop: _attachReach * _unit);
         }
@@ -1005,9 +1015,10 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     return raw.copyWith(pagePoints: raw.pageInk.sublist(flicks.from, flicks.to + 1), arrow: () => heads);
   }
 
-  /// The sticky note the stroke being drawn is written on, if any.
-  StickyItem? get _targetNote => switch (_inkTarget == null ? null : _page[_inkTarget!]) {
-        final StickyItem s => s,
+  /// The sticky note (or Office file) the stroke being drawn is written
+  /// on, if any.
+  InkHolder? get _targetNote => switch (_inkTarget == null ? null : _page[_inkTarget!]) {
+        final InkHolder s => s,
         _ => null,
       };
 
@@ -1065,7 +1076,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   List<Item> _riders() {
     final frames = [
       for (final i in _selected)
-        if (i is FrameItem || i is ImageItem || i is CardItem) i as BoxItem,
+        if (i is FrameItem || i is ImageItem || i is CardItem || i is OfficeItem) i as BoxItem,
     ];
     if (frames.isEmpty) return const [];
     final page = _page;
@@ -1339,6 +1350,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       if (one is TextItem || (one is StickyItem && !one.isStack)) SelectionAction.edit,
       if (one is CardItem) SelectionAction.editCard,
       if (one is CardItem && one.data is EmbedData) SelectionAction.open,
+      if (one is OfficeItem) SelectionAction.open,
       if (one is StickyItem && one.isStack) ...[SelectionAction.fanOut, SelectionAction.nextNote],
       if (one == null && _onlyStickies) SelectionAction.stack,
       if (one is FrameItem) SelectionAction.rename,
@@ -1447,6 +1459,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         if (items.singleOrNull case final CardItem card) _editCard(card);
       case SelectionAction.open:
         if (items.singleOrNull case final CardItem card) _openLink(card);
+        if (items.singleOrNull case final OfficeItem file) _openFile(file);
       case SelectionAction.fanOut:
         if (items.singleOrNull case final StickyItem s) _fanOut(s);
       case SelectionAction.nextNote:
@@ -1507,6 +1520,65 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       }
     }
     if (!opened && mounted) showNote(context, 'Couldn’t open that address');
+  }
+
+  // Word, PowerPoint and Excel files.
+
+  /// Opens the file in the app the tablet uses for it.
+  Future<void> _openFile(OfficeItem file) async {
+    final kind = file.kind;
+    if (kind == null) return;
+    final bytes = await ref.read(notebookProvider(pane.notebookId).notifier).readAsset(file.asset);
+    var opened = false;
+    if (bytes != null) {
+      try {
+        final name = file.name.isNotEmpty ? file.name : 'File.${kind.name}';
+        opened = await ref.read(fileOpenerProvider).open(name, bytes, kind.mimeType);
+      } on Object catch (e) {
+        debugPrint('Opening ${file.name} failed: $e');
+      }
+    }
+    if (opened || !mounted) return;
+    showNote(
+      context,
+      bytes == null
+          ? 'This file can’t be found in the notebook'
+          : 'No app on this tablet opens ${_appFor(kind)} files. Install one, then try again.',
+    );
+  }
+
+  static String _appFor(OfficeKind kind) => switch (kind) {
+        OfficeKind.docx => 'Word',
+        OfficeKind.pptx => 'PowerPoint',
+        OfficeKind.xlsx => 'Excel',
+      };
+
+  /// Shows the page, slide or sheet [by] steps on (no undo step: it's
+  /// where you are, not a change).
+  void _stepFile(OfficeItem file, int by) {
+    final kind = file.kind;
+    final count = kind == null ? file.pages : (_notebook.docs.preview(file.asset, kind)?.pageCount ?? file.pages);
+    final page = (file.page + by).clamp(1, math.max(count, 1)).toInt();
+    if (page == file.page) return;
+    _notebook.setQuietly(_page.id, file.copyWith(page: page, pages: count));
+  }
+
+  /// A tap on an Office card's button.
+  bool _pressFileButton(Offset at) {
+    if (topBoxAt(_page.items, at) case final OfficeItem file) {
+      switch (officeButtonAt(file, file.toLocal(at))) {
+        case OfficeButton.open:
+          _openFile(file);
+        case OfficeButton.previous:
+          _stepFile(file, -1);
+        case OfficeButton.next:
+          _stepFile(file, 1);
+        case null:
+          return false;
+      }
+      return true;
+    }
+    return false;
   }
 
   // Sticky stacks.
@@ -1603,7 +1675,9 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     final now = DateTime.now().toUtc();
     final settings = ref.read(settingsProvider);
     if (!settings.tool.places) {
-      // Any other tool: a tap only presses a website card's Open button.
+      // Any other tool: a tap only presses a website card's Open button,
+      // or an Office card's Open and page arrows.
+      if (_pressFileButton(at)) return;
       if (topBoxAt(page.items, at) case final CardItem card when card.data is EmbedData) {
         if (embedOpenRect(card).contains(card.toLocal(at))) _openLink(card);
       }

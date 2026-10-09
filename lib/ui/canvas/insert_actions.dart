@@ -8,12 +8,14 @@ import '../../canvas/cards.dart';
 import '../../canvas/new_items.dart';
 import '../../canvas/pane.dart';
 import '../../canvas/selection.dart';
+import '../../office/office_model.dart';
 import '../../state/notebook.dart';
 import '../../state/photos.dart';
 import '../../state/settings.dart';
 import '../../templates/templates.dart';
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart';
+import '../../transfer/files.dart';
 import '../common.dart';
 import '../dialogs.dart';
 import '../icons.dart';
@@ -73,6 +75,12 @@ Future<void> runInsert(
       // A website needs its address first.
       final site = await showWebsitePrompt(context);
       if (site != null && context.mounted) insertCard(ref, pane, EmbedData(site.url), title: site.title);
+    case InsertAction.word:
+      await insertOffice(context, ref, pane, OfficeKind.docx);
+    case InsertAction.powerPoint:
+      await insertOffice(context, ref, pane, OfficeKind.pptx);
+    case InsertAction.excel:
+      await insertOffice(context, ref, pane, OfficeKind.xlsx);
     case InsertAction.image:
       // With a camera, ask where the picture comes from.
       final origin = ref.read(photoPickerProvider).hasCamera ? await showImageSources(context) : PhotoOrigin.tablet;
@@ -113,6 +121,50 @@ Future<void> insertImage(BuildContext context, WidgetRef ref, Pane pane, PhotoOr
     ..menu = SelectionMenu.convert
     ..select([item.id]);
   pane.toast('Added an image to the page', undoPageId: pageId);
+}
+
+/// Picks a Word, PowerPoint or Excel file and puts its card in the middle
+/// of the view, selected. (A file of another of the three kinds is taken
+/// too: what's inside the file decides.)
+Future<void> insertOffice(BuildContext context, WidgetRef ref, Pane pane, OfficeKind kind) async {
+  final notebookId = pane.notebookId;
+  final PickedFile? file;
+  try {
+    file = await ref.read(fileTransferProvider).pickOne([kind.name], title: 'Choose a ${kind.noun}');
+  } on Object catch (e) {
+    debugPrint('Picking a file failed: $e');
+    if (context.mounted) showNote(context, 'Couldn’t open your files');
+    return;
+  }
+  if (file == null || !context.mounted || pane.notebookId != notebookId) return;
+  final pageId = ref.read(notebookProvider(notebookId)).pageAt(pane.page).id;
+  pane.showStatus('Reading ${file.name}…');
+  final OfficeItem? item;
+  try {
+    item = await ref
+        .read(notebookProvider(notebookId).notifier)
+        .addOffice(pageId, file.bytes, name: file.name, center: pane.view.visiblePage.center);
+  } on OfficeReadError catch (e) {
+    pane.showStatus(null);
+    if (context.mounted) showNote(context, e.message);
+    return;
+  } on Object catch (e) {
+    debugPrint('Adding ${file.name} failed: $e');
+    pane.showStatus(null);
+    if (context.mounted) showNote(context, 'That file can’t be shown on the board');
+    return;
+  }
+  pane.showStatus(null);
+  if (!context.mounted) return;
+  if (item == null) {
+    showNote(context, 'Unlock this page to add files to it');
+    return;
+  }
+  ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: CanvasTool.select));
+  pane.selection
+    ..menu = SelectionMenu.convert
+    ..select([item.id]);
+  pane.toast('Added “${file.name}” to the page', undoPageId: pageId);
 }
 
 /// Puts a new card holding [data] in the middle of the view, selected, so

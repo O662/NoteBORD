@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/painting.dart';
 
 import '../board/model.dart';
+import '../canvas/office_cards.dart' show OfficeSource;
 import '../canvas/page_runtime.dart' show paintItem;
 import '../templates/templates.dart';
 import '../theme/tokens.g.dart';
@@ -15,8 +16,8 @@ const maxImageSide = 8192;
 
 /// A PNG of [page] fitted to its ink, at [scale] pixels per page px, on
 /// the page's own paper in the light palette. [images] are the decoded
-/// pictures on it, by asset name.
-Future<Uint8List> renderPagePng(BoardPage page, Map<String, ui.Image> images, {double scale = 2}) async {
+/// pictures on it, by asset name, and [docs] its Office files.
+Future<Uint8List> renderPagePng(BoardPage page, Map<String, ui.Image> images, {double scale = 2, OfficeSource? docs}) async {
   final area = pageContent(page)?.inflate(fitMargin) ?? const Rect.fromLTWH(0, 0, 800, 600);
   final k = math.min(scale, maxImageSide / math.max(area.width, area.height));
   final w = math.max(1, (area.width * k).ceil()), h = math.max(1, (area.height * k).ceil());
@@ -30,7 +31,7 @@ Future<Uint8List> renderPagePng(BoardPage page, Map<String, ui.Image> images, {d
   final layout = layoutPicture(page.template, c);
   if (layout != null) canvas.drawPicture(layout);
   for (final item in page.items) {
-    paintItem(canvas, item, ui.Brightness.light, c, images: (name) => images[name]);
+    paintItem(canvas, item, ui.Brightness.light, c, images: (name) => images[name], docs: docs);
   }
   final picture = recorder.endRecording();
   final image = await picture.toImage(w, h);

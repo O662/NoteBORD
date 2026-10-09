@@ -559,7 +559,7 @@ class _TransferDialogState extends ConsumerState<TransferDialog> {
   Widget _importBody(EndlessColors c) {
     final picked = _files;
     final title = switch (picked.length) {
-      0 => 'Choose a PDF, image or .board file',
+      0 => 'Choose a PDF, image, Office or .board file',
       1 => picked.single.name,
       final n => '$n files',
     };
@@ -726,6 +726,7 @@ String _kindLabel(PickedFile f) => switch (importKindOf(f)) {
   ImportKind.pdf => 'PDF',
   ImportKind.board => 'Board file',
   ImportKind.image => 'Image',
+  ImportKind.office => 'Office file',
   ImportKind.unknown => 'Can’t import',
 };
 
@@ -1318,7 +1319,7 @@ class _TargetPicker extends ConsumerWidget {
         child: ListView(
           shrinkWrap: true,
           children: [
-            if (thisNotebook) row(null, 'This notebook', sub: 'PDF pages after this page, pictures on it'),
+            if (thisNotebook) row(null, 'This notebook', sub: 'PDF pages after this page, pictures and Office files on it'),
             row(const [], 'All notebooks', sub: thisNotebook ? 'A new notebook' : null),
             for (final f in folders) row(f.path, f.name, color: f.color),
           ],

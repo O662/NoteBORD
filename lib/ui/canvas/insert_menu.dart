@@ -25,6 +25,9 @@ enum InsertAction {
   timeline,
   kanban,
   website,
+  word,
+  powerPoint,
+  excel,
 }
 
 /// One tile of the Insert menu (Insert.dc.html).
@@ -128,12 +131,9 @@ final List<InsertSection> insertSections = [
     InsertEntry('Image or photo', icon: EIcons.image, tile: _green, tint: _greenInk, action: InsertAction.image, keywords: 'picture camera png jpg'),
     InsertEntry('PDF', badge: 'PDF', tile: _clay, tint: _clayInk, keywords: 'document file',
         soon: 'Put a PDF on the board and write on top of it.'),
-    InsertEntry('Word document', badge: 'DOCX', tile: _blue, tint: _blueInk, keywords: 'docx file',
-        soon: 'A live preview of a Word document on the board. Write on top of it, or tap to open it in its own app.'),
-    InsertEntry('PowerPoint', badge: 'PPTX', tile: _clay, tint: _clayInk, keywords: 'pptx slides presentation file',
-        soon: 'Slides on the board, one at a time, with your ink on top.'),
-    InsertEntry('Excel sheet', badge: 'XLSX', tile: _green, tint: _greenInk, keywords: 'xlsx spreadsheet file',
-        soon: 'A spreadsheet on the board. Charts linked to it update when it changes.'),
+    InsertEntry('Word document', badge: 'DOCX', tile: _blue, tint: _blueInk, action: InsertAction.word, keywords: 'docx file'),
+    InsertEntry('PowerPoint', badge: 'PPTX', tile: _clay, tint: _clayInk, action: InsertAction.powerPoint, keywords: 'pptx slides presentation file'),
+    InsertEntry('Excel sheet', badge: 'XLSX', tile: _green, tint: _greenInk, action: InsertAction.excel, keywords: 'xlsx spreadsheet file'),
   ]),
   InsertSection('Build on the board', 7, [
     InsertEntry('Math', math: true, tile: _blue, tint: _blueInk, small: true, keywords: 'equation formula latex',

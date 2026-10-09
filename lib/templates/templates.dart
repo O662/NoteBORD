@@ -424,8 +424,9 @@ class UserTemplatesNotifier extends Notifier<List<UserTemplate>> {
       name: name.trim().isEmpty ? 'My template' : name.trim(),
       paper: page.paper,
       layout: page.template is String ? page.template as String : null,
-      // Pictures stay with their notebook: their files live in its package.
-      items: [for (final i in page.items) if (i is! ImageItem) i.toJson()],
+      // Pictures and Office files stay with their notebook: their files
+      // live in its package.
+      items: [for (final i in page.items) if (i is! ImageItem && i is! OfficeItem) i.toJson()],
       createdAt: DateTime.now().toUtc(),
     );
     await ref.read(boardStoreProvider).saveTemplate(t.id, t.toJson());

@@ -160,7 +160,7 @@ class GestureOverlayPainter extends CustomPainter {
         ..transform(vp.matrix.storage)
         ..transform(live.matrix.storage);
       for (final item in page.items) {
-        if (ids.contains(item.id)) paintItem(canvas, item, brightness, colors, images: page.images);
+        if (ids.contains(item.id)) paintItem(canvas, item, brightness, colors, images: page.images, docs: page.docs);
       }
       canvas.restore();
     }
@@ -170,7 +170,7 @@ class GestureOverlayPainter extends CustomPainter {
       canvas
         ..save()
         ..transform(vp.matrix.storage);
-      paintItem(canvas, ghost, brightness, colors, images: page.images);
+      paintItem(canvas, ghost, brightness, colors, images: page.images, docs: page.docs);
       canvas.restore();
     }
 

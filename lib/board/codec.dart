@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:math' as math;
+import 'dart:ui' show Size;
 
 import 'model.dart';
 
@@ -219,6 +221,36 @@ Item? _decodeKnown(Json json) {
         w: (json['w'] as num).toDouble(),
         h: (json['h'] as num).toDouble(),
         asset: json['asset'] as String,
+      );
+    case 'file' when const {'docx', 'pptx', 'xlsx'}.contains(json['mime']):
+      final size = json['pageSize'] as List?;
+      final ink = json['ink'] as Map?;
+      return OfficeItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, const {..._boxKeys, 'asset', 'mime', 'name', 'page', 'pages', 'pageSize', 'unit', 'ink'}),
+        w: (json['w'] as num).toDouble(),
+        h: (json['h'] as num).toDouble(),
+        asset: json['asset'] as String,
+        mime: json['mime'] as String,
+        name: json['name'] as String? ?? '',
+        page: math.max(1, (json['page'] as num?)?.toInt() ?? 1),
+        pages: math.max(1, (json['pages'] as num?)?.toInt() ?? 1),
+        pageSize: size == null ? null : Size((size[0] as num).toDouble(), (size[1] as num).toDouble()),
+        unit: _num(json['unit'], 1),
+        inkByPage: {
+          for (final e in (ink ?? const {}).entries)
+            int.parse(e.key as String): [
+              for (final s in _nested(e.value))
+                if (s is StrokeItem) s,
+            ],
+        },
       );
     case 'file':
       return FileItem(

@@ -60,11 +60,12 @@ String imageExtension(Uint8List b) {
   return 'img';
 }
 
-/// The content-addressed file name for an image or PDF: `<sha256>.<ext>`.
-String assetNameFor(Uint8List bytes) {
+/// The content-addressed file name for an image, PDF or Office file:
+/// `<sha256>.<ext>`, the extension told from the bytes unless [ext] says.
+String assetNameFor(Uint8List bytes, {String? ext}) {
   final hash = const DartSha256().hashSync(bytes).bytes;
   final hex = [for (final v in hash) v.toRadixString(16).padLeft(2, '0')].join();
-  return '$hex.${imageExtension(bytes)}';
+  return '$hex.${ext ?? imageExtension(bytes)}';
 }
 
 /// Every `asset` (and a file page's `preview`) named anywhere in an item's

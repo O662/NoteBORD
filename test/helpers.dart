@@ -10,11 +10,13 @@ import 'package:endless/board/store.dart';
 import 'package:endless/canvas/page_runtime.dart';
 import 'package:endless/canvas/pane.dart';
 import 'package:endless/library/index_db.dart';
+import 'package:endless/office/office_reader.dart';
 import 'package:endless/state/assets.dart';
 import 'package:endless/state/biometric.dart';
 import 'package:endless/state/links.dart';
 import 'package:endless/state/bootstrap.dart';
 import 'package:endless/state/notebook.dart';
+import 'package:endless/state/office_docs.dart';
 import 'package:endless/state/photos.dart';
 import 'package:endless/state/settings.dart';
 import 'package:endless/theme/tokens.g.dart' as tokens;
@@ -150,6 +152,9 @@ Future<List<Override>> testOverrides(
     ...await bootstrap(store, index: db, clock: () => testNow),
     lockCryptoProvider.overrideWithValue(testCrypto),
     biometricProvider.overrideWithValue(biometric ?? FakeBiometric()),
+    // Office files are read on the test's own isolate (fake time can't
+    // wait for another one).
+    officeParserProvider.overrideWithValue((bytes, kind) async => readOffice(bytes, kind)),
     if (location != null) initialLocationProvider.overrideWithValue(location),
   ];
 }
@@ -305,6 +310,10 @@ LoadedNotebook sampleNotebook() {
 /// pick returns.
 class FakeFileTransfer implements FileTransfer {
   List<PickedFile> toPick = [];
+
+  /// What the next single-file pick returns, and the extensions asked for.
+  PickedFile? toPickOne;
+  final askedFor = <List<String>>[];
   bool saveAnswer = true;
   final saved = <ExportFile>[];
   final shared = <ExportFile>[];
@@ -312,6 +321,12 @@ class FakeFileTransfer implements FileTransfer {
 
   @override
   Future<List<PickedFile>> pick() async => toPick;
+
+  @override
+  Future<PickedFile?> pickOne(List<String> extensions, {required String title}) async {
+    askedFor.add(extensions);
+    return toPickOne;
+  }
 
   @override
   Future<bool> save(String name, Uint8List bytes, String mime) async {
@@ -324,6 +339,18 @@ class FakeFileTransfer implements FileTransfer {
 
   @override
   Future<void> print(String name, Uint8List pdf) async => printed.add(ExportFile(name, pdf, pdfMime));
+}
+
+/// An app opener that records what it was asked to open.
+class FakeFileOpener implements FileOpener {
+  final opened = <(String, String)>[];
+  bool works = true;
+
+  @override
+  Future<bool> open(String name, Uint8List bytes, String mime) async {
+    opened.add((name, mime));
+    return works;
+  }
 }
 
 /// A PDF of [pages] (points) whose pages draw as [fakePng] and say

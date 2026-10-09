@@ -10,6 +10,9 @@ import 'package:pdf/pdf.dart';
 import '../board/model.dart';
 import '../canvas/cards.dart';
 import '../canvas/items.dart';
+import '../canvas/office_cards.dart';
+import '../office/office_model.dart';
+import '../office/office_render.dart';
 import '../canvas/pens.dart';
 import '../canvas/stroke_geometry.dart';
 import '../templates/templates.dart';
@@ -225,11 +228,15 @@ bool _inside(Rect a, Rect b) => a.left >= b.left - 0.5 && a.top >= b.top - 0.5 &
 /// locked.
 typedef AssetReader = Future<Uint8List?> Function(String name);
 
+/// Reads a Word, PowerPoint or Excel file from the notebook, or null.
+typedef OfficeLoader = Future<OfficePreview?> Function(String asset, OfficeKind kind);
+
 /// Writes [pages] as a PDF. [onProgress] hears after each page.
 Future<Uint8List> buildPdf({
   required String title,
   required List<BoardPage> pages,
   required AssetReader readAsset,
+  OfficeLoader? loadOffice,
   PdfOptions options = const PdfOptions(),
   HandwritingText handwriting = const NoHandwritingText(),
   PdfFontSource fonts = const BundledFonts(),
@@ -238,7 +245,7 @@ Future<Uint8List> buildPdf({
 }) async {
   final doc = PdfDocument(compress: compress);
   PdfInfo(doc, title: title, creator: 'Endless', producer: 'Endless');
-  final writer = _PdfWriter(doc, readAsset, fonts, options);
+  final writer = _PdfWriter(doc, readAsset, fonts, options, loadOffice);
   for (final (i, page) in pages.indexed) {
     final runs = options.searchable ? handwriting.runsFor(page) : const <TextRun>[];
     for (final sheet in pdfSheets(page, options)) {
@@ -252,10 +259,11 @@ Future<Uint8List> buildPdf({
 }
 
 class _PdfWriter {
-  _PdfWriter(this.doc, this.readAsset, this.fontSource, this.options);
+  _PdfWriter(this.doc, this.readAsset, this.fontSource, this.options, this.loadOffice);
 
   final PdfDocument doc;
   final AssetReader readAsset;
+  final OfficeLoader? loadOffice;
   final PdfFontSource fontSource;
   final PdfOptions options;
   final EndlessColors c = paperLight;
@@ -384,10 +392,38 @@ class _PdfWriter {
         await _raster(card.paintRect, (canvas) => paintCard(canvas, card, c));
         final words = cardText(card);
         if (words.isNotEmpty) text.add(TextRun(words, card.extent));
+      case OfficeItem f:
+        await _office(f, text);
       case ShapeItem s:
         _shapeItem(s);
     }
     g.restoreContext();
+  }
+
+  /// An Office card: the card and its page as a picture, the ink on it as
+  /// vectors, and what the page says in the text layer.
+  Future<void> _office(OfficeItem f, List<TextRun> text) async {
+    final kind = f.kind;
+    final file = kind == null || loadOffice == null ? null : await loadOffice!(f.asset, kind);
+    // Pictures inside the file are decoded before the page is drawn.
+    file?.picture(f.page);
+    await file?.ready(f.page);
+    final source = SingleOffice(file);
+    await _raster(f.paintRect, (canvas) => paintOfficeCard(canvas, f, ui.Brightness.light, c, source, ink: false));
+    final ink = officeInk(f);
+    if (ink.isNotEmpty) {
+      final area = officeInkArea(f);
+      g.saveContext();
+      g
+        ..drawRect(area.left, area.top, area.width, area.height)
+        ..clipPath();
+      for (final s in ink) {
+        _stroke(s, s.color);
+      }
+      g.restoreContext();
+    }
+    final words = [officeTitle(f), ?file?.text(f.page)].where((w) => w.trim().isNotEmpty).join('\n');
+    if (words.isNotEmpty) text.add(TextRun(words, f.extent));
   }
 
   void _shapeItem(ShapeItem s) {

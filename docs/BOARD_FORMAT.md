@@ -70,7 +70,7 @@ Every item has these fields:
 | `sticky` | `w`, `h`, `color`, `items` (nested ink/text), `stack?: {count, notes?}` |
 | `frame` | `w`, `h`, `paper` (lined-a4, grid-a4, dots-a4, blank-a4), `title`, `template?`, `unit?` |
 | `image` | `w`, `h`, `asset`, `crop?` |
-| `file` | `w`, `h`, `asset`, `mime` (pdf/docx/pptx/xlsx), `page?`, `preview?`, `name?`, `text?` |
+| `file` | `w`, `h`, `asset`, `mime` (pdf/docx/pptx/xlsx), `page?`, `preview?`, `name?`, `text?`; Office files also `pages`, `pageSize?`, `unit`, `ink?` |
 | `embed` | `w`, `h`, `url` (website), `title`, `unit` |
 | `kanban` | `w`, `h`, `title`, `unit`, `columns: [{title, cards: [{text}]}]` |
 | `timeline` | `w`, `h`, `title`, `unit`, `events: [{date, label, state}]` |
@@ -116,6 +116,24 @@ Every item has these fields:
 - `w` and `h` are the page's size in PDF points: one point is one page px. An imported PDF page sits at `x: 0, y: 0`, one per notebook page, under what is written on it.
 - `name` is the file's name when it was imported. `text` is the page's own text (what PDFium reads), kept so it stays searchable; it goes into an exported PDF's invisible text layer.
 - Like an `image`, its files are sealed (`.enc`) on a page with a password.
+
+**Word, PowerPoint and Excel files, as implemented (v1):** a `file` item with `mime` `docx`, `pptx` or `xlsx` is a card on the board with a live preview of one page, slide or sheet (Board.dc.html: the DOCX, PPTX and XLSX cards). The app reads the file itself to draw it; nothing drawn from it is stored.
+
+```json
+{
+  "id": "it_01J…", "type": "file", "x": 300, "y": 120, "rotation": 0, "z": 7,
+  "w": 495, "h": 378, "asset": "9f2c…e1.pptx", "mime": "pptx", "name": "Ch 9 slides.pptx",
+  "page": 3, "pages": 24, "pageSize": [960, 540], "unit": 1.375,
+  "ink": { "3": [ { "id": "it_…", "type": "stroke", … } ] }
+}
+```
+
+- `asset` is the file in `assets/`, `<sha256 of the file>.<docx|pptx|xlsx>`, byte for byte as it was added, stored once however many cards use it. Like pictures, it is sealed (`.enc`) on a page with a password and is part of a board file.
+- `page` is the page, slide or sheet showing, from 1; `pages` how many there were when it was last read. Stepping through them changes `page` without an undo step.
+- `pageSize` is a Word page or a slide in points (`[612, 792]` for Letter, `[960, 540]` for a 16:9 deck). It is absent for Excel.
+- `unit` is the card's scale, as for the cards built on the board: its header (38 px), footer (36 px, shown for PowerPoint and whenever there's more than one page or sheet) and text are the design's sizes × `unit`.
+- `ink` holds the ink written on each page, keyed by page number as a string. Strokes are in the page's own coordinates: points of `pageSize` for Word and PowerPoint (so ink stays on its words however the card is moved, scaled or stretched), and the card's px before `unit` for Excel, from the top-left of the cells. Only the showing page's ink is drawn; it is clipped to the card between its header and footer.
+- Ink written beside a card is ordinary page ink.
 
 `remember` is either `null` or `{ "why": "...", "remindAt": "...", "flashcard": false }`.
 

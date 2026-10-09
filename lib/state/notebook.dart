@@ -12,10 +12,15 @@ import '../board/lock.dart';
 import '../board/model.dart';
 import '../board/store.dart';
 import '../canvas/connectors.dart';
+import '../canvas/office_cards.dart';
 import '../canvas/page_runtime.dart';
 import '../library/library.dart';
+import '../office/office_model.dart';
+import '../office/office_reader.dart';
+import '../office/office_render.dart';
 import 'assets.dart';
 import 'biometric.dart';
+import 'office_docs.dart';
 import 'settings.dart';
 
 enum SaveStatus { saved, saving, failed }
@@ -181,6 +186,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
   late LiveEditor _editor;
   late ImageDecoder _decode;
   late NotebookImages _images;
+  late NotebookDocs _docs;
 
   /// The notebook and its pages, as in [state]. Saving reads these, since
   /// the last save runs while the provider is being disposed, when [state]
@@ -210,7 +216,8 @@ class NotebookNotifier extends Notifier<NotebookState> {
       ..addAll(loaded.sealed);
     _decode = ref.read(imageDecoderProvider);
     final images = _images = NotebookImages(read: _readAsset, decode: _decode, onLoaded: _imageLoaded);
-    final pages = _pages = [for (final p in loaded.pages) PageRuntime(p, images: images.lookup)];
+    final docs = _docs = NotebookDocs(read: _readAsset, parse: ref.read(officeParserProvider), decode: _decode, onLoaded: _imageLoaded);
+    final pages = _pages = [for (final p in loaded.pages) _runtime(p)];
     _notebook = loaded.notebook;
 
     _editor = (change) {
@@ -230,6 +237,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
         p.dispose();
       }
       images.dispose();
+      docs.dispose();
     });
     return NotebookState(
       notebook: loaded.notebook,
@@ -242,6 +250,15 @@ class NotebookNotifier extends Notifier<NotebookState> {
   }
 
   PageRuntime? _pageById(String pageId) => state.pages.where((p) => p.id == pageId).firstOrNull;
+
+  PageRuntime _runtime(BoardPage page) => PageRuntime(page, images: _images.lookup, docs: _docs);
+
+  /// The notebook's Word, PowerPoint and Excel files, for drawing their cards.
+  OfficeSource get docs => _docs;
+
+  /// An Office file ready to show (read now if it isn't yet), or null if it
+  /// is missing, locked or can't be read. For exports and opening.
+  Future<OfficePreview?> loadOffice(String asset, OfficeKind kind) => _docs.load(asset, kind);
 
   bool canUndo(String pageId) => _undo[pageId]?.isNotEmpty ?? false;
 
@@ -287,6 +304,17 @@ class NotebookNotifier extends Notifier<NotebookState> {
   }
 
   bool _editable(String pageId) => _pageById(pageId) != null && !state.isSealed(pageId);
+
+  /// Swaps in a new version of an item without an undo step: which page of
+  /// an Office file shows. Undo still puts back the item as it was before
+  /// an edit, page and all, so you see what was undone.
+  void setQuietly(String pageId, Item item) {
+    if (!_editable(pageId)) return;
+    final page = _pageById(pageId)!;
+    if (page[item.id] == null) return;
+    page.replace(item);
+    _changed(page.id);
+  }
 
   /// Replaces items with new versions of themselves, as one undo step.
   void replaceItems(String pageId, Iterable<Item> updated) {
@@ -398,6 +426,45 @@ class NotebookNotifier extends Notifier<NotebookState> {
     return item;
   }
 
+  /// Stores a Word, PowerPoint or Excel file in the notebook's assets and
+  /// puts its card on the page, centered on [center] (one undo step).
+  /// Returns null if the page can't be written to; throws
+  /// [OfficeReadError] if [bytes] isn't a file the board can show.
+  Future<OfficeItem?> addOffice(String pageId, Uint8List bytes, {required String name, required Offset center}) async {
+    if (!_editable(pageId)) return null;
+    final key = _keyFor(pageId);
+    if (key == null && _needsKey(pageId)) return null;
+    final kind = officeKindOf(bytes);
+    if (kind == null) throw const OfficeReadError('This file isn’t a Word, PowerPoint or Excel file.');
+    final doc = await ref.read(officeParserProvider)(bytes, kind);
+    final preview = OfficePreview(doc, bytes, decode: _decode);
+    final asset = assetNameFor(bytes, ext: kind.name);
+    try {
+      await _queue.run(() async => key == null
+          ? _store.saveAsset(id, asset, bytes)
+          : _store.saveAsset(id, '$asset.enc', await _crypto.sealBytes(key, bytes)));
+    } on Object {
+      preview.dispose();
+      rethrow;
+    }
+    if (!ref.mounted || !_editable(pageId)) {
+      preview.dispose();
+      return null;
+    }
+    _docs.put(asset, preview);
+    final item = newOfficeCard(
+      kind,
+      preview,
+      asset: asset,
+      name: name,
+      center: center,
+      z: _pageById(pageId)!.nextZ,
+      now: _clock().toUtc(),
+    );
+    insertItems(pageId, [item]);
+    return item;
+  }
+
   /// Adds [pages] after page [after] (default: at the end), storing [files]
   /// (asset name → bytes) first, and returns the first new page's index.
   /// In a notebook with a password the files are sealed with its key; null
@@ -419,7 +486,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
     final at = after == null ? state.pages.length : (after + 1).clamp(0, state.pages.length);
     for (final (i, page) in pages.indexed) {
       nb.pageIds.insert(at + i, page.id);
-      state.pages.insert(at + i, PageRuntime(page, images: _images.lookup));
+      state.pages.insert(at + i, _runtime(page));
       _changed(page.id);
     }
     _metaDirty = true;
@@ -615,14 +682,16 @@ class NotebookNotifier extends Notifier<NotebookState> {
     if (any) state = state.copyWith(revision: state.revision + 1);
   }
 
-  /// Rubs ink off a sticky note during an eraser drag.
-  void eraseInk(String stickyId, Set<String> inkIds) {
+  /// Rubs ink off a sticky note or an Office file's page during an eraser
+  /// drag.
+  void eraseInk(String holderId, Set<String> inkIds) {
     final steps = _erasing;
     final page = _erasePage == null ? null : _pageById(_erasePage!);
     if (steps == null || page == null) return;
-    if (page[stickyId] case final StickyItem before) {
-      final after = before.withoutInk(inkIds);
-      if (after.items.length == before.items.length) return;
+    if (page[holderId] case final BoxItem before when before is InkHolder) {
+      final holder = before as InkHolder;
+      if (!holder.ink.any((s) => inkIds.contains(s.id))) return;
+      final after = holder.withoutInk(inkIds);
       steps.add(ReplaceStep(page.items.indexOf(before), after, before));
       page.replace(after);
       state = state.copyWith(revision: state.revision + 1);
@@ -668,7 +737,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
     );
     final at = after == null ? state.pages.length : (after + 1).clamp(0, state.pages.length);
     nb.pageIds.insert(at, page.id);
-    state.pages.insert(at, PageRuntime(page, images: _images.lookup));
+    state.pages.insert(at, _runtime(page));
     _metaDirty = true;
     _changed(page.id);
     return at;
@@ -749,7 +818,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
     final i = state.indexOf(pageId);
     if (i < 0) return;
     state.pages[i].dispose();
-    state.pages[i] = PageRuntime(page, images: _images.lookup);
+    state.pages[i] = _runtime(page);
     _undo.remove(pageId);
     _redo.remove(pageId);
   }
@@ -799,8 +868,9 @@ class NotebookNotifier extends Notifier<NotebookState> {
         debugPrint('Could not open page $pid: $e');
       }
     }
-    // Pictures on the pages that just opened can be read now.
+    // Pictures and files on the pages that just opened can be read now.
     _images.retryMissing();
+    _docs.retryMissing();
     _lockChanged();
   }
 
@@ -853,6 +923,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
       _replacePage(p.id, BoardPage(id: p.id, locked: true));
     }
     _images.evict(pictures);
+    _docs.evict(pictures);
     _notebookKey = null;
     _pageKeys.clear();
     _lockChanged();

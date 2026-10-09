@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter/painting.dart';
 
+import '../office/office_model.dart' show OfficeKind;
 import '../theme/tokens.g.dart' show FontFamilies;
 import 'ids.dart';
 
@@ -631,10 +632,31 @@ class StickyNote {
       };
 }
 
+/// A box that ink is written on and kept in, so the ink moves, turns and
+/// scales with it: a sticky note, or the page of an Office file showing.
+abstract interface class InkHolder {
+  /// The ink as stored.
+  Iterable<StrokeItem> get ink;
+
+  /// The ink in page space, with the ids it has inside.
+  List<StrokeItem> get pageInk;
+
+  /// Whether a stroke starting at [page] is written on it.
+  bool takesInkAt(Offset page);
+
+  /// With [stroke] (in page space) written on it.
+  BoxItem withInk(StrokeItem stroke);
+
+  /// With the ink [id] swapped for [after] (in page space).
+  BoxItem replaceInk(String id, StrokeItem after);
+
+  BoxItem withoutInk(Set<String> ids);
+}
+
 /// A sticky note. Its `items` (ink and typed text) are relative to its
 /// top-left corner and move with it. A stack keeps the notes under the top
 /// one in `stack.notes`.
-class StickyItem extends BoxItem {
+class StickyItem extends BoxItem implements InkHolder {
   StickyItem({
     required super.id,
     required super.x,
@@ -688,10 +710,15 @@ class StickyItem extends BoxItem {
   /// The typed text on the note ('' if none).
   String get text => items.whereType<TextItem>().firstOrNull?.text ?? '';
 
+  @override
   Iterable<StrokeItem> get ink => items.whereType<StrokeItem>();
 
   /// The ink in page space, with the ids it has on the note.
+  @override
   late final List<StrokeItem> pageInk = [for (final s in ink) s.mapped(toPage)];
+
+  @override
+  bool takesInkAt(Offset page) => contains(page);
 
   @override
   String get type => 'sticky';
@@ -736,13 +763,16 @@ class StickyItem extends BoxItem {
   }
 
   /// With [stroke] (in page space) written on the note.
+  @override
   StickyItem withInk(StrokeItem stroke) => copyWith(items: [...items, stroke.mapped(toLocal)]);
 
-  /// With the ink [before] swapped for [after] (in page space).
-  StickyItem replaceInk(String before, StrokeItem after) => copyWith(
-        items: [for (final i in items) i.id == before ? after.mapped(toLocal, id: before) : i],
+  /// With the ink [id] swapped for [after] (in page space).
+  @override
+  StickyItem replaceInk(String id, StrokeItem after) => copyWith(
+        items: [for (final i in items) i.id == id ? after.mapped(toLocal, id: id) : i],
       );
 
+  @override
   StickyItem withoutInk(Set<String> ids) => copyWith(items: [for (final i in items) if (!ids.contains(i.id)) i]);
 
   @override
@@ -1055,6 +1085,239 @@ class FileItem extends ImageItem {
         if (preview != null) 'preview': preview,
         if (name.isNotEmpty) 'name': name,
         if (text.isNotEmpty) 'text': text,
+      };
+}
+
+/// A Word, PowerPoint or Excel file on the board (a `file` item with `mime`
+/// `docx`, `pptx` or `xlsx`), shown as a card with a live preview of one of
+/// its pages, slides or sheets ([page], from 1, of [pages]).
+///
+/// Ink written on the preview belongs to the page it was written on: [inkByPage]
+/// holds each page's ink in the page's own coordinates ([pageSize] points
+/// for Word and PowerPoint, the card's unscaled px for Excel), so it stays
+/// on its words however the card is moved, scaled or stretched.
+class OfficeItem extends BoxItem implements InkHolder {
+  OfficeItem({
+    required super.id,
+    required super.x,
+    required super.y,
+    super.rotation,
+    required super.z,
+    required super.createdAt,
+    super.author,
+    super.remember,
+    super.extra,
+    required this.w,
+    required this.h,
+    required this.asset,
+    required this.mime,
+    this.name = '',
+    this.page = 1,
+    this.pages = 1,
+    this.pageSize,
+    this.unit = CardItem.defaultUnit,
+    this.inkByPage = const {},
+  });
+
+  /// The header (badge, name, Open) and the footer (page and arrows), in
+  /// the card's unscaled px (Board.dc.html).
+  static const header = 38.0;
+  static const footer = 36.0;
+
+  @override
+  final double w;
+  @override
+  final double h;
+
+  /// The file in `assets/`: `<sha256>.docx`, `.pptx` or `.xlsx`.
+  final String asset;
+
+  /// `docx`, `pptx` or `xlsx`.
+  final String mime;
+
+  /// The file's name when it was added ("Ch 9 slides.pptx").
+  final String name;
+
+  /// The page, slide or sheet showing, from 1.
+  final int page;
+
+  /// How many there are, as last read.
+  final int pages;
+
+  /// A Word page or PowerPoint slide in points; null for Excel.
+  final Size? pageSize;
+
+  /// How much the card is scaled: its header and text are the design's
+  /// sizes times this.
+  final double unit;
+  final Map<int, List<StrokeItem>> inkByPage;
+
+  OfficeKind? get kind => OfficeKind.of(mime);
+
+  /// Slides always show where you are; documents and workbooks only when
+  /// there's more than one page or sheet.
+  bool get hasFooter => mime == 'pptx' || pages > 1;
+
+  @override
+  Rect get paintRect => (Offset.zero & Size(w, h)).inflate(30 * unit);
+
+  @override
+  String get type => 'file';
+
+  /// Where the file's page is shown, relative to the card's top-left corner.
+  Rect get previewArea {
+    final u = unit;
+    final top = header * u, bottom = h - (hasFooter ? footer * u : 0);
+    return switch (mime) {
+      'pptx' => Rect.fromLTRB(12 * u, top + 10 * u, w - 12 * u, bottom - (hasFooter ? 4 : 12) * u),
+      'xlsx' => Rect.fromLTRB(0, top + u, w, bottom),
+      _ => Rect.fromLTRB(0, top + u, w, bottom),
+    };
+  }
+
+  /// A Word page or PowerPoint slide's size, or a stand-in when unknown.
+  Size get _content => pageSize ?? (mime == 'pptx' ? const Size(960, 540) : const Size(612, 792));
+
+  /// Where the page's top-left corner is on the card and how many card px
+  /// a page unit is: Word pages and slides fit inside the preview, Excel
+  /// cells are drawn at the card's scale.
+  ({Offset origin, double scale}) get contentFit {
+    final area = previewArea;
+    if (mime == 'xlsx') return (origin: area.topLeft, scale: unit);
+    final pad = mime == 'docx' ? 12 * unit : 0.0;
+    final room = area.deflate(pad);
+    final c = _content;
+    final s = math.max(0.0001, math.min(room.width / c.width, room.height / c.height));
+    final left = room.center.dx - c.width * s / 2;
+    final top = mime == 'docx' ? room.top : room.center.dy - c.height * s / 2;
+    return (origin: Offset(left, top), scale: s);
+  }
+
+  /// The page as drawn on the card (Word and PowerPoint).
+  Rect get pageRect {
+    final fit = contentFit;
+    return fit.origin & (_content * fit.scale);
+  }
+
+  Offset _toCard(Offset content) {
+    final fit = contentFit;
+    return fit.origin + content * fit.scale;
+  }
+
+  Offset _toContent(Offset card) {
+    final fit = contentFit;
+    return (card - fit.origin) / fit.scale;
+  }
+
+  @override
+  Iterable<StrokeItem> get ink => inkByPage[page] ?? const [];
+
+  @override
+  late final List<StrokeItem> pageInk = [
+    for (final s in ink) s.mapped((p) => toPage(_toCard(p)), widthScale: contentFit.scale),
+  ];
+
+  /// Ink starts on the card anywhere but its header and footer.
+  @override
+  bool takesInkAt(Offset page) {
+    final p = toLocal(page);
+    final u = unit;
+    return p.dx >= 0 && p.dx <= w && p.dy >= header * u && p.dy <= h - (hasFooter ? footer * u : 0);
+  }
+
+  StrokeItem _stored(StrokeItem pageStroke, {String? id}) =>
+      pageStroke.mapped((p) => _toContent(toLocal(p)), widthScale: 1 / contentFit.scale, id: id);
+
+  OfficeItem _withPageInk(List<StrokeItem> strokes) =>
+      copyWith(inkByPage: {...inkByPage, page: strokes}..removeWhere((_, v) => v.isEmpty));
+
+  @override
+  OfficeItem withInk(StrokeItem stroke) => _withPageInk([...ink, _stored(stroke)]);
+
+  @override
+  OfficeItem replaceInk(String id, StrokeItem after) =>
+      _withPageInk([for (final s in ink) s.id == id ? _stored(after, id: id) : s]);
+
+  @override
+  OfficeItem withoutInk(Set<String> ids) => _withPageInk([for (final s in ink) if (!ids.contains(s.id)) s]);
+
+  OfficeItem copyWith({int? page, int? pages, Map<int, List<StrokeItem>>? inkByPage}) => OfficeItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        w: w,
+        h: h,
+        asset: asset,
+        mime: mime,
+        name: name,
+        page: page ?? this.page,
+        pages: pages ?? this.pages,
+        pageSize: pageSize,
+        unit: unit,
+        inkByPage: inkByPage ?? this.inkByPage,
+      );
+
+  @override
+  OfficeItem withBox({
+    String? id,
+    int? z,
+    DateTime? createdAt,
+    required double x,
+    required double y,
+    required double w,
+    required double h,
+    double? rotation,
+    double scale = 1,
+  }) {
+    // A copy gets ink of its own.
+    final copy = id != null && id != this.id;
+    return OfficeItem(
+      id: id ?? this.id,
+      x: x,
+      y: y,
+      rotation: rotation ?? this.rotation,
+      z: z ?? this.z,
+      createdAt: createdAt ?? this.createdAt,
+      author: author,
+      remember: remember,
+      extra: extra,
+      w: w,
+      h: h,
+      asset: asset,
+      mime: mime,
+      name: name,
+      page: page,
+      pages: pages,
+      pageSize: pageSize,
+      unit: unit * scale,
+      inkByPage: copy
+          ? {
+              for (final e in inkByPage.entries) e.key: [for (final s in e.value) s.mapped((p) => p, id: newId('it'))],
+            }
+          : inkByPage,
+    );
+  }
+
+  @override
+  Json toJson() => {
+        ...boxJson(),
+        'asset': asset,
+        'mime': mime,
+        if (name.isNotEmpty) 'name': name,
+        'page': page,
+        'pages': pages,
+        if (pageSize != null) 'pageSize': [round1(pageSize!.width), round1(pageSize!.height)],
+        'unit': round3(unit),
+        if (inkByPage.isNotEmpty)
+          'ink': {
+            for (final e in inkByPage.entries) '${e.key}': [for (final s in e.value) s.toJson()],
+          },
       };
 }
 

@@ -9,6 +9,7 @@ import '../templates/templates.dart';
 import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
 import 'cards.dart';
+import 'office_cards.dart';
 import 'page_runtime.dart' show paintStroke;
 import 'stroke_geometry.dart' show segmentDistance;
 
@@ -69,7 +70,14 @@ Rect stackBadgeRect(StickyItem s) => _badges[s] ??= () {
     }();
 
 /// Draws a box item in page space.
-void paintBoxItem(Canvas canvas, BoxItem item, Brightness brightness, EndlessColors c, {ImageLookup? images}) {
+void paintBoxItem(
+  Canvas canvas,
+  BoxItem item,
+  Brightness brightness,
+  EndlessColors c, {
+  ImageLookup? images,
+  OfficeSource? docs,
+}) {
   canvas
     ..save()
     ..translate(item.center.dx, item.center.dy);
@@ -88,6 +96,8 @@ void paintBoxItem(Canvas canvas, BoxItem item, Brightness brightness, EndlessCol
       _paintImage(canvas, i, c, images);
     case CardItem card:
       paintCard(canvas, card, c);
+    case OfficeItem f:
+      paintOfficeCard(canvas, f, brightness, c, docs);
     case ShapeItem s:
       final path = shapePath(s);
       if (s.fill != null) canvas.drawPath(path, Paint()..color = displayInk(s.fill!, brightness));
@@ -360,8 +370,11 @@ BoxItem stretchBox(BoxItem item, int side, Offset page, {double min = 24}) {
   final p = item.toLocal(page);
   var w = item.w, h = item.h;
   // A card keeps room for its columns and at least its header.
-  final minW = item is CardItem ? cardMinWidth(item.data) * item.unit : min;
-  final minH = item is CardItem ? 80 * item.unit : min;
+  final (minW, minH) = switch (item) {
+    CardItem card => (cardMinWidth(card.data) * card.unit, 80 * card.unit),
+    OfficeItem f => (officeMinSize(f).width, officeMinSize(f).height),
+    _ => (min, min),
+  };
   // The corner that doesn't move, as a fraction of the box.
   var anchor = Offset.zero;
   switch (side) {

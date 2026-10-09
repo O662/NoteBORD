@@ -44,8 +44,12 @@ dependencies:
   # 3.x builds or downloads SQLite through a build hook on every platform,
   # so no sqlite3_flutter_libs.
   sqlite3: 3.5.2
-  # Opens a website card's page in the browser (first-party; every platform).
+  # Opens a website card's page in the browser, and an Office file in its
+  # own app on Windows (first-party; every platform).
   url_launcher: 6.3.2
+  # Reads the XML inside Word, PowerPoint and Excel files for their previews
+  # (pure Dart, every platform; already used by `pdf`).
+  xml: 6.6.1
 
 dev_dependencies:
   flutter_test:

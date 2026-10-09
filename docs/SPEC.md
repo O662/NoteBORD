@@ -54,11 +54,11 @@ Each feature names the screen that shows it (`design/screens/<Name>.png`, with s
 - **Laser pointer:** the trail fades after 1 s and is never saved. Red, green or blue. **[Tools]**
 - **Insert menu** with search: **[Insert]**
   - On the page: sticky, sticky stack, text box, paper frame, shape.
-  - Files: video, audio, image/photo, PDF, Word, PowerPoint, Excel. Files show a live preview and can be written on. (Word, PowerPoint and Excel previews are built in Phase 4, with PDF import; until then their tiles open the "coming soon" card.)
+  - Files: video, audio, image/photo, PDF, Word, PowerPoint, Excel. Files show a live preview and can be written on. (Word, PowerPoint and Excel previews were built in Phase 4b, after PDF import.)
   - Build on the board: math, graph, table, diagram, timeline, Kanban, website embed.
   - Live widgets: calendar, planner, flashcards, need to remember, chart, clock and date, checklist.
   - Pick files from the tablet, Google Drive, OneDrive, camera or document scan.
-- **Whole-board view** with frames, stickies, a Kanban, a timeline, a diagram, a table and a website preview. **[Board]** (The DOCX, PPTX and XLSX cards on that screen come in Phase 4.)
+- **Whole-board view** with frames, stickies, a Kanban, a timeline, a diagram, a table and a website preview. **[Board]** (The DOCX, PPTX and XLSX cards on that screen came in Phase 4b.)
 
 ## Phase 4: Import and export
 - **Export:** this page, some pages, or the whole notebook.

@@ -9,9 +9,14 @@ import 'package:path/path.dart' as p;
 import '../board/ids.dart';
 import '../board/model.dart';
 import '../board/store.dart';
+import '../canvas/office_cards.dart';
 import '../library/library.dart';
+import '../office/office_model.dart';
+import '../office/office_reader.dart';
+import '../office/office_render.dart';
 import '../state/assets.dart';
 import '../state/notebook.dart';
+import '../state/office_docs.dart';
 import '../state/settings.dart';
 import 'board_file.dart';
 import 'files.dart';
@@ -50,8 +55,8 @@ class ExportProblem implements Exception {
 }
 
 /// Where imported files go: a new notebook in [folder], or the open
-/// notebook [notebookId] (PDF pages after [page], pictures on it at
-/// [center]).
+/// notebook [notebookId] (PDF pages after [page], pictures and Office files
+/// on it at [center]).
 class ImportTarget {
   const ImportTarget.folder(List<String> this.folder)
       : notebookId = null,
@@ -76,13 +81,15 @@ class ImportOutcome {
   final int? goToPage;
 }
 
-enum ImportKind { pdf, board, image, unknown }
+enum ImportKind { pdf, board, image, office, unknown }
 
 /// What a picked file is, from its first bytes and then its name.
 ImportKind importKindOf(PickedFile f) {
   final b = f.bytes;
   if (imageExtension(b) == 'pdf') return ImportKind.pdf;
-  if (b.length > 3 && b[0] == 0x50 && b[1] == 0x4B && (f.extension == 'board' || f.extension == 'zip')) return ImportKind.board;
+  final zip = b.length > 3 && b[0] == 0x50 && b[1] == 0x4B;
+  if (zip && (f.extension == 'board' || f.extension == 'zip')) return ImportKind.board;
+  if (zip && officeKindOf(b) != null) return ImportKind.office;
   if (const {'png', 'jpg', 'gif', 'webp', 'bmp'}.contains(imageExtension(b))) return ImportKind.image;
   return ImportKind.unknown;
 }
@@ -161,6 +168,7 @@ class Transfers {
           title: nb.notebook.title,
           pages: open,
           readAsset: notifier.readAsset,
+          loadOffice: notifier.loadOffice,
           options: pdf,
           onProgress: onProgress,
         );
@@ -176,8 +184,14 @@ class Transfers {
               final bytes = await notifier.readAsset(item.picture);
               if (bytes != null) images[item.picture] = await decode(bytes);
             }
+            // Office files are read, with the pictures their pages show.
+            if (item is OfficeItem && item.kind != null) {
+              final file = await notifier.loadOffice(item.asset, item.kind!);
+              file?.picture(item.page);
+              await file?.ready(item.page);
+            }
           }
-          final png = await renderPagePng(page, images);
+          final png = await renderPagePng(page, images, docs: notifier.docs);
           return ExportFile(fileNameFor(_fileTitle(nb.notebook, ExportScope.page, [indexes.first]), 'png'), png, pngMime);
         } finally {
           for (final i in images.values) {
@@ -198,7 +212,7 @@ class Transfers {
       switch (importKindOf(f)) {
         case ImportKind.board:
           boards.add(f);
-        case ImportKind.pdf || ImportKind.image:
+        case ImportKind.pdf || ImportKind.image || ImportKind.office:
           pages.add(f);
         case ImportKind.unknown:
           skipped.add(f.name);
@@ -206,8 +220,8 @@ class Transfers {
     }
     if (boards.isEmpty && pages.isEmpty) {
       throw ImportProblem(files.length == 1
-          ? '“${files.single.name}” isn’t a PDF, a picture or a board file.'
-          : 'None of these are PDFs, pictures or board files.');
+          ? '“${files.single.name}” isn’t a PDF, a picture, an Office file or a board file.'
+          : 'None of these are PDFs, pictures, Office files or board files.');
     }
 
     final made = <String>[];
@@ -223,11 +237,12 @@ class Transfers {
     }
 
     int? goTo;
-    var pdfPages = 0, pictures = 0;
+    var pdfPages = 0, pictures = 0, office = 0;
     if (pages.isNotEmpty) {
       final built = await _pages(pages, onStatus);
       pictures = built.pictures.length;
-      pdfPages = built.pages.length - pictures;
+      office = built.office.length;
+      pdfPages = built.pages.length - pictures - office;
       if (target.notebookId == null) {
         made.add(await _newNotebook(p.basenameWithoutExtension(pages.first.name), target.folder!, built));
       } else {
@@ -239,6 +254,7 @@ class Transfers {
     final message = [
       if (goTo != null && pdfPages > 0) 'Added ${count(pdfPages, 'page', 'pages')}',
       if (goTo != null && pictures > 0) 'Added ${count(pictures, 'picture', 'pictures')}',
+      if (goTo != null && office > 0) 'Added ${count(office, 'file', 'files')}',
       if (made.length == 1) 'Imported “${ref.read(libraryProvider).byId(made.single)?.title ?? 'notebook'}”',
       if (made.length > 1) 'Imported ${made.length} notebooks',
       if (unreadable > 0) '${count(unreadable, 'page', 'pages')} couldn’t be read',
@@ -253,6 +269,24 @@ class Transfers {
     final now = _now;
     final decode = ref.read(imageDecoderProvider);
     for (final f in files) {
+      if (importKindOf(f) == ImportKind.office) {
+        onStatus?.call('Reading ${f.name}…');
+        final kind = officeKindOf(f.bytes)!;
+        final OfficeDoc doc;
+        try {
+          doc = await ref.read(officeParserProvider)(f.bytes, kind);
+        } on OfficeReadError catch (e) {
+          throw ImportProblem('“${f.name}”: ${e.message}');
+        }
+        final preview = OfficePreview(doc, f.bytes, decode: ref.read(imageDecoderProvider));
+        final asset = assetNameFor(f.bytes, ext: kind.name);
+        final card = newOfficeCard(kind, preview, asset: asset, name: f.name, center: Offset.zero, z: 1, now: now);
+        preview.dispose();
+        out.files[asset] = f.bytes;
+        out.office.add(f);
+        out.pages.add(BoardPage(id: newId('pg', now: now), items: [card]));
+        continue;
+      }
       if (importKindOf(f) == ImportKind.image) {
         onStatus?.call('Reading ${f.name}…');
         final image = await decode(f.bytes);
@@ -346,6 +380,13 @@ class Transfers {
       final item = await notifier.addImage(pageId, bytes, center: target.center + Offset(24.0 * i, 24.0 * i));
       if (item == null) throw const ImportProblem('Unlock this page to add pictures to it.');
     }
+    // Office files go on this page too, as cards.
+    final shift = built.pictures.length;
+    for (final (i, f) in built.office.indexed) {
+      final at = target.center + Offset(24.0 * (i + shift), 24.0 * (i + shift));
+      final item = await notifier.addOffice(pageId, f.bytes, name: f.name, center: at);
+      if (item == null) throw const ImportProblem('Unlock this page to add files to it.');
+    }
     return first ?? target.page;
   }
 }
@@ -356,4 +397,7 @@ class _Built {
 
   /// Pictures, by asset name, in the order picked.
   final pictures = <(String, Uint8List)>[];
+
+  /// Word, PowerPoint and Excel files, in the order picked.
+  final office = <PickedFile>[];
 }

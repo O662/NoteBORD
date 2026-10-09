@@ -22,11 +22,14 @@ class PickedFile {
 }
 
 /// What can be imported, by extension.
-const importExtensions = ['pdf', 'board', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'];
+const importExtensions = ['pdf', 'board', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'docx', 'pptx', 'xlsx'];
 
 abstract class FileTransfer {
   /// Asks for files to import. Empty when cancelled.
   Future<List<PickedFile>> pick();
+
+  /// Asks for one file with one of [extensions]. Null when cancelled.
+  Future<PickedFile?> pickOne(List<String> extensions, {required String title});
 
   /// Asks where to save [bytes] as [name]. False when cancelled.
   Future<bool> save(String name, Uint8List bytes, String mime);
@@ -44,13 +47,20 @@ class DeviceFileTransfer implements FileTransfer {
   @override
   Future<List<PickedFile>> pick() async {
     final files = await FilePicker.pickFiles(
-      dialogTitle: 'Choose a PDF, image or .board file',
+      dialogTitle: 'Choose a PDF, image, Office or .board file',
       // Android doesn't know a MIME type for .board, so the filter would
       // hide those files there; the dialog checks what was picked instead.
       type: Platform.isAndroid ? FileType.any : FileType.custom,
       allowedExtensions: Platform.isAndroid ? null : importExtensions,
     );
     return [for (final f in files) PickedFile(f.name, await f.readAsBytes())];
+  }
+
+  @override
+  Future<PickedFile?> pickOne(List<String> extensions, {required String title}) async {
+    final files = await FilePicker.pickFiles(dialogTitle: title, type: FileType.custom, allowedExtensions: extensions);
+    final f = files.firstOrNull;
+    return f == null ? null : PickedFile(f.name, await f.readAsBytes());
   }
 
   @override

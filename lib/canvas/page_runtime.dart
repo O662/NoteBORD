@@ -5,6 +5,7 @@ import '../board/model.dart';
 import '../templates/templates.dart';
 import '../theme/colors.dart';
 import 'items.dart';
+import 'office_cards.dart' show OfficeSource;
 import 'pens.dart';
 import 'spatial_index.dart';
 import 'stroke_geometry.dart';
@@ -12,7 +13,7 @@ import 'stroke_geometry.dart';
 /// A page open in the editor: its items plus the indexes and caches the
 /// canvas needs. Mutated only by the notebook notifier's commands.
 class PageRuntime {
-  PageRuntime(this.page, {this.images}) {
+  PageRuntime(this.page, {this.images, this.docs}) {
     for (final item in page.items) {
       _byId[item.id] = item;
       index.insert(item.id, item.bounds);
@@ -23,6 +24,9 @@ class PageRuntime {
 
   /// The notebook's decoded images, for the pictures on this page.
   final ImageLookup? images;
+
+  /// The notebook's Word, PowerPoint and Excel files, read for their cards.
+  final OfficeSource? docs;
   final index = SpatialIndex();
   final _byId = <String, Item>{};
 
@@ -148,7 +152,7 @@ class PageRuntime {
     final canvas = Canvas(recorder);
     if (layout != null) canvas.drawPicture(layout);
     for (final item in items) {
-      paintItem(canvas, item, brightness, colors, images: images);
+      paintItem(canvas, item, brightness, colors, images: images, docs: docs);
     }
     return recorder.endRecording();
   }
@@ -169,12 +173,19 @@ class _RegionPicture {
   final ui.Picture picture;
 }
 
-void paintItem(Canvas canvas, Item item, Brightness brightness, EndlessColors colors, {ImageLookup? images}) {
+void paintItem(
+  Canvas canvas,
+  Item item,
+  Brightness brightness,
+  EndlessColors colors, {
+  ImageLookup? images,
+  OfficeSource? docs,
+}) {
   switch (item) {
     case StrokeItem s:
       paintStroke(canvas, s, displayInk(s.color, brightness));
     case BoxItem b:
-      paintBoxItem(canvas, b, brightness, colors, images: images);
+      paintBoxItem(canvas, b, brightness, colors, images: images, docs: docs);
     case UnknownItem u:
       // Kept and saved, but not drawable by this version: show its footprint.
       canvas.drawRRect(

@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:ui' show Color, Offset;
+import 'dart:ui' show Color, Offset, Size;
 
 import 'package:endless/board/codec.dart';
 import 'package:endless/board/lock.dart';
@@ -12,6 +12,7 @@ import 'package:endless/state/assets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers.dart';
+import '../office_samples.dart';
 import '../sample_board.dart';
 
 final everythingAt = DateTime.utc(2026, 9, 30, 9);
@@ -19,7 +20,8 @@ final everythingAt = DateTime.utc(2026, 9, 30, 9);
 /// A notebook with every kind of item: ink (with an arrow, a straightened
 /// line and a connector joined at both ends), shapes, text, sticky notes and
 /// a stack, frames (plain and from a template), a picture, an imported PDF
-/// page, the five cards, and an item type from a newer app. Page 2 has a
+/// page, the five cards, a PowerPoint with ink on its second slide, and an
+/// item type from a newer app. Page 2 has a
 /// template and lined paper; page 3 has its own password.
 Future<(MemoryBoardStore, String password)> everythingNotebook() async {
   final store = MemoryBoardStore();
@@ -27,6 +29,8 @@ Future<(MemoryBoardStore, String password)> everythingNotebook() async {
   final nb = board.notebook;
   final png = fakePng(7), pdf = Uint8List.fromList([...ascii.encode('%PDF-1.7\n'), 1, 2, 3]), preview = fakePng(9);
   final image = assetNameFor(png), pdfName = assetNameFor(pdf), previewName = assetNameFor(preview);
+  final slides = officeFixture('Ch 9 slides.pptx');
+  final slidesName = assetNameFor(slides, ext: 'pptx');
 
   final a = ShapeItem(id: 'it_a', x: 0, y: 900, z: 40, createdAt: everythingAt, kind: ShapeType.rect, w: 200, h: 120, stroke: const Color(0xFF2B5A8C), fill: const Color(0x332B5A8C), strokeWidth: 2.5);
   final b = ShapeItem(id: 'it_b', x: 500, y: 900, z: 41, createdAt: everythingAt, kind: ShapeType.ellipse, w: 180, h: 120, stroke: const Color(0xFFB5532A), strokeWidth: 3);
@@ -42,6 +46,24 @@ Future<(MemoryBoardStore, String password)> everythingNotebook() async {
     ShapeItem(id: 'it_tri', x: 800, y: 900, z: 43, createdAt: everythingAt, kind: ShapeType.triangle, w: 90, h: 80, stroke: const Color(0xFF3E7B4F), strokeWidth: 2, rotation: 12),
     TextItem(id: 'it_text', x: 0, y: 1100, z: 44, createdAt: everythingAt, wrap: 300, text: 'Impulse = change in momentum\nJ = F·Δt', font: 'serif', size: 24, color: const Color(0xFF1E1C19), extra: {'futureField': true}),
     ImageItem(id: 'it_image', x: 400, y: 1100, z: 45, createdAt: everythingAt, w: 240, h: 180, asset: image, rotation: -4),
+    OfficeItem(
+      id: 'it_slides',
+      x: 700,
+      y: 1100,
+      z: 47,
+      createdAt: everythingAt,
+      w: 495,
+      h: 378,
+      asset: slidesName,
+      mime: 'pptx',
+      name: 'Ch 9 slides.pptx',
+      page: 2,
+      pages: 3,
+      pageSize: const Size(960, 540),
+      inkByPage: {
+        2: [strokeFrom([const Offset(120, 200), const Offset(400, 220)], z: 1)],
+      },
+    ),
     UnknownItem({'id': 'it_math', 'type': 'math', 'x': 0, 'y': 1400, 'z': 46, 'createdAt': everythingAt.toIso8601String(), 'w': 200, 'h': 60, 'latex': r'p = mv'}),
   ];
   final page1 = BoardPage(id: board.pages.single.id, title: 'Board', items: [...board.pages.single.items, ...extra]);
@@ -73,6 +95,7 @@ Future<(MemoryBoardStore, String password)> everythingNotebook() async {
   await store.saveAsset(nb.id, image, png);
   await store.saveAsset(nb.id, pdfName, pdf);
   await store.saveAsset(nb.id, previewName, preview);
+  await store.saveAsset(nb.id, slidesName, slides);
   await store.saveNotebook(notebook);
   return (store, password);
 }

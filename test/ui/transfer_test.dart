@@ -213,7 +213,7 @@ void main() {
       ]);
       await tester.tap(find.text('Import PDF or file'));
       await tester.pumpAndSettle();
-      expect(find.text('Choose a PDF, image or .board file'), findsOneWidget);
+      expect(find.text('Choose a PDF, image, Office or .board file'), findsOneWidget);
       expect(find.text('From this tablet, Google Drive or OneDrive'), findsOneWidget);
       expect(find.descendant(of: find.byType(TransferDialog), matching: find.text('All notebooks')), findsOneWidget);
       expect(find.text('Export'), findsNothing, reason: 'nothing to export from the library');
@@ -314,7 +314,7 @@ void main() {
       expect(find.textContaining('Can’t import'), findsOneWidget);
       await tester.tap(_primary('Import'));
       await settleReal(tester, () => find.textContaining('isn’t a PDF').evaluate().isNotEmpty);
-      expect(find.text('“notes.txt” isn’t a PDF, a picture or a board file.'), findsOneWidget);
+      expect(find.text('“notes.txt” isn’t a PDF, a picture, an Office file or a board file.'), findsOneWidget);
 
       files.toPick = [PickedFile('locked.pdf', fakePdfBytes())];
       await tester.tap(_primary('Choose other files'));
@@ -330,7 +330,7 @@ void main() {
       await _more(tester, 'Import');
       await tester.tap(find.bySemanticsLabel('Import into This notebook'));
       await tester.pumpAndSettle();
-      expect(find.text('PDF pages after this page, pictures on it'), findsOneWidget);
+      expect(find.text('PDF pages after this page, pictures and Office files on it'), findsOneWidget);
       await tester.tap(find.text('Archive'));
       await tester.pumpAndSettle();
       expect(find.text('Archive'), findsOneWidget);
