@@ -155,6 +155,8 @@ Future<List<Override>> testOverrides(
     // Office files are read on the test's own isolate (fake time can't
     // wait for another one).
     officeParserProvider.overrideWithValue((bytes, kind) async => readOffice(bytes, kind)),
+    // Files opened in their own apps are checked by hand, not on a timer.
+    officeEditPollProvider.overrideWithValue(null),
     if (location != null) initialLocationProvider.overrideWithValue(location),
   ];
 }
@@ -341,16 +343,43 @@ class FakeFileTransfer implements FileTransfer {
   Future<void> print(String name, Uint8List pdf) async => printed.add(ExportFile(name, pdf, pdfMime));
 }
 
-/// An app opener that records what it was asked to open.
+/// An app opener that records what it was asked to open. [files] are the
+/// copies it handed over: [FakeOpenedFile.save] stands for the other app
+/// saving.
 class FakeFileOpener implements FileOpener {
   final opened = <(String, String)>[];
+  final files = <FakeOpenedFile>[];
   bool works = true;
 
   @override
-  Future<bool> open(String name, Uint8List bytes, String mime) async {
+  Future<OpenedFile?> open(String name, Uint8List bytes, String mime) async {
     opened.add((name, mime));
-    return works;
+    if (!works) return null;
+    final f = FakeOpenedFile(bytes);
+    files.add(f);
+    return f;
   }
+}
+
+class FakeOpenedFile implements OpenedFile {
+  FakeOpenedFile(this.bytes);
+
+  Uint8List bytes;
+  Uint8List? _saved;
+  bool closed = false;
+
+  /// The other app saves [newBytes].
+  void save(Uint8List newBytes) => _saved = bytes = newBytes;
+
+  @override
+  Future<Uint8List?> changes() async {
+    final saved = _saved;
+    _saved = null;
+    return saved;
+  }
+
+  @override
+  void close() => closed = true;
 }
 
 /// A PDF of [pages] (points) whose pages draw as [fakePng] and say

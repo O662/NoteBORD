@@ -29,7 +29,17 @@ Workbook readXlsx(OoxmlPackage pkg) {
     final bytes = target == null ? null : pkg.bytes(target);
     if (bytes == null) continue;
     final name = s.attr('name') ?? 'Sheet${sheets.length + 1}';
-    sheets.add(_readSheet(name, utf8.decode(bytes, allowMalformed: true), strings, styles, date1904));
+    final sheet = _readSheet(name, utf8.decode(bytes, allowMalformed: true), strings, styles, date1904);
+    sheets.add(Sheet(
+      name: sheet.name,
+      cells: sheet.cells,
+      columnWidths: sheet.columnWidths,
+      bold: sheet.bold,
+      header: sheet.header,
+      moreRows: sheet.moreRows,
+      moreColumns: sheet.moreColumns,
+      id: s.integer('sheetId'),
+    ));
   }
   if (sheets.isEmpty) throw const OfficeReadError('This Excel file has no sheets Endless can read.');
   return Workbook(sheets);

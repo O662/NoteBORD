@@ -73,9 +73,11 @@ Uint8List sampleXlsx() {
 
 const _strings = ['Trial', 'm', 'v', 'p', 'When', 'What', 'Share', 'Lab report'];
 
-/// Three slides drawn without a layout: a title, bullets, and a dark slide
-/// with a slide number and a group.
-Uint8List samplePptx() {
+/// Three slides drawn without a layout: a title (id 256), bullets (257),
+/// and a dark slide with a slide number and a group (258). [order] lists the
+/// slides' ids in the order the deck shows them: a newer version can move
+/// and drop slides.
+Uint8List samplePptx({List<int> order = const [256, 257, 258]}) {
   const a = 'http://schemas.openxmlformats.org/drawingml/2006/main';
   const p = 'http://schemas.openxmlformats.org/presentationml/2006/main';
   String pt(num v) => '${(v * 12700).round()}';
@@ -106,7 +108,7 @@ Uint8List samplePptx() {
     '[Content_Types].xml': '$_xml<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>',
     '_rels/.rels': _rels({'rId1': ('officeDocument', 'ppt/presentation.xml')}),
     'ppt/presentation.xml': '$_xml<p:presentation xmlns:a="$a" xmlns:p="$p" xmlns:r="$_rel">'
-        '<p:sldIdLst><p:sldId id="256" r:id="rId2"/><p:sldId id="257" r:id="rId3"/><p:sldId id="258" r:id="rId4"/></p:sldIdLst>'
+        '<p:sldIdLst>${order.map((id) => '<p:sldId id="$id" r:id="rId${id - 254}"/>').join()}</p:sldIdLst>'
         '<p:sldSz cx="12192000" cy="6858000"/></p:presentation>',
     'ppt/_rels/presentation.xml.rels': _rels({
       'rId2': ('slide', 'slides/slide1.xml'),

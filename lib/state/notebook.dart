@@ -25,6 +25,16 @@ import 'settings.dart';
 
 enum SaveStatus { saved, saving, failed }
 
+/// A card that now shows a newer version of its file. [lostPages] is how
+/// many pages with ink on them aren't in the new version (their ink went
+/// with them; Undo brings it back).
+class OfficeUpdate {
+  const OfficeUpdate(this.item, {this.lostPages = 0});
+
+  final OfficeItem item;
+  final int lostPages;
+}
+
 /// One step of an edit. Undo/redo replays steps backwards, and the same
 /// steps will become CRDT ops for sync and collaboration.
 sealed class EditStep {
@@ -463,6 +473,63 @@ class NotebookNotifier extends Notifier<NotebookState> {
     );
     insertItems(pageId, [item]);
     return item;
+  }
+
+  /// Puts [bytes], a newer version of the file on card [itemId], in the
+  /// notebook and shows it on the card (one undo step). Each page's ink
+  /// goes where that page is now: slides and sheets are followed by their
+  /// ids, however they were moved. Returns null when there's nothing to do
+  /// (the same file, the card or page gone or locked); throws
+  /// [OfficeReadError] if [bytes] isn't a file of the card's kind.
+  Future<OfficeUpdate?> updateOffice(String pageId, String itemId, Uint8List bytes) async {
+    if (!_editable(pageId)) return null;
+    final key = _keyFor(pageId);
+    if (key == null && _needsKey(pageId)) return null;
+    final card = _pageById(pageId)![itemId];
+    if (card is! OfficeItem || card.kind == null) return null;
+    final kind = card.kind!;
+    if (officeKindOf(bytes) != kind) throw OfficeReadError('This isn’t a ${kind.noun} any more.');
+    final asset = assetNameFor(bytes, ext: kind.name);
+    if (asset == card.asset) return null;
+    final doc = await ref.read(officeParserProvider)(bytes, kind);
+    final preview = OfficePreview(doc, bytes, decode: _decode);
+    final old = await _docs.load(card.asset, kind);
+    try {
+      await _queue.run(() async => key == null
+          ? _store.saveAsset(id, asset, bytes)
+          : _store.saveAsset(id, '$asset.enc', await _crypto.sealBytes(key, bytes)));
+    } on Object {
+      preview.dispose();
+      rethrow;
+    }
+    // The card as it is now (it may have changed while the file was read).
+    final now = _editable(pageId) ? _pageById(pageId)![itemId] : null;
+    if (!ref.mounted || now is! OfficeItem) {
+      preview.dispose();
+      return null;
+    }
+    final count = math.max(1, preview.pageCount);
+    final moves = pageMoves(old?.doc, doc, {...now.inkByPage.keys, now.page});
+    final ink = <int, List<StrokeItem>>{};
+    var lost = 0;
+    for (final e in now.inkByPage.entries) {
+      final to = moves[e.key];
+      if (to == null) {
+        lost++;
+      } else {
+        ink[to] = [...?ink[to], ...e.value];
+      }
+    }
+    _docs.put(asset, preview);
+    final updated = now.withFile(
+      asset: asset,
+      pages: count,
+      pageSize: preview.pageSize,
+      page: (moves[now.page] ?? now.page).clamp(1, count).toInt(),
+      inkByPage: ink,
+    );
+    replaceItems(pageId, [updated]);
+    return OfficeUpdate(updated, lostPages: lost);
   }
 
   /// Adds [pages] after page [after] (default: at the end), storing [files]

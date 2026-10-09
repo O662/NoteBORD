@@ -128,11 +128,12 @@ Every item has these fields:
 }
 ```
 
-- `asset` is the file in `assets/`, `<sha256 of the file>.<docx|pptx|xlsx>`, byte for byte as it was added, stored once however many cards use it. Like pictures, it is sealed (`.enc`) on a page with a password and is part of a board file.
+- `asset` is the file in `assets/`, `<sha256 of the file>.<docx|pptx|xlsx>`, byte for byte as it was added, stored once however many cards use it. Like pictures, it is sealed (`.enc`) on a page with a password and is part of a board file. A newer version of the file (saved in its own app after Open, or Replace file) is stored as a new asset and the card's `asset`, `pages`, `pageSize`, `page` and `ink` change together; the old file stays, for Undo.
 - `page` is the page, slide or sheet showing, from 1; `pages` how many there were when it was last read. Stepping through them changes `page` without an undo step.
 - `pageSize` is a Word page or a slide in points (`[612, 792]` for Letter, `[960, 540]` for a 16:9 deck). It is absent for Excel.
 - `unit` is the card's scale, as for the cards built on the board: its header (38 px), footer (36 px, shown for PowerPoint and whenever there's more than one page or sheet) and text are the design's sizes × `unit`.
 - `ink` holds the ink written on each page, keyed by page number as a string. Strokes are in the page's own coordinates: points of `pageSize` for Word and PowerPoint (so ink stays on its words however the card is moved, scaled or stretched), and the card's px before `unit` for Excel, from the top-left of the cells. Only the showing page's ink is drawn; it is clipped to the card between its header and footer.
+- When the card gets a newer version of its file, each page's ink moves to where that page is now: slides by their `p:sldId` and sheets by their `sheetId`, so ink follows a slide that was moved, and goes with one that was deleted. Word pages keep their numbers.
 - Ink written beside a card is ordinary page ink.
 
 `remember` is either `null` or `{ "why": "...", "remindAt": "...", "flashcard": false }`.

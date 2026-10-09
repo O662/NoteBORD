@@ -141,6 +141,25 @@ void main() {
     });
   });
 
+  group('newer versions', () {
+    test('slides are followed by their ids when they move or go', () {
+      final before = readOffice(samplePptx(), OfficeKind.pptx) as Deck;
+      expect(before.slides.map((s) => s.id), [256, 257, 258]);
+      final after = readOffice(samplePptx(order: [258, 256]), OfficeKind.pptx);
+      expect(pageMoves(before, after, [1, 2, 3]), {1: 2, 2: null, 3: 1});
+    });
+
+    test('sheets by their ids; Word pages stay where they are', () {
+      final book = readOffice(sampleXlsx(), OfficeKind.xlsx) as Workbook;
+      expect(book.sheets.map((s) => s.id), [1, 2]);
+      expect(pageMoves(book, book, [1, 2]), {1: 1, 2: 2});
+      final doc = readOffice(sampleDocx(), OfficeKind.docx);
+      expect(pageMoves(doc, doc, [1, 5]), {1: 1, 5: 5});
+      // Without the old version, pages stay where they are.
+      expect(pageMoves(null, book, [2]), {2: 2});
+    });
+  });
+
   group('Word', () {
     test('paragraphs, headings, lists, a table and a picture', () {
       final doc = readOffice(fixture('Lab 4 report.docx'), OfficeKind.docx) as WordDoc;

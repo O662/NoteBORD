@@ -13,7 +13,8 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         // Opens a Word, PowerPoint or Excel file from the board in the app
-        // the tablet uses for it (lib/state/office_docs.dart).
+        // the tablet uses for it, which may save back to it; Endless watches
+        // the file and updates the card (lib/state/office_docs.dart).
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "endless/files").setMethodCallHandler { call, result ->
             if (call.method != "open") {
                 result.notImplemented()
@@ -29,7 +30,11 @@ class MainActivity : FlutterFragmentActivity() {
                 val uri = FileProvider.getUriForFile(this, "$packageName.files", File(path))
                 val view = Intent(Intent.ACTION_VIEW).apply {
                     setDataAndType(uri, mime)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                            Intent.FLAG_ACTIVITY_NEW_TASK,
+                    )
                 }
                 startActivity(view)
                 result.success(true)
@@ -43,5 +48,5 @@ class MainActivity : FlutterFragmentActivity() {
 }
 
 /// Shares files from the app's cache folder `open/` with the app that opens
-/// them, for as long as that app has them open.
+/// them (to read and save), for as long as that app has them open.
 class EndlessFileProvider : FileProvider()

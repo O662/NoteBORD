@@ -16,6 +16,7 @@ import '../office/office_model.dart';
 import '../state/links.dart';
 import '../state/notebook.dart';
 import '../state/office_docs.dart';
+import '../transfer/files.dart';
 import '../state/settings.dart';
 import '../templates/templates.dart';
 import '../theme/colors.dart';
@@ -1350,7 +1351,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       if (one is TextItem || (one is StickyItem && !one.isStack)) SelectionAction.edit,
       if (one is CardItem) SelectionAction.editCard,
       if (one is CardItem && one.data is EmbedData) SelectionAction.open,
-      if (one is OfficeItem) SelectionAction.open,
+      if (one is OfficeItem) ...[SelectionAction.open, SelectionAction.replaceFile],
       if (one is StickyItem && one.isStack) ...[SelectionAction.fanOut, SelectionAction.nextNote],
       if (one == null && _onlyStickies) SelectionAction.stack,
       if (one is FrameItem) SelectionAction.rename,
@@ -1460,6 +1461,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       case SelectionAction.open:
         if (items.singleOrNull case final CardItem card) _openLink(card);
         if (items.singleOrNull case final OfficeItem file) _openFile(file);
+      case SelectionAction.replaceFile:
+        if (items.singleOrNull case final OfficeItem file) _replaceFile(file);
       case SelectionAction.fanOut:
         if (items.singleOrNull case final StickyItem s) _fanOut(s);
       case SelectionAction.nextNote:
@@ -1524,12 +1527,14 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
   // Word, PowerPoint and Excel files.
 
-  /// Opens the file in the app the tablet uses for it.
+  /// Opens the file in the app the tablet uses for it. What's saved there
+  /// comes back to the card.
   Future<void> _openFile(OfficeItem file) async {
     final kind = file.kind;
     if (kind == null) return;
-    final bytes = await ref.read(notebookProvider(pane.notebookId).notifier).readAsset(file.asset);
-    var opened = false;
+    final notebookId = pane.notebookId, pageId = _page.id;
+    final bytes = await ref.read(notebookProvider(notebookId).notifier).readAsset(file.asset);
+    OpenedFile? opened;
     if (bytes != null) {
       try {
         final name = file.name.isNotEmpty ? file.name : 'File.${kind.name}';
@@ -1538,13 +1543,68 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         debugPrint('Opening ${file.name} failed: $e');
       }
     }
-    if (opened || !mounted) return;
+    if (opened != null) {
+      ref.read(officeEditsProvider).watch(OfficeEdit(
+            notebookId: notebookId,
+            pageId: pageId,
+            itemId: file.id,
+            file: opened,
+            onUpdated: (update) {
+              if (mounted && pane.notebookId == notebookId) pane.toast(_updatedMessage(update), undoPageId: pageId);
+            },
+          ));
+      return;
+    }
+    if (!mounted) return;
     showNote(
       context,
       bytes == null
           ? 'This file can’t be found in the notebook'
           : 'No app on this tablet opens ${_appFor(kind)} files. Install one, then try again.',
     );
+  }
+
+  /// "Updated “Ch 9 slides.pptx”", and what happened to ink on pages that
+  /// are gone.
+  static String _updatedMessage(OfficeUpdate u) {
+    final name = u.item.name.isEmpty ? 'the file' : '“${u.item.name}”';
+    final noun = u.item.kind == OfficeKind.xlsx ? 'sheet' : 'slide';
+    final lost = switch (u.lostPages) {
+      0 => '',
+      1 => ' · Ink on a deleted $noun went with it',
+      final n => ' · Ink on $n deleted ${noun}s went with them',
+    };
+    return 'Updated $name$lost';
+  }
+
+  /// Puts a newer version of the file, picked from the tablet, on the card.
+  Future<void> _replaceFile(OfficeItem file) async {
+    final kind = file.kind;
+    if (kind == null) return;
+    final notebookId = pane.notebookId, pageId = _page.id;
+    final PickedFile? picked;
+    try {
+      picked = await ref.read(fileTransferProvider).pickOne([kind.name], title: 'Choose the new version of ${file.name}');
+    } on Object catch (e) {
+      debugPrint('Picking a file failed: $e');
+      if (mounted) showNote(context, 'Couldn’t open your files');
+      return;
+    }
+    if (picked == null || !mounted || pane.notebookId != notebookId) return;
+    try {
+      final update = await ref.read(notebookProvider(notebookId).notifier).updateOffice(pageId, file.id, picked.bytes);
+      if (!mounted) return;
+      if (update == null) {
+        showNote(context, 'That’s the same file as on the card');
+      } else {
+        pane.toast(_updatedMessage(update), undoPageId: pageId);
+      }
+    } on OfficeReadError catch (e) {
+      if (mounted) showNote(context, e.message);
+    } on Object catch (e) {
+      debugPrint('Replacing ${file.name} failed: $e');
+      if (mounted) showNote(context, 'That file can’t be shown on the board');
+    }
   }
 
   static String _appFor(OfficeKind kind) => switch (kind) {

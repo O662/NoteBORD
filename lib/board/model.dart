@@ -1241,6 +1241,38 @@ class OfficeItem extends BoxItem implements InkHolder {
   @override
   OfficeItem withoutInk(Set<String> ids) => _withPageInk([for (final s in ink) if (!ids.contains(s.id)) s]);
 
+  /// The same card showing a newer version of its file: [asset], with
+  /// [pages] pages of [pageSize], showing [page], and its ink moved to
+  /// where its pages are now.
+  OfficeItem withFile({
+    required String asset,
+    required int pages,
+    required Size? pageSize,
+    required int page,
+    required Map<int, List<StrokeItem>> inkByPage,
+  }) =>
+      OfficeItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        w: w,
+        h: h,
+        asset: asset,
+        mime: mime,
+        name: name,
+        page: page,
+        pages: pages,
+        pageSize: pageSize,
+        unit: unit,
+        inkByPage: inkByPage,
+      );
+
   OfficeItem copyWith({int? page, int? pages, Map<int, List<StrokeItem>>? inkByPage}) => OfficeItem(
         id: id,
         x: x,

@@ -26,7 +26,7 @@ Deck readPptx(OoxmlPackage pkg) {
     final path = rels[id.relAttr('id')]?.target;
     if (path == null || !pkg.has(path)) continue;
     if (pkg.xml(path)?.rootElement.attr('show') == '0') continue; // hidden slide
-    slides.add(reader.slide(path, slides.length + 1));
+    slides.add(reader.slide(path, slides.length + 1, id: id.integer('id')));
   }
   if (slides.isEmpty) throw const OfficeReadError('This PowerPoint file has no slides Endless can read.');
   return Deck(width, height, slides);
@@ -312,7 +312,7 @@ class _DeckReader {
         );
       });
 
-  Slide slide(String path, int number) {
+  Slide slide(String path, int number, {int? id}) {
     final layoutPath = pkg.relOfType(path, 'slideLayout');
     final masterPath = layoutPath == null ? null : pkg.relOfType(layoutPath, 'slideMaster');
     final master = masterPath == null ? null : _template(masterPath);
@@ -332,7 +332,7 @@ class _DeckReader {
     nodes.addAll(slide.nodes(tree?.open().toList() ?? const []));
     final bg = own.background ?? layout?.background ?? master?.background;
     final bgOwner = own.background != null ? path : (layout?.background != null ? layout!.path : master?.path ?? path);
-    return Slide(nodes, background: _background(bg, bgOwner, ctx) ?? const OFill(color: 0xFFFFFFFF));
+    return Slide(nodes, background: _background(bg, bgOwner, ctx) ?? const OFill(color: 0xFFFFFFFF), id: id);
   }
 
   OFill? _background(XmlElement? bg, String owner, _Ctx ctx) {

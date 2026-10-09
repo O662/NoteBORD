@@ -265,10 +265,14 @@ class SlideStandIn extends SlideNode {
 }
 
 class Slide {
-  const Slide(this.nodes, {this.background});
+  const Slide(this.nodes, {this.background, this.id});
 
   final List<SlideNode> nodes;
   final OFill? background;
+
+  /// PowerPoint's own id for the slide (`p:sldId`), which stays the same
+  /// when slides are added, deleted or moved; null if the file has none.
+  final int? id;
 
   /// Everything the slide says, for search.
   String get text => [
@@ -393,9 +397,14 @@ class Sheet {
     this.header = false,
     this.moreRows = 0,
     this.moreColumns = 0,
+    this.id,
   });
 
   final String name;
+
+  /// Excel's own id for the sheet (`sheetId`), which stays the same when
+  /// sheets are added, deleted, moved or renamed; null if the file has none.
+  final int? id;
 
   /// Rows of cells as Excel shows them ("0.50", "9/30/2026"); '' when empty.
   final List<List<String>> cells;
@@ -426,6 +435,28 @@ class Workbook extends OfficeDoc {
 
   @override
   OfficeKind get kind => OfficeKind.xlsx;
+}
+
+/// Where each of [pages] (from 1) of [before] is in [after], a newer
+/// version of the same file: slides and sheets are followed by their ids,
+/// so they're found however they were moved; Word pages stay where they
+/// are. A page that's gone maps to null. Without [before] (or ids), pages
+/// stay where they are.
+Map<int, int?> pageMoves(OfficeDoc? before, OfficeDoc after, Iterable<int> pages) {
+  final List<int?> was, now;
+  switch ((before, after)) {
+    case (Deck b, Deck a):
+      was = [for (final s in b.slides) s.id];
+      now = [for (final s in a.slides) s.id];
+    case (Workbook b, Workbook a):
+      was = [for (final s in b.sheets) s.id];
+      now = [for (final s in a.sheets) s.id];
+    default:
+      return {for (final p in pages) p: p};
+  }
+  if (was.contains(null) || now.contains(null)) return {for (final p in pages) p: p};
+  final at = {for (final (i, id) in now.indexed) id: i + 1};
+  return {for (final p in pages) p: p >= 1 && p <= was.length ? at[was[p - 1]] : null};
 }
 
 /// A file that isn't a Word, PowerPoint or Excel file Endless can read.

@@ -16,6 +16,7 @@ import 'package:endless/transfer/files.dart';
 import 'package:endless/transfer/pdf_export.dart';
 import 'package:endless/ui/dialogs.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -92,6 +93,21 @@ Future<(ProviderContainer, FakeFileTransfer, FakeFileOpener)> _open(WidgetTester
   await tester.pump();
   await tester.pump();
   return (c, files, opener);
+}
+
+/// Endless goes to the background (the other app is in front) and comes
+/// back.
+void _awayAndBack(WidgetTester tester) {
+  for (final state in [
+    AppLifecycleState.inactive,
+    AppLifecycleState.hidden,
+    AppLifecycleState.paused,
+    AppLifecycleState.hidden,
+    AppLifecycleState.inactive,
+    AppLifecycleState.resumed,
+  ]) {
+    tester.binding.handleAppLifecycleStateChanged(state);
+  }
 }
 
 /// Lets reading the file from the notebook finish.
@@ -317,6 +333,115 @@ void main() {
       await _settle(tester);
       expect(opener.opened, isEmpty);
       expect(find.text('This file can’t be found in the notebook'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
+    });
+  });
+
+  group('saved in its own app', () {
+    testWidgets('what PowerPoint saves comes back to the card, and the ink follows its slides', (tester) async {
+      final bytes = samplePptx();
+      final store = _storeWith(_cardFor(bytes, 'Ch 9 slides.pptx'), bytes);
+      final (c, _, opener) = await _open(tester, store);
+      final first = _card(c);
+      final mid = first.toPage(Offset(first.w / 2, first.h / 2));
+      // Ink on slides 2 and 3.
+      await _fingerTap(tester, _button(_card(c), OfficeButton.next));
+      await _pen(tester, _line(mid, mid + const Offset(60, 0)));
+      await _fingerTap(tester, _button(_card(c), OfficeButton.next));
+      await _pen(tester, _line(mid, mid + const Offset(0, 40)));
+      final onSlide3 = _card(c).inkByPage[3]!.single.id;
+
+      await _fingerTap(tester, _button(_card(c), OfficeButton.open));
+      await _settle(tester);
+      final file = opener.files.single;
+      final edits = c.read(officeEditsProvider);
+      expect(edits.watching.single.itemId, first.id);
+
+      // Nothing saved yet: nothing changes.
+      await edits.check();
+      await tester.pump();
+      expect(_card(c).asset, first.asset);
+
+      // PowerPoint saves with slide 3 moved to the front and slide 2
+      // deleted; Endless comes back to the front.
+      final newer = samplePptx(order: [258, 256]);
+      file.save(newer);
+      _awayAndBack(tester);
+      await _settle(tester);
+      final updated = _card(c);
+      expect(updated.asset, assetNameFor(newer, ext: 'pptx'));
+      expect((updated.pages, updated.page), (2, 1), reason: 'slide 3 is the first slide now');
+      expect(updated.inkByPage.keys, [1]);
+      expect(updated.inkByPage[1]!.single.id, onSlide3);
+      expect(updated.center, first.center, reason: 'the card stays where it was');
+      expect(find.text('Updated “Ch 9 slides.pptx” · Ink on a deleted slide went with it'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 1));
+      expect(await store.loadAsset(canvasPane.notebookId, updated.asset), newer);
+
+      // One undo step puts the old version back, with all the ink.
+      await tester.tap(byLabel('Undo'));
+      await tester.pump();
+      expect(_card(c).asset, first.asset);
+      expect(_card(c).inkByPage.keys.toSet(), {2, 3});
+      expect(_card(c).page, 3);
+
+      // A save that isn't a finished file is skipped; the next one counts.
+      file.save(Uint8List.fromList([0x50, 0x4B, 3, 4, 1, 2]));
+      await edits.check();
+      await tester.pump();
+      expect(_card(c).asset, first.asset);
+      final third = samplePptx(order: [256, 257]);
+      file.save(third);
+      await edits.check();
+      await _settle(tester);
+      expect(_card(c).asset, assetNameFor(third, ext: 'pptx'));
+      expect(_card(c).inkByPage.keys, [2], reason: 'slide 2 is still slide 2; slide 3 is gone');
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('a card that is deleted stops being watched', (tester) async {
+      final bytes = samplePptx();
+      final (c, _, opener) = await _open(tester, _storeWith(_cardFor(bytes, 'Ch 9 slides.pptx'), bytes));
+      await _fingerTap(tester, _button(_card(c), OfficeButton.open));
+      await _settle(tester);
+      c.read(notebookProvider(canvasPane.notebookId).notifier).removeItems(shownPage(c).id, [_card(c).id]);
+      opener.files.single.save(samplePptx(order: [257]));
+      await c.read(officeEditsProvider).check();
+      await tester.pump();
+      expect(c.read(officeEditsProvider).watching, isEmpty);
+      expect(opener.files.single.closed, isTrue);
+      expect(_items(c), isEmpty);
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('Replace file puts a newer version from the tablet on the card', (tester) async {
+      final bytes = samplePptx();
+      final (c, files, _) = await _open(tester, _storeWith(_cardFor(bytes, 'Ch 9 slides.pptx'), bytes));
+      c.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: CanvasTool.select));
+      await tester.pump();
+      await _pen(tester, [_card(c).center]);
+
+      // The same file: nothing to do.
+      files.toPickOne = PickedFile('Ch 9 slides.pptx', bytes);
+      await tester.tap(find.bySemanticsLabel('Replace file'));
+      await _settle(tester);
+      expect(files.askedFor.last, ['pptx']);
+      expect(find.text('That’s the same file as on the card'), findsOneWidget);
+
+      // Not a PowerPoint.
+      files.toPickOne = PickedFile('Lab data.pptx', sampleXlsx());
+      await tester.tap(find.bySemanticsLabel('Replace file'));
+      await _settle(tester);
+      await tester.pump(const Duration(milliseconds: 500)); // the last note slides away first
+      expect(find.text('This isn’t a PowerPoint any more.'), findsOneWidget);
+
+      final newer = samplePptx(order: [256, 258]);
+      files.toPickOne = PickedFile('Ch 9 slides.pptx', newer);
+      await tester.tap(find.bySemanticsLabel('Replace file'));
+      await _settle(tester);
+      expect(_card(c).asset, assetNameFor(newer, ext: 'pptx'));
+      expect(_card(c).pages, 2);
+      expect(find.text('Updated “Ch 9 slides.pptx”'), findsOneWidget);
       await tester.pump(const Duration(seconds: 5));
     });
   });
