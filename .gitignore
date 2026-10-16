@@ -46,7 +46,6 @@ app.*.map.json
 /CLAUDE.md
 /design/tokens.json #
 /Updates/
-/tool/
 
 # Golden test diff output
 **/failures/
