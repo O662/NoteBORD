@@ -26,7 +26,7 @@ class Pane extends ChangeNotifier {
   /// The ruler over this view.
   final ruler = Ruler();
 
-  /// Math mode, the math keyboard and the formulas panel (Math.png).
+  /// Math mode and the math keyboard (Math.png).
   final math = MathMode();
 
   /// A place on the page (page coordinates) to show and highlight once the

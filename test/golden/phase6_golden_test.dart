@@ -1,5 +1,6 @@
 // Golden images of math mode at the tablet size (1280×800). Compare with
-// design/screens/Math.png and MathKit.png.
+// design/screens/Math.png and MathKit.png (whose symbols and formulas are
+// the keyboard's own tabs).
 //
 // Regenerate after an intended visual change:
 //   flutter test --update-goldens test/golden/phase6_golden_test.dart
@@ -213,12 +214,12 @@ void main() {
           ..._mathRow(c),
           GraphItem(
             id: 'it_graph',
-            x: 110,
-            y: 430,
+            x: 720,
+            y: 70,
             z: 50,
             createdAt: now,
-            w: 600,
-            h: 350,
+            w: 520,
+            h: 330,
             functions: const [
               GraphLine(r'y=\frac{x^{2}}{2}', Color(0xFF2B5A8C)),
               GraphLine(r'y=2\sin x', Color(0xFFB5532A)),

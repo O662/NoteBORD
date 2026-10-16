@@ -437,7 +437,7 @@ The owner's request (2026-10-15). Three recognizers were put to the owner: MyScr
 | Math keyboard | At the bottom, 1060 wide.<br>• **The top row:** the line in Newsreader italic, Delete (repeats while held), Write it instead, Insert.<br>• **Four tabs** (Math.dc.html's sets): Greek (36 keys), Operators (36), Structures (24: fraction, powers, subscripts, roots, ∫ and ∫ₐᵇ, ∑, ∏, lim, d/dx, \|x\|, sin to ln, eˣ, bar, vector arrow, brackets, matrix, n!), Units (33).<br>• **Keys** are 12 to a row, 48 px tall, and type at the cursor; a bracket key leaves the cursor between its brackets.<br>• **Letters and digits** come from the tablet's keyboard, which waits for a tap on the line so it doesn't cover the keys.<br>• **New math:** a finger tap on empty paper in math mode starts it there | `lib/ui/math/math_keyboard.dart`, `math_keys.dart` |
 | Write it instead | The keys become a writing pad. 0.8 s after the pen lifts, the model reads the pad and its reading replaces the line; Clear starts again | `_WritingPad` |
 | The keyboard's text | Math as a line, both ways (LaTeX ⇄ text):<br>• **Fractions:** `a / b` is a fraction of the runs on each side (`Δθ / Δt`, `(a + b) / 2`); a space ends a run, so `1/2 mv²` is ½mv².<br>• **Scripts and roots:** `x^2`, `x²`, `v₀`, `x_(i+1)`, `√(…)`, `ⁿ√(…)`.<br>• **Big operators:** `∫_a^b`, `lim_(x→0)`.<br>• **Functions:** sin, cos, log…<br>• **Units:** `"m/s²"` is upright text.<br>• **Matrices:** `[[a, b], [c, d]]`.<br>• **Accents:** combining bar and arrow.<br>• **Anything else:** `\overline{AB}` passes through as LaTeX.<br>Editing recognized math turns its LaTeX into this text and back, keeping the same math | `lib/math/linear.dart` |
-| Formulas & symbols (MathKit.png) | Formulas & tools (or Study & math → Math tools) opens the 420-wide panel on the right, with tabs Math, Physics and Symbols. Math and Physics are MathKit.dc.html's 8 formulas each; Symbols is its 43-key keypad, 4 to a row and 80 px tall. A tap adds it to the middle of the page ("Added π to the page · Undo"), or types it into the keyboard when that's open ("Tap to type it"). The bar's Formulas & tools closes it, as in the design | `lib/ui/math/formulas_panel.dart`, `CanvasScreen._addFromPanel` |
+| Symbols and formulas (MathKit.png) | Tabs of the keyboard, after Units: **Symbols** (MathKit.dc.html's 43-key keypad), **Formulas** and **Physics** (its 8 formulas each). Formulas & tools (or Study & math → Math tools) opens the keyboard on Symbols, for new math, or turns an open keyboard to that tab. A tap types it at the cursor; Insert puts it on the page. The keyboard keeps three rows of keys on every tab, scrolling Symbols' fourth, and it opens on the tab last used. **Owner's request, 2026-10-16:** at first this was MathKit.png's own panel, 420 wide on the right, and with the keyboard open the two overlapped and covered most of the page. Now there is one popup, along the bottom | `mathKeyTabs`, `symbolsTab` (`lib/ui/math/math_keys.dart`), `_FormulaKey`, `CanvasScreen._openSymbols` |
 | Graphs on the page | A `graph` item, styled after Graph.png: "Graph" with its icon; the functions as chips with their color and typeset math; the plot with its grid, axes, every other line labelled, and the curves, broken at asymptotes. x runs from −5 to 5 and y fits the curve. Add a graph (in the bar) types a function (`y = …`) and Insert graphs it. Not editable yet | `GraphItem`, `lib/canvas/graph_card.dart` |
 | Search, exports, board files | Search finds math by its keyboard text and the names of its Greek letters ("omega"), and a graph by its functions. PDFs draw math and graphs as pictures with their text in the text layer; the picture export draws them too. Both round-trip through board files (docs/BOARD_FORMAT.md) | `handwriting_index.dart`, `pdf_export.dart`, `transfer.dart` |
 | Ink stays as written in math mode | Found by running the real model in the app: a 2's turn into its base line looked like a flick, so the arrow gesture cut the base off and the 2 was read as a 7. In math mode, flicks don't make arrows and holding doesn't straighten | `_arrowFrom`, `_restartHold` |
@@ -460,6 +460,7 @@ The owner's request (2026-10-15). Three recognizers were put to the owner: MyScr
 - The design draws typeset math in Newsreader; `flutter_math_fork` typesets in KaTeX's own fonts (Computer Modern style).
 - The keyboard's line is text, not a structured editor: no cursor inside a fraction's box.
 - Lasso in the math bar isn't in the design (see above).
+- The Symbols keys are the keyboard's size (12 to a row, 48 px), not MathKit.png's big keys 4 to a row, and adding a symbol or formula takes two taps (it, then Insert). Both follow from it being one popup, as the owner asked.
 - Split view: Math & graphs and Math tools are still "coming soon" there.
 - Converted math takes the color of the first stroke.
 - Linux, iOS, macOS and web builds aren't set up yet (`flutter create --platforms=linux .` adds Linux). The recognizer is the same code there, through the same plugin, which downloads ONNX Runtime when it builds.
@@ -528,12 +529,11 @@ The owner's request (2026-10-15). Three recognizers were put to the owner: MyScr
     - Copy as LaTeX and the clipboard; Graph it, and refused;
     - tapping math to edit it: the tabs, keys 12 to a row, the cursor, Delete, Insert, Undo;
     - a finger tap typing new math;
-    - Math tools' Symbols keypad (4 to a row, 80 px) adding π with Undo, and a Physics formula;
-    - symbols and formulas typed into an open keyboard;
+    - Math tools and Formulas & tools opening the one keyboard on its Symbols tab (the page above it free), a symbol and a formula typed, Insert, and an open keyboard turned to Symbols;
     - Add a graph;
     - a real 2 not made an arrow and a hold not straightening (both checked to fail without the fix);
     - the lasso.
-  - 2 goldens, typeset for real with KaTeX's fonts: `math` (Math.png) and `math_kit` (MathKit.png's Symbols panel, with a graph card).
+  - 2 goldens, typeset for real with KaTeX's fonts: `math` (Math.png) and `math_kit` (the keyboard's Symbols tab, with a graph card).
   - `integration_test/` (run with `-d windows`; they use the real plugin, so they aren't part of `flutter test`): `math_model_test.dart`, `math_typeset_test.dart`, `math_mode_test.dart`.
   - `test/fixtures/math/ink_samples.json` comes from `tool/math_model/make_fixtures.py`.
 - `test/tokens_sync_test.dart`: generated tokens match `design/tokens.json`.
@@ -543,7 +543,7 @@ The owner's request (2026-10-15). Three recognizers were put to the owner: MyScr
   - Study & math → Math & graphs. Write an expression with the S Pen and pause, then check the preview and Convert to math. Note how long "Reading…" takes, the first time and after.
   - Undo; Graph it on `y = x²/2`; Copy as LaTeX.
   - Tap converted math with a finger, edit it with the keys and with the tablet's keyboard, then Insert. Try Write it instead.
-  - Formulas & tools: a symbol and a formula, with and without the keyboard open. Then Add a graph.
+  - Formulas & tools: the keyboard on its Symbols tab; a symbol and a formula, then Insert. Then Add a graph.
   - Try it in airplane mode, to see that it all works offline.
 - After that, the rest of Phase 6: the Graph screen (Graph.png: functions you can add and edit, trace, intersections, 3D) and the number line, unit circle and polar grid (MathKit.png).
 - Try Phase 5a on the tablet: the model download on first use and then offline, writing and searching, Open at this spot, Convert to text (Replace, Keep ink too, Copy text only, another language, the whole page), a PDF export's text in a PDF reader, and locking a page then searching.

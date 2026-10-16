@@ -1,6 +1,6 @@
-// The keys of the math keyboard (Math.dc.html's `sets`) and of the
-// Symbols keypad and formula library (MathKit.dc.html's `K` and `F`). What
-// a key types is the keyboard's text (lib/math/linear.dart).
+// The keys of the math keyboard: Math.dc.html's `sets`, then MathKit.dc.html's
+// Symbols keypad and formula library (its `K` and `F`), as tabs of the one
+// keyboard. What a key types is the keyboard's text (lib/math/linear.dart).
 
 /// A key: its label, what it types and where the cursor ends up in that
 /// (null: after it), and its name for screen readers.
@@ -13,11 +13,13 @@ class MathKey {
   final String name;
 }
 
+/// A tab of the keyboard: keys, or formulas.
 class MathKeyTab {
-  const MathKeyTab(this.label, this.keys);
+  const MathKeyTab(this.label, this.keys, {this.formulas = const []});
 
   final String label;
   final List<MathKey> keys;
+  final List<Formula> formulas;
 }
 
 MathKey _plain(String s) => MathKey(s, s);
@@ -67,64 +69,59 @@ final mathKeyTabs = <MathKeyTab>[
     for (final u in 'm s kg N J W Pa Hz m/s m/s² kg·m/s °C K mol A V Ω eV cm mm km g mg L mL h min ms μs nm μm'.split(' '))
       _unit(u),
   ]),
+  const MathKeyTab('Symbols', symbolKeys),
+  const MathKeyTab('Formulas', [], formulas: mathFormulas),
+  const MathKeyTab('Physics', [], formulas: physicsFormulas),
 ];
 
-/// A Symbols key (MathKit.png): what it shows, its name, what it types in
-/// the keyboard, and the math it adds to the page.
-class SymbolKey {
-  const SymbolKey(this.label, this.name, this.types, this.latex, {this.cursor});
+/// Where Formulas & tools opens the keyboard.
+const symbolsTab = 4;
 
-  final String label;
-  final String name;
-  final String types;
-  final int? cursor;
-  final String latex;
-}
-
-const symbolKeys = <SymbolKey>[
-  SymbolKey('π', 'pi', 'π', r'\pi'),
-  SymbolKey('e', 'Euler’s number', 'e', 'e'),
-  SymbolKey('φ', 'phi', 'φ', r'\varphi'),
-  SymbolKey('τ', 'tau', 'τ', r'\tau'),
-  SymbolKey('∞', 'infinity', '∞', r'\infty'),
-  SymbolKey('√', 'square root', '√()', r'\surd', cursor: 2),
-  SymbolKey('∫', 'integral', '∫ ', r'\int'),
-  SymbolKey('∬', 'double integral', '∬ ', r'\iint'),
-  SymbolKey('∭', 'triple integral', '∭ ', r'\iiint'),
-  SymbolKey('∮', 'contour integral', '∮ ', r'\oint'),
-  SymbolKey('d/dx', 'derivative', 'd/dx ', r'\frac{d}{dx}'),
-  SymbolKey('d²/dx²', 'second derivative', 'd²/dx² ', r'\frac{d^{2}}{dx^{2}}'),
-  SymbolKey('∂/∂x', 'partial derivative', '∂/∂x ', r'\frac{\partial}{\partial x}'),
-  SymbolKey('∇', 'nabla', '∇', r'\nabla'),
-  SymbolKey('Σ', 'sum', '∑ ', r'\sum'),
-  SymbolKey('Π', 'product', '∏ ', r'\prod'),
-  SymbolKey('±', 'plus or minus', ' ± ', r'\pm'),
-  SymbolKey('×', 'times', ' × ', r'\times'),
-  SymbolKey('÷', 'divide', ' ÷ ', r'\div'),
-  SymbolKey('≈', 'approximately equal', ' ≈ ', r'\approx'),
-  SymbolKey('≠', 'not equal', ' ≠ ', r'\neq'),
-  SymbolKey('≤', 'less than or equal', ' ≤ ', r'\leq'),
-  SymbolKey('≥', 'greater than or equal', ' ≥ ', r'\geq'),
-  SymbolKey('∝', 'proportional to', ' ∝ ', r'\propto'),
-  SymbolKey('α', 'alpha', 'α', r'\alpha'),
-  SymbolKey('β', 'beta', 'β', r'\beta'),
-  SymbolKey('γ', 'gamma', 'γ', r'\gamma'),
-  SymbolKey('δ', 'delta', 'δ', r'\delta'),
-  SymbolKey('ε', 'epsilon', 'ε', r'\varepsilon'),
-  SymbolKey('θ', 'theta', 'θ', r'\theta'),
-  SymbolKey('λ', 'lambda', 'λ', r'\lambda'),
-  SymbolKey('μ', 'mu', 'μ', r'\mu'),
-  SymbolKey('σ', 'sigma', 'σ', r'\sigma'),
-  SymbolKey('ω', 'omega', 'ω', r'\omega'),
-  SymbolKey('Δ', 'capital delta', 'Δ', r'\Delta'),
-  SymbolKey('Ω', 'capital omega', 'Ω', r'\Omega'),
-  SymbolKey('∈', 'element of', ' ∈ ', r'\in'),
-  SymbolKey('∉', 'not an element of', ' ∉ ', r'\notin'),
-  SymbolKey('⊂', 'subset of', ' ⊂ ', r'\subset'),
-  SymbolKey('∪', 'union', ' ∪ ', r'\cup'),
-  SymbolKey('∩', 'intersection', ' ∩ ', r'\cap'),
-  SymbolKey('∀', 'for all', '∀', r'\forall'),
-  SymbolKey('∃', 'there exists', '∃', r'\exists'),
+/// The Symbols tab: MathKit.png's Symbols keypad.
+const symbolKeys = <MathKey>[
+  MathKey('π', 'π', name: 'pi'),
+  MathKey('e', 'e', name: 'Euler’s number'),
+  MathKey('φ', 'φ', name: 'phi'),
+  MathKey('τ', 'τ', name: 'tau'),
+  MathKey('∞', '∞', name: 'infinity'),
+  MathKey('√', '√()', cursor: 2, name: 'square root'),
+  MathKey('∫', '∫ ', name: 'integral'),
+  MathKey('∬', '∬ ', name: 'double integral'),
+  MathKey('∭', '∭ ', name: 'triple integral'),
+  MathKey('∮', '∮ ', name: 'contour integral'),
+  MathKey('d/dx', 'd/dx ', name: 'derivative'),
+  MathKey('d²/dx²', 'd²/dx² ', name: 'second derivative'),
+  MathKey('∂/∂x', '∂/∂x ', name: 'partial derivative'),
+  MathKey('∇', '∇', name: 'nabla'),
+  MathKey('Σ', '∑ ', name: 'sum'),
+  MathKey('Π', '∏ ', name: 'product'),
+  MathKey('±', ' ± ', name: 'plus or minus'),
+  MathKey('×', ' × ', name: 'times'),
+  MathKey('÷', ' ÷ ', name: 'divide'),
+  MathKey('≈', ' ≈ ', name: 'approximately equal'),
+  MathKey('≠', ' ≠ ', name: 'not equal'),
+  MathKey('≤', ' ≤ ', name: 'less than or equal'),
+  MathKey('≥', ' ≥ ', name: 'greater than or equal'),
+  MathKey('∝', ' ∝ ', name: 'proportional to'),
+  MathKey('α', 'α', name: 'alpha'),
+  MathKey('β', 'β', name: 'beta'),
+  MathKey('γ', 'γ', name: 'gamma'),
+  MathKey('δ', 'δ', name: 'delta'),
+  MathKey('ε', 'ε', name: 'epsilon'),
+  MathKey('θ', 'θ', name: 'theta'),
+  MathKey('λ', 'λ', name: 'lambda'),
+  MathKey('μ', 'μ', name: 'mu'),
+  MathKey('σ', 'σ', name: 'sigma'),
+  MathKey('ω', 'ω', name: 'omega'),
+  MathKey('Δ', 'Δ', name: 'capital delta'),
+  MathKey('Ω', 'Ω', name: 'capital omega'),
+  MathKey('∈', ' ∈ ', name: 'element of'),
+  MathKey('∉', ' ∉ ', name: 'not an element of'),
+  MathKey('⊂', ' ⊂ ', name: 'subset of'),
+  MathKey('∪', ' ∪ ', name: 'union'),
+  MathKey('∩', ' ∩ ', name: 'intersection'),
+  MathKey('∀', '∀', name: 'for all'),
+  MathKey('∃', '∃', name: 'there exists'),
 ];
 
 /// A formula in the library: its name and the keyboard's text for it.
@@ -156,3 +153,6 @@ const physicsFormulas = <Formula>[
   Formula('Work', 'W = Fd cos θ'),
   Formula('Ohm’s law', 'V = IR'),
 ];
+
+/// How a formula is shown on its key: ½ for 1/2.
+String formulaLabel(String text) => text.replaceAll('1/2 ', '½');

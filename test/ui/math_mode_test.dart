@@ -315,50 +315,56 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
   });
 
-  testWidgets('Math tools: the Symbols keypad, four big keys to a row (MathKit.png); a tap adds it with Undo', (tester) async {
+  testWidgets('Math tools and Formulas & tools open the one keyboard on its Symbols tab; no panel covers the page', (tester) async {
     final c = await pumpCanvas(tester, extra: mathOverrides(FakeMathReader(null)));
     await _openMath(tester, 'Math tools');
-    expect(find.text('Formulas & symbols'), findsOneWidget);
-    expect(find.text('Tap to add to the page'), findsOneWidget);
+    final math = canvasPane.math;
+    expect(math.draft, isNotNull);
+    expect(find.bySemanticsLabel('Math keyboard'), findsOneWidget);
+    // MathKit.png's symbols and formulas are tabs of the keyboard now.
+    for (final tab in ['Greek', 'Operators', 'Structures', 'Units', 'Symbols', 'Formulas', 'Physics']) {
+      expect(find.bySemanticsLabel(tab), findsOneWidget, reason: tab);
+    }
+    expect(find.text('Formulas & symbols'), findsNothing);
+    // Only the keyboard, along the bottom: the page above it is free.
+    final board = tester.getRect(find.bySemanticsLabel('Math keyboard'));
+    expect(board.top, greaterThan(400));
+
+    // The symbols, 12 to a row like the other keys; a tap types at the cursor.
     final pi = tester.getRect(find.bySemanticsLabel('Insert pi'));
     final tau = tester.getRect(find.bySemanticsLabel('Insert tau'));
-    final infinity = tester.getRect(find.bySemanticsLabel('Insert infinity'));
     expect(tau.top, pi.top);
-    expect(infinity.top, greaterThan(pi.bottom));
-    expect(infinity.left, pi.left);
-    expect(pi.height, 80);
-
     await tester.tap(find.bySemanticsLabel('Insert pi'));
-    await _settle(tester);
-    expect(_math(c).single.latex, r'\pi');
-    expect(find.text('Added π to the page'), findsOneWidget);
-    await tester.tap(find.text('Undo'));
     await tester.pump();
-    expect(_math(c), isEmpty);
 
-    // The formulas are tabs away.
+    // A formula, two tabs along.
+    await tester.tap(find.bySemanticsLabel('Formulas'));
+    await tester.pump();
+    await tester.tap(find.bySemanticsLabel('Insert Area of a circle'));
+    await tester.pump();
+    expect(math.draft!.text.text, 'πA = πr²');
     await tester.tap(find.bySemanticsLabel('Physics'));
     await tester.pump();
-    await tester.tap(find.bySemanticsLabel('Add Kinetic energy'));
+    expect(find.bySemanticsLabel('Insert Kinetic energy'), findsOneWidget);
+
+    // Insert puts it on the page.
+    math.draft!.text.text = 'KE = 1/2 mv²';
+    await tester.tap(_insert);
     await _settle(tester);
     expect(_math(c).single.latex, r'KE=\frac{1}{2}mv^{2}');
-    await tester.pump(const Duration(seconds: 5));
-  });
 
-  testWidgets('with the keyboard open, symbols and formulas are typed into it', (tester) async {
-    final c = await pumpCanvas(tester, extra: mathOverrides(FakeMathReader(null)));
-    await _openMath(tester, 'Math tools');
+    // With the keyboard open on other math, Formulas & tools just turns it to Symbols.
     await tester.tapAt(const Offset(300, 200));
     await _settle(tester);
-    expect(find.text('Tap to type it'), findsOneWidget);
-    await tester.tap(find.bySemanticsLabel('Insert pi'));
+    final draft = math.draft;
+    // It opens on the tab last used.
+    expect(find.bySemanticsLabel('Insert Kinetic energy'), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('Greek'));
     await tester.pump();
-    await tester.tap(find.bySemanticsLabel('Math'));
+    await tester.tap(find.bySemanticsLabel('Formulas & tools'));
     await tester.pump();
-    await tester.tap(find.bySemanticsLabel('Add Area of a circle'));
-    await tester.pump();
-    expect(canvasPane.math.draft!.text.text, 'πA = πr²');
-    expect(_math(c), isEmpty);
+    expect(math.draft, same(draft));
+    expect(find.bySemanticsLabel('Insert pi'), findsOneWidget);
     await tester.pump(const Duration(seconds: 5));
   });
 

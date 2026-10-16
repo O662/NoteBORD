@@ -4,6 +4,7 @@ import '../../canvas/math_mode.dart';
 import '../../math/math_pictures.dart' show mathFontFallback;
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart';
+import 'math_keys.dart' show symbolsTab;
 
 /// Math mode's dark bar in place of the tool pill (Math.dc.html's toolbar):
 /// "∑ Math mode · Handwriting converts as you go", Lasso, Formulas & tools,
@@ -58,7 +59,11 @@ class MathBar extends StatelessWidget {
               selected: math.lasso,
               onTap: () => math.lasso = !math.lasso,
             ),
-            MathBarButton(label: 'Formulas & tools', selected: math.panel, onTap: onFormulas),
+            MathBarButton(
+              label: 'Formulas & tools',
+              selected: math.draft != null && math.tab >= symbolsTab,
+              onTap: onFormulas,
+            ),
             MathBarButton(label: 'Add a graph', onTap: onAddGraph),
             MathBarButton(label: 'Done', done: true, onTap: onDone),
           ]),

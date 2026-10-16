@@ -17,11 +17,14 @@ import 'math_keys.dart';
 
 /// The math keyboard (Math.dc.html's "Math keyboard"): the math being typed
 /// as a line, Delete, Write it instead, Insert; tabs of Greek letters,
-/// operators, structures and units. Letters and digits come from the
-/// tablet's keyboard (tap the line) or from writing.
+/// operators, structures and units, then MathKit.png's symbols and formulas
+/// (one popup for both, so the page stays free). Letters and digits come
+/// from the tablet's keyboard (tap the line) or from writing.
 class MathKeyboard extends ConsumerStatefulWidget {
-  const MathKeyboard({super.key, required this.draft, required this.onInsert, this.width = 1060});
+  const MathKeyboard({super.key, required this.math, required this.draft, required this.onInsert, this.width = 1060});
 
+  /// Holds the tab, which Formulas & tools picks too.
+  final MathMode math;
   final MathDraft draft;
   final VoidCallback onInsert;
   final double width;
@@ -32,7 +35,6 @@ class MathKeyboard extends ConsumerStatefulWidget {
 
 class _MathKeyboardState extends ConsumerState<MathKeyboard> {
   final _focus = FocusNode();
-  var _tab = 0;
   var _writing = false;
 
   /// The tablet's own keyboard is wanted (after a tap on the line).
@@ -71,7 +73,8 @@ class _MathKeyboardState extends ConsumerState<MathKeyboard> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final tab = mathKeyTabs[_tab];
+    final selected = widget.math.tab.clamp(0, mathKeyTabs.length - 1);
+    final tab = mathKeyTabs[selected];
     return Semantics(
       container: true,
       label: 'Math keyboard',
@@ -135,24 +138,94 @@ class _MathKeyboardState extends ConsumerState<MathKeyboard> {
                 container: true,
                 label: 'Symbol sets',
                 explicitChildNodes: true,
-                child: Row(spacing: 6, children: [
-                  for (final (i, t) in mathKeyTabs.indexed)
-                    _Tab(label: t.label, selected: i == _tab, onTap: () => setState(() => _tab = i)),
-                ]),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(spacing: 6, children: [
+                    for (final (i, t) in mathKeyTabs.indexed)
+                      _Tab(label: t.label, selected: i == selected, onTap: () => widget.math.tab = i),
+                  ]),
+                ),
               ),
-              LayoutBuilder(builder: (context, box) {
-                const gap = 6.0, columns = 12;
-                final w = (box.maxWidth - gap * (columns - 1)) / columns;
-                return Wrap(spacing: gap, runSpacing: gap, children: [
-                  for (final k in tab.keys)
-                    SizedBox(
-                      width: w,
-                      child: _Key(k, onTap: () => _press(k.types, cursor: k.cursor)),
-                    ),
-                ]);
-              }),
+              // Three rows of keys, whatever the tab (Symbols scrolls), so
+              // the keyboard keeps its height.
+              SizedBox(
+                height: _keysHeight,
+                child: LayoutBuilder(builder: (context, box) {
+                  const gap = 6.0;
+                  if (tab.formulas.isNotEmpty) {
+                    const columns = 4;
+                    final w = (box.maxWidth - gap * (columns - 1)) / columns;
+                    return Wrap(spacing: gap, runSpacing: gap, children: [
+                      for (final f in tab.formulas)
+                        SizedBox(
+                          width: w,
+                          height: (_keysHeight - gap) / 2,
+                          child: _FormulaKey(f, onTap: () => _press(f.text)),
+                        ),
+                    ]);
+                  }
+                  const columns = 12;
+                  final w = (box.maxWidth - gap * (columns - 1)) / columns;
+                  return SingleChildScrollView(
+                    child: Wrap(spacing: gap, runSpacing: gap, children: [
+                      for (final k in tab.keys)
+                        SizedBox(
+                          width: w,
+                          child: _Key(k, onTap: () => _press(k.types, cursor: k.cursor)),
+                        ),
+                    ]),
+                  );
+                }),
+              ),
             ],
           ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// Three rows of 48 px keys and their gaps.
+const _keysHeight = 48 * 3 + 6 * 2.0;
+
+/// A formula from MathKit.png's library: its name over it.
+class _FormulaKey extends StatelessWidget {
+  const _FormulaKey(this.f, {required this.onTap});
+
+  final Formula f;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Semantics(
+      button: true,
+      label: 'Insert ${f.name}',
+      excludeSemantics: true,
+      child: Material(
+        color: c.surfaceSunk,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: c.lineSoft)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, spacing: 2, children: [
+              Text(f.name, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c.textMuted)),
+              Text(
+                formulaLabel(f.text),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: FontFamilies.serif,
+                  fontFamilyFallback: mathFontFallback,
+                  fontStyle: FontStyle.italic,
+                  fontSize: 18,
+                  color: c.text,
+                ),
+              ),
+            ]),
+          ),
         ),
       ),
     );

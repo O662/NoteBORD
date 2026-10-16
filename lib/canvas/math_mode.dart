@@ -2,8 +2,8 @@ import 'package:flutter/widgets.dart';
 
 // Math mode (Math.png): what the screen's chrome and the canvas share. The
 // pen writes math, and what was just written is picked up for "Convert to
-// math" once the pen rests; the keyboard types math; the formulas and
-// symbols panel adds it.
+// math" once the pen rests; the keyboard types math, with the symbols and
+// formulas (MathKit.png's panel) as tabs of its own.
 
 /// What the math keyboard is typing.
 class MathDraft {
@@ -29,8 +29,7 @@ class MathMode extends ChangeNotifier {
   bool _on = false;
   bool _lasso = false;
   MathDraft? _draft;
-  bool _panel = false;
-  int _tab = 2;
+  int _tab = 0;
 
   /// Math mode is on.
   bool get on => _on;
@@ -41,9 +40,7 @@ class MathMode extends ChangeNotifier {
   /// What the keyboard is typing, while it's open.
   MathDraft? get draft => _draft;
 
-  /// The formulas and symbols panel is open, on [tab] (0 Math, 1 Physics,
-  /// 2 Symbols).
-  bool get panel => _panel;
+  /// The keyboard's tab (math_keys.dart's `mathKeyTabs`).
   int get tab => _tab;
 
   void start() {
@@ -56,7 +53,6 @@ class MathMode extends ChangeNotifier {
     if (!_on) return;
     _on = false;
     _lasso = false;
-    _panel = false;
     _closeDraft();
     notifyListeners();
   }
@@ -85,18 +81,6 @@ class MathMode extends ChangeNotifier {
     _draft = null;
     // Its field may still be on screen this frame.
     if (d != null) WidgetsBinding.instance.addPostFrameCallback((_) => d.dispose());
-  }
-
-  void openPanel([int? tab]) {
-    _panel = true;
-    if (tab != null) _tab = tab;
-    notifyListeners();
-  }
-
-  void closePanel() {
-    if (!_panel) return;
-    _panel = false;
-    notifyListeners();
   }
 
   set tab(int value) {

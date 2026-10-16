@@ -352,6 +352,7 @@ extension _CanvasMath on InkCanvasState {
             padding: const EdgeInsets.only(bottom: 20),
             child: MathKeyboard(
               key: ObjectKey(draft),
+              math: _math,
               draft: draft,
               width: math.min(1060.0, math.max(320.0, room)),
               onInsert: _insertDraft,
