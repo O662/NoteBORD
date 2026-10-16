@@ -10,8 +10,17 @@ import java.io.File
 
 // A FragmentActivity, so local_auth can show the fingerprint and face prompt.
 class MainActivity : FlutterFragmentActivity() {
+    private var ink: InkRecognition? = null
+    private var speech: Speech? = null
+    private var keyboard: Keyboard? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        // Handwriting recognition (lib/recognition/recognizer.dart).
+        ink = InkRecognition(flutterEngine.dartExecutor.binaryMessenger)
+        // The dictionary's "Hear it" (lib/spelling/speech.dart).
+        speech = Speech(this, flutterEngine.dartExecutor.binaryMessenger)
+        keyboard = Keyboard(this, flutterEngine.dartExecutor.binaryMessenger)
         // Opens a Word, PowerPoint or Excel file from the board in the app
         // the tablet uses for it, which may save back to it; Endless watches
         // the file and updates the card (lib/state/office_docs.dart).
@@ -44,6 +53,16 @@ class MainActivity : FlutterFragmentActivity() {
                 result.success(false)
             }
         }
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        ink?.dispose()
+        ink = null
+        speech?.dispose()
+        speech = null
+        keyboard?.dispose()
+        keyboard = null
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 }
 

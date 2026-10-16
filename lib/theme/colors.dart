@@ -63,6 +63,9 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
     required this.plumDeep,
     required this.stickyDeep,
     required this.previewBg,
+    required this.searchHit,
+    required this.inverseTick,
+    required this.onInverseMuted,
   });
 
   final Color text;
@@ -164,6 +167,15 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
   /// Behind a website card's page preview.
   final Color previewBg;
 
+  /// Behind a search match: the matched ink, or words in text.
+  final Color searchHit;
+
+  /// The tick in “abc✓” on the dark spell check bar.
+  final Color inverseTick;
+
+  /// Quieter text on [inverse] (“1 of 4”).
+  final Color onInverseMuted;
+
   /// Floating pill shadow: `0 6px 18px -12px shadow`.
   List<BoxShadow> get pillShadow => [
         BoxShadow(color: shadow, offset: const Offset(0, 6), blurRadius: 18, spreadRadius: -12),
@@ -264,6 +276,9 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
       plumDeep: l(plumDeep, other.plumDeep),
       stickyDeep: l(stickyDeep, other.stickyDeep),
       previewBg: l(previewBg, other.previewBg),
+      searchHit: l(searchHit, other.searchHit),
+      inverseTick: l(inverseTick, other.inverseTick),
+      onInverseMuted: l(onInverseMuted, other.onInverseMuted),
     );
   }
 }

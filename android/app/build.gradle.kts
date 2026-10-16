@@ -46,4 +46,7 @@ flutter {
 dependencies {
     // AppCompat launch themes, which local_auth's fingerprint prompt needs on Android 8 and older.
     implementation("androidx.appcompat:appcompat:1.7.1")
+    // Handwriting recognition on the tablet (InkRecognition.kt). Models are
+    // downloaded per language on first use.
+    implementation("com.google.mlkit:digital-ink-recognition:19.0.0")
 }

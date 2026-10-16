@@ -89,7 +89,7 @@ class AppSidebar extends ConsumerWidget {
               ),
             ]),
           ),
-          _SearchBox(onTap: () => showComingSoon(context, 'Handwriting search')),
+          _SearchBox(onTap: () => context.push(Routes.search())),
           Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 2, children: [
             _NavRow(
               icon: EIcons.home,

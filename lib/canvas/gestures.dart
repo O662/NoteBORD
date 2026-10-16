@@ -279,7 +279,36 @@ List<Offset>? _closeLoop(List<Offset> pts, double diag) {
     }
   }
   if (bestD > 0.3 * diag) return null;
-  return pts.sublist(0, best + 1);
+  final loop = pts.sublist(0, best + 1);
+  // What comes after it must be an overshoot, not a letter's stem.
+  if (best < pts.length - 2 && !_overshoot(loop, pts.sublist(best))) return null;
+  return loop;
+}
+
+/// Whether [tail], drawn after [loop] closed, is an overshoot: it goes on
+/// round the same way, about as far from the middle. The stem of an a, d,
+/// g or q turns back down the side the loop just came up, or reaches out
+/// of it, so a written "a" doesn't become a circle.
+bool _overshoot(List<Offset> loop, List<Offset> tail) {
+  var c = Offset.zero;
+  for (final p in loop) {
+    c += p;
+  }
+  c /= loop.length.toDouble();
+  final radius = loop.map((p) => (p - c).distance).reduce(math.max);
+  if (tail.any((p) => (p - c).distance > 1.2 * radius)) return false;
+  double sweep(List<Offset> pts) {
+    var s = 0.0;
+    for (var i = 1; i < pts.length; i++) {
+      final a = pts[i - 1] - c, b = pts[i] - c;
+      s += math.atan2(a.dx * b.dy - a.dy * b.dx, a.dx * b.dx + a.dy * b.dy);
+    }
+    return s;
+  }
+
+  final round = sweep(loop), more = sweep(tail);
+  // A small hook at the end is fine; turning back by more than ~20° isn't.
+  return more.abs() <= 0.35 || more.sign == round.sign;
 }
 
 /// Indexes of sharp corners on a closed, evenly sampled ring.

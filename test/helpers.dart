@@ -11,6 +11,8 @@ import 'package:endless/canvas/page_runtime.dart';
 import 'package:endless/canvas/pane.dart';
 import 'package:endless/library/index_db.dart';
 import 'package:endless/office/office_reader.dart';
+import 'package:endless/recognition/handwriting_index.dart';
+import 'package:endless/recognition/recognizer.dart';
 import 'package:endless/state/assets.dart';
 import 'package:endless/state/biometric.dart';
 import 'package:endless/state/links.dart';
@@ -144,6 +146,8 @@ Future<List<Override>> testOverrides(
   String? location,
   FakeBiometric? biometric,
   IndexDb? index,
+  InkRecognizer recognizer = const NoInkRecognizer(),
+  Duration? recognitionIdle,
 }) async {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   final db = index ?? IndexDb.memory();
@@ -157,6 +161,11 @@ Future<List<Override>> testOverrides(
     officeParserProvider.overrideWithValue((bytes, kind) async => readOffice(bytes, kind)),
     // Files opened in their own apps are checked by hand, not on a timer.
     officeEditPollProvider.overrideWithValue(null),
+    // Handwriting is read when a test asks, unless it gives a delay; with
+    // no recognizer unless it gives one (test/recognition/fake_ink.dart).
+    recognitionIdleProvider.overrideWithValue(recognitionIdle),
+    inkRecognizerProvider.overrideWithValue(recognizer),
+    catchUpOnStartProvider.overrideWithValue(false),
     if (location != null) initialLocationProvider.overrideWithValue(location),
   ];
 }
@@ -168,13 +177,21 @@ Future<ProviderContainer> pumpApp(
   String location = Routes.start,
   FakeBiometric? biometric,
   IndexDb? index,
+  InkRecognizer recognizer = const NoInkRecognizer(),
+  Duration? recognitionIdle,
   List<Override> extra = const [],
 }) async {
   tester.view.physicalSize = tokens.Sizes.tabletFrame;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final overrides =
-      await testOverrides(store ?? MemoryBoardStore(), location: location, biometric: biometric, index: index);
+  final overrides = await testOverrides(
+    store ?? MemoryBoardStore(),
+    location: location,
+    biometric: biometric,
+    index: index,
+    recognizer: recognizer,
+    recognitionIdle: recognitionIdle,
+  );
   await tester.pumpWidget(ProviderScope(overrides: [...overrides, ...extra], child: const EndlessApp()));
   await tester.pump();
   await tester.pump();
@@ -206,11 +223,21 @@ Future<ProviderContainer> pumpCanvas(
   MemoryBoardStore? store,
   String? notebookId,
   FakeBiometric? biometric,
+  InkRecognizer recognizer = const NoInkRecognizer(),
+  Duration? recognitionIdle,
   List<Override> extra = const [],
 }) async {
   final s = store ?? MemoryBoardStore();
   final id = notebookId ?? (s.notebooks.isEmpty ? addUntitled(s) : s.notebooks.keys.first);
-  final c = await pumpApp(tester, store: s, location: Routes.notebook(id), biometric: biometric, extra: extra);
+  final c = await pumpApp(
+    tester,
+    store: s,
+    location: Routes.notebook(id),
+    biometric: biometric,
+    recognizer: recognizer,
+    recognitionIdle: recognitionIdle,
+    extra: extra,
+  );
   canvasPane = tester.widget<CanvasScreen>(find.byType(CanvasScreen)).pane;
   return c;
 }

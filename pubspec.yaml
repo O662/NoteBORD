@@ -63,6 +63,10 @@ flutter:
     - assets/fonts/OFL-figtree.txt
     - assets/fonts/OFL-newsreader.txt
     - assets/fonts/OFL-caveat.txt
+    # Spell check and the dictionary (tool/build_dictionary.py).
+    - assets/dictionary/en_words.txt.gz
+    - assets/dictionary/en_dictionary.sqlite.gz
+    - assets/dictionary/NOTICE.txt
 
   fonts:
     - family: Figtree

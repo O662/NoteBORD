@@ -30,6 +30,7 @@ enum SelectionAction {
 }
 
 const _objectLabels = {
+  SelectionAction.convert: 'Convert to text',
   SelectionAction.edit: 'Edit text',
   SelectionAction.editCard: 'Edit',
   SelectionAction.open: 'Open',
@@ -93,14 +94,20 @@ class SelectionToolbar extends StatelessWidget {
           ]),
         );
 
-    const leads = {SelectionAction.edit, SelectionAction.editCard, SelectionAction.fanOut, SelectionAction.stack};
+    const leads = {
+      SelectionAction.convert,
+      SelectionAction.edit,
+      SelectionAction.editCard,
+      SelectionAction.fanOut,
+      SelectionAction.stack,
+    };
     final objects = objectActions;
     final children = objects != null
         ? [
             for (final (i, a) in objects.indexed)
               if (i == 0 && leads.contains(a))
                 lead(a, _objectLabels[a]!, icon: switch (a) {
-                  SelectionAction.edit => EIcons.convertText,
+                  SelectionAction.convert || SelectionAction.edit => EIcons.convertText,
                   SelectionAction.editCard => EIcons.edit,
                   _ => null,
                 })

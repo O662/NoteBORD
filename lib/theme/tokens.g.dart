@@ -62,6 +62,9 @@ const paperLight = EndlessColors(
   plumDeep: Color(0xFF5F3A59),
   stickyDeep: Color(0xFF7A5A06),
   previewBg: Color(0xFFE6DECD),
+  searchHit: Color(0xB3F0D25A),
+  inverseTick: Color(0xFF8CCB9A),
+  onInverseMuted: Color(0xFFD8D0C0),
 );
 
 const paperDark = EndlessColors(
@@ -121,6 +124,9 @@ const paperDark = EndlessColors(
   plumDeep: Color(0xFFE8C4E1),
   stickyDeep: Color(0xFFF3DE9A),
   previewBg: Color(0xFF34302A),
+  searchHit: Color(0x66C9A23A),
+  inverseTick: Color(0xFF2F5D3A),
+  onInverseMuted: Color(0xFF5E574C),
 );
 
 const inkDefaults = <Color>[

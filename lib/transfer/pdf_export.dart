@@ -14,6 +14,8 @@ import '../canvas/office_cards.dart';
 import '../office/office_model.dart';
 import '../office/office_render.dart';
 import '../canvas/pens.dart';
+import '../recognition/reader.dart' show visibleInk;
+import '../recognition/recognized.dart';
 import '../canvas/stroke_geometry.dart';
 import '../templates/templates.dart';
 import '../theme/colors.dart';
@@ -72,8 +74,7 @@ class TextRun {
   final Rect rect;
 }
 
-/// What the handwriting on a page says. Recognition comes in Phase 5;
-/// until then there is none.
+/// What the handwriting on a page says, for the invisible text layer.
 abstract class HandwritingText {
   const HandwritingText();
 
@@ -85,6 +86,29 @@ class NoHandwritingText extends HandwritingText {
 
   @override
   List<TextRun> runsFor(BoardPage page) => const [];
+}
+
+/// Recognized handwriting (lib/recognition): each line's text over where
+/// its strokes are now.
+class RecognizedHandwriting extends HandwritingText {
+  const RecognizedHandwriting(this.pages);
+
+  /// By page id.
+  final Map<String, PageRecognition> pages;
+
+  @override
+  List<TextRun> runsFor(BoardPage page) {
+    final read = pages[page.id];
+    if (read == null) return const [];
+    // What shows: the page's ink, sticky notes' top notes, and the page
+    // each Office card shows.
+    final strokes = visibleInk(page);
+    return [
+      for (final line in read.lines)
+        if (line.text.isNotEmpty)
+          if (line.rectOn(strokes) case final r?) TextRun(line.text, r),
+    ];
+  }
 }
 
 /// The fonts typed text is written with, as TTF bytes.

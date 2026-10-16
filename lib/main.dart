@@ -10,11 +10,12 @@ import 'package:path_provider/path_provider.dart';
 import 'app.dart';
 import 'board/store.dart';
 import 'library/index_db.dart';
+import 'spelling/spelling_state.dart';
 import 'state/bootstrap.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  _registerFontLicenses();
+  _registerLicenses();
 
   // The design is for tablets in landscape. Phones get their own layout later.
   await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
@@ -24,14 +25,26 @@ Future<void> main() async {
   await root.create(recursive: true);
   final store = FileBoardStore(root);
   final overrides = await bootstrap(store, index: IndexDb.file(File(p.join(root.path, 'index.sqlite'))));
+  // The dictionary is app data, not the user's: it's unpacked outside Endless/.
+  final support = await getApplicationSupportDirectory();
 
-  runApp(ProviderScope(overrides: overrides, child: const EndlessApp()));
+  runApp(ProviderScope(
+    overrides: [
+      ...overrides,
+      dictionaryDirProvider.overrideWithValue(Directory(p.join(support.path, 'dictionary'))),
+    ],
+    child: const EndlessApp(),
+  ));
 }
 
-void _registerFontLicenses() {
+void _registerLicenses() {
   LicenseRegistry.addLicense(() async* {
     for (final (family, file) in [('Figtree', 'figtree'), ('Newsreader', 'newsreader'), ('Caveat', 'caveat')]) {
       yield LicenseEntryWithLineBreaks([family], await rootBundle.loadString('assets/fonts/OFL-$file.txt'));
     }
+    yield LicenseEntryWithLineBreaks(
+      ['Open English WordNet', 'CMU Pronouncing Dictionary', 'SCOWL'],
+      await rootBundle.loadString('assets/dictionary/NOTICE.txt'),
+    );
   });
 }

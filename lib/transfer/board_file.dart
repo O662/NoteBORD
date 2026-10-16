@@ -33,11 +33,14 @@ final _assetPattern = RegExp(r'^[A-Za-z0-9_-][A-Za-z0-9._-]{0,199}$');
 /// Zips notebook [notebookId] as read from [store]. [pageIds] (in any
 /// order) limits it to those pages, kept in the notebook's order. Without
 /// [includeAssets] the pictures are left out (they show as empty boxes).
+/// With [includeRecognition] what the handwriting says goes along
+/// (`index/recognition.json`), so search works straight after import.
 Future<Uint8List> exportBoardFile(
   BoardStore store,
   String notebookId, {
   Set<String>? pageIds,
   bool includeAssets = true,
+  bool includeRecognition = true,
 }) async {
   final loaded = await store.loadNotebook(notebookId);
   if (loaded == null) throw StateError('Notebook $notebookId was not found');
@@ -93,6 +96,14 @@ Future<Uint8List> exportBoardFile(
     if (lock['notebook'] != null || kept.isNotEmpty) {
       add('lock.json', utf8.encode(const JsonEncoder.withIndent('  ').convert({...lock, 'pages': kept})));
     }
+  }
+
+  if (includeRecognition) {
+    final read = recognitionFor(await store.loadRecognition(notebookId), {
+      for (final p in pages)
+        if (!loaded.sealed.containsKey(p.id)) p.id,
+    });
+    if (read != null) add('index/recognition.json', utf8.encode(jsonEncode(read)));
   }
 
   if (includeAssets) {
@@ -217,7 +228,7 @@ Future<ImportedBoard> importBoardFile(
   }
 
   // notebook.json last, so the library never lists a half-written notebook.
-  await store.saveNotebook(Notebook(
+  final notebook = Notebook(
     id: id,
     title: source.title,
     folderPath: [...folder],
@@ -230,6 +241,37 @@ Future<ImportedBoard> importBoardFile(
     locked: source.locked,
     extra: source.extra,
     extraDefaults: source.extraDefaults,
-  ));
+  );
+  await store.saveNotebook(notebook);
+
+  // What the handwriting says, for the clear pages only (never a locked one).
+  if (!source.locked && lock == null) {
+    final raw = read('index/recognition.json');
+    if (raw != null && raw.length < 64 * 1024 * 1024) {
+      Object? json;
+      try {
+        json = jsonDecode(utf8.decode(raw));
+      } on Object {
+        json = null;
+      }
+      final kept = recognitionFor(json is Map ? json.cast<String, dynamic>() : null, {
+        for (final p in pageIds)
+          if (byName['pages/$p.json'] != null) p,
+      });
+      if (kept != null) await store.saveRecognition(id, kept);
+    }
+  }
   return ImportedBoard(id, unreadablePages: unreadable);
+}
+
+/// [json] (a recognition.json) with only [pageIds]' pages, or null if none
+/// are left.
+Json? recognitionFor(Json? json, Set<String> pageIds) {
+  final pages = json?['pages'];
+  if (pages is! Map) return null;
+  final kept = {
+    for (final e in pages.entries)
+      if (e.key is String && pageIds.contains(e.key) && e.value is Map) e.key as String: e.value,
+  };
+  return kept.isEmpty ? null : {'version': 1, 'pages': kept};
 }

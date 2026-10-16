@@ -295,7 +295,7 @@ class _SplitScreenState extends ConsumerState<SplitScreen> {
                   onItem: _pickRailItem,
                   onSearch: () {
                     _closeMenus();
-                    _comingSoon('Search');
+                    context.push(Routes.search());
                   },
                 ),
               ),

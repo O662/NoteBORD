@@ -135,6 +135,7 @@ abstract final class EIcons {
   static final pi = EIconData([_p('M5 7h14M9.5 7v12M15 7v9.5a2.5 2.5 0 0 0 3.5 2.3')]);
   static final cap = EIconData([_p('M2 9l10-5 10 5-10 5z M6 11v5c3 2.5 9 2.5 12 0v-5 M22 9v6')]);
   static final spellPlain = EIconData([_p('M3 14l3.5-9 3.5 9M4.3 11h4.4 M13 13l3 3 6-7')]);
+  static final speaker = EIconData([_p('M4 9v6h4l5 4V5L8 9z'), _p('M16 9a4 4 0 0 1 0 6')], strokeWidth: 2);
   static final book = EIconData([_p('M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z M4 19V5 M8 7h7M8 11h5')]);
   static final mathTools = EIconData([_p('M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M3 12h18M12 3v18 M12 12l5.5-5.5')]);
   static final grid = EIconData([_p('M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z')]);
@@ -170,6 +171,10 @@ abstract final class EIcons {
   static final search = EIconData([_p(_circle(11, 11, 7)), _p('M20 20l-3.5-3.5')]);
   static final lock = EIconData([_p(_rect(5, 11, 14, 9, 2)), _p('M8 11V8a4 4 0 0 1 8 0v3')]);
   static final backspace = EIconData([_p('M9 5h11v14H9l-6-7z'), _p('M12 9l6 6M18 9l-6 6')]);
+  static final keyboard = EIconData([
+    _p(_rect(2.5, 6, 19, 12, 2)),
+    _p('M6.5 10h.5M9.5 10h.5M12.5 10h.5M15.5 10h.5M18 10h.5M7 14h10'),
+  ]);
   static final close = EIconData([_p('M6 6l12 12M18 6L6 18')], strokeWidth: 2);
   static final chevronRight = EIconData([_p('M9 6l6 6-6 6')], strokeWidth: 2.2);
   static final chevronDown = EIconData([_p('M6 9l6 6 6-6')], strokeWidth: 2.2);
@@ -179,6 +184,8 @@ abstract final class EIcons {
   static final map = EIconData([_p('M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z'), _p('M9 4v14M15 6v14')]);
   static final edit = EIconData([_p('M4 20l1-4L16 5l3 3L8 19z')], strokeWidth: 2);
   static final check = EIconData([_p('M5 12l5 5 9-10')], strokeWidth: 2);
+  static final arrowRight = EIconData([_p('M5 12h14M13 6l6 6-6 6')], strokeWidth: 2);
+  static final searchCheck = EIconData([_p('M5 12l4 4 10-10')], strokeWidth: 2);
 
   // Start, Library, Templates, Lock and Split (Start.dc.html, Main.dc.html…).
   static final logo = EIconData([

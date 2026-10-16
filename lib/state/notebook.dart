@@ -18,6 +18,7 @@ import '../library/library.dart';
 import '../office/office_model.dart';
 import '../office/office_reader.dart';
 import '../office/office_render.dart';
+import '../recognition/handwriting_index.dart';
 import 'assets.dart';
 import 'biometric.dart';
 import 'office_docs.dart';
@@ -197,6 +198,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
   late ImageDecoder _decode;
   late NotebookImages _images;
   late NotebookDocs _docs;
+  late HandwritingIndex _index;
 
   /// The notebook and its pages, as in [state]. Saving reads these, since
   /// the last save runs while the provider is being disposed, when [state]
@@ -238,9 +240,13 @@ class NotebookNotifier extends Notifier<NotebookState> {
       return state.notebook;
     };
     _library.attach(id, _editor);
+    final index = _index = ref.read(handwritingIndexProvider);
+    final source = _IndexSource(this);
+    index.attach(id, source);
 
     ref.onDispose(() {
       _library.detach(id, _editor);
+      index.detach(id, source);
       if (_saveTimer?.isActive ?? false) flush();
       _saveTimer?.cancel();
       for (final p in pages) {
@@ -293,6 +299,8 @@ class NotebookNotifier extends Notifier<NotebookState> {
     _dirtyPages.add(pageId);
     _contentChanged = true;
     _scheduleSave();
+    // Its handwriting is read once the pen rests.
+    _index.pageChanged(id, pageId);
     state = state.copyWith(revision: state.revision + 1, saveStatus: SaveStatus.saving);
   }
 
@@ -353,6 +361,18 @@ class NotebookNotifier extends Notifier<NotebookState> {
   /// Adds items on top of the page (or at [at] in the z-order: 0 is the
   /// bottom), as one undo step.
   void insertItems(String pageId, Iterable<Item> items, {int? at}) => edit(pageId, insert: items, insertAt: at);
+
+  /// Sets the words spell check ignores on a page. Not an undo step, and
+  /// not an edit of the page's content.
+  void setSpellIgnore(String pageId, List<String> words) {
+    if (!_editable(pageId)) return;
+    _pageById(pageId)!.page.spellIgnore
+      ..clear()
+      ..addAll(words);
+    _dirtyPages.add(pageId);
+    _scheduleSave();
+    state = state.copyWith(revision: state.revision + 1, saveStatus: SaveStatus.saving);
+  }
 
   /// Replaces, removes and adds items as one undo step. [insertAt] is where
   /// the new items go in the z-order once the removed ones are gone
@@ -893,6 +913,8 @@ class NotebookNotifier extends Notifier<NotebookState> {
   void _lockChanged() {
     if (!ref.mounted) return;
     state = state.copyWith(revision: state.revision + 1, sealed: {..._sealed.keys});
+    // Unlocked pages become searchable (from memory only); locked ones stop.
+    _index.locksChanged(id);
   }
 
   /// Unlocks the page with [password] (and, for a notebook password, every
@@ -947,6 +969,8 @@ class NotebookNotifier extends Notifier<NotebookState> {
     if (page == null || _sealed.containsKey(pageId)) return;
     final (entry, key) = await _crypto.create(password, hint: hint, biometric: biometric);
     _lock.pages[pageId] = entry;
+    // What its handwriting said leaves the search index and recognition.json.
+    await _index.locked(id, pageIds: [pageId]);
     // lock.json first, so a sealed page is never on disk without its salt.
     await _queue.run(() => _store.saveLock(id, _lock.toJson()));
     _pageKeys[pageId] = key;
@@ -962,6 +986,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
   Future<void> lockNotebook(String password, {String? hint, bool biometric = false}) async {
     final (entry, key) = await _crypto.create(password, hint: hint, biometric: biometric);
     _lock.notebook = entry;
+    await _index.locked(id);
     await _queue.run(() => _store.saveLock(id, _lock.toJson()));
     _notebookKey = key;
     state.notebook.locked = true;
@@ -1013,6 +1038,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
     await _rewriteAssets([page], oldKeys: [?old]);
     await _queue.run(() => _store.saveLock(id, _lock.isEmpty ? null : _lock.toJson()));
     _lockChanged();
+    if (_lock.entryFor(pageId) == null) _index.pageChanged(id, pageId);
   }
 
   /// Removes the notebook's password (it must be unlocked).
@@ -1033,5 +1059,26 @@ class NotebookNotifier extends Notifier<NotebookState> {
     await _rewriteAssets(uncovered, oldKeys: [old]);
     await _queue.run(() => _store.saveLock(id, _lock.isEmpty ? null : _lock.toJson()));
     _lockChanged();
+    for (final p in uncovered) {
+      _index.pageChanged(id, p.id);
+    }
+  }
+}
+
+/// The open notebook's pages, for the handwriting index.
+class _IndexSource implements IndexSource {
+  _IndexSource(this.n);
+
+  final NotebookNotifier n;
+
+  @override
+  List<String> get pageIds => [for (final p in n._pages) p.id];
+
+  @override
+  OpenPage? page(String pageId) {
+    if (n._sealed.containsKey(pageId)) return null;
+    final p = n._pages.where((p) => p.id == pageId).firstOrNull;
+    if (p == null) return null;
+    return (page: p.page, private: n._needsKey(pageId));
   }
 }

@@ -1,15 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'canvas/pane.dart';
 import 'library/library.dart';
+import 'recognition/handwriting_index.dart';
 import 'state/settings.dart';
 import 'theme/app_theme.dart';
 import 'ui/canvas/canvas_screen.dart';
 import 'ui/library/library_screen.dart';
 import 'ui/library/start_screen.dart';
 import 'ui/routes.dart';
+import 'ui/search/search_screen.dart';
 import 'ui/split/split_screen.dart';
 
 /// Where the app opens. Tests start straight in a notebook.
@@ -37,7 +41,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => NotebookRoute(
           id: state.pathParameters['id']!,
           page: int.tryParse(state.uri.queryParameters['page'] ?? ''),
+          spot: Routes.spotFrom(state.uri.queryParameters['spot']),
+          turn: Routes.turnFrom(state.uri.queryParameters['turn']),
         ),
+      ),
+      GoRoute(
+        path: '/search',
+        builder: (context, state) => SearchScreen(query: state.uri.queryParameters['q'] ?? ''),
       ),
       GoRoute(
         path: '/split',
@@ -57,10 +67,16 @@ final routerProvider = Provider<GoRouter>((ref) {
 
 /// The Canvas screen for one notebook.
 class NotebookRoute extends ConsumerStatefulWidget {
-  const NotebookRoute({super.key, required this.id, this.page});
+  const NotebookRoute({super.key, required this.id, this.page, this.spot, this.turn});
 
   final String id;
   final int? page;
+
+  /// A place on the page to show and highlight (from Search).
+  final Rect? spot;
+
+  /// An Office card to turn to one of its pages first (from Search).
+  final (String, int)? turn;
 
   @override
   ConsumerState<NotebookRoute> createState() => _NotebookRouteState();
@@ -70,7 +86,9 @@ class _NotebookRouteState extends ConsumerState<NotebookRoute> {
   late final pane = Pane(
     widget.id,
     page: widget.page ?? ref.read(libraryProvider).byId(widget.id)?.lastPage ?? 0,
-  );
+  )
+    ..spot = widget.spot
+    ..spotTurn = widget.turn;
 
   @override
   void dispose() {
@@ -83,11 +101,37 @@ class _NotebookRouteState extends ConsumerState<NotebookRoute> {
       NotebookGate(pane: pane, builder: (context) => CanvasScreen(pane: pane));
 }
 
-class EndlessApp extends ConsumerWidget {
+class EndlessApp extends ConsumerStatefulWidget {
   const EndlessApp({super.key});
 
+  /// How long after starting the app goes through older notebooks' handwriting.
+  static const catchUpAfter = Duration(seconds: 4);
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EndlessApp> createState() => _EndlessAppState();
+}
+
+class _EndlessAppState extends ConsumerState<EndlessApp> {
+  Timer? _catchUp;
+
+  @override
+  void initState() {
+    super.initState();
+    // Notebooks written before (or on another device) become searchable in
+    // the background, once the first screen is up.
+    if (ref.read(catchUpOnStartProvider)) {
+      _catchUp = Timer(EndlessApp.catchUpAfter, () => ref.read(handwritingIndexProvider).catchUp());
+    }
+  }
+
+  @override
+  void dispose() {
+    _catchUp?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(settingsProvider.select((s) => s.themeMode));
     return MaterialApp.router(
       title: 'Endless',

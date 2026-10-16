@@ -72,7 +72,13 @@ class AppSettings {
     this.userName,
     this.libraryView = LibraryView.grid,
     this.librarySort = LibrarySort.edited,
-  })  : penColor = penColor ?? tokens.inkDefaults[1],
+    this.handwritingLanguage,
+    List<String> myWords = const [],
+    this.fixInHandwriting = true,
+    List<String> recentLookups = const [],
+  })  : myWords = List.unmodifiable(myWords),
+        recentLookups = List.unmodifiable(recentLookups),
+        penColor = penColor ?? tokens.inkDefaults[1],
         markerColor = markerColor ?? tokens.extraInkDefaults[3],
         extraColors = List.unmodifiable(extraColors ?? tokens.extraInkDefaults);
 
@@ -120,6 +126,21 @@ class AppSettings {
   final LibraryView libraryView;
   final LibrarySort librarySort;
 
+  /// The language handwriting is read in (an ML Kit tag like `en-US`), or
+  /// null for the tablet's own.
+  final String? handwritingLanguage;
+
+  /// Words added to "my dictionary" from spell check: never flagged, in any
+  /// notebook.
+  final List<String> myWords;
+
+  /// Words looked up in the dictionary, newest first (Spell.png's Recent).
+  final List<String> recentLookups;
+
+  /// Spell check fixes handwriting in the user's own letters (once they've
+  /// written their sample), not typed in the handwriting font.
+  final bool fixInHandwriting;
+
   InkTool get inkTool => tool == CanvasTool.marker ? InkTool.marker : InkTool.pen;
 
   /// Color of the pen or marker (the eraser shows the pen's).
@@ -155,6 +176,10 @@ class AppSettings {
     String? Function()? userName,
     LibraryView? libraryView,
     LibrarySort? librarySort,
+    String? Function()? handwritingLanguage,
+    List<String>? myWords,
+    List<String>? recentLookups,
+    bool? fixInHandwriting,
   }) =>
       AppSettings(
         tool: tool ?? this.tool,
@@ -182,6 +207,10 @@ class AppSettings {
         userName: userName == null ? this.userName : userName(),
         libraryView: libraryView ?? this.libraryView,
         librarySort: librarySort ?? this.librarySort,
+        handwritingLanguage: handwritingLanguage == null ? this.handwritingLanguage : handwritingLanguage(),
+        myWords: myWords ?? this.myWords,
+        recentLookups: recentLookups ?? this.recentLookups,
+        fixInHandwriting: fixInHandwriting ?? this.fixInHandwriting,
       );
 
   Json toJson() => {
@@ -210,6 +239,10 @@ class AppSettings {
         'userName': userName,
         'libraryView': libraryView.name,
         'librarySort': librarySort.name,
+        'handwritingLanguage': handwritingLanguage,
+        if (myWords.isNotEmpty) 'myWords': myWords,
+        if (recentLookups.isNotEmpty) 'recentLookups': recentLookups,
+        'fixInHandwriting': fixInHandwriting,
       };
 
   factory AppSettings.fromJson(Json j) {
@@ -251,6 +284,10 @@ class AppSettings {
       userName: j['userName'] as String?,
       libraryView: pick(LibraryView.values, j['libraryView'], LibraryView.grid),
       librarySort: pick(LibrarySort.values, j['librarySort'], LibrarySort.edited),
+      handwritingLanguage: j['handwritingLanguage'] as String?,
+      myWords: [...?(j['myWords'] as List?)?.whereType<String>()],
+      recentLookups: [...?(j['recentLookups'] as List?)?.whereType<String>()],
+      fixInHandwriting: j['fixInHandwriting'] as bool? ?? true,
     );
   }
 }
@@ -279,12 +316,19 @@ class SettingsNotifier extends Notifier<AppSettings> {
   }
 
   void apply(AppSettings Function(AppSettings s) change) {
-    state = change(state);
+    state = _unsaved = change(state);
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 500), _save);
   }
 
-  void _save() => _store.saveSettings(state.toJson());
+  /// What the pending save writes (the save at dispose can't read [state]).
+  AppSettings? _unsaved;
+
+  void _save() {
+    final s = _unsaved;
+    _unsaved = null;
+    if (s != null) _store.saveSettings(s.toJson());
+  }
 
   /// Picks a color for the pen or marker; from any other tool it switches
   /// to the pen.

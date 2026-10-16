@@ -243,7 +243,10 @@ void main() {
       }
       await tester.tap(find.bySemanticsLabel('Convert to text'));
       await tester.pump();
-      expect(find.text('Convert to text is coming soon'), findsOneWidget);
+      await tester.pump();
+      // No recognizer here (a computer): the panel says so (test/ui/convert_test.dart has the rest).
+      expect(find.bySemanticsLabel('Handwriting to text'), findsOneWidget);
+      expect(find.textContaining('Handwriting recognition runs on the tablet'), findsOneWidget);
       await tester.pump(const Duration(seconds: 5));
     });
 

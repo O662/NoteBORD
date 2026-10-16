@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import '../board/store.dart';
 import '../library/index_db.dart';
 import '../library/library.dart';
+import '../spelling/my_handwriting.dart';
 import '../templates/templates.dart';
 import 'settings.dart';
 
@@ -14,6 +15,7 @@ Future<List<Override>> bootstrap(BoardStore store, {IndexDb? index, DateTime Fun
   final db = index ?? IndexDb.memory();
   final library = await loadLibrary(store, db, clock().toUtc());
   final templates = await loadUserTemplates(store);
+  final hand = MyHandwriting.fromJson(await store.loadHandwriting());
 
   return [
     boardStoreProvider.overrideWithValue(store),
@@ -21,6 +23,7 @@ Future<List<Override>> bootstrap(BoardStore store, {IndexDb? index, DateTime Fun
     indexDbProvider.overrideWithValue(db),
     initialLibraryProvider.overrideWithValue(library),
     initialTemplatesProvider.overrideWithValue(templates),
+    initialHandwritingProvider.overrideWithValue(hand),
     clockProvider.overrideWithValue(clock),
   ];
 }

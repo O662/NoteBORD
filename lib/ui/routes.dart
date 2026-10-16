@@ -20,8 +20,39 @@ abstract final class Routes {
   static String library([List<String> folder = const []]) =>
       Uri(path: all, queryParameters: folder.isEmpty ? null : {'f': folder}).toString();
 
-  static String notebook(String id, {int? page}) =>
-      Uri(path: '/notebook/$id', queryParameters: page == null ? null : {'page': '$page'}).toString();
+  /// [spot] (page coordinates) is shown in the middle and highlighted for
+  /// a moment ("Open at this spot" in Search).
+  ///
+  /// [turn] (an Office card's id and a page of it, or a sticky stack's id
+  /// and a note under its top one) turns the card to that page, or brings
+  /// that note to the top, first.
+  static String notebook(String id, {int? page, Rect? spot, (String, int)? turn}) {
+    final q = {
+      if (page != null) 'page': '$page',
+      if (turn != null) 'turn': '${turn.$1}:${turn.$2}',
+      if (spot != null) 'spot': [spot.left, spot.top, spot.width, spot.height].map((v) => v.toStringAsFixed(1)).join(','),
+    };
+    return Uri(path: '/notebook/$id', queryParameters: q.isEmpty ? null : q).toString();
+  }
+
+  /// Handwriting search, optionally with a query.
+  static String search([String query = '']) =>
+      Uri(path: '/search', queryParameters: query.isEmpty ? null : {'q': query}).toString();
+
+  /// The spot in a notebook location's `spot` parameter.
+  static Rect? spotFrom(String? param) {
+    final v = param?.split(',').map(double.tryParse).toList();
+    if (v == null || v.length != 4 || v.any((x) => x == null)) return null;
+    return Rect.fromLTWH(v[0]!, v[1]!, v[2]!, v[3]!);
+  }
+
+  /// The card and page in a notebook location's `turn` parameter.
+  static (String, int)? turnFrom(String? param) {
+    final i = param?.lastIndexOf(':') ?? -1;
+    if (i <= 0) return null;
+    final page = int.tryParse(param!.substring(i + 1));
+    return page == null ? null : (param.substring(0, i), page);
+  }
 
   /// Two panes: (notebook id, page index) on the left and right.
   static String split((String, int) left, (String, int) right) => Uri(path: '/split', queryParameters: {

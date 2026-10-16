@@ -73,8 +73,10 @@ class BoardPage {
     this.template,
     this.locked = false,
     List<Item>? items,
+    List<String>? spellIgnore,
     Json? extra,
   })  : items = items ?? [],
+        spellIgnore = spellIgnore ?? [],
         extra = extra ?? {};
 
   final String id;
@@ -89,6 +91,10 @@ class BoardPage {
 
   /// In z-order: later items draw on top.
   final List<Item> items;
+
+  /// Words spell check was told to ignore on this page (Spell.png's
+  /// Ignore), as written.
+  final List<String> spellIgnore;
   final Json extra;
 }
 
@@ -760,6 +766,21 @@ class StickyItem extends BoxItem implements InkHolder {
           color: color,
         );
     return copyWith(items: [typed, ...rest]);
+  }
+
+  /// The notes under the top one, with blank ones for a stack's count.
+  List<StickyNote> get notesUnder => [
+        ...under,
+        for (var i = under.length; i < count - 1; i++) StickyNote(color: color),
+      ];
+
+  /// The stack with note [sub] (from 1, under the top one) on top, as if
+  /// Next note were pressed that many times: the order stays the same.
+  StickyItem broughtToTop(int sub) {
+    final notes = [StickyNote(color: color, items: items), ...notesUnder];
+    if (sub < 1 || sub >= notes.length) return this;
+    final turned = [...notes.skip(sub), ...notes.take(sub)];
+    return copyWith(color: turned.first.color, items: turned.first.items, under: turned.skip(1).toList());
   }
 
   /// With [stroke] (in page space) written on the note.

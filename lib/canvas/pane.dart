@@ -25,6 +25,15 @@ class Pane extends ChangeNotifier {
   /// The ruler over this view.
   final ruler = Ruler();
 
+  /// A place on the page (page coordinates) to show and highlight once the
+  /// canvas is laid out: where a search match is. Cleared when shown.
+  Rect? spot;
+
+  /// An Office card (id) to turn to a page (from 1), or a sticky stack to
+  /// bring a note (from 1, under the top one) to the top of, before [spot]
+  /// shows: where a search match was written.
+  (String, int)? spotTurn;
+
   /// A status or "… · Undo" message from a pen gesture, shown at the bottom.
   final status = ValueNotifier<CanvasStatus?>(null);
   Timer? _statusTimer;

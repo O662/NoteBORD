@@ -6,16 +6,24 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../board/ids.dart';
+import '../../canvas/canvas_view.dart';
+import '../../board/model.dart' show OfficeItem, StickyItem, TextItem;
 import '../../canvas/ink_canvas.dart';
 import '../../canvas/pane.dart';
 import '../../library/library.dart';
+import '../../spelling/dictionary.dart';
 import '../../state/notebook.dart';
 import '../../state/settings.dart';
+import '../../theme/colors.dart';
 import '../common.dart';
 import '../dialogs.dart';
 import '../lock/lock_dialog.dart';
 import '../lock/unlock.dart';
 import '../routes.dart';
+import '../spell/dictionary_drawer.dart';
+import '../spell/spell_mode.dart';
+import '../spell/teach_handwriting.dart';
 import '../templates/templates_dialog.dart';
 import '../transfer/share_dialog.dart';
 import '../transfer/transfer_dialog.dart';
@@ -25,6 +33,7 @@ import 'gesture_status.dart';
 import 'insert_actions.dart';
 import 'insert_menu.dart';
 import 'left_rail.dart';
+import 'model_note.dart';
 import 'panels.dart';
 import 'pen_popover.dart';
 import 'top_bar.dart';
@@ -162,7 +171,7 @@ class CanvasScreen extends ConsumerStatefulWidget {
   ConsumerState<CanvasScreen> createState() => _CanvasScreenState();
 }
 
-class _CanvasScreenState extends ConsumerState<CanvasScreen> with SingleTickerProviderStateMixin {
+class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProviderStateMixin {
   final penLink = LayerLink();
   final markerLink = LayerLink();
   late final AppLifecycleListener _lifecycle;
@@ -185,6 +194,19 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with SingleTickerPr
   /// The zoom and pan to go back to from the whole board.
   (double, Offset)? _before;
 
+  /// Spell check mode (Spell.png), while it's on.
+  SpellController? _spell;
+  String? _revealed;
+
+  /// The dictionary drawer is open, and the word it was last asked for.
+  bool _dict = false;
+  String? _lookup;
+  int _lookupSerial = 0;
+
+  /// A search match being pointed at, and its highlight fading out.
+  Rect? _spot;
+  late final AnimationController _spotGlow = AnimationController(vsync: this, duration: const Duration(milliseconds: 2600));
+
   /// Glides the view to a zoom and place.
   late final AnimationController _glide;
   void Function(double t)? _glideStep;
@@ -204,17 +226,57 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with SingleTickerPr
       ref.read(notebookProvider(pane.notebookId).notifier).flush();
     });
     pane.addListener(_paneChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _recordOpened());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _recordOpened();
+      _showSpot();
+    });
     _showHint(toolHints[ref.read(settingsProvider).tool]);
   }
 
   @override
   void dispose() {
     pane.removeListener(_paneChanged);
+    _spell?.dispose();
     _lifecycle.dispose();
     _hintTimer?.cancel();
     _glide.dispose();
+    _spotGlow.dispose();
     super.dispose();
+  }
+
+  /// "Open at this spot": the match in the middle, at a zoom that shows it
+  /// whole, highlighted for a moment.
+  void _showSpot() {
+    final spot = pane.spot;
+    if (spot == null || !mounted) return;
+    pane.spot = null;
+    final turn = pane.spotTurn;
+    pane.spotTurn = null;
+    if (turn != null) {
+      // The match is on another slide: show it (not an undo step).
+      final nb = ref.read(notebookProvider(pane.notebookId));
+      final page = nb.pageAt(pane.page);
+      final notebook = ref.read(notebookProvider(pane.notebookId).notifier);
+      switch (page[turn.$1]) {
+        case OfficeItem card when card.page != turn.$2 && turn.$2 >= 1 && turn.$2 <= card.pages:
+          notebook.setQuietly(page.id, card.copyWith(page: turn.$2));
+        case StickyItem stack when turn.$2 >= 1 && turn.$2 < stack.count:
+          // The note it's on comes to the top (as Next note would bring it).
+          notebook.setQuietly(page.id, stack.broughtToTop(turn.$2));
+        default:
+          break;
+      }
+    }
+    final view = pane.view;
+    if (view.size.isEmpty) return;
+    var scale = view.scale;
+    final room = view.size.width * 0.6;
+    if (spot.width * scale > room) scale = (room / spot.width).clamp(CanvasView.minScale, 1.0);
+    view.jumpTo(scale, view.size.center(Offset.zero) - spot.center * scale);
+    setState(() => _spot = spot);
+    _spotGlow.forward(from: 0).whenCompleteOrCancel(() {
+      if (mounted) setState(() => _spot = null);
+    });
   }
 
   void _paneChanged() {
@@ -292,7 +354,114 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with SingleTickerPr
 
   void _pickRailItem(RailItem item) {
     _closeMenus();
-    handleRailItem(context, ref, pane, item, _comingSoon, hint: _showHint);
+    switch (item.label) {
+      case 'Spell check':
+        _startSpell();
+      case 'Dictionary & thesaurus':
+        _openDictionary();
+      default:
+        handleRailItem(context, ref, pane, item, _comingSoon, hint: _showHint);
+    }
+  }
+
+  // Spell check and the dictionary (Spell.png).
+
+  /// Where the suggestion card sits: 100 in from the left, 136 up from the
+  /// bottom (Spell.dc.html), as wide as fits beside the dictionary.
+  static const _cardLeft = 100.0, _cardBottom = 136.0, _cardHeight = 200.0;
+
+  double get _drawerReach => _dict ? 14 + DictionaryDrawer.width + 16 : 16;
+
+  void _startSpell() {
+    if (_spell != null) return;
+    pane
+      ..dismiss()
+      ..selection.clear();
+    _hintTimer?.cancel();
+    setState(() {
+      _hint = null;
+      _popover = false;
+      _spell = SpellController(ref, pane)..addListener(_spellChanged);
+      _revealed = null;
+    });
+  }
+
+  void _endSpell() {
+    final spell = _spell;
+    if (spell == null) return;
+    setState(() {
+      _spell = null;
+      _dict = false;
+    });
+    spell
+      ..removeListener(_spellChanged)
+      ..dispose();
+    _showHint(toolHints[ref.read(settingsProvider).tool]);
+  }
+
+  /// The card's word changed: bring it into view, clear of the card and
+  /// the dictionary.
+  void _spellChanged() {
+    final issue = _spell?.current;
+    if (issue == null || issue.id == _revealed || !mounted) return;
+    _revealed = issue.id;
+    final view = pane.view;
+    final size = view.size;
+    if (size.isEmpty) return;
+    final clear = Rect.fromLTRB(_cardLeft, 96, size.width - _drawerReach, size.height - _cardBottom - _cardHeight - 16);
+    if (clear.width <= 0 || clear.height <= 0) return;
+    final r = Rect.fromPoints(view.toScreen(issue.rect.topLeft), view.toScreen(issue.rect.bottomRight));
+    final dx = r.left >= clear.left && r.right <= clear.right ? 0.0 : clear.center.dx - r.center.dx;
+    final dy = r.top >= clear.top && r.bottom <= clear.bottom ? 0.0 : clear.top + clear.height * 0.4 - r.center.dy;
+    if (dx != 0 || dy != 0) _glideTo(view.scale, view.translation + Offset(dx, dy));
+  }
+
+  /// A tap on the page in spell check: an underlined word becomes the one
+  /// the card is about.
+  void _spellTap(Offset at) {
+    final spell = _spell;
+    if (spell == null) return;
+    final reach = 8 / pane.view.scale;
+    for (final issue in spell.issues) {
+      if (issue.rect.inflate(reach).contains(at)) {
+        spell.select(issue.id);
+        return;
+      }
+    }
+  }
+
+  void _openDictionary([String? word]) => setState(() {
+        _dict = true;
+        _lookup = word;
+        _lookupSerial++;
+      });
+
+  /// "Add definition to page": a text box in the middle of what's showing.
+  void _addDefinition(DictEntry entry, DictSense sense) {
+    final nb = ref.read(notebookProvider(pane.notebookId));
+    final page = nb.pageAt(pane.page);
+    if (nb.isSealed(page.id)) return;
+    final view = pane.view;
+    final size = view.size;
+    final left = _spell != null ? _cardLeft : 80.0;
+    final bottom = _spell != null ? size.height - _cardBottom - _cardHeight : size.height - 16;
+    final mid = view.toPage(Offset((left + size.width - _drawerReach) / 2, (84 + bottom) / 2));
+    final now = DateTime.now().toUtc();
+    final text = TextItem(
+      id: newId('it', now: now),
+      x: 0,
+      y: 0,
+      z: page.nextZ,
+      createdAt: now,
+      wrap: 420,
+      text: '${entry.word} · ${sense.wordClass.label}\n${sentence(sense.definition)}',
+      size: 20,
+      color: ref.read(settingsProvider).penColor,
+    );
+    ref.read(notebookProvider(pane.notebookId).notifier).insertItems(page.id, [
+      text.copyWith(x: mid.dx - text.w / 2, y: mid.dy - text.h / 2),
+    ]);
+    pane.toast('Added the definition of “${entry.word}” to the page', undoPageId: page.id);
   }
 
   void _toggleMore() => setState(() {
@@ -389,9 +558,13 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with SingleTickerPr
     final pageId = nb.pageAt(pane.page).id;
     final sealed = nb.isSealed(pageId);
     if (sealed && _board) _board = false;
+    if (sealed && _spell != null) WidgetsBinding.instance.addPostFrameCallback((_) => _endSpell());
+    final spelling = _spell != null && !sealed;
     final chrome = !_full && !_board;
-    final tools = chrome && !sealed;
-    final mapShown = tools && settings.mapOpen;
+    final tools = chrome && !sealed && !spelling;
+    // The dictionary drawer covers the pages rail, the map and the zoom pill.
+    final right = !spelling && !_dict;
+    final mapShown = tools && right && settings.mapOpen;
     final blocking = tools && (_more || (_pinned && _fly != null));
     final hintShown = !sealed && _hint != null && !_popover && !blocking;
 
@@ -402,6 +575,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with SingleTickerPr
           const SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true): () => notebook.redo(pageId),
           const SingleActivator(LogicalKeyboardKey.keyY, control: true): () => notebook.redo(pageId),
           const SingleActivator(LogicalKeyboardKey.escape): () {
+            if (_spell != null) return _endSpell();
             _closeMenus();
             pane
               ..dismiss()
@@ -421,19 +595,31 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with SingleTickerPr
                 },
                 child: InkCanvas(
                   pane: pane,
-                  onBoardTap: _board ? (at) => _leaveBoard(at: at) : null,
+                  onViewTap: _board ? (at) => _leaveBoard(at: at) : (spelling ? _spellTap : null),
                   // Clear of the rail, the top pills (and the color tray), and the pages rail.
                   chrome: EdgeInsets.fromLTRB(
                     80,
                     tools && (settings.trayOpen || settings.tool == CanvasTool.laser || settings.tool == CanvasTool.shape)
                         ? 128
                         : 84,
-                    chrome && settings.pagesOpen ? 124 : 60,
+                    _dict ? _drawerReach : (chrome && settings.pagesOpen ? 124 : 60),
                     16,
                   ),
                 ),
               ),
             ),
+            if (_spot != null && !sealed)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(painter: SpotPainter(pane.view, _spot!, _spotGlow, context.colors)),
+                ),
+              ),
+            if (spelling)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(painter: SpellMarksPainter(pane.view, _spell!, context.colors)),
+                ),
+              ),
             if (sealed)
               Positioned.fill(
                 child: LockedOverlay(
@@ -470,6 +656,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with SingleTickerPr
                         moreOpen: _more,
                         onToggleMore: _toggleMore,
                         onShare: () => showShareDialog(context, pane),
+                        center: spelling ? SpellBar(spell: _spell!, onDone: _endSpell) : null,
                       ),
                     ),
                   if (tools && settings.tool == CanvasTool.laser && !_popover)
@@ -478,11 +665,12 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with SingleTickerPr
                     const Positioned(top: 74, left: 0, right: 0, child: Center(child: ShapeKinds()))
                   else if (tools && settings.trayOpen && !_popover)
                     const Positioned(top: 70, left: 0, right: 0, child: Center(child: ColorTray())),
-                  if (chrome)
+                  if (chrome && right)
                     Positioned(
                       right: settings.pagesOpen ? 14 : 0,
                       top: 84,
-                      child: PagesRail(pane: pane, maxHeight: box.maxHeight - 84 - (mapShown ? 250 : 80)),
+                      // Never below zero: the on-screen keyboard can take most of the height.
+                      child: PagesRail(pane: pane, maxHeight: math.max(0, box.maxHeight - 84 - (mapShown ? 250 : 80))),
                     ),
                   if (!sealed && !blocking)
                     Positioned(
@@ -493,7 +681,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with SingleTickerPr
                         child: GestureStatus(pane: pane, orElse: hintShown ? HintPill(text: _hint!) : null),
                       ),
                     ),
-                  if (!sealed)
+                  if (!sealed && right)
                     Positioned(
                       right: 14,
                       bottom: 16,
@@ -510,6 +698,32 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with SingleTickerPr
                         ),
                       ]),
                     ),
+                  if (spelling)
+                    Positioned(
+                      left: _cardLeft,
+                      bottom: _cardBottom,
+                      child: SpellCard(
+                        spell: _spell!,
+                        width: math.min(720, box.maxWidth - _cardLeft - _drawerReach),
+                        onLookUp: _openDictionary,
+                        onTeach: () => showTeachHandwriting(context),
+                      ),
+                    ),
+                  if (_dict && !sealed)
+                    Positioned(
+                      right: 14,
+                      top: 84,
+                      bottom: 16,
+                      child: DictionaryDrawer(
+                        query: _lookup,
+                        serial: _lookupSerial,
+                        onClose: () => setState(() => _dict = false),
+                        onAddDefinition: _addDefinition,
+                        onFlashcard: () => _comingSoon('Making flashcards'),
+                      ),
+                    ),
+                  // The handwriting model downloading on first use.
+                  if (!sealed && chrome) const Positioned(left: 14, bottom: 16, child: ModelNoteView()),
                   // A pinned menu or ⋯ stays open until a tap anywhere else.
                   if (blocking)
                     Positioned.fill(
@@ -529,7 +743,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with SingleTickerPr
                         onItem: _pickRailItem,
                         onSearch: () {
                           _closeMenus();
-                          _comingSoon('Search');
+                          context.push(Routes.search());
                         },
                       ),
                     ),
@@ -558,4 +772,34 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with SingleTickerPr
       ),
     );
   }
+}
+
+/// Highlights a search match on the page ("Open at this spot"), then fades.
+class SpotPainter extends CustomPainter {
+  SpotPainter(this.view, this.spot, this.glow, this.colors) : super(repaint: Listenable.merge([view, glow]));
+
+  final CanvasView view;
+  final Rect spot;
+  final Animation<double> glow;
+  final EndlessColors colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = glow.value;
+    final fade = t < 0.7 ? 1.0 : (1 - t) / 0.3;
+    if (fade <= 0) return;
+    final r = Rect.fromPoints(view.toScreen(spot.topLeft), view.toScreen(spot.bottomRight)).inflate(6);
+    final box = RRect.fromRectAndRadius(r, const Radius.circular(10));
+    canvas.drawRRect(box, Paint()..color = colors.searchHit.withValues(alpha: colors.searchHit.a * fade * 0.8));
+    canvas.drawRRect(
+      box,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..color = colors.accent.withValues(alpha: fade),
+    );
+  }
+
+  @override
+  bool shouldRepaint(SpotPainter old) => old.spot != spot || old.colors != colors;
 }

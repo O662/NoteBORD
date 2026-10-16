@@ -13,6 +13,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../board/ids.dart';
 import '../board/model.dart';
 import '../office/office_model.dart';
+import '../recognition/convert.dart';
+import '../recognition/reader.dart';
+import '../recognition/segment.dart' show isHandwriting, writingIn;
 import '../state/links.dart';
 import '../state/notebook.dart';
 import '../state/office_docs.dart';
@@ -22,6 +25,7 @@ import '../templates/templates.dart';
 import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
 import '../ui/canvas/card_editors.dart';
+import '../ui/canvas/convert_panel.dart';
 import '../ui/canvas/ruler_menu.dart';
 import '../ui/canvas/selection_toolbar.dart';
 import '../ui/canvas/text_editor.dart';
@@ -102,7 +106,7 @@ class InkCanvas extends ConsumerStatefulWidget {
     required this.pane,
     this.writable = true,
     this.onActivate,
-    this.onBoardTap,
+    this.onViewTap,
     this.chrome = const EdgeInsets.fromLTRB(12, 84, 12, 12),
   });
 
@@ -113,9 +117,10 @@ class InkCanvas extends ConsumerStatefulWidget {
   final bool writable;
   final VoidCallback? onActivate;
 
-  /// Set while the whole board is showing: nothing can be written, and a
-  /// tap (pen or finger) on the page calls this with the page point.
-  final ValueChanged<Offset>? onBoardTap;
+  /// Set while the page is only being looked at (the whole board, spell
+  /// check): nothing can be written, and a tap (pen or finger) on the page
+  /// calls this with the page point.
+  final ValueChanged<Offset>? onViewTap;
 
   /// How far the floating chrome reaches in from each edge. The selection
   /// toolbar stays inside, going below the selection when the top is taken.
@@ -211,6 +216,18 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   /// The shape being dragged out keeps one id.
   String _shapeId = '';
 
+  /// Convert to text is open for these strokes (Convert.png); for the
+  /// whole page when [_convertPage].
+  List<String>? _convertIds;
+  bool _convertPage = false;
+
+  /// What was selected when it opened: it closes when that changes.
+  Set<String> _convertFor = const {};
+
+  /// The sticky note whose handwriting is being converted (its own ink, in
+  /// its own coordinates), or null for ink on the page.
+  String? _convertSticky;
+
   /// Typing in a text box or on a sticky note.
   TextEditSession? _edit;
   Set<String> _editHidden = const {};
@@ -235,10 +252,10 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   PageRuntime get _page => _nb.pageAt(pane.page);
 
   /// The whole board is showing: look, pan, zoom and tap to go somewhere.
-  bool get _board => widget.onBoardTap != null;
+  bool get _viewOnly => widget.onViewTap != null;
 
   /// Ink can go on the page: it is writable and not locked.
-  bool get _canInk => widget.writable && !_board && !_nb.isSealed(_page.id);
+  bool get _canInk => widget.writable && !_viewOnly && !_nb.isSealed(_page.id);
 
   @override
   void initState() {
@@ -246,6 +263,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     pane.addListener(_paneChanged);
     pane.status.addListener(_statusChanged);
     _selection.addListener(_overlay.ping);
+    _selection.addListener(_selectionChanged);
   }
 
   @override
@@ -255,9 +273,11 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       oldWidget.pane.removeListener(_paneChanged);
       oldWidget.pane.status.removeListener(_statusChanged);
       oldWidget.pane.selection.removeListener(_overlay.ping);
+      oldWidget.pane.selection.removeListener(_selectionChanged);
       widget.pane.addListener(_paneChanged);
       widget.pane.status.addListener(_statusChanged);
       widget.pane.selection.addListener(_overlay.ping);
+      widget.pane.selection.addListener(_selectionChanged);
     }
   }
 
@@ -265,7 +285,15 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     if (_drawPointer != null) _cancelInput();
     _commitEdit();
     _laser.clear();
+    _convertIds = null;
     setState(() {});
+  }
+
+  /// Convert to text closes when what it was for is no longer selected.
+  void _selectionChanged() {
+    final ids = _convertIds;
+    if (ids == null || _convertPage || setEquals(_selection.ids, _convertFor)) return;
+    setState(() => _convertIds = null);
   }
 
   /// A straightened line's marks go when its "Undo" message does.
@@ -278,6 +306,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     pane.removeListener(_paneChanged);
     pane.status.removeListener(_statusChanged);
     _selection.removeListener(_overlay.ping);
+    _selection.removeListener(_selectionChanged);
     _edit?.dispose();
     _hoverTimer?.cancel();
     _holdTimer?.cancel();
@@ -329,7 +358,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       _ignored.add(e.pointer);
       return;
     }
-    if (inks && _board) {
+    if (inks && _viewOnly) {
       // On the whole board the pen (or mouse) taps to zoom in there.
       if (_isStylus(e)) {
         _lastStylus = e.timeStamp;
@@ -379,7 +408,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     } else if (_touches.isEmpty && _drawPointer == null) {
       // The first finger decides what the fingers move.
       final page = _vp.toPage(e.localPosition);
-      if (_board) {
+      if (_viewOnly) {
         _touch = _Touch.navigate;
         _tapFinger = e.pointer;
         _tapDown = e.localPosition;
@@ -1348,6 +1377,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     if (items.isEmpty || items.any((i) => i is StrokeItem)) return null;
     final one = items.length == 1 ? items.single : null;
     return [
+      // A sticky note with handwriting on it: Convert to text first.
+      if (one is StickyItem && one.ink.any(isHandwriting)) SelectionAction.convert,
       if (one is TextItem || (one is StickyItem && !one.isStack)) SelectionAction.edit,
       if (one is CardItem) SelectionAction.editCard,
       if (one is CardItem && one.data is EmbedData) SelectionAction.open,
@@ -1368,7 +1399,28 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     final items = _selected;
     switch (action) {
       case SelectionAction.convert:
-        showComingSoon(context, 'Convert to text');
+        // The writing selected, letters that were straightened included.
+        final ink = [
+          for (final s in writingIn([
+            for (final i in _page.items)
+              if (i is StrokeItem && _selection.ids.contains(i.id)) i,
+          ]))
+            s.id,
+        ];
+        // One sticky note on its own: the handwriting written on it.
+        final note = items.length == 1 && items.single is StickyItem ? items.single as StickyItem : null;
+        final onNote = note == null ? const <String>[] : [for (final s in writingIn(note.ink)) s.id];
+        if (ink.isEmpty && onNote.isEmpty) {
+          _toast('No handwriting here to convert', undo: false);
+          return;
+        }
+        _colorsOpen = false;
+        setState(() {
+          _convertIds = ink.isEmpty ? onNote : ink;
+          _convertSticky = ink.isEmpty ? note!.id : null;
+          _convertPage = false;
+          _convertFor = _selection.ids;
+        });
       case SelectionAction.remember:
         showComingSoon(context, 'Need to remember');
       case SelectionAction.flashcard:
@@ -1645,10 +1697,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
   /// The notes under a stack's top one. A stack from another app may only
   /// say how many there are: those are blank.
-  static List<StickyNote> _notesUnder(StickyItem s) => [
-        ...s.under,
-        for (var i = s.under.length; i < s.count - 1; i++) StickyNote(color: s.color),
-      ];
+  static List<StickyNote> _notesUnder(StickyItem s) => s.notesUnder;
 
   /// Spreads a stack into separate notes, side by side (one undo step).
   void _fanOut(StickyItem stack) {
@@ -1726,8 +1775,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   /// A tap on the page: by the pen, or by a finger.
   void _tapped(Offset screen) {
     final at = _vp.toPage(screen);
-    if (widget.onBoardTap case final zoomIn?) {
-      zoomIn(at);
+    if (widget.onViewTap case final tap?) {
+      tap(at);
       return;
     }
     if (!_canInk) return;
@@ -1962,7 +2011,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
     // Leaving select and lasso (or an undo removing items) updates the selection.
     if (_selection.isNotEmpty) {
-      final keep = settings.tool.selects && widget.writable && !_board;
+      final keep = settings.tool.selects && widget.writable && !_viewOnly;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         if (!keep) {
@@ -2033,7 +2082,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
             ),
             if (settings.tool == CanvasTool.laser || !_laser.isEmpty)
               IgnorePointer(child: CustomPaint(painter: LaserPainter(_laser, _vp, laserColor))),
-            if (!_board)
+            if (!_viewOnly)
               IgnorePointer(child: CustomPaint(painter: RulerPainter(pane.ruler, _vp, settings.rulerUnit, colors))),
             if (_canInk && hoverRing != null)
               IgnorePointer(child: CustomPaint(painter: HoverRingPainter(_hover, hoverRing))),
@@ -2048,11 +2097,85 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
             onStyle: () => setState(() {}),
             chrome: widget.chrome,
           )
-        else if (_canInk)
+        else if (_canInk) ...[
           _toolbar(),
+          if (_convertIds != null) _convertPanel(),
+        ],
       ]);
     });
   }
+
+  // Convert to text.
+
+  List<StrokeItem> _convertStrokes() {
+    final ids = _convertIds?.toSet() ?? const {};
+    final note = _convertSticky == null ? null : _page[_convertSticky!];
+    return [
+      for (final i in note is StickyItem ? note.items : _page.items)
+        if (i is StrokeItem && ids.contains(i.id)) i,
+    ];
+  }
+
+  void _closeConvert() => setState(() => _convertIds = null);
+
+  void _convertWholePage() {
+    final ink = [for (final s in handwritingOn(_page.page)) s.id];
+    _selection.clear();
+    setState(() {
+      _convertIds = ink;
+      _convertSticky = null;
+      _convertPage = true;
+    });
+  }
+
+  void _convert(String text, ConvertPlace place) {
+    final strokes = _convertStrokes();
+    _convertIds = null;
+    if (place == ConvertPlace.copy) {
+      Clipboard.setData(ClipboardData(text: text));
+      setState(() {});
+      _toast(place.done, undo: false);
+      return;
+    }
+    final page = _page;
+    final note = _convertSticky == null ? null : page[_convertSticky!];
+    if (note is StickyItem) {
+      // Typed on the note itself; the note stays selected.
+      _notebook.replaceItems(page.id, [convertOnSticky(note, text, place, now: DateTime.now().toUtc())]);
+      _selection.select([note.id]);
+      setState(() {});
+      _toast(place == ConvertPlace.keep ? 'Text added above the ink on the note' : 'Handwriting on the note converted to text');
+      return;
+    }
+    final plan = planConvert(strokes: strokes, text: text, place: place, z: page.nextZ, now: DateTime.now().toUtc());
+    _notebook.edit(page.id, remove: plan.remove, replace: plan.replace, insert: plan.insert);
+    _selection.select([for (final t in plan.insert) t.id]);
+    setState(() {});
+    _toast(place.done);
+  }
+
+  Widget _convertPanel() => ListenableBuilder(
+        listenable: Listenable.merge([_selection, _vp]),
+        builder: (context, _) {
+          final whole = _convertPage;
+          final box = whole ? null : _screenBox();
+          final handles = whole ? null : _handles();
+          final below = box == null ? null : math.max(box.bottom, handles?.bounds.bottom ?? box.bottom);
+          final strokes = _convertStrokes();
+          // Ink on a sticky note is its own; the page's is converted from the page.
+          final pageHasMore = !whole && _convertSticky == null && handwritingOn(_page.page).length > strokes.length;
+          return CustomSingleChildLayout(
+            delegate: _ConvertLayout(box, below, widget.chrome),
+            child: ConvertPanel(
+              key: ValueKey(whole),
+              strokes: strokes,
+              onCancel: _closeConvert,
+              onConvert: _convert,
+              onWholePage: pageHasMore ? _convertWholePage : null,
+            ),
+          );
+        },
+      );
 
   /// Items drawn by the overlay instead of the ink layer: a selection being
   /// dragged, a box being stretched, text being typed, or strokes a
@@ -2120,6 +2243,59 @@ class _ToolbarLayout extends SingleChildLayoutDelegate {
   @override
   bool shouldRelayout(_ToolbarLayout old) =>
       old.box != box || old.chrome != chrome || old.handlesBottom != handlesBottom;
+}
+
+/// Puts Convert to text 18 px under the selection, left-aligned with it
+/// (Convert.dc.html), or above it; when neither fits, at the edge of the
+/// screen away from the selection. For the whole page it sits low in the
+/// middle.
+class _ConvertLayout extends SingleChildLayoutDelegate {
+  _ConvertLayout(this.box, this.below, this.chrome);
+
+  final Rect? box;
+
+  /// Where the selection's handles end.
+  final double? below;
+  final EdgeInsets chrome;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) => constraints.loosen();
+
+  /// The map and zoom pill in the bottom-right corner (CanvasScreen): the
+  /// panel keeps clear of them, or its buttons would be under them.
+  static const cornerWidth = 270.0;
+  static const cornerHeight = 260.0;
+
+  /// The hint and "· Undo" pill along the bottom (CanvasScreen): the panel
+  /// stays above it, or its buttons would be under it.
+  static const bottomBar = 72.0;
+
+  @override
+  Offset getPositionForChild(Size size, Size child) {
+    final bottom = math.max(chrome.bottom, bottomBar);
+    final maxLeft = math.max(chrome.left, size.width - child.width - chrome.right);
+    final maxTop = math.max(chrome.top, size.height - child.height - bottom);
+    Offset clear(Offset at) {
+      final reachesCorner = at.dy + child.height > size.height - cornerHeight;
+      final room = size.width - cornerWidth - child.width;
+      return reachesCorner && at.dx > room ? Offset(math.max(chrome.left, room), at.dy) : at;
+    }
+
+    final b = box;
+    if (b == null) {
+      return clear(Offset(((size.width - child.width) / 2).clamp(chrome.left, maxLeft), maxTop - 40 < chrome.top ? chrome.top : maxTop - 40));
+    }
+    final left = (b.left - 14).clamp(chrome.left, maxLeft).toDouble();
+    final under = (below ?? b.bottom) + 18;
+    if (under + child.height <= size.height - bottom) return clear(Offset(left, under));
+    // Above the selection and its toolbar.
+    final over = b.top - 12 - 46 - 12 - child.height;
+    if (over >= chrome.top) return clear(Offset(left, over));
+    return clear(Offset(left, b.center.dy < size.height / 2 ? maxTop : chrome.top));
+  }
+
+  @override
+  bool shouldRelayout(_ConvertLayout old) => old.box != box || old.below != below || old.chrome != chrome;
 }
 
 /// The stroke being drawn. Only this layer repaints while the pen moves.

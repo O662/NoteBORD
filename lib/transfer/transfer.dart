@@ -14,6 +14,7 @@ import '../library/library.dart';
 import '../office/office_model.dart';
 import '../office/office_reader.dart';
 import '../office/office_render.dart';
+import '../recognition/handwriting_index.dart';
 import '../state/assets.dart';
 import '../state/notebook.dart';
 import '../state/office_docs.dart';
@@ -140,6 +141,7 @@ class Transfers {
     Set<String> picked = const {},
     PdfOptions pdf = const PdfOptions(),
     bool includeAssets = true,
+    bool includeRecognition = true,
     void Function(int done, int total)? onProgress,
   }) async {
     final notifier = ref.read(notebookProvider(notebookId).notifier);
@@ -155,16 +157,27 @@ class Transfers {
       case ExportFormat.board:
         await notifier.flush();
         await ref.read(writeQueueProvider).idle;
+        if (includeRecognition) await ref.read(handwritingIndexProvider).flush();
         final bytes = await exportBoardFile(
           _store,
           notebookId,
           pageIds: scope == ExportScope.notebook ? null : {for (final i in indexes) nb.pages[i].id},
           includeAssets: includeAssets,
+          includeRecognition: includeRecognition,
         );
         return ExportFile(fileNameFor(title, 'board'), bytes, boardMime);
       case ExportFormat.pdf:
         if (open.isEmpty) throw const ExportProblem('These pages are locked. Unlock them to export them as a PDF.');
+        // The text layer: handwriting read now where it's new. Pages with
+        // a password are read for the PDF but never kept.
+        final handwriting = pdf.searchable
+            ? await ref.read(handwritingIndexProvider).pdfText(notebookId, open, private: {
+                for (final p in open)
+                  if (nb.lockFor(p.id) != null) p.id,
+              })
+            : const NoHandwritingText();
         final bytes = await buildPdf(
+          handwriting: handwriting,
           title: nb.notebook.title,
           pages: open,
           readAsset: notifier.readAsset,

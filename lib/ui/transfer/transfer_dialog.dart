@@ -95,6 +95,7 @@ class _TransferDialogState extends ConsumerState<TransferDialog> {
   bool _searchable = true;
   bool _background = false;
   bool _images = true;
+  bool _recognition = true;
   _Dest _dest = _Dest.device;
 
   // Import.
@@ -154,6 +155,7 @@ class _TransferDialogState extends ConsumerState<TransferDialog> {
             picked: _picked,
             pdf: PdfOptions(pages: _endless, paper: _paperSize, searchable: _searchable, background: _background),
             includeAssets: _images,
+            includeRecognition: _recognition,
             onProgress: (done, total) {
               if (mounted && total > 1) setState(() => _progress = 'Exporting page $done of $total…');
             },
@@ -512,6 +514,11 @@ class _TransferDialogState extends ConsumerState<TransferDialog> {
                   label: 'Include images and attached PDFs',
                   value: _images,
                   onChanged: (v) => setState(() => _images = v),
+                ),
+                _Check(
+                  label: 'Include recognized handwriting text (keeps search working after import)',
+                  value: _recognition,
+                  onChanged: (v) => setState(() => _recognition = v),
                 ),
               ],
             ],

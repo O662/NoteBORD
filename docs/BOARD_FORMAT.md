@@ -47,10 +47,11 @@ Locked notebooks and pages store `pages/<pageId>.json.enc` (AES-256-GCM) in plac
   "paper": "dots",
   "template": null,
   "locked": false,
+  "spelling": { "ignore": ["Feynman"] },
   "items": [ /* Item[] in z-order */ ]
 }
 ```
-`template` is a built-in layout drawn under the ink (`cornell`, `meeting`, `weekly`, `todo`, `kanban`, `mind`, `story`, `lab`), or null. `paper` is `dots`, `lines`, `grid` or `blank`. `locked` means the page has its own password.
+`template` is a built-in layout drawn under the ink (`cornell`, `meeting`, `weekly`, `todo`, `kanban`, `mind`, `story`, `lab`), or null. `paper` is `dots`, `lines`, `grid` or `blank`. `locked` means the page has its own password. `spelling.ignore` (optional) lists words spell check was told to ignore on this page; it is kept in the page file, so a page with a password keeps them sealed. Words added to "my dictionary" are the user's, for every notebook, and live in the app's settings, not in the package.
 
 ## Items
 Every item has these fields:
@@ -162,12 +163,44 @@ Every item has these fields:
 - Order of writes: lock.json before the first sealed page; when a lock is removed, the plain page before lock.json loses the entry. If both `pages/<id>.json` and `.json.enc` exist, the sealed one wins.
 - Images on a page with a password are sealed the same way, with the same key, as `assets/<name>.enc` (the item's `asset` stays `<name>`). When a page is locked, its images are sealed and their clear copies deleted, along with any clear image no unlocked page still uses; when the password is removed they are written in the clear again.
 
+## index/recognition.json
+What the handwriting says, kept so it is read once (Phase 5). It is a cache: deleting it only means the handwriting is read again. Only pen ink is read (not highlighter, shapes a hold made, arrows or connectors), a line at a time: on the page itself, on sticky notes (each note of a stack too), and on every page, slide or sheet of an Office card.
+```json
+{
+  "version": 1,
+  "pages": {
+    "pg_03": {
+      "lang": "en-US",
+      "lines": [
+        {
+          "key": "9f2c41aa07d3e6b1",
+          "strokes": ["st_a", "st_b", "st_c"],
+          "text": "total momentum is conserved",
+          "block": 1,
+          "words": [
+            {"t": "total", "s": ["st_a"]},
+            {"t": "momentum", "s": ["st_b"]},
+            {"t": "is", "s": ["st_c"]},
+            {"t": "conserved", "s": ["st_d", "st_e"], "alts": ["conversed", "concerned"]}
+          ]
+        }
+      ]
+    }
+  }
+}
+```
+- `holder` (omitted for ink on the page) is the sticky note or Office card the line is written on, in that item's own coordinates. `sub` is which page, slide or sheet of the Office file (from 1), or which note under a stack's top one (from 1); omitted for a top note.
+- `lang` is the ML Kit language tag it was read in. `strokes` are the line's stroke ids in pen order; `block` is its paragraph on the page, counting from 0 in reading order.
+- `key` is a hash (FNV-1a, 64-bit, hex) of the language and, per stroke, its id, point count, size and place relative to the line's first stroke. The same ink, moved anywhere on the page, has the same key, so its text is reused; any change to its strokes reads it again.
+- `words` tie each word to the strokes that wrote it (`s`, empty when the line's gaps didn't match its words), and `alts` lists other readings when recognition wasn't sure (for Convert to text).
+- **Never holds a page with a password.** A page or notebook that gets one loses its entries at once, and nothing is written for it while it has one.
+
 ## Export and import
 A `.board` file is the package zipped, with `notebook.json` at the top of the zip (a zip holding one `<name>.board/` folder is read too). Pictures and PDFs are stored without compressing them again.
 
 - **Export** writes what is on disk, after the open notebook is saved. Locked pages stay sealed (`.json.enc`), with their `lock.json` entries, so the password still protects them. Exporting some pages writes a `notebook.json` listing only those pages, only their entries in `lock.json`, and only the files their clear pages use (plus every sealed file, if a locked page goes along, since which pages use them can't be read without the password). Without images, `assets/` is left out and pictures show as empty boxes.
-- **Import** makes a new notebook: a new `id`, the folder picked in Import into, `pinned` false, `trashedAt` null, `updatedAt` now. Everything else in `notebook.json` and every page and item, ids included, comes in as it was. Only `notebook.json`, `lock.json`, `pages/<pageId>.json(.enc)` for page ids listed in `notebook.json` (letters, digits, `_` and `-`), and `assets/<name>` with a plain file name are read: nothing else in the zip is written anywhere. A page whose file is damaged comes in empty. Fingerprint unlock has to be turned on again for the copy.
-- `index/` is not exported or imported yet (Phase 5).
+- **Import** makes a new notebook: a new `id`, the folder picked in Import into, `pinned` false, `trashedAt` null, `updatedAt` now. Everything else in `notebook.json` and every page and item, ids included, comes in as it was. Only `notebook.json`, `lock.json`, `pages/<pageId>.json(.enc)` for page ids listed in `notebook.json` (letters, digits, `_` and `-`), `index/recognition.json`, and `assets/<name>` with a plain file name are read: nothing else in the zip is written anywhere. A page whose file is damaged comes in empty. Fingerprint unlock has to be turned on again for the copy.
+- `index/recognition.json` goes along when "Include recognized handwriting text" is on (the default), with only the exported clear pages. Import keeps it for clear pages only, and not at all for a notebook with a password, so search works straight away.
 
 ## Outside the packages
 The app's data folder also holds `settings.json`, `library.json` (folders: `{"version": 1, "folders": [{"path": ["School", "Physics"], "color": "#2B5A8C"}]}`), `templates/<id>.json` (My templates: `format: "endless.template"`, `name`, `paper`, `template`, `items`) and `index.sqlite` (the library index, a cache rebuilt from the packages).

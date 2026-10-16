@@ -101,6 +101,29 @@ void main() {
       expect(fitShape(const [Offset(0, 0), Offset(3, 2), Offset(6, 1)]), isNull);
     });
 
+    test('a written a, d or q isn’t a circle; an overshooting circle still is', () {
+      // The bowl, from the top right round over the top (as an a is written)…
+      const c = Offset(100, 100), r = 20.0;
+      final bowl = [
+        for (var i = 0; i <= 48; i++) c + Offset.fromDirection(-math.pi / 6 - i / 48 * 2 * math.pi, r),
+      ];
+      final top = bowl.last;
+      // …then the stem: back down the right side (a), up and down (d), down below (q).
+      final a = [...bowl, for (var i = 1; i <= 12; i++) Offset(top.dx + i * 0.2, top.dy + i * 2.6)];
+      final d = [
+        ...bowl,
+        for (var i = 1; i <= 10; i++) Offset(top.dx + 1, top.dy - i * 4),
+        for (var i = 1; i <= 20; i++) Offset(top.dx + 2, top.dy - 40 + i * 4),
+      ];
+      final q = [...bowl, for (var i = 1; i <= 16; i++) Offset(top.dx + 1, top.dy + i * 4)];
+      for (final (name, stroke) in [('a', a), ('d', d), ('q', q)]) {
+        expect(fitShape(stroke), isNull, reason: name);
+      }
+      // The bowl alone is an o, and a circle drawn a quarter too far round is still one.
+      expect(fitShape(bowl)!.kind, ShapeKind.circle);
+      expect(fitShape(_ellipse(const Offset(200, 200), 80, 76, turns: 1.25))!.kind, ShapeKind.circle);
+    });
+
     test('thresholds follow the zoom (unit = page px per screen px)', () {
       final small = _line(const Offset(0, 0), const Offset(20, 5), wobble: 0.3, jitter: 0.2);
       expect(fitShape(small), isNull); // 20 px on screen at 100%: too short

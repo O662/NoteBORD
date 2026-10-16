@@ -10,7 +10,7 @@ const _notebookKeys = {
   'format', 'version', 'id', 'title', 'folderPath', 'cover', 'createdAt', 'updatedAt', //
   'pages', 'defaults', 'locked', 'pinned', 'trashedAt',
 };
-const _pageKeys = {'id', 'title', 'paper', 'template', 'locked', 'items'};
+const _pageKeys = {'id', 'title', 'paper', 'template', 'locked', 'spelling', 'items'};
 const _itemKeys = {'id', 'type', 'x', 'y', 'rotation', 'z', 'createdAt', 'author', 'remember'};
 const _strokeKeys = {
   ..._itemKeys, 'tool', 'penType', 'color', 'width', 'points', 'usePressure', 'arrow', 'straightened', 'startItemId', 'endItemId', //
@@ -74,6 +74,7 @@ String encodePage(BoardPage page) {
     'paper': page.paper.name,
     'template': page.template,
     'locked': page.locked,
+    if (page.spellIgnore.isNotEmpty) 'spelling': {'ignore': page.spellIgnore},
   });
   final items = page.items.map((i) => i.encoded).join(',\n');
   return '${head.substring(0, head.length - 1)},"items":[\n$items\n]}\n';
@@ -88,6 +89,7 @@ BoardPage decodePage(String source) {
     template: json['template'],
     locked: json['locked'] as bool? ?? false,
     items: [for (final i in (json['items'] as List? ?? const [])) decodeItem(i as Json)],
+    spellIgnore: [...?((json['spelling'] as Map?)?['ignore'] as List?)?.whereType<String>()],
     extra: _unknown(json, _pageKeys),
   );
 }

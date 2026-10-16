@@ -5,13 +5,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../canvas/pane.dart';
 import '../../canvas/pens.dart';
+import '../../recognition/handwriting_index.dart';
+import '../../recognition/models.dart';
+import '../../recognition/recognizer.dart';
+import '../../spelling/my_handwriting.dart';
 import '../../state/notebook.dart';
 import '../../state/settings.dart';
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart' as tokens;
 import '../../theme/tokens.g.dart' show Radii, TypeScale;
 import '../common.dart';
+import '../dialogs.dart' show SecondaryButton;
 import '../icons.dart';
+import '../spell/teach_handwriting.dart';
 import 'pen_settings.dart';
 
 /// Title · tools · Share/⋯, floating over the page (Canvas.dc.html header).
@@ -32,10 +38,14 @@ class TopBar extends StatelessWidget {
     required this.moreOpen,
     required this.onToggleMore,
     required this.onShare,
+    this.center,
   });
 
   /// The left pill: [TitlePill] on the canvas, the split title in Split view.
   final Widget title;
+
+  /// In place of the tool pill (spell check's bar), or null.
+  final Widget? center;
 
   /// The pane the tools write to (undo and redo act on its page).
   final Pane pane;
@@ -77,7 +87,7 @@ class TopBar extends StatelessWidget {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              if (showTools) tools,
+              if (center != null) center! else if (showTools) tools,
               Align(
                 alignment: Alignment.centerLeft,
                 child: ConstrainedBox(
@@ -575,11 +585,82 @@ class _QuickSettings extends ConsumerWidget {
               const QuickArrowSettings(),
               Divider(color: c.lineSoft, height: 8),
               const ScribbleSettings(),
+              Text('HANDWRITING', style: TypeScale.sectionLabel.copyWith(color: c.textMuted)),
+              const _HandwritingLanguage(),
+              const _MySample(),
               Text('The full Settings screen is coming soon.', style: TextStyle(fontSize: 13, color: c.textFaint)),
             ],
           ),
         ),
       ),
     );
+  }
+}
+
+/// The handwriting sample spelling fixes are written with: write it, write
+/// it again, or forget it.
+class _MySample extends ConsumerWidget {
+  const _MySample();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
+    final hand = ref.watch(myHandwritingProvider);
+    return Row(spacing: 8, children: [
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, spacing: 2, children: [
+          Text('My handwriting', style: TextStyle(fontSize: 15, color: c.text)),
+          Text(
+            hand == null
+                ? 'Write each letter once, and spell check can fix words in your handwriting.'
+                : 'Spell check fixes words in your letters. Kept on this tablet only.',
+            style: TextStyle(fontSize: 13, color: c.textMuted),
+          ),
+        ]),
+      ),
+      if (hand != null)
+        SecondaryButton(label: 'Forget it', height: 44, onPressed: () => ref.read(myHandwritingProvider.notifier).forget()),
+      SecondaryButton(
+        label: hand == null ? 'Write it' : 'Write it again',
+        height: 44,
+        onPressed: () => showTeachHandwriting(context),
+      ),
+    ]);
+  }
+}
+
+/// The language handwriting is read in, for search and the PDF text layer.
+/// Changing it reads every notebook again (the model downloads first).
+class _HandwritingLanguage extends ConsumerWidget {
+  const _HandwritingLanguage();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
+    final current = handwritingLanguage(ref.watch(settingsProvider));
+    return Row(children: [
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, spacing: 2, children: [
+          Text('Handwriting language', style: TextStyle(fontSize: 15, color: c.text)),
+          Text('For search and Convert to text. Read on this tablet, offline.',
+              style: TextStyle(fontSize: 13, color: c.textMuted)),
+        ]),
+      ),
+      DropdownButton<String>(
+        value: inkLanguages.any((l) => l.tag == current) ? current : null,
+        hint: Text(inkLanguage(current).name),
+        underline: const SizedBox.shrink(),
+        dropdownColor: c.surface,
+        style: TextStyle(fontSize: 15, color: c.text),
+        items: [
+          for (final l in inkLanguages) DropdownMenuItem(value: l.tag, child: Text(l.name)),
+        ],
+        onChanged: (tag) {
+          if (tag == null || tag == current) return;
+          ref.read(settingsProvider.notifier).apply((s) => s.copyWith(handwritingLanguage: () => tag));
+          ref.read(inkModelsProvider.notifier).ensure(tag).then((_) => ref.read(handwritingIndexProvider).catchUp());
+        },
+      ),
+    ]);
   }
 }

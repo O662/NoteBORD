@@ -28,6 +28,7 @@ class LoadedNotebook {
 ///
 /// ```
 /// <root>/settings.json
+/// <root>/handwriting.json             the user's handwriting sample (spell check)
 /// <root>/library.json                 folders and their colors
 /// <root>/templates/<id>.json          "My templates"
 /// <root>/notebooks/<id>.board/        one package per notebook
@@ -39,6 +40,14 @@ class LoadedNotebook {
 abstract class BoardStore {
   Future<Json?> loadSettings();
   Future<void> saveSettings(Json settings);
+
+  /// `handwriting.json`: the user's handwriting sample, for writing
+  /// spelling fixes in their hand. Stays on this device: it's in no
+  /// notebook and no board file.
+  Future<Json?> loadHandwriting();
+
+  /// Writes it ([json] null deletes it).
+  Future<void> saveHandwriting(Json? json);
 
   Future<Json?> loadLibrary();
   Future<void> saveLibrary(Json library);
@@ -69,6 +78,14 @@ abstract class BoardStore {
   Future<List<Json>> loadTemplates();
   Future<void> saveTemplate(String id, Json template);
   Future<void> deleteTemplate(String id);
+
+  /// `index/recognition.json`: what the notebook's handwriting says, page by
+  /// page. Never holds a locked page.
+  Future<Json?> loadRecognition(String notebookId);
+
+  /// Writes it ([json] null removes it). Does nothing if the notebook is
+  /// gone, so a late write can't bring back a deleted one.
+  Future<void> saveRecognition(String notebookId, Json? json);
 }
 
 class FileBoardStore implements BoardStore {
@@ -84,6 +101,7 @@ class FileBoardStore implements BoardStore {
   File _sealedFile(String nb, String page) => File(p.join(_notebookDir(nb).path, 'pages', '$page.json.enc'));
   File _lockFile(String nb) => File(p.join(_notebookDir(nb).path, 'lock.json'));
   Directory _assetDir(String nb) => Directory(p.join(_notebookDir(nb).path, 'assets'));
+  File _recognitionFile(String nb) => File(p.join(_notebookDir(nb).path, 'index', 'recognition.json'));
 
   /// Asset names never leave the assets folder.
   File _assetFile(String nb, String name) => File(p.join(_assetDir(nb).path, p.basename(name)));
@@ -104,6 +122,17 @@ class FileBoardStore implements BoardStore {
 
   @override
   Future<void> saveSettings(Json settings) => _writeJson(File(p.join(root.path, 'settings.json')), settings);
+
+  File get _handwritingFile => File(p.join(root.path, 'handwriting.json'));
+
+  @override
+  Future<Json?> loadHandwriting() => _readJson(_handwritingFile);
+
+  @override
+  Future<void> saveHandwriting(Json? json) async {
+    if (json == null) return _deleteIfExists(_handwritingFile);
+    await _writeAtomic(_handwritingFile, jsonEncode(json));
+  }
 
   @override
   Future<Json?> loadLibrary() => _readJson(File(p.join(root.path, 'library.json')));
@@ -223,6 +252,17 @@ class FileBoardStore implements BoardStore {
   @override
   Future<void> deleteTemplate(String id) => _deleteIfExists(File(p.join(_templates.path, '$id.json')));
 
+  @override
+  Future<Json?> loadRecognition(String notebookId) => _readJson(_recognitionFile(notebookId));
+
+  @override
+  Future<void> saveRecognition(String notebookId, Json? json) async {
+    if (json == null) return _deleteIfExists(_recognitionFile(notebookId));
+    if (!await File(p.join(_notebookDir(notebookId).path, 'notebook.json')).exists()) return;
+    // Compact: it's a cache, and can be large.
+    await _writeAtomic(_recognitionFile(notebookId), jsonEncode(json));
+  }
+
   static Future<void> _deleteIfExists(File f) async {
     if (await f.exists()) await f.delete();
   }
@@ -254,6 +294,7 @@ class MemoryBoardStore implements BoardStore {
   final locks = <String, Json>{};
   final templates = <String, Json>{};
   final assets = <String, Map<String, Uint8List>>{};
+  final recognition = <String, String>{};
   int pageWrites = 0;
 
   static Json _copy(Json j) => jsonDecode(jsonEncode(j)) as Json;
@@ -263,6 +304,14 @@ class MemoryBoardStore implements BoardStore {
 
   @override
   Future<void> saveSettings(Json s) async => settings = _copy(s);
+
+  Json? handwriting;
+
+  @override
+  Future<Json?> loadHandwriting() async => handwriting == null ? null : _copy(handwriting!);
+
+  @override
+  Future<void> saveHandwriting(Json? json) async => handwriting = json == null ? null : _copy(json);
 
   @override
   Future<Json?> loadLibrary() async => library == null ? null : _copy(library!);
@@ -331,6 +380,7 @@ class MemoryBoardStore implements BoardStore {
     sealedPages.remove(id);
     locks.remove(id);
     assets.remove(id);
+    recognition.remove(id);
   }
 
   @override
@@ -354,4 +404,19 @@ class MemoryBoardStore implements BoardStore {
 
   @override
   Future<void> deleteTemplate(String id) async => templates.remove(id);
+
+  @override
+  Future<Json?> loadRecognition(String notebookId) async {
+    final src = recognition[notebookId];
+    return src == null ? null : jsonDecode(src) as Json;
+  }
+
+  @override
+  Future<void> saveRecognition(String notebookId, Json? json) async {
+    if (json == null) {
+      recognition.remove(notebookId);
+    } else if (notebooks.containsKey(notebookId)) {
+      recognition[notebookId] = jsonEncode(json);
+    }
+  }
 }
