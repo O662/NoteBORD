@@ -446,8 +446,13 @@ The owner's request (2026-10-15). Three recognizers were put to the owner: MyScr
 
 **Checked on Windows (2026-10-15).** `integration_test/math_model_test.dart` reads six MathWriting samples through the plugin exactly as the Python reference does. `integration_test/math_typeset_test.dart` typesets off screen with the √, ∫ and bracket pieces. `integration_test/math_mode_test.dart` writes with a simulated S Pen in math mode, waits for the pickup, reads, previews and converts.
 
+**Tablet check, 2026-10-16: the app crashed on the first math reading.** The release build shrinks and renames Java classes (R8). ONNX Runtime's native code looks its classes up by name, found none, and Android aborted the app: `JNI DETECTED ERROR: java_class == null in call to GetMethodID from ai.onnxruntime.OrtSession.run`. The tests couldn't catch it, because only Android release builds shrink code.
+- **The fix:** `android/app/proguard-rules.pro` keeps `ai.onnxruntime.**`, as flutter_onnxruntime's README asks. Flutter's build picks the file up for release builds.
+- **Checked in the build:** the release build's `mapping.txt` now keeps `OrtSession`, `TensorInfo`, `OnnxTensor` and the rest under their names.
+- **On the tablet:** the fixed build replaced the installed one with `adb install -r` (same signing key, so its notebooks were kept).
+
 ### Not done yet / known limits
-- **Not tried on the tablet.** That includes how fast reading is on its CPU (this PC's numbers are above), the model files being copied out on first use, the 1.2 s pickup, the keyboard and the tablet's own keyboard, and Write it instead with the S Pen.
+- **Not tried on the tablet beyond that crash.** That includes how fast reading is on its CPU (this PC's numbers are above), the model files being copied out on first use, the 1.2 s pickup, the keyboard and the tablet's own keyboard, and Write it instead with the S Pen.
 - **What the model can't read.** It knows CROHME's 101 symbols. There is no ω, ρ, τ, ε, δ or ∂, no capital D, J, K, O, Q, U, W or Z, and no matrices; type those with the keyboard. Expect about 6 in 10 expressions exactly right; a wrong symbol is a fix in the keyboard. One expression at a time reads best.
 - The other readings the model finds are kept (`MathReading.others`) but not offered yet.
 - **The model's licence is non-commercial** (above).
