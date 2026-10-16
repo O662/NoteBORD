@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 import 'dart:ui' show Brightness, Canvas, Color, Offset, Paint, PaintingStyle, Path, Radius, Rect, RRect;
 
 import '../board/model.dart';
+import '../math/math_pictures.dart' show MathSource;
 import '../templates/templates.dart';
 import '../theme/colors.dart';
 import 'items.dart';
@@ -13,7 +14,7 @@ import 'stroke_geometry.dart';
 /// A page open in the editor: its items plus the indexes and caches the
 /// canvas needs. Mutated only by the notebook notifier's commands.
 class PageRuntime {
-  PageRuntime(this.page, {this.images, this.docs}) {
+  PageRuntime(this.page, {this.images, this.docs, this.math}) {
     for (final item in page.items) {
       _byId[item.id] = item;
       index.insert(item.id, item.bounds);
@@ -27,6 +28,9 @@ class PageRuntime {
 
   /// The notebook's Word, PowerPoint and Excel files, read for their cards.
   final OfficeSource? docs;
+
+  /// Math typeset for drawing.
+  final MathSource? math;
   final index = SpatialIndex();
   final _byId = <String, Item>{};
 
@@ -152,7 +156,7 @@ class PageRuntime {
     final canvas = Canvas(recorder);
     if (layout != null) canvas.drawPicture(layout);
     for (final item in items) {
-      paintItem(canvas, item, brightness, colors, images: images, docs: docs);
+      paintItem(canvas, item, brightness, colors, images: images, docs: docs, math: math);
     }
     return recorder.endRecording();
   }
@@ -180,12 +184,13 @@ void paintItem(
   EndlessColors colors, {
   ImageLookup? images,
   OfficeSource? docs,
+  MathSource? math,
 }) {
   switch (item) {
     case StrokeItem s:
       paintStroke(canvas, s, displayInk(s.color, brightness));
     case BoxItem b:
-      paintBoxItem(canvas, b, brightness, colors, images: images, docs: docs);
+      paintBoxItem(canvas, b, brightness, colors, images: images, docs: docs, math: math);
     case UnknownItem u:
       // Kept and saved, but not drawable by this version: show its footprint.
       canvas.drawRRect(

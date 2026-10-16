@@ -3,13 +3,19 @@ import 'package:flutter/material.dart';
 import '../../canvas/items.dart';
 import '../../canvas/pens.dart';
 import '../../canvas/selection.dart';
+import '../../math/math_pictures.dart' show mathFontFallback;
 import '../../theme/colors.dart';
-import '../../theme/tokens.g.dart' show stickyColors;
+import '../../theme/tokens.g.dart' show FontFamilies, stickyColors;
 import '../common.dart';
 import '../icons.dart';
 
 enum SelectionAction {
   convert,
+  // Math mode (Math.png), and math on the page.
+  convertMath,
+  graphIt,
+  copyLatex,
+  editMath,
   remember,
   flashcard,
   copy,
@@ -31,6 +37,9 @@ enum SelectionAction {
 
 const _objectLabels = {
   SelectionAction.convert: 'Convert to text',
+  SelectionAction.editMath: 'Edit math',
+  SelectionAction.copyLatex: 'Copy as LaTeX',
+  SelectionAction.graphIt: 'Graph it',
   SelectionAction.edit: 'Edit text',
   SelectionAction.editCard: 'Edit',
   SelectionAction.open: 'Open',
@@ -46,10 +55,11 @@ const _objectLabels = {
   SelectionAction.delete: 'Delete',
 };
 
-/// The dark bar over a selection (Convert.dc.html and RememberMark.dc.html).
-/// For ink it leads with Convert to text, or with Remember when the
-/// selection started from "Need to remember". For text boxes, sticky notes,
-/// frames, images and shapes it shows [objectActions] instead.
+/// The dark bar over a selection (Convert.dc.html, RememberMark.dc.html and
+/// Math.dc.html). For ink it leads with Convert to text, with Remember when
+/// the selection started from "Need to remember", or with Convert to math
+/// in math mode. For text boxes, sticky notes, frames, images, shapes and
+/// math it shows [objectActions] instead.
 class SelectionToolbar extends StatelessWidget {
   const SelectionToolbar({
     super.key,
@@ -73,29 +83,37 @@ class SelectionToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final remember = menu == SelectionMenu.remember;
-    final pad = remember ? 11.0 : 12.0;
+    final padding = remember ? 11.0 : 12.0;
 
-    Widget plain(SelectionAction a, String label, {bool expanded = false}) => _BarButton(
+    Widget plain(SelectionAction a, String label, {bool expanded = false, double? pad}) => _BarButton(
           label: label,
-          padding: pad,
+          padding: pad ?? padding,
           expanded: a == SelectionAction.color ? expanded : null,
           onTap: () => onAction(a),
           child: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: c.onInverse)),
         );
 
-    Widget lead(SelectionAction a, String label, {EIconData? icon}) => _BarButton(
+    Widget lead(SelectionAction a, String label, {EIconData? icon, bool sigma = false}) => _BarButton(
           label: label,
           padding: 12,
           background: c.accent,
           onTap: () => onAction(a),
-          child: Row(mainAxisSize: MainAxisSize.min, spacing: 8, children: [
+          child: Row(mainAxisSize: MainAxisSize.min, spacing: sigma ? 6 : 8, children: [
             if (icon != null) EIcon(icon, size: 16, color: c.onAccent),
-            Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.onAccent)),
+            if (sigma)
+              ExcludeSemantics(
+                child: Text(
+                  '∑',
+                  style: TextStyle(fontFamily: FontFamilies.serif, fontFamilyFallback: mathFontFallback, fontSize: 17, color: c.onAccent),
+                ),
+              ),
+            Text(label, style: TextStyle(fontSize: 14, fontWeight: sigma ? FontWeight.w700 : FontWeight.w600, color: c.onAccent)),
           ]),
         );
 
     const leads = {
       SelectionAction.convert,
+      SelectionAction.editMath,
       SelectionAction.edit,
       SelectionAction.editCard,
       SelectionAction.fanOut,
@@ -106,7 +124,7 @@ class SelectionToolbar extends StatelessWidget {
         ? [
             for (final (i, a) in objects.indexed)
               if (i == 0 && leads.contains(a))
-                lead(a, _objectLabels[a]!, icon: switch (a) {
+                lead(a, _objectLabels[a]!, sigma: a == SelectionAction.editMath, icon: switch (a) {
                   SelectionAction.convert || SelectionAction.edit => EIcons.convertText,
                   SelectionAction.editCard => EIcons.edit,
                   _ => null,
@@ -114,7 +132,13 @@ class SelectionToolbar extends StatelessWidget {
               else
                 plain(a, _objectLabels[a]!, expanded: colorsOpen),
           ]
-        : remember
+        : menu == SelectionMenu.math
+            ? [
+                lead(SelectionAction.convertMath, 'Convert to math', sigma: true),
+                plain(SelectionAction.graphIt, 'Graph it', pad: 11),
+                plain(SelectionAction.copyLatex, 'Copy as LaTeX', pad: 11),
+              ]
+            : remember
             ? [
                 _BarButton(
                   label: 'Remember',

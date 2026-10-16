@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 
 import 'canvas_status.dart';
 import 'canvas_view.dart';
+import 'math_mode.dart';
 import 'ruler.dart';
 import 'selection.dart';
 
@@ -24,6 +25,9 @@ class Pane extends ChangeNotifier {
 
   /// The ruler over this view.
   final ruler = Ruler();
+
+  /// Math mode, the math keyboard and the formulas panel (Math.png).
+  final math = MathMode();
 
   /// A place on the page (page coordinates) to show and highlight once the
   /// canvas is laid out: where a search match is. Cleared when shown.
@@ -93,6 +97,7 @@ class Pane extends ChangeNotifier {
     view.dispose();
     selection.dispose();
     ruler.dispose();
+    math.dispose();
     status.dispose();
     super.dispose();
   }

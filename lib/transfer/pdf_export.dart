@@ -17,6 +17,9 @@ import '../canvas/pens.dart';
 import '../recognition/reader.dart' show visibleInk;
 import '../recognition/recognized.dart';
 import '../canvas/stroke_geometry.dart';
+import '../math/linear.dart' show latexToLinear;
+import '../canvas/graph_card.dart';
+import '../math/math_pictures.dart' show MathPicture, MathSource;
 import '../templates/templates.dart';
 import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
@@ -255,12 +258,16 @@ typedef AssetReader = Future<Uint8List?> Function(String name);
 /// Reads a Word, PowerPoint or Excel file from the notebook, or null.
 typedef OfficeLoader = Future<OfficePreview?> Function(String asset, OfficeKind kind);
 
+/// Typesets a formula, or null if it can't be.
+typedef MathTypesetter = Future<MathPicture?> Function(String latex);
+
 /// Writes [pages] as a PDF. [onProgress] hears after each page.
 Future<Uint8List> buildPdf({
   required String title,
   required List<BoardPage> pages,
   required AssetReader readAsset,
   OfficeLoader? loadOffice,
+  MathTypesetter? typesetMath,
   PdfOptions options = const PdfOptions(),
   HandwritingText handwriting = const NoHandwritingText(),
   PdfFontSource fonts = const BundledFonts(),
@@ -269,7 +276,7 @@ Future<Uint8List> buildPdf({
 }) async {
   final doc = PdfDocument(compress: compress);
   PdfInfo(doc, title: title, creator: 'Endless', producer: 'Endless');
-  final writer = _PdfWriter(doc, readAsset, fonts, options, loadOffice);
+  final writer = _PdfWriter(doc, readAsset, fonts, options, loadOffice, typesetMath);
   for (final (i, page) in pages.indexed) {
     final runs = options.searchable ? handwriting.runsFor(page) : const <TextRun>[];
     for (final sheet in pdfSheets(page, options)) {
@@ -283,11 +290,12 @@ Future<Uint8List> buildPdf({
 }
 
 class _PdfWriter {
-  _PdfWriter(this.doc, this.readAsset, this.fontSource, this.options, this.loadOffice);
+  _PdfWriter(this.doc, this.readAsset, this.fontSource, this.options, this.loadOffice, this.typesetMath);
 
   final PdfDocument doc;
   final AssetReader readAsset;
   final OfficeLoader? loadOffice;
+  final MathTypesetter? typesetMath;
   final PdfFontSource fontSource;
   final PdfOptions options;
   final EndlessColors c = paperLight;
@@ -420,6 +428,18 @@ class _PdfWriter {
         await _office(f, text);
       case ShapeItem s:
         _shapeItem(s);
+      case MathItem m:
+        // The card as a picture; the math, as the keyboard writes it, in
+        // the text layer.
+        final typeset = await typesetMath?.call(m.latex);
+        await _raster(m.paintRect, (canvas) => paintMathCard(canvas, m, ui.Brightness.light, c, SingleMath(m.latex, typeset)));
+        text.add(TextRun(latexToLinear(m.latex), m.extent));
+      case GraphItem g:
+        final typeset = <String, MathPicture?>{
+          for (final f in g.functions) f.expr: await typesetMath?.call(f.expr),
+        };
+        await _raster(g.paintRect, (canvas) => paintGraphCard(canvas, g, ui.Brightness.light, c, _Typeset(typeset)));
+        text.add(TextRun([for (final f in g.functions) latexToLinear(f.expr)].join('\n'), g.extent));
     }
     g.restoreContext();
   }
@@ -806,4 +826,14 @@ String cardText(CardItem card) {
       parts.add(d.url);
   }
   return parts.where((p) => p.trim().isNotEmpty).join('\n');
+}
+
+/// Formulas typeset ahead of time, for an export.
+class _Typeset implements MathSource {
+  const _Typeset(this.pictures);
+
+  final Map<String, MathPicture?> pictures;
+
+  @override
+  MathPicture? picture(String latex) => pictures[latex];
 }

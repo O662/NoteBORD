@@ -60,9 +60,9 @@ class Similarity {
       };
 }
 
-/// Which primary action the selection toolbar leads with: Convert.png or
-/// RememberMark.png.
-enum SelectionMenu { convert, remember }
+/// Which primary action the selection toolbar leads with: Convert.png,
+/// RememberMark.png or, in math mode, Math.png.
+enum SelectionMenu { convert, remember, math }
 
 /// The selection's box in page space: around one box item it follows the
 /// item's rotation; otherwise it is upright.

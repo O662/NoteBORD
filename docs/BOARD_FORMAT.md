@@ -76,8 +76,8 @@ Every item has these fields:
 | `kanban` | `w`, `h`, `title`, `unit`, `columns: [{title, cards: [{text}]}]` |
 | `timeline` | `w`, `h`, `title`, `unit`, `events: [{date, label, state}]` |
 | `diagram` | `w`, `h`, `title`, `unit`, `nodes: [{id, text, shape, color}]`, `edges: [{from, to}]` |
-| `math` | `w`, `h`, `latex`, `sourceStrokes?: [id]` |
-| `graph` | `w`, `h`, `mode` (2d/3d), `functions: [{expr, color}]`, `view` |
+| `math` | `w`, `h`, `latex`, `size`, `color` |
+| `graph` | `w`, `h`, `mode` (2d/3d), `functions: [{expr, color}]`, `view: {xMin, xMax, yMin, yMax}` |
 | `table` | `w`, `h`, `title`, `unit`, `cells: [[…]]`, `header` |
 | `chart` | `w`, `h`, `chartType`, `source: {kind: table/xlsx, ref, range}`, `linked: true`, `snapshot?` |
 | `widget` | `w`, `h`, `widget` (calendar/planner/flashcards/remember/clock/date/checklist/numberline/unitcircle/polar), `config` |
@@ -92,6 +92,11 @@ Every item has these fields:
 - `straightened` is present only when a hold (or "Straighten lines") turned the stroke into a shape: `line`, `circle`, `ellipse`, `rect` or `triangle`. The points are the shape itself.
 - `startItemId` / `endItemId` are present only on a connector (an arrow or a straightened line) whose first / last point is attached to the edge of a box item on the same page (a shape, sticky note, frame, picture, text box or card). The point itself lies on that item's outline; where on the edge is not stored separately, it is read from the point. When the item moves, turns or is resized, the end goes to the same spot of its edge and the ink bends to follow (each point moves by a share of the end's move that follows how far along the line it is). An attached end without an arrowhead is drawn with a dot. If the item is gone, the id is dropped; an id that names nothing is ignored.
 - Moving, resizing and rotating a stroke rewrites its points (and scales `width`); `rotation` stays 0 for strokes.
+
+**Math and graphs, as implemented (v1, Phase 6a):**
+
+- `math`: `latex` is the math as LaTeX (the KaTeX subset `flutter_math_fork` draws). It is drawn on a card: typeset at `size` (page px), in `color` (an ink color, brightened in dark mode like ink), with padding of 0.44 × `size` left and right and 0.25 × `size` above and below. `w` and `h` (the card) are stored because typesetting is asynchronous. The math is fitted into the box, so a file from another device with slightly different font metrics still draws in its place. Scaling by a corner scales `size` with the box. Search finds math by its keyboard text (`ω = Δθ / Δt`) and the names of its Greek letters.
+- `graph`: `mode` is `2d` (3D comes with the Graph screen). Each function's `expr` is LaTeX for a function of x: `y = …`, `f(x) = …` or just the expression. `view` is the window shown. A function that can't be evaluated is listed but not drawn.
 
 **Text, sticky notes, frames, images and shapes, as implemented (v1):**
 

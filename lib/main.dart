@@ -46,5 +46,9 @@ void _registerLicenses() {
       ['Open English WordNet', 'CMU Pronouncing Dictionary', 'SCOWL'],
       await rootBundle.loadString('assets/dictionary/NOTICE.txt'),
     );
+    yield LicenseEntryWithLineBreaks(
+      ['CoMER handwritten math model'],
+      await rootBundle.loadString('assets/math/NOTICE.txt'),
+    );
   });
 }

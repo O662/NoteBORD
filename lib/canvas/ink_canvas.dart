@@ -12,6 +12,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../board/ids.dart';
 import '../board/model.dart';
+import '../math/evaluate.dart' show graphView;
+import '../math/ink_image.dart' show writingSize;
+import '../math/latex.dart' show isDrawable;
+import '../math/linear.dart';
+import '../math/math_pictures.dart';
+import '../math/math_reader.dart';
 import '../office/office_model.dart';
 import '../recognition/convert.dart';
 import '../recognition/reader.dart';
@@ -31,13 +37,17 @@ import '../ui/canvas/selection_toolbar.dart';
 import '../ui/canvas/text_editor.dart';
 import '../ui/common.dart';
 import '../ui/dialogs.dart';
+import '../ui/math/math_keyboard.dart';
+import '../ui/math/math_preview.dart';
 import 'canvas_view.dart';
 import 'cards.dart';
 import 'connectors.dart';
 import 'gesture_overlay.dart';
 import 'gestures.dart';
+import 'graph_card.dart';
 import 'items.dart';
 import 'laser.dart';
+import 'math_mode.dart';
 import 'new_items.dart';
 import 'office_cards.dart';
 import 'page_runtime.dart';
@@ -46,6 +56,8 @@ import 'pens.dart';
 import 'ruler.dart';
 import 'selection.dart';
 import 'stroke_geometry.dart';
+
+part 'ink_canvas_math.dart';
 
 /// Eraser radius in screen px.
 const eraserRadius = 10.0;
@@ -232,6 +244,23 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   TextEditSession? _edit;
   Set<String> _editHidden = const {};
 
+  // Math (ink_canvas_math.dart).
+
+  /// Strokes written in math mode and not converted yet.
+  final _mathInk = <String>{};
+  Timer? _mathIdle;
+
+  /// The preview of the selected ink as math, and which strokes it's for.
+  PreviewState? _preview;
+  String? _previewLatex;
+  int _previewRun = 0;
+  Set<String> _previewFor = const {};
+
+  /// What the math keyboard is typing, and how it would look on the page.
+  MathDraft? _draftFor;
+  MathItem? _draftItem;
+  int _draftRun = 0;
+
   final _laser = LaserTrail();
   late final Ticker _laserTicker = createTicker((elapsed) {
     _laser.tick(elapsed);
@@ -262,8 +291,10 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     super.initState();
     pane.addListener(_paneChanged);
     pane.status.addListener(_statusChanged);
+    pane.math.addListener(_mathChanged);
     _selection.addListener(_overlay.ping);
     _selection.addListener(_selectionChanged);
+    _watchDraft();
   }
 
   @override
@@ -274,6 +305,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       oldWidget.pane.status.removeListener(_statusChanged);
       oldWidget.pane.selection.removeListener(_overlay.ping);
       oldWidget.pane.selection.removeListener(_selectionChanged);
+      oldWidget.pane.math.removeListener(_mathChanged);
+      widget.pane.math.addListener(_mathChanged);
       widget.pane.addListener(_paneChanged);
       widget.pane.status.addListener(_statusChanged);
       widget.pane.selection.addListener(_overlay.ping);
@@ -289,8 +322,13 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     setState(() {});
   }
 
-  /// Convert to text closes when what it was for is no longer selected.
+  /// setState, for ink_canvas_math.dart's extension.
+  void _rebuild([VoidCallback? change]) => setState(change ?? () {});
+
+  /// Convert to text closes when what it was for is no longer selected; a
+  /// math selection is read for its preview.
   void _selectionChanged() {
+    _mathSelectionChanged();
     final ids = _convertIds;
     if (ids == null || _convertPage || setEquals(_selection.ids, _convertFor)) return;
     setState(() => _convertIds = null);
@@ -305,6 +343,9 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   void dispose() {
     pane.removeListener(_paneChanged);
     pane.status.removeListener(_statusChanged);
+    pane.math.removeListener(_mathChanged);
+    _draftFor?.text.removeListener(_draftChanged);
+    _mathIdle?.cancel();
     _selection.removeListener(_overlay.ping);
     _selection.removeListener(_selectionChanged);
     _edit?.dispose();
@@ -638,9 +679,12 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _shapeId = newId('it');
       case CanvasTool.pen || CanvasTool.marker || CanvasTool.eraser:
         _selection.clear();
+        _mathIdle?.cancel();
         final top = topBoxAt(_page.items, page);
-        if (top is OfficeItem && officeButtonAt(top, top.toLocal(page)) != null) {
-          // The pen presses an Office card's Open and page arrows.
+        if ((top is OfficeItem && officeButtonAt(top, top.toLocal(page)) != null) ||
+            (top is MathItem && pane.math.on && settings.tool != CanvasTool.eraser)) {
+          // The pen presses an Office card's Open and page arrows; in math
+          // mode it taps typeset math to edit it.
           _drag = _Drag.tap;
           _tapDown = e.localPosition;
           _tapMoved = false;
@@ -908,7 +952,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       active.opacity = 1;
       _status(null);
     }
-    if (!ref.read(settingsProvider).snap || _rulerEdge != null) return;
+    // Math is kept as it's written: no straightening into shapes.
+    if (!ref.read(settingsProvider).snap || _rulerEdge != null || pane.math.on) return;
     _holdTimer = Timer(holdPreview, _holdBegan);
   }
 
@@ -1020,6 +1065,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         }
       }
       _putStroke(raw);
+      _wroteMath(raw);
       if (shaped != null) {
         _swapStroke(shaped);
         _toast(message!);
@@ -1030,8 +1076,9 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   }
 
   /// [raw] with the flick at either end turned into an arrowhead, or null.
+  /// Not in math mode: a 2 or a z ends in what looks like a flick.
   StrokeItem? _arrowFrom(StrokeItem raw, AppSettings settings) {
-    final flicks = settings.arrows && _rulerEdge == null
+    final flicks = settings.arrows && _rulerEdge == null && !pane.math.on
         ? detectFlicks(
             active.points,
             times: active.times,
@@ -1170,6 +1217,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   /// Where the handles are on screen (none while the selection is dragged).
   SelectionHandles? _handles() {
     if (_selection.isEmpty ||
+        // Math picked up for converting is outlined only (Math.png).
+        _selection.menu == SelectionMenu.math ||
         _selection.live != null ||
         _drag == _Drag.stretch ||
         _drag == _Drag.connectorEnd ||
@@ -1292,6 +1341,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     if (loop.length < 3 || pathLength(loop) < 20 * _unit) return;
     final picked = itemsInPolygon(loop, _selectable(_boundsOf(loop)));
     if (picked.isEmpty) return;
+    if (pane.math.on) _selection.menu = SelectionMenu.math;
     _selection.select(
       [for (final i in picked) i.id],
       outline: Path()..addPolygon(loop, true),
@@ -1380,6 +1430,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       // A sticky note with handwriting on it: Convert to text first.
       if (one is StickyItem && one.ink.any(isHandwriting)) SelectionAction.convert,
       if (one is TextItem || (one is StickyItem && !one.isStack)) SelectionAction.edit,
+      if (one is MathItem) ...[SelectionAction.editMath, SelectionAction.copyLatex],
+      if (one is GraphItem) SelectionAction.copyLatex,
       if (one is CardItem) SelectionAction.editCard,
       if (one is CardItem && one.data is EmbedData) SelectionAction.open,
       if (one is OfficeItem) ...[SelectionAction.open, SelectionAction.replaceFile],
@@ -1387,7 +1439,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       if (one == null && _onlyStickies) SelectionAction.stack,
       if (one is FrameItem) SelectionAction.rename,
       SelectionAction.copy,
-      if (items.any((i) => i is TextItem || i is StickyItem || i is ShapeItem)) SelectionAction.color,
+      if (items.any((i) => i is TextItem || i is StickyItem || i is ShapeItem || i is MathItem)) SelectionAction.color,
       SelectionAction.toFront,
       SelectionAction.toBack,
       SelectionAction.delete,
@@ -1421,6 +1473,14 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
           _convertPage = false;
           _convertFor = _selection.ids;
         });
+      case SelectionAction.convertMath:
+        _convertToMath();
+      case SelectionAction.graphIt:
+        _graphIt();
+      case SelectionAction.copyLatex:
+        _copyLatex();
+      case SelectionAction.editMath:
+        if (items.singleOrNull case final MathItem m) _editMath(m);
       case SelectionAction.remember:
         showComingSoon(context, 'Need to remember');
       case SelectionAction.flashcard:
@@ -1541,6 +1601,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
           StickyItem s when paper => s.copyWith(color: color),
           StrokeItem s when !paper => s.copyWith(color: color),
           TextItem t when !paper => t.copyWith(color: color),
+          MathItem m when !paper => m.copyWith(color: color),
           ShapeItem s when !paper => s.copyWith(stroke: color),
           _ => null,
         },
@@ -1783,6 +1844,16 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     final page = _page;
     final now = DateTime.now().toUtc();
     final settings = ref.read(settingsProvider);
+    // A tap on typeset math edits it; in math mode, a tap on the paper
+    // types new math there.
+    if (topBoxAt(page.items, at, slop: 4 * _unit) case final MathItem m when settings.tool != CanvasTool.eraser) {
+      _editMath(m);
+      return;
+    }
+    if (pane.math.on && !settings.tool.places && topBoxAt(page.items, at) == null) {
+      _typeMathAt(at);
+      return;
+    }
     if (!settings.tool.places) {
       // Any other tool: a tap only presses a website card's Open button,
       // or an Office card's Open and page arrows.
@@ -2011,7 +2082,9 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
     // Leaving select and lasso (or an undo removing items) updates the selection.
     if (_selection.isNotEmpty) {
-      final keep = settings.tool.selects && widget.writable && !_viewOnly;
+      final keep = (settings.tool.selects || (pane.math.on && _selection.menu == SelectionMenu.math)) &&
+          widget.writable &&
+          !_viewOnly;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         if (!keep) {
@@ -2098,8 +2171,14 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
             chrome: widget.chrome,
           )
         else if (_canInk) ...[
+          if (_draftItem case final draft?)
+            IgnorePointer(
+              child: CustomPaint(painter: _MathDraftPainter(_vp, draft, brightness, colors, ref.read(mathPicturesProvider))),
+            ),
           _toolbar(),
           if (_convertIds != null) _convertPanel(),
+          _mathPreview(),
+          if (pane.math.draft case final draft?) _mathKeyboard(draft),
         ],
       ]);
     });
@@ -2183,6 +2262,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   Set<String> _hidden() {
     if (_selection.live != null || _drag == _Drag.stretch || _drag == _Drag.connectorEnd) return _moving;
     if (_edit != null) return _editHidden;
+    if (_draftItem != null && pane.math.draft?.itemId != null) return {pane.math.draft!.itemId!};
     return _overlay.scribble;
   }
 
@@ -2190,10 +2270,11 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         listenable: Listenable.merge([_selection, _vp, _overlay]),
         builder: (context, _) {
           final handles = _handles();
-          final box = handles == null ? null : _screenBox();
-          if (handles == null || box == null) return const SizedBox.shrink();
+          final forMath = _selection.menu == SelectionMenu.math && _selection.isNotEmpty && _selection.live == null && _canInk;
+          final box = handles == null && !forMath ? null : _screenBox();
+          if (box == null) return const SizedBox.shrink();
           return CustomSingleChildLayout(
-            delegate: _ToolbarLayout(box, widget.chrome, math.max(box.bottom, handles.bounds.bottom)),
+            delegate: _ToolbarLayout(box, widget.chrome, math.max(box.bottom, handles?.bounds.bottom ?? box.bottom), under: forMath),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2217,10 +2298,13 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 /// it (Convert.dc.html), or below it (RememberMark.dc.html) when the top
 /// chrome is in the way.
 class _ToolbarLayout extends SingleChildLayoutDelegate {
-  _ToolbarLayout(this.box, this.chrome, this.handlesBottom);
+  _ToolbarLayout(this.box, this.chrome, this.handlesBottom, {this.under = false});
 
   final Rect box;
   final EdgeInsets chrome;
+
+  /// Under the selection (Math.dc.html), above it only when there's no room.
+  final bool under;
 
   /// Where the handles (with the rotate knob) end, on screen.
   final double handlesBottom;
@@ -2231,6 +2315,11 @@ class _ToolbarLayout extends SingleChildLayoutDelegate {
   @override
   Offset getPositionForChild(Size size, Size child) {
     final left = box.left.clamp(chrome.left, math.max(chrome.left, size.width - child.width - chrome.right)).toDouble();
+    if (under) {
+      final below = box.bottom + 8;
+      if (below + child.height <= size.height - chrome.bottom) return Offset(left, below);
+      return Offset(left, math.max(chrome.top, box.top - 8 - child.height));
+    }
     // The bar itself is 46 px; the color swatches hang below it.
     var top = box.top - 12 - 46;
     if (top < chrome.top) {
@@ -2242,7 +2331,7 @@ class _ToolbarLayout extends SingleChildLayoutDelegate {
 
   @override
   bool shouldRelayout(_ToolbarLayout old) =>
-      old.box != box || old.chrome != chrome || old.handlesBottom != handlesBottom;
+      old.box != box || old.chrome != chrome || old.handlesBottom != handlesBottom || old.under != under;
 }
 
 /// Puts Convert to text 18 px under the selection, left-aligned with it

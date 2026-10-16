@@ -624,6 +624,184 @@ class TextItem extends BoxItem {
       };
 }
 
+/// Typeset math (Math.png): [latex] on a card. `size` is the math's font
+/// size in page px. The box (`w`, `h`, the card's padding included) is
+/// stored, because typesetting is asynchronous; the math is fitted into it.
+class MathItem extends BoxItem {
+  MathItem({
+    required super.id,
+    required super.x,
+    required super.y,
+    super.rotation,
+    required super.z,
+    required super.createdAt,
+    super.author,
+    super.remember,
+    super.extra,
+    required this.latex,
+    required this.w,
+    required this.h,
+    this.size = 32,
+    required this.color,
+  });
+
+  final String latex;
+  @override
+  final double w;
+  @override
+  final double h;
+  final double size;
+  final Color color;
+
+  /// The card's padding around the math, for a font [size].
+  static EdgeInsets padding(double size) => EdgeInsets.symmetric(horizontal: size * 0.44, vertical: size * 0.25);
+
+  /// The box for math typeset at [natural] (at [reference] px) shown at [size].
+  static Size boxFor(Size natural, double reference, double size) {
+    final pad = padding(size);
+    return Size(natural.width * size / reference + pad.horizontal, natural.height * size / reference + pad.vertical);
+  }
+
+  @override
+  String get type => 'math';
+
+  MathItem copyWith({String? latex, double? w, double? h, Color? color, double? x, double? y}) => MathItem(
+        id: id,
+        x: x ?? this.x,
+        y: y ?? this.y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        latex: latex ?? this.latex,
+        w: w ?? this.w,
+        h: h ?? this.h,
+        size: size,
+        color: color ?? this.color,
+      );
+
+  @override
+  MathItem withBox({
+    String? id,
+    int? z,
+    DateTime? createdAt,
+    required double x,
+    required double y,
+    required double w,
+    required double h,
+    double? rotation,
+    double scale = 1,
+  }) =>
+      MathItem(
+        id: id ?? this.id,
+        x: x,
+        y: y,
+        rotation: rotation ?? this.rotation,
+        z: z ?? this.z,
+        createdAt: createdAt ?? this.createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        latex: latex,
+        w: w,
+        h: h,
+        // Stretched by a corner: the math grows with the card.
+        size: scale == 1 ? size * math.min(w / this.w, h / this.h) : size * scale,
+        color: color,
+      );
+
+  @override
+  Json toJson() => {...boxJson(), 'latex': latex, 'size': round1(size), 'color': colorToHex(color)};
+}
+
+/// One function on a graph: LaTeX (`y = x^{2}/2`) and its line's color.
+@immutable
+class GraphLine {
+  const GraphLine(this.expr, this.color);
+
+  final String expr;
+  final Color color;
+
+  Json toJson() => {'expr': expr, 'color': colorToHex(color)};
+
+  @override
+  bool operator ==(Object other) => other is GraphLine && other.expr == expr && other.color == color;
+
+  @override
+  int get hashCode => Object.hash(expr, color);
+}
+
+/// A 2D graph of functions of x (Graph.png's plot). [view] is the window:
+/// x from `xMin` to `xMax`, y from `yMin` to `yMax`.
+class GraphItem extends BoxItem {
+  GraphItem({
+    required super.id,
+    required super.x,
+    required super.y,
+    super.rotation,
+    required super.z,
+    required super.createdAt,
+    super.author,
+    super.remember,
+    super.extra,
+    required this.w,
+    required this.h,
+    required this.functions,
+    required this.view,
+  });
+
+  @override
+  final double w;
+  @override
+  final double h;
+  final List<GraphLine> functions;
+  final Rect view;
+
+  /// A graph is 560 wide when it is added; its parts scale with it.
+  double get unit => w / 560;
+
+  @override
+  String get type => 'graph';
+
+  @override
+  GraphItem withBox({
+    String? id,
+    int? z,
+    DateTime? createdAt,
+    required double x,
+    required double y,
+    required double w,
+    required double h,
+    double? rotation,
+    double scale = 1,
+  }) =>
+      GraphItem(
+        id: id ?? this.id,
+        x: x,
+        y: y,
+        rotation: rotation ?? this.rotation,
+        z: z ?? this.z,
+        createdAt: createdAt ?? this.createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        w: w,
+        h: h,
+        functions: functions,
+        view: view,
+      );
+
+  @override
+  Json toJson() => {
+        ...boxJson(),
+        'mode': '2d',
+        'functions': [for (final f in functions) f.toJson()],
+        'view': {'xMin': view.left, 'xMax': view.right, 'yMin': view.top, 'yMax': view.bottom},
+      };
+}
+
 /// A note under the top one in a stack.
 @immutable
 class StickyNote {

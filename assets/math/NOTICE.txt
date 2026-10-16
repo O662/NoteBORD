@@ -1,0 +1,17 @@
+Handwritten math recognition model
+==================================
+
+encoder.onnx and decoder.onnx are the CoMER model (Zhao and Gao, "CoMER:
+Modeling Coverage for Transformer-based Handwritten Mathematical
+Expression Recognition", ECCV 2022, https://arxiv.org/abs/2207.04410),
+from the checkpoint published at https://github.com/Green-Wood/CoMER
+(lightning_logs/version_0). tool/math_model/ re-implements the network,
+loads those weights (tensors only), exports it to ONNX as an encoder and a
+cached step decoder, and stores the weights as 8-bit integers.
+
+The checkpoint was trained on the CROHME 2014 data set, which is
+distributed for research under Creative Commons BY-NC-SA 3.0. The CoMER
+repository itself carries no license. Treat this model as suitable for
+personal, non-commercial use: before Endless is sold or otherwise used
+commercially, replace it with a model trained on data whose license allows
+that (tool/math_model/README.md says how the app expects a model).

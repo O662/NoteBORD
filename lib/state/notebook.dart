@@ -15,6 +15,7 @@ import '../canvas/connectors.dart';
 import '../canvas/office_cards.dart';
 import '../canvas/page_runtime.dart';
 import '../library/library.dart';
+import '../math/math_pictures.dart';
 import '../office/office_model.dart';
 import '../office/office_reader.dart';
 import '../office/office_render.dart';
@@ -198,6 +199,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
   late ImageDecoder _decode;
   late NotebookImages _images;
   late NotebookDocs _docs;
+  late MathPictures _math;
   late HandwritingIndex _index;
 
   /// The notebook and its pages, as in [state]. Saving reads these, since
@@ -229,6 +231,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
     _decode = ref.read(imageDecoderProvider);
     final images = _images = NotebookImages(read: _readAsset, decode: _decode, onLoaded: _imageLoaded);
     final docs = _docs = NotebookDocs(read: _readAsset, parse: ref.read(officeParserProvider), decode: _decode, onLoaded: _imageLoaded);
+    final pictures = _math = ref.read(mathPicturesProvider)..addListener(_mathTypeset);
     final pages = _pages = [for (final p in loaded.pages) _runtime(p)];
     _notebook = loaded.notebook;
 
@@ -254,6 +257,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
       }
       images.dispose();
       docs.dispose();
+      pictures.removeListener(_mathTypeset);
     });
     return NotebookState(
       notebook: loaded.notebook,
@@ -267,7 +271,10 @@ class NotebookNotifier extends Notifier<NotebookState> {
 
   PageRuntime? _pageById(String pageId) => state.pages.where((p) => p.id == pageId).firstOrNull;
 
-  PageRuntime _runtime(BoardPage page) => PageRuntime(page, images: _images.lookup, docs: _docs);
+  PageRuntime _runtime(BoardPage page) => PageRuntime(page, images: _images.lookup, docs: _docs, math: _math);
+
+  /// Math typeset for drawing, here and in exports.
+  MathPictures get mathPictures => _math;
 
   /// The notebook's Word, PowerPoint and Excel files, for drawing their cards.
   OfficeSource get docs => _docs;
@@ -585,6 +592,19 @@ class NotebookNotifier extends Notifier<NotebookState> {
   Future<Uint8List?> readAsset(String name) => _readAsset(name);
 
   // Image files.
+
+  /// A formula is typeset: pages with math are drawn again.
+  void _mathTypeset() {
+    if (!ref.mounted) return;
+    var any = false;
+    for (final p in state.pages) {
+      if (p.items.any((i) => i is MathItem || i is GraphItem)) {
+        p.invalidate();
+        any = true;
+      }
+    }
+    if (any) state = state.copyWith(revision: state.revision + 1);
+  }
 
   void _imageLoaded(String asset) {
     if (!ref.mounted) return;

@@ -5,10 +5,13 @@ import 'dart:ui' show Brightness;
 import 'package:flutter/painting.dart';
 
 import '../board/model.dart';
+import '../math/linear.dart' show latexToLinear;
+import '../math/math_pictures.dart' show MathPicture, MathSource, mathFontFallback;
 import '../templates/templates.dart';
 import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
 import 'cards.dart';
+import 'graph_card.dart';
 import 'office_cards.dart';
 import 'page_runtime.dart' show paintStroke;
 import 'stroke_geometry.dart' show segmentDistance;
@@ -77,6 +80,7 @@ void paintBoxItem(
   EndlessColors c, {
   ImageLookup? images,
   OfficeSource? docs,
+  MathSource? math,
 }) {
   canvas
     ..save()
@@ -88,6 +92,10 @@ void paintBoxItem(
       final painter = layoutText(t.text, t.font, t.size, t.wrap, color: displayInk(t.color, brightness));
       painter.paint(canvas, Offset.zero);
       painter.dispose();
+    case MathItem m:
+      paintMathCard(canvas, m, brightness, c, math);
+    case GraphItem g:
+      paintGraphCard(canvas, g, brightness, c, math);
     case StickyItem s:
       _paintSticky(canvas, s, c);
     case FrameItem f:
@@ -112,6 +120,70 @@ void paintBoxItem(
       );
   }
   canvas.restore();
+}
+
+/// Math on its card (Math.dc.html: 12 radius, 1 px border, at 32 px math),
+/// typeset and fitted into the box, in the item's ink color. Until it's
+/// typeset, the keyboard's text for it stands in.
+void paintMathCard(Canvas canvas, MathItem m, Brightness brightness, EndlessColors c, MathSource? source) {
+  final k = m.size / 32;
+  final rect = Offset.zero & Size(m.w, m.h);
+  final card = RRect.fromRectAndRadius(rect, Radius.circular(12 * k));
+  canvas
+    ..drawRRect(card, Paint()..color = c.surface)
+    ..drawRRect(
+      card.deflate(0.5 * k),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = k
+        ..color = c.line,
+    );
+  final inner = MathItem.padding(m.size).deflateRect(rect);
+  if (inner.isEmpty) return;
+  final ink = displayInk(m.color, brightness);
+  final typeset = source?.picture(m.latex);
+  if (typeset == null) {
+    final text = TextPainter(
+      text: TextSpan(
+        text: latexToLinear(m.latex),
+        style: TextStyle(
+          fontFamily: FontFamilies.serif,
+          fontFamilyFallback: mathFontFallback,
+          fontStyle: FontStyle.italic,
+          fontSize: m.size * 0.8,
+          color: ink,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: inner.width);
+    text.paint(canvas, Offset(inner.left, inner.center.dy - text.height / 2));
+    text.dispose();
+    return;
+  }
+  final scale = math.min(inner.width / typeset.size.width, inner.height / typeset.size.height);
+  final drawn = typeset.size * scale;
+  canvas
+    ..save()
+    ..translate(inner.center.dx - drawn.width / 2, inner.center.dy - drawn.height / 2)
+    ..scale(scale)
+    // Typeset in black: painted in the ink's color.
+    ..saveLayer(Offset.zero & typeset.size, Paint()..colorFilter = ColorFilter.mode(ink, BlendMode.srcIn))
+    ..drawPicture(typeset.picture)
+    ..restore()
+    ..restore();
+}
+
+/// One formula typeset, as a [MathSource] (for exports).
+class SingleMath implements MathSource {
+  const SingleMath(this.latex, this.typeset);
+
+  final String latex;
+  final MathPicture? typeset;
+
+  @override
+  MathPicture? picture(String latex) => latex == this.latex ? typeset : null;
 }
 
 /// A CSS box shadow under [rect]: `0 dy blur spread color`.
@@ -360,7 +432,8 @@ BoxItem? topBoxAt(List<Item> inZOrder, Offset page, {double slop = 0}) {
 List<int> stretchSides(BoxItem item) => switch (item) {
       TextItem _ => const [1, 3],
       ShapeItem s when s.isLine => const [1, 3],
-      ImageItem _ => const [],
+      // Math only scales (by a corner), so it keeps its shape.
+      ImageItem _ || MathItem _ => const [],
       _ => const [0, 1, 2, 3],
     };
 

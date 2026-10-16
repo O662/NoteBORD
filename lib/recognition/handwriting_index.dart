@@ -8,6 +8,7 @@ import '../board/model.dart';
 import '../board/store.dart';
 import '../library/index_db.dart';
 import '../library/library.dart';
+import '../math/linear.dart' show mathSearchText;
 import '../search/search_text.dart';
 import '../state/settings.dart';
 import '../transfer/pdf_export.dart' show HandwritingText, RecognizedHandwriting, cardText;
@@ -592,6 +593,10 @@ List<SearchRow> rowsFor(String notebookId, BoardPage page, PageRecognition? read
     switch (item) {
       case TextItem t when t.text.trim().isNotEmpty:
         rows.add(typed(t, t.text.trim(), t.extent));
+      case MathItem m when m.latex.trim().isNotEmpty:
+        rows.add(typed(m, mathSearchText(m.latex), m.extent));
+      case GraphItem g when g.functions.isNotEmpty:
+        rows.add(typed(g, ['Graph', for (final f in g.functions) mathSearchText(f.expr)].join(' '), g.extent));
       case StickyItem s:
         final text = [
           for (final i in s.items)

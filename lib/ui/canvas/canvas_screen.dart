@@ -8,10 +8,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../board/ids.dart';
 import '../../canvas/canvas_view.dart';
-import '../../board/model.dart' show OfficeItem, StickyItem, TextItem;
+import '../../board/model.dart' show MathItem, OfficeItem, StickyItem, TextItem;
 import '../../canvas/ink_canvas.dart';
+import '../../canvas/math_mode.dart';
 import '../../canvas/pane.dart';
 import '../../library/library.dart';
+import '../../math/math_pictures.dart';
 import '../../spelling/dictionary.dart';
 import '../../state/notebook.dart';
 import '../../state/settings.dart';
@@ -20,6 +22,8 @@ import '../common.dart';
 import '../dialogs.dart';
 import '../lock/lock_dialog.dart';
 import '../lock/unlock.dart';
+import '../math/formulas_panel.dart';
+import '../math/math_bar.dart';
 import '../routes.dart';
 import '../spell/dictionary_drawer.dart';
 import '../spell/spell_mode.dart';
@@ -51,6 +55,8 @@ const toolHints = {
 const boardHint = 'The whole board · tap anywhere to zoom in there';
 
 const rulerHint = 'Two fingers rotate the ruler · the pen snaps to its edge';
+
+const mathHint = 'Write math with the pen and pause · tap with a finger to type it';
 
 /// What the ⋯ menu items open, until their screens exist.
 const _moreFeatures = {
@@ -226,6 +232,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
       ref.read(notebookProvider(pane.notebookId).notifier).flush();
     });
     pane.addListener(_paneChanged);
+    pane.math.addListener(_mathChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _recordOpened();
       _showSpot();
@@ -236,6 +243,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
   @override
   void dispose() {
     pane.removeListener(_paneChanged);
+    pane.math.removeListener(_mathChanged);
     _spell?.dispose();
     _lifecycle.dispose();
     _hintTimer?.cancel();
@@ -355,6 +363,12 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
   void _pickRailItem(RailItem item) {
     _closeMenus();
     switch (item.label) {
+      case 'Math & graphs':
+        _startMath();
+      case 'Math tools':
+        // The formulas and symbols; the number line, unit circle and polar
+        // grid come later.
+        _startMath(panel: 2);
       case 'Spell check':
         _startSpell();
       case 'Dictionary & thesaurus':
@@ -362,6 +376,92 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
       default:
         handleRailItem(context, ref, pane, item, _comingSoon, hint: _showHint);
     }
+  }
+
+  // Math mode (Math.png, MathKit.png).
+
+  void _startMath({int? panel}) {
+    _endSpell();
+    pane
+      ..dismiss()
+      ..selection.clear();
+    final mode = pane.math;
+    mode.start();
+    if (panel != null) mode.openPanel(panel);
+    final settings = ref.read(settingsProvider.notifier);
+    if (!ref.read(settingsProvider).tool.inks || ref.read(settingsProvider).tool == CanvasTool.marker) {
+      settings.apply((s) => s.copyWith(tool: CanvasTool.pen));
+    }
+    setState(() {
+      _popover = false;
+      _dict = false;
+    });
+    _showHint(mathHint);
+  }
+
+  void _endMath() {
+    pane.math.end();
+    ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: CanvasTool.pen));
+    _showHint(toolHints[CanvasTool.pen]);
+  }
+
+  /// Lasso in the math bar picks the lasso tool (and back to the pen).
+  void _mathChanged() {
+    final mode = pane.math;
+    if (mode.on) {
+      final want = mode.lasso ? CanvasTool.lasso : CanvasTool.pen;
+      final tool = ref.read(settingsProvider).tool;
+      if (tool != want && (tool == CanvasTool.pen || tool == CanvasTool.lasso)) {
+        ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: want));
+        _showHint(mode.lasso ? 'Circle the math to convert, graph or copy' : mathHint);
+      }
+    }
+    if (mounted) setState(() {});
+  }
+
+  /// Add a graph: type the function, and Insert graphs it.
+  void _addGraph() {
+    final view = pane.view;
+    final at = view.toPage(Offset(view.size.width * 0.25, view.size.height * 0.3));
+    pane.math.type(MathDraft(at: at, text: 'y = ', graph: true));
+  }
+
+  /// Where math added from the formulas panel goes: the middle of what's
+  /// showing, beside the panel.
+  Offset _middle() {
+    final view = pane.view;
+    final size = view.size;
+    final right = pane.math.panel ? 14 + FormulasPanel.width + 16 : 16;
+    return view.toPage(Offset((80 + size.width - right) / 2, (84 + size.height - 80) / 2));
+  }
+
+  /// A formula or symbol from the panel: typed into the keyboard when it's
+  /// open, else added to the page.
+  Future<void> _addFromPanel(String latex, String label, {String? types, int? cursor}) async {
+    if (types != null && pane.math.insert(types, cursor: cursor)) return;
+    final nb = ref.read(notebookProvider(pane.notebookId));
+    final page = nb.pageAt(pane.page);
+    if (nb.isSealed(page.id)) return;
+    final typeset = await ref.read(mathPicturesProvider).load(latex);
+    if (!mounted) return;
+    const size = 32.0;
+    final box = MathItem.boxFor(typeset?.size ?? Size(latex.length * 18.0, 56), mathReferenceSize, size);
+    final mid = _middle();
+    final now = DateTime.now().toUtc();
+    ref.read(notebookProvider(pane.notebookId).notifier).insertItems(page.id, [
+      MathItem(
+        id: newId('it', now: now),
+        x: mid.dx - box.width / 2,
+        y: mid.dy - box.height / 2,
+        z: page.nextZ,
+        createdAt: now,
+        latex: latex,
+        w: box.width,
+        h: box.height,
+        color: ref.read(settingsProvider).penColor,
+      ),
+    ]);
+    pane.toast('Added $label to the page', undoPageId: page.id);
   }
 
   // Spell check and the dictionary (Spell.png).
@@ -374,6 +474,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
 
   void _startSpell() {
     if (_spell != null) return;
+    if (pane.math.on) pane.math.end();
     pane
       ..dismiss()
       ..selection.clear();
@@ -560,13 +661,18 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     if (sealed && _board) _board = false;
     if (sealed && _spell != null) WidgetsBinding.instance.addPostFrameCallback((_) => _endSpell());
     final spelling = _spell != null && !sealed;
+    final mode = pane.math;
+    final mathOn = mode.on && !sealed;
     final chrome = !_full && !_board;
-    final tools = chrome && !sealed && !spelling;
-    // The dictionary drawer covers the pages rail, the map and the zoom pill.
-    final right = !spelling && !_dict;
+    final tools = chrome && !sealed && !spelling && !mathOn;
+    // The dictionary drawer covers the pages rail, the map and the zoom pill;
+    // math mode has neither (Math.png).
+    final right = !spelling && !_dict && !mathOn;
+    final panel = mathOn && mode.panel && chrome;
     final mapShown = tools && right && settings.mapOpen;
     final blocking = tools && (_more || (_pinned && _fly != null));
-    final hintShown = !sealed && _hint != null && !_popover && !blocking;
+    // The math keyboard is where the hint would be.
+    final hintShown = !sealed && _hint != null && !_popover && !blocking && pane.math.draft == null;
 
     return Scaffold(
       body: CallbackShortcuts(
@@ -576,6 +682,9 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
           const SingleActivator(LogicalKeyboardKey.keyY, control: true): () => notebook.redo(pageId),
           const SingleActivator(LogicalKeyboardKey.escape): () {
             if (_spell != null) return _endSpell();
+            if (pane.math.draft != null) return pane.math.closeKeyboard();
+            if (pane.math.panel) return pane.math.closePanel();
+            if (pane.math.on) return _endMath();
             _closeMenus();
             pane
               ..dismiss()
@@ -602,7 +711,11 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                     tools && (settings.trayOpen || settings.tool == CanvasTool.laser || settings.tool == CanvasTool.shape)
                         ? 128
                         : 84,
-                    _dict ? _drawerReach : (chrome && settings.pagesOpen ? 124 : 60),
+                    _dict
+                        ? _drawerReach
+                        : panel
+                            ? 14 + FormulasPanel.width + 16
+                            : (chrome && settings.pagesOpen && !mathOn ? 124 : 60),
                     16,
                   ),
                 ),
@@ -656,7 +769,17 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                         moreOpen: _more,
                         onToggleMore: _toggleMore,
                         onShare: () => showShareDialog(context, pane),
-                        center: spelling ? SpellBar(spell: _spell!, onDone: _endSpell) : null,
+                        center: spelling
+                            ? SpellBar(spell: _spell!, onDone: _endSpell)
+                            : mathOn
+                                ? MathBar(
+                                    math: mode,
+                                    compact: box.maxWidth < 1100,
+                                    onFormulas: () => mode.panel ? mode.closePanel() : mode.openPanel(),
+                                    onAddGraph: _addGraph,
+                                    onDone: _endMath,
+                                  )
+                                : null,
                       ),
                     ),
                   if (tools && settings.tool == CanvasTool.laser && !_popover)
@@ -675,7 +798,8 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                   if (!sealed && !blocking)
                     Positioned(
                       left: 0,
-                      right: 0,
+                      // Centered on the page beside the formulas panel.
+                      right: panel ? 14 + FormulasPanel.width + 16 : 0,
                       bottom: 20,
                       child: Center(
                         child: GestureStatus(pane: pane, orElse: hintShown ? HintPill(text: _hint!) : null),
@@ -720,6 +844,17 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                         onClose: () => setState(() => _dict = false),
                         onAddDefinition: _addDefinition,
                         onFlashcard: () => _comingSoon('Making flashcards'),
+                      ),
+                    ),
+                  if (panel)
+                    Positioned(
+                      right: 14,
+                      top: 84,
+                      bottom: 16,
+                      child: FormulasPanel(
+                        math: mode,
+                        onFormula: (f) => _addFromPanel(formulaLatex(f), f.name, types: f.text),
+                        onSymbol: (s) => _addFromPanel(s.latex, s.label, types: s.types, cursor: s.cursor),
                       ),
                     ),
                   // The handwriting model downloading on first use.

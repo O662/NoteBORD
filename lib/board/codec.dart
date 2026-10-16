@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:ui' show Size;
+import 'dart:ui' show Rect, Size;
 
+import '../theme/tokens.g.dart' show inkDefaults;
 import 'model.dart';
 
 // JSON encoding for notebook.json and pages/<pageId>.json.
@@ -168,6 +169,44 @@ Item? _decodeKnown(Json json) {
         size: _num(json['size'], 22),
         color: colorFromHex(json['color'] as String),
         autoWidth: json['autoWidth'] == true,
+      );
+    case 'math':
+      return MathItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, const {..._boxKeys, 'latex', 'size', 'color'}),
+        latex: json['latex'] as String? ?? '',
+        w: (json['w'] as num).toDouble(),
+        h: (json['h'] as num).toDouble(),
+        size: _num(json['size'], 32),
+        color: json['color'] is String ? colorFromHex(json['color'] as String) : inkDefaults.first,
+      );
+    case 'graph':
+      final view = (json['view'] as Map?)?.cast<String, dynamic>() ?? const {};
+      return GraphItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, const {..._boxKeys, 'mode', 'functions', 'view'}),
+        w: (json['w'] as num).toDouble(),
+        h: (json['h'] as num).toDouble(),
+        functions: [
+          for (final f in (json['functions'] as List?) ?? const [])
+            if (f is Map && f['expr'] is String)
+              GraphLine(f['expr'] as String, f['color'] is String ? colorFromHex(f['color'] as String) : inkDefaults[1]),
+        ],
+        view: Rect.fromLTRB(_num(view['xMin'], -5), _num(view['yMin'], -5), _num(view['xMax'], 5), _num(view['yMax'], 5)),
       );
     case 'sticky':
       final stack = json['stack'] as Map?;

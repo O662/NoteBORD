@@ -410,6 +410,55 @@ Three options were put to the owner on 2026-10-15: (A) cut letters out of everyd
 - The card's Look up, Ignore and Add to my dictionary are 40 dp tall, as in the design (under the 44 dp target).
 - The app is about 11 MB bigger for the word list and dictionary.
 
+## Phase 6a: math mode — built; the model checked on Windows, not yet tried on the tablet
+
+The owner's request (2026-10-15). Three recognizers were put to the owner: MyScript iink, ML Kit with our own parser, and an open model on the device. **The owner chose the open model**: it works fully offline, runs on Linux too, costs nothing, and can't be withdrawn by a vendor. Graphs you can trace, 3D, and the number line, unit circle and polar grid (Graph.png, the rest of MathKit.png) are the next part of Phase 6.
+
+**Recognizer.**
+- **The model.** CoMER (ECCV 2022) runs on the device through ONNX Runtime (`flutter_onnxruntime` 1.9.0), with no network and no account. It is the same on Android, iOS, Windows, Linux, macOS and web.
+- **Size.** The weights ship with the app as 8-bit integers: `assets/math/`, 7.3 MB.
+- **How it was built.** The network was re-implemented from the paper's code. The published checkpoint was loaded as tensors only, then exported as an encoder plus a step-by-step decoder that keeps its caches on the native side (`tool/math_model/`, with a README).
+- **Accuracy.** 62.9% of CROHME 2014's handwritten expressions come out exactly right (the paper reports 59.3%); the 8-bit model scores 62.0% against 62.3% at full precision. On real pen strokes from Google's MathWriting it gets 36%, but that set is long Wikipedia formulas.
+- **Licence: personal, non-commercial use.** The checkpoint was trained on CROHME (CC BY-NC-SA), and so is every open handwritten-math model checked. It must be replaced before Endless is sold. The app only needs two ONNX files with the same inputs (`assets/math/NOTICE.txt`, `tool/math_model/README.md`).
+
+| Item | Status | Where |
+|---|---|---|
+| Reading math | The selected strokes are drawn as the model expects: white on black, 3 px lines, writing 30 px tall, at most 256 × 1024 px. Then a beam search (10 wide) runs left-to-right and right-to-left in the same steps, and each answer is rescored by the other direction, as in CoMER. The result is written as compact LaTeX (`\frac{1}{2}mv^{2}`), its braces mended if the model left one open, and kept only if the typesetter can draw it. One reading at a time; the last 24 are remembered, so the preview and Convert don't read the same ink twice. Model files are copied out of the app once, to a folder named for the model's version | `lib/math/ink_image.dart`, `decoder.dart`, `onnx_math.dart`, `math_reader.dart`, `latex.dart` |
+| Speed | On this PC's Windows debug build, 0.6–1.9 s per expression; most of that is Windows' message loop answering the plugin. The plugin's Android side runs on a background thread. Typesetting takes about 10 ms a formula (180 ms for the first) | `integration_test/math_model_test.dart` |
+| Math mode (Math.png) | Study & math → Math & graphs. The tool pill becomes the dark bar: "∑ Math mode · Handwriting converts as you go", Lasso, Formulas & tools, Add a graph, Done. The rail, pages rail, map and zoom pill go. The pen writes. Hint: "Write math with the pen and pause · tap with a finger to type it". Done or Esc leaves (Esc first closes the keyboard, then the panel) | `lib/ui/math/math_bar.dart`, `CanvasScreen._startMath`, `lib/canvas/math_mode.dart` (`MathMode`, on the `Pane`) |
+| Converts as you go | 1.2 s after the pen lifts, what was just written in math mode is selected: the last stroke and the strokes within about a symbol's height of it, and of those. The lasso is dashed and rounded, as in the design, with no handles. Writing again carries on, and the next pause picks up the larger expression | `mathGroup`, `_wroteMath`, `_pickUpMath` (`lib/canvas/ink_canvas_math.dart`) |
+| Lasso | The bar's Lasso (not in the design: with the tool pill gone, it's how to circle math written earlier) picks the lasso tool. Whatever is circled in math mode gets the math toolbar | `CanvasScreen._mathChanged`, `_finishLasso` |
+| Toolbar and preview | Under the lasso, as Math.png has it: **∑ Convert to math**, Graph it, Copy as LaTeX. Right of the lasso (or under the toolbar, if there's no room) is "PREVIEW" with the reading typeset in a dashed box. While reading it says "Reading…"; it can also say "Can't read this as math. Try writing it again" or "Math can't be read on this device" | `SelectionToolbar` (`SelectionMenu.math`), `lib/ui/math/math_preview.dart`, `_PreviewLayout` |
+| Convert to math | The ink goes; typeset math goes where it was (from its left edge, centered on its line), sized to the writing (1.1 × the median letter height, 16–120 px), in the ink's color. One undo step; the message is "Converted to math — tap to edit · Undo" | `_convertToMath` |
+| Copy as LaTeX | The reading (or the selected math's LaTeX) goes on the clipboard: "Copied the LaTeX" | `_copyLatex` |
+| Graph it | A graph card of the function goes to the right of the ink; the ink stays. One undo step: "Graphed it · Undo". Something that isn't a function of x says "Only a function of x can be graphed, like y = x²". Functions are read from LaTeX by a small evaluator: `y=`, `f(x)=` or a bare expression; fractions, powers, roots, \|x\|, trig and inverse trig, ln, log, e, π and implied multiplication | `_graphIt`, `lib/math/evaluate.dart` |
+| Math on the page | A `math` item: LaTeX on a card (surface color, 1 px line, 12 radius at 32 px), typeset off screen once per formula into a vector picture, so it's in z-order with the ink, sharp at any zoom, and the same in thumbnails, the map and exports. It is tinted to the item's color, which Color changes. Corners scale it; its edges don't stretch. Until it's typeset, its keyboard text stands in | `MathItem`, `paintMathCard` (`lib/canvas/items.dart`), `lib/math/math_pictures.dart` |
+| Tap to edit | A finger tap on math, in any mode, opens the keyboard on it; so does a pen tap in math mode, and the selection toolbar's **∑ Edit math** (with Copy as LaTeX). While it's typed, the math on the page shows the edit, outlined in blue (Math.png's "typing it now"). Insert is one undo step ("Changed the math · Undo"); an empty line deletes it | `_editMath`, `_MathDraftPainter`, `_insertDraft` |
+| Math keyboard | At the bottom, 1060 wide.<br>• **The top row:** the line in Newsreader italic, Delete (repeats while held), Write it instead, Insert.<br>• **Four tabs** (Math.dc.html's sets): Greek (36 keys), Operators (36), Structures (24: fraction, powers, subscripts, roots, ∫ and ∫ₐᵇ, ∑, ∏, lim, d/dx, \|x\|, sin to ln, eˣ, bar, vector arrow, brackets, matrix, n!), Units (33).<br>• **Keys** are 12 to a row, 48 px tall, and type at the cursor; a bracket key leaves the cursor between its brackets.<br>• **Letters and digits** come from the tablet's keyboard, which waits for a tap on the line so it doesn't cover the keys.<br>• **New math:** a finger tap on empty paper in math mode starts it there | `lib/ui/math/math_keyboard.dart`, `math_keys.dart` |
+| Write it instead | The keys become a writing pad. 0.8 s after the pen lifts, the model reads the pad and its reading replaces the line; Clear starts again | `_WritingPad` |
+| The keyboard's text | Math as a line, both ways (LaTeX ⇄ text):<br>• **Fractions:** `a / b` is a fraction of the runs on each side (`Δθ / Δt`, `(a + b) / 2`); a space ends a run, so `1/2 mv²` is ½mv².<br>• **Scripts and roots:** `x^2`, `x²`, `v₀`, `x_(i+1)`, `√(…)`, `ⁿ√(…)`.<br>• **Big operators:** `∫_a^b`, `lim_(x→0)`.<br>• **Functions:** sin, cos, log…<br>• **Units:** `"m/s²"` is upright text.<br>• **Matrices:** `[[a, b], [c, d]]`.<br>• **Accents:** combining bar and arrow.<br>• **Anything else:** `\overline{AB}` passes through as LaTeX.<br>Editing recognized math turns its LaTeX into this text and back, keeping the same math | `lib/math/linear.dart` |
+| Formulas & symbols (MathKit.png) | Formulas & tools (or Study & math → Math tools) opens the 420-wide panel on the right, with tabs Math, Physics and Symbols. Math and Physics are MathKit.dc.html's 8 formulas each; Symbols is its 43-key keypad, 4 to a row and 80 px tall. A tap adds it to the middle of the page ("Added π to the page · Undo"), or types it into the keyboard when that's open ("Tap to type it"). The bar's Formulas & tools closes it, as in the design | `lib/ui/math/formulas_panel.dart`, `CanvasScreen._addFromPanel` |
+| Graphs on the page | A `graph` item, styled after Graph.png: "Graph" with its icon; the functions as chips with their color and typeset math; the plot with its grid, axes, every other line labelled, and the curves, broken at asymptotes. x runs from −5 to 5 and y fits the curve. Add a graph (in the bar) types a function (`y = …`) and Insert graphs it. Not editable yet | `GraphItem`, `lib/canvas/graph_card.dart` |
+| Search, exports, board files | Search finds math by its keyboard text and the names of its Greek letters ("omega"), and a graph by its functions. PDFs draw math and graphs as pictures with their text in the text layer; the picture export draws them too. Both round-trip through board files (docs/BOARD_FORMAT.md) | `handwriting_index.dart`, `pdf_export.dart`, `transfer.dart` |
+| Ink stays as written in math mode | Found by running the real model in the app: a 2's turn into its base line looked like a flick, so the arrow gesture cut the base off and the 2 was read as a 7. In math mode, flicks don't make arrows and holding doesn't straighten | `_arrowFrom`, `_restartHold` |
+| Fonts | Newsreader and Figtree have no Greek, ∑ or ∫. Keys, the line, the formula list and the ∑ marks fall back to the KaTeX fonts bundled with the typesetter, so they look the same everywhere | `mathFontFallback` |
+| Packages | `flutter_onnxruntime` 1.9.0 (ONNX Runtime 1.28; Android, iOS, Windows, Linux, macOS, web) and `flutter_math_fork` 0.7.4 (KaTeX subset; every platform). The model's notice is on the licence page | `pubspec.yaml`, `lib/main.dart` |
+
+**Checked on Windows (2026-10-15).** `integration_test/math_model_test.dart` reads six MathWriting samples through the plugin exactly as the Python reference does. `integration_test/math_typeset_test.dart` typesets off screen with the √, ∫ and bracket pieces. `integration_test/math_mode_test.dart` writes with a simulated S Pen in math mode, waits for the pickup, reads, previews and converts.
+
+### Not done yet / known limits
+- **Not tried on the tablet.** That includes how fast reading is on its CPU (this PC's numbers are above), the model files being copied out on first use, the 1.2 s pickup, the keyboard and the tablet's own keyboard, and Write it instead with the S Pen.
+- **What the model can't read.** It knows CROHME's 101 symbols. There is no ω, ρ, τ, ε, δ or ∂, no capital D, J, K, O, Q, U, W or Z, and no matrices; type those with the keyboard. Expect about 6 in 10 expressions exactly right; a wrong symbol is a fix in the keyboard. One expression at a time reads best.
+- The other readings the model finds are kept (`MathReading.others`) but not offered yet.
+- **The model's licence is non-commercial** (above).
+- Graph cards don't trace, find intersections, zoom, take more functions or do 3D. That's the Graph screen (Graph.png), next in Phase 6. Math tools opens only the formulas and symbols panel; the number line, unit circle and polar grid aren't built.
+- The design draws typeset math in Newsreader; `flutter_math_fork` typesets in KaTeX's own fonts (Computer Modern style).
+- The keyboard's line is text, not a structured editor: no cursor inside a fraction's box.
+- Lasso in the math bar isn't in the design (see above).
+- Split view: Math & graphs and Math tools are still "coming soon" there.
+- Converted math takes the color of the first stroke.
+- Linux, iOS, macOS and web builds aren't set up yet (`flutter create --platforms=linux .` adds Linux). The recognizer is the same code there, through the same plugin, which downloads ONNX Runtime when it builds.
+
 ## Storage layout
 
 ```
@@ -427,6 +476,7 @@ Three options were put to the owner on 2026-10-15: (A) cut letters out of everyd
     └── index/recognition.json     # what the handwriting says, per page (never a locked page)
 
 <app support>/dictionary/en-dictionary-v1.sqlite   # the bundled dictionary, unpacked on first use (app data, not the user's)
+<app support>/math/comer-2/encoder.onnx, decoder.onnx   # the math model, copied out of the app on first use
 ```
 
 ## Tests
@@ -460,9 +510,37 @@ Three options were put to the owner on 2026-10-15: (A) cut letters out of everyd
   - `test/ui/spell_test.dart`: the bar, count, previous and next, a tap on a word, Done; fixing handwriting and typed text with Undo; Fix all and Undo; Ignore (saved with the page), Add to my dictionary, Start over; Look up, Hear it, the thesaurus, a similar word, Recent; the dictionary from the menu (not found and Did you mean, a definition, Add definition to page, Make flashcard, close); "Fix it in my handwriting" with no sample opening Teach Endless your handwriting, writing every box with the S Pen, the steps, the preview, saving, a fix written in strokes and Undo; unticking it, no box for typed text, and Settings' Forget it; a clean page.
   - 4 goldens: `spell`, `spell_dark`, `spell_thesaurus`, `teach_handwriting`.
   - `test/spelling/spelling_fixtures.dart` loads the real word list and dictionary once per file, and a fake for speech. `test/spelling/hand_fixtures.dart` is a sample of zig-zag letters with the right heights.
+- Phase 6a:
+  - `test/math/math_engine_test.dart`: the renderer against the Python reference's pictures, pixel for pixel, for six MathWriting samples; writing size; shrinking to the model's limits. Also the beam search with a scripted model: the answer, both directions in the same steps, a beam's score equal to rating the same reading, readings listed once. And LaTeX from symbols: compact, braces mended, every symbol the model knows drawable.
+  - `test/math/linear_test.dart`: the keyboard's text to LaTeX for 20 cases (Math.png's and MathKit.png's formulas, scripts, roots, limits, units, matrices, accents, raw LaTeX), LaTeX to text for 8, and 20 recognizer-style formulas that stay the same math through editing.
+  - `test/math/evaluate_test.dart`: 16 graphable functions evaluated; equations that aren't functions of x refused; the view.
+  - `test/board/math_items_test.dart`: `math` and `graph` round trips; scaling by a corner and a pinch; the card's size.
+  - `test/ui/math_mode_test.dart`:
+    - entering and leaving math mode;
+    - the pickup after the pen rests (and not before), with the toolbar and preview;
+    - Convert to math and Undo;
+    - ink that isn't math;
+    - Copy as LaTeX and the clipboard; Graph it, and refused;
+    - tapping math to edit it: the tabs, keys 12 to a row, the cursor, Delete, Insert, Undo;
+    - a finger tap typing new math;
+    - Math tools' Symbols keypad (4 to a row, 80 px) adding π with Undo, and a Physics formula;
+    - symbols and formulas typed into an open keyboard;
+    - Add a graph;
+    - a real 2 not made an arrow and a hold not straightening (both checked to fail without the fix);
+    - the lasso.
+  - 2 goldens, typeset for real with KaTeX's fonts: `math` (Math.png) and `math_kit` (MathKit.png's Symbols panel, with a graph card).
+  - `integration_test/` (run with `-d windows`; they use the real plugin, so they aren't part of `flutter test`): `math_model_test.dart`, `math_typeset_test.dart`, `math_mode_test.dart`.
+  - `test/fixtures/math/ink_samples.json` comes from `tool/math_model/make_fixtures.py`.
 - `test/tokens_sync_test.dart`: generated tokens match `design/tokens.json`.
 
 ## Next
+- **Try Phase 6a on the tablet.**
+  - Study & math → Math & graphs. Write an expression with the S Pen and pause, then check the preview and Convert to math. Note how long "Reading…" takes, the first time and after.
+  - Undo; Graph it on `y = x²/2`; Copy as LaTeX.
+  - Tap converted math with a finger, edit it with the keys and with the tablet's keyboard, then Insert. Try Write it instead.
+  - Formulas & tools: a symbol and a formula, with and without the keyboard open. Then Add a graph.
+  - Try it in airplane mode, to see that it all works offline.
+- After that, the rest of Phase 6: the Graph screen (Graph.png: functions you can add and edit, trace, intersections, 3D) and the number line, unit circle and polar grid (MathKit.png).
 - Try Phase 5a on the tablet: the model download on first use and then offline, writing and searching, Open at this spot, Convert to text (Replace, Keep ink too, Copy text only, another language, the whole page), a PDF export's text in a PDF reader, and locking a page then searching.
 - Try Phase 4a on the tablet: export a page as a PDF to the tablet and through the share sheet, a board file round trip, Print, the Share dialog's Image, and importing a real PDF (a long one too).
 - Still to try from Phase 3: sticky notes, text boxes with the on-screen keyboard, photos from the gallery and the camera, the whole board, the card editors, opening a website, arrows between boxes, and dragging the ruler's ends.

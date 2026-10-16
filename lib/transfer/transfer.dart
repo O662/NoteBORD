@@ -182,6 +182,7 @@ class Transfers {
           pages: open,
           readAsset: notifier.readAsset,
           loadOffice: notifier.loadOffice,
+          typesetMath: notifier.mathPictures.load,
           options: pdf,
           onProgress: onProgress,
         );
@@ -203,8 +204,14 @@ class Transfers {
               file?.picture(item.page);
               await file?.ready(item.page);
             }
+            if (item is MathItem) await notifier.mathPictures.load(item.latex);
+            if (item is GraphItem) {
+              for (final f in item.functions) {
+                await notifier.mathPictures.load(f.expr);
+              }
+            }
           }
-          final png = await renderPagePng(page, images, docs: notifier.docs);
+          final png = await renderPagePng(page, images, docs: notifier.docs, typeset: notifier.mathPictures);
           return ExportFile(fileNameFor(_fileTitle(nb.notebook, ExportScope.page, [indexes.first]), 'png'), png, pngMime);
         } finally {
           for (final i in images.values) {
