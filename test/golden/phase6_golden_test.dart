@@ -19,6 +19,7 @@ import 'package:endless/math/linear.dart';
 import 'package:endless/math/math_pictures.dart';
 import 'package:endless/math/math_reader.dart';
 import 'package:endless/state/notebook.dart';
+import 'package:endless/state/settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -237,4 +238,156 @@ void main() {
         await expectLater(find.byType(MaterialApp), matchesGoldenFile('math_kit.png'));
         await tester.pump(const Duration(seconds: 5));
       }));
+
+  // Phase 6b: the Graph screen (Graph.png) and the math tools (MathKit.png).
+
+  for (final (name, mode, threeD) in [
+    ('graph', ThemeMode.light, false),
+    ('graph_dark', ThemeMode.dark, false),
+    ('graph_3d', ThemeMode.light, true),
+  ]) {
+    testWidgets(name, (tester) => _withShadows(() async {
+          final c = await pumpCanvas(tester, store: _graphStore(mode, threeD: threeD));
+          await _typeset(tester, c, [..._graphed, _saddle]);
+          if (!threeD) canvasPane.selection.select(['it_graph']);
+          await _settle(tester);
+          // After the tool's hint, which shares the bottom with the toolbar.
+          await tester.pump(const Duration(seconds: 5));
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('$name.png'));
+          await tester.pump(const Duration(seconds: 5));
+        }));
+  }
+
+  testWidgets('math_tools', (tester) => _withShadows(() async {
+        final now = DateTime.utc(2026, 10, 21, 9);
+        final c = await pumpCanvas(tester, store: _store());
+        // MathKit.png's tools, as it shows them.
+        c.read(notebookProvider(canvasPane.notebookId).notifier).insertItems('pg_math', [
+          MathToolItem(
+            id: 'it_line',
+            x: 96,
+            y: 90,
+            z: 60,
+            createdAt: now,
+            w: 790,
+            h: 160,
+            data: const NumberLineData(
+              points: [NumberPoint('-2.5', Color(0xFF2B5A8C))],
+              spans: [NumberSpan('1', r'\pi', Color(0xFF3E7B4F), openTo: true)],
+            ),
+          ),
+          MathToolItem(id: 'it_circle', x: 96, y: 262, z: 61, createdAt: now, w: 400, h: 424, data: const UnitCircleData()),
+          MathToolItem(
+            id: 'it_polar',
+            x: 516,
+            y: 262,
+            z: 62,
+            createdAt: now,
+            w: 370,
+            h: 406,
+            data: const PolarData(curves: [
+              GraphLine(r'r=1+\cos\theta', Color(0xFF2B5A8C)),
+              GraphLine(r'r=2\cos 3\theta', Color(0xFFB5532A), hidden: true),
+            ]),
+          ),
+        ]);
+        await tester.tap(byLabel('Study & math'));
+        await tester.pump();
+        await tester.tap(find.text('Math tools'));
+        await tester.pump();
+        // The keyboard put away, to see the tools whole.
+        canvasPane.math.closeKeyboard();
+        canvasPane.view.jumpTo(1, const Offset(0, 0));
+        await _settle(tester);
+
+        await expectLater(find.byType(MaterialApp), matchesGoldenFile('math_tools.png'));
+        await tester.pump(const Duration(seconds: 5));
+      }));
+}
+
+const _saddle = r'z=\frac{x^{2}-y^{2}}{4}';
+
+/// Strokes of a MathWriting sample, scaled to [height] with their top-left
+/// at [at].
+List<List<Offset>> _sample(String label, Offset at, double height) {
+  final sample = (jsonDecode(File('test/fixtures/math/ink_samples.json').readAsStringSync()) as List)
+      .cast<Map<String, dynamic>>()
+      .firstWhere((s) => s['label'] == label);
+  final strokes = [
+    for (final stroke in sample['strokes'] as List)
+      [for (final p in stroke as List) Offset((p[0] as num).toDouble(), (p[1] as num).toDouble())],
+  ];
+  final all = strokes.expand((s) => s).toList();
+  final left = all.map((p) => p.dx).reduce((a, b) => a < b ? a : b);
+  final top = all.map((p) => p.dy).reduce((a, b) => a < b ? a : b);
+  final bottom = all.map((p) => p.dy).reduce((a, b) => a > b ? a : b);
+  final k = height / (bottom - top);
+  return [
+    for (final s in strokes) [for (final p in s) at + (p - Offset(left, top)) * k],
+  ];
+}
+
+/// Graph.png: the graph (just right of the rail, which the design leaves
+/// out), with the handwriting it was graphed from and the notes beside it.
+MemoryBoardStore _graphStore(ThemeMode mode, {required bool threeD}) {
+  final now = DateTime.utc(2026, 10, 21, 9);
+  const clay = Color(0xFFB5532A), blue = Color(0xFF2B5A8C);
+  final written = _sample('2sin(x/2)', const Offset(1000, 200), 40);
+  final origin = written.expand((s) => s).reduce((a, b) => Offset(a.dx < b.dx ? a.dx : b.dx, a.dy < b.dy ? a.dy : b.dy));
+  StrokeItem ink(String id, List<Offset> points, Color color, {double width = 3, ArrowHeads? arrow}) => StrokeItem.fromPagePoints(
+        id: id,
+        z: 20,
+        createdAt: now,
+        tool: InkTool.pen,
+        penType: PenType.ballpoint,
+        color: color,
+        width: width,
+        usePressure: false,
+        arrow: arrow,
+        pagePoints: [for (final p in points) InkPoint(p.dx, p.dy, 0.5, 0)],
+      );
+  TextItem note(String id, double x, double y, String text, double size, Color color) => TextItem(
+        id: id,
+        x: x,
+        y: y,
+        z: 30,
+        createdAt: now,
+        wrap: 300,
+        text: text,
+        font: 'hand',
+        size: size,
+        color: color,
+        autoWidth: true,
+      );
+  final items = <Item>[
+    GraphItem(
+      id: 'it_graph',
+      x: 96,
+      y: 96,
+      z: 10,
+      createdAt: now,
+      w: 860,
+      h: 660,
+      unit: 1,
+      mode: threeD ? GraphMode.d3 : GraphMode.d2,
+      functions: [
+        const GraphLine(r'y=\frac{x^{2}}{2}', blue),
+        GraphLine(r'y=2\sin x', clay, ink: [for (final s in written) [for (final p in s) p - origin]]),
+        const GraphLine(r'y=x+1', Color(0xFF3E7B4F)),
+      ],
+      trace: const GraphTrace(0, 2),
+      surfaces: const [GraphLine(_saddle, blue)],
+      view: const Rect.fromLTRB(-5, -4, 5, 8),
+    ),
+    note('it_title', 990, 112, 'Graphs hw #3', 40, blue),
+    for (final (i, s) in written.indexed) ink('it_ink$i', s, clay),
+    ink('it_arrow', [for (var t = 0.0; t <= 1.0001; t += 0.1) Offset(1100 - 84 * t, 268 + 66 * t * t)], clay, arrow: const ArrowHeads(end: true)),
+    note('it_cross', 990, 380, 'where do they cross?\nx = 0 and x ≈ 1.93', 30, const Color(0xFF1E1C19)),
+    note('it_saddle', 990, 500, '3D: saddle point\nat (0, 0, 0)', 30, const Color(0xFF1E1C19)),
+  ];
+  final page = BoardPage(id: 'pg_graph', items: items);
+  return storeWith(
+    LoadedNotebook(Notebook(id: newId('nb'), title: 'Calculus II', createdAt: now, updatedAt: now, pageIds: [page.id]), [page]),
+    settings: AppSettings(tool: CanvasTool.select, themeMode: mode, trayOpen: false, pagesOpen: false, mapOpen: false),
+  );
 }

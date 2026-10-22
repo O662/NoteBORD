@@ -70,7 +70,7 @@ final mathKeyTabs = <MathKeyTab>[
       _unit(u),
   ]),
   const MathKeyTab('Symbols', symbolKeys),
-  const MathKeyTab('Formulas', [], formulas: mathFormulas),
+  const MathKeyTab('Math', [], formulas: mathFormulas),
   const MathKeyTab('Physics', [], formulas: physicsFormulas),
 ];
 

@@ -8,6 +8,7 @@ import '../board/model.dart';
 import '../board/store.dart';
 import '../library/index_db.dart';
 import '../library/library.dart';
+import '../canvas/math_tools.dart' show mathToolText;
 import '../math/linear.dart' show mathSearchText;
 import '../search/search_text.dart';
 import '../state/settings.dart';
@@ -595,8 +596,10 @@ List<SearchRow> rowsFor(String notebookId, BoardPage page, PageRecognition? read
         rows.add(typed(t, t.text.trim(), t.extent));
       case MathItem m when m.latex.trim().isNotEmpty:
         rows.add(typed(m, mathSearchText(m.latex), m.extent));
-      case GraphItem g when g.functions.isNotEmpty:
-        rows.add(typed(g, ['Graph', for (final f in g.functions) mathSearchText(f.expr)].join(' '), g.extent));
+      case GraphItem g when g.functions.isNotEmpty || g.surfaces.isNotEmpty:
+        rows.add(typed(g, ['Graph', for (final f in [...g.functions, ...g.surfaces]) mathSearchText(f.expr)].join(' '), g.extent));
+      case MathToolItem t:
+        rows.add(typed(t, mathToolText(t.data), t.extent));
       case StickyItem s:
         final text = [
           for (final i in s.items)

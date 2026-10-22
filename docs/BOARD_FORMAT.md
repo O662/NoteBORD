@@ -77,10 +77,10 @@ Every item has these fields:
 | `timeline` | `w`, `h`, `title`, `unit`, `events: [{date, label, state}]` |
 | `diagram` | `w`, `h`, `title`, `unit`, `nodes: [{id, text, shape, color}]`, `edges: [{from, to}]` |
 | `math` | `w`, `h`, `latex`, `size`, `color` |
-| `graph` | `w`, `h`, `mode` (2d/3d), `functions: [{expr, color}]`, `view: {xMin, xMax, yMin, yMax}` |
+| `graph` | `w`, `h`, `unit`, `mode` (2d/3d), `functions: [{expr, color, hidden?, ink?}]`, `view: {xMin, xMax, yMin, yMax}`, `trace?: {fn, x}`, `surfaces?: [{expr, color, hidden?}]`, `view3d: {turn, tilt, zoom, style}` |
 | `table` | `w`, `h`, `title`, `unit`, `cells: [[…]]`, `header` |
 | `chart` | `w`, `h`, `chartType`, `source: {kind: table/xlsx, ref, range}`, `linked: true`, `snapshot?` |
-| `widget` | `w`, `h`, `widget` (calendar/planner/flashcards/remember/clock/date/checklist/numberline/unitcircle/polar), `config` |
+| `widget` | `w`, `h`, `widget` (calendar/planner/flashcards/remember/clock/date/checklist/numberline/unitcircle/polar), `config`, `unit` |
 | `audio` | `asset`, `durationMs`, `inkTimeline: [{strokeId, tMs}]`, `transcript?: [{tMs, speaker, text}]` |
 | `video` | `w`, `h`, `asset` or `remoteUrl`, `pins: [{tMs, itemId}]` |
 | `timestamp` | `at` (ISO), `display` (clock/ago) |
@@ -93,10 +93,25 @@ Every item has these fields:
 - `startItemId` / `endItemId` are present only on a connector (an arrow or a straightened line) whose first / last point is attached to the edge of a box item on the same page (a shape, sticky note, frame, picture, text box or card). The point itself lies on that item's outline; where on the edge is not stored separately, it is read from the point. When the item moves, turns or is resized, the end goes to the same spot of its edge and the ink bends to follow (each point moves by a share of the end's move that follows how far along the line it is). An attached end without an arrowhead is drawn with a dot. If the item is gone, the id is dropped; an id that names nothing is ignored.
 - Moving, resizing and rotating a stroke rewrites its points (and scales `width`); `rotation` stays 0 for strokes.
 
-**Math and graphs, as implemented (v1, Phase 6a):**
+**Math, graphs and math tools, as implemented (v1, Phases 6a and 6b):**
 
 - `math`: `latex` is the math as LaTeX (the KaTeX subset `flutter_math_fork` draws). It is drawn on a card: typeset at `size` (page px), in `color` (an ink color, brightened in dark mode like ink), with padding of 0.44 × `size` left and right and 0.25 × `size` above and below. `w` and `h` (the card) are stored because typesetting is asynchronous. The math is fitted into the box, so a file from another device with slightly different font metrics still draws in its place. Scaling by a corner scales `size` with the box. Search finds math by its keyboard text (`ω = Δθ / Δt`) and the names of its Greek letters.
-- `graph`: `mode` is `2d` (3D comes with the Graph screen). Each function's `expr` is LaTeX for a function of x: `y = …`, `f(x) = …` or just the expression. `view` is the window shown. A function that can't be evaluated is listed but not drawn.
+- `graph` (Phase 6b, Graph.png):
+  - `mode` is `2d` or `3d`.
+  - `unit` is the card's scale: its parts are Graph.dc.html's sizes (an 860 × 660 card) × `unit`. New graphs are written with `unit: 1`; a Phase 6a file without it is read as `w / 860`. Scaling by a corner changes `w`, `h` and `unit`; stretching an edge changes only `w` or `h`, and the plot takes the room.
+  - `functions: [{expr, color, hidden?, ink?}]`:
+    - `expr` is LaTeX for a function of x: `y = …`, `f(x) = …` or just the expression. A function that can't be evaluated is listed but not drawn.
+    - `hidden: true` is listed but not drawn.
+    - `ink` is a small copy of the handwriting it was graphed from: strokes as flat `[x, y, x, y, …]` lists in page px from the writing's top-left, at most 40 points a stroke. It is shown beside it as "from your handwriting"; changing the function drops it.
+  - `view: {xMin, xMax, yMin, yMax}` is the 2D window.
+  - `trace: {fn, x}` (optional) is the point being traced: the `fn`th function at `x`.
+  - `surfaces: [{expr, color, hidden?}]` (optional) is what 3D shows: surfaces `z = …` (or `f(x, y) = …`, or an expression in x and y) over x and y from −3 to 3, and points `(x, y, z)`.
+  - `view3d: {turn, tilt, zoom, style}` is the 3D view: degrees about the z axis and above the x–y plane (default 35 and 25), a zoom, and `wireframe` or `surface`.
+  - The window, trace, mode, `hidden` and `view3d` change without an undo step (they're where you're looking, like an Office file's page). Functions and surfaces added, changed or taken off are undo steps.
+- `widget` with `widget: numberline`, `unitcircle` or `polar` (Phase 6b, MathKit.png): the math tools. `unit` is the tool's scale (MathKit.dc.html's sizes × `unit`). `config` holds what it shows, and unknown fields in `config` are kept. A `widget` of another kind (calendar, planner…) is kept as it is, unread.
+  - `numberline`: `config: {points: [{value, color}], intervals: [{from, to, openFrom, openTo, color, hidden?}]}`. `value`, `from` and `to` are LaTeX numbers (`-2.5`, `\sqrt{2}`, `\pi`), and an interval's end may be `\infty` or `-\infty` (always open). The line runs from −5 to 5, or further to show every number. Opening or closing an end is an undo step; hiding an interval isn't.
+  - `unitcircle`: `config: {step}`, which of the 16 special angles is shown, from 0 (0°) to 15 (330°). Stepping isn't an undo step.
+  - `polar`: `config: {curves: [{expr, color, hidden?}]}`, each `expr` LaTeX for r as a function of θ (`r = 1 + \cos\theta`; `r = 2` is a circle). The outer ring is 2, or the largest r shown, rounded up.
 
 **Text, sticky notes, frames, images and shapes, as implemented (v1):**
 

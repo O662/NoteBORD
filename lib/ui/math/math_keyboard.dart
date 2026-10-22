@@ -21,12 +21,23 @@ import 'math_keys.dart';
 /// (one popup for both, so the page stays free). Letters and digits come
 /// from the tablet's keyboard (tap the line) or from writing.
 class MathKeyboard extends ConsumerStatefulWidget {
-  const MathKeyboard({super.key, required this.math, required this.draft, required this.onInsert, this.width = 1060});
+  const MathKeyboard({
+    super.key,
+    required this.math,
+    required this.draft,
+    required this.onInsert,
+    this.onFormula,
+    this.width = 1060,
+  });
 
   /// Holds the tab, which Formulas & tools picks too.
   final MathMode math;
   final MathDraft draft;
   final VoidCallback onInsert;
+
+  /// A formula from the library goes straight onto the page (MathKit.png's
+  /// "Tap to add to the page"); without this, it's typed at the cursor.
+  final ValueChanged<Formula>? onFormula;
   final double width;
 
   @override
@@ -45,6 +56,7 @@ class _MathKeyboardState extends ConsumerState<MathKeyboard> {
   @override
   void initState() {
     super.initState();
+    _writing = widget.draft.write;
     if (_field.selection.baseOffset < 0) _field.selection = TextSelection.collapsed(offset: _field.text.length);
     // The line has the cursor from the start, for the keys; the tablet's
     // keyboard waits for a tap on it.
@@ -119,7 +131,16 @@ class _MathKeyboardState extends ConsumerState<MathKeyboard> {
                         fontSize: 28,
                         color: c.text,
                       ),
-                      decoration: const InputDecoration.collapsed(hintText: ''),
+                      decoration: InputDecoration.collapsed(
+                        hintText: widget.draft.hint,
+                        hintStyle: TextStyle(
+                          fontFamily: FontFamilies.serif,
+                          fontFamilyFallback: mathFontFallback,
+                          fontStyle: FontStyle.italic,
+                          fontSize: 22,
+                          color: c.textFaint,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -160,7 +181,7 @@ class _MathKeyboardState extends ConsumerState<MathKeyboard> {
                         SizedBox(
                           width: w,
                           height: (_keysHeight - gap) / 2,
-                          child: _FormulaKey(f, onTap: () => _press(f.text)),
+                          child: _FormulaKey(f, onTap: () => widget.onFormula != null ? widget.onFormula!(f) : _press(f.text)),
                         ),
                     ]);
                   }

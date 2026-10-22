@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:ui' show Rect, Size;
+import 'dart:ui' show Color, Offset, Rect, Size;
 
-import '../theme/tokens.g.dart' show inkDefaults;
+import '../theme/tokens.g.dart' show extraInkDefaults, inkDefaults;
 import 'model.dart';
 
 // JSON encoding for notebook.json and pages/<pageId>.json.
@@ -189,6 +189,8 @@ Item? _decodeKnown(Json json) {
       );
     case 'graph':
       final view = (json['view'] as Map?)?.cast<String, dynamic>() ?? const {};
+      final trace = (json['trace'] as Map?)?.cast<String, dynamic>();
+      final v3 = (json['view3d'] as Map?)?.cast<String, dynamic>() ?? const {};
       return GraphItem(
         id: id,
         x: x,
@@ -198,15 +200,66 @@ Item? _decodeKnown(Json json) {
         createdAt: createdAt,
         author: author,
         remember: remember,
-        extra: _unknown(json, const {..._boxKeys, 'mode', 'functions', 'view'}),
+        extra: _unknown(json, const {..._boxKeys, 'mode', 'functions', 'view', 'unit', 'trace', 'surfaces', 'view3d'}),
         w: (json['w'] as num).toDouble(),
         h: (json['h'] as num).toDouble(),
-        functions: [
-          for (final f in (json['functions'] as List?) ?? const [])
-            if (f is Map && f['expr'] is String)
-              GraphLine(f['expr'] as String, f['color'] is String ? colorFromHex(f['color'] as String) : inkDefaults[1]),
-        ],
+        unit: (json['unit'] as num?)?.toDouble(),
+        mode: json['mode'] == '3d' ? GraphMode.d3 : GraphMode.d2,
+        functions: _graphLines(json['functions']),
         view: Rect.fromLTRB(_num(view['xMin'], -5), _num(view['yMin'], -5), _num(view['xMax'], 5), _num(view['yMax'], 5)),
+        trace: trace != null && trace['fn'] is num && trace['x'] is num
+            ? GraphTrace((trace['fn'] as num).toInt(), (trace['x'] as num).toDouble())
+            : null,
+        surfaces: _graphLines(json['surfaces']),
+        view3d: GraphView3d(
+          turn: _num(v3['turn'], 35),
+          tilt: _num(v3['tilt'], 25),
+          zoom: _num(v3['zoom'], 1),
+          surface: v3['style'] == 'surface',
+        ),
+      );
+    case 'widget' when const {'numberline', 'unitcircle', 'polar'}.contains(json['widget']):
+      final config = (json['config'] as Map?)?.cast<String, dynamic>() ?? const {};
+      final MathToolData data = switch (json['widget']) {
+        'numberline' => NumberLineData(
+            points: [
+              for (final p in (config['points'] as List?) ?? const [])
+                if (p is Map && p['value'] is String) NumberPoint(p['value'] as String, _color(p['color'], inkDefaults[1])),
+            ],
+            spans: [
+              for (final s in (config['intervals'] as List?) ?? const [])
+                if (s is Map && s['from'] is String && s['to'] is String)
+                  NumberSpan(
+                    s['from'] as String,
+                    s['to'] as String,
+                    _color(s['color'], extraInkDefaults.first),
+                    openFrom: s['openFrom'] == true,
+                    openTo: s['openTo'] == true,
+                    hidden: s['hidden'] == true,
+                  ),
+            ],
+            rest: _unknown(config, const {'points', 'intervals'}),
+          ),
+        'unitcircle' => UnitCircleData(
+            step: ((config['step'] as num?)?.toInt() ?? 4) % 16,
+            rest: _unknown(config, const {'step'}),
+          ),
+        _ => PolarData(curves: _graphLines(config['curves']), rest: _unknown(config, const {'curves'})),
+      };
+      return MathToolItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, const {..._boxKeys, 'widget', 'unit', 'config'}),
+        w: (json['w'] as num).toDouble(),
+        h: (json['h'] as num).toDouble(),
+        unit: _num(json['unit'], 1),
+        data: data,
       );
     case 'sticky':
       final stack = json['stack'] as Map?;
@@ -415,3 +468,24 @@ CardData _cardData(Json json) {
       return EmbedData(json['url'] as String);
   }
 }
+
+Color _color(Object? hex, Color fallback) => hex is String ? colorFromHex(hex) : fallback;
+
+/// Functions on a graph (or curves on a polar grid), with the handwriting
+/// they came from.
+List<GraphLine> _graphLines(Object? list) => [
+      for (final f in (list as List?) ?? const [])
+        if (f is Map && f['expr'] is String)
+          GraphLine(
+            f['expr'] as String,
+            _color(f['color'], inkDefaults[1]),
+            hidden: f['hidden'] == true,
+            ink: [
+              for (final s in (f['ink'] as List?) ?? const [])
+                if (s is List)
+                  [
+                    for (var i = 0; i + 1 < s.length; i += 2) Offset((s[i] as num).toDouble(), (s[i + 1] as num).toDouble()),
+                  ],
+            ],
+          ),
+    ];

@@ -717,24 +717,103 @@ class MathItem extends BoxItem {
 }
 
 /// One function on a graph: LaTeX (`y = x^{2}/2`) and its line's color.
+/// [hidden] functions are listed but not drawn. [ink] is a small copy of
+/// the handwriting it was graphed from (strokes as x, y pairs from the
+/// writing's top-left), shown beside it as "from your handwriting".
 @immutable
 class GraphLine {
-  const GraphLine(this.expr, this.color);
+  const GraphLine(this.expr, this.color, {this.hidden = false, this.ink = const []});
 
   final String expr;
   final Color color;
+  final bool hidden;
+  final List<List<Offset>> ink;
 
-  Json toJson() => {'expr': expr, 'color': colorToHex(color)};
+  GraphLine copyWith({String? expr, Color? color, bool? hidden}) =>
+      GraphLine(expr ?? this.expr, color ?? this.color, hidden: hidden ?? this.hidden, ink: expr == null || expr == this.expr ? ink : const []);
+
+  Json toJson() => {
+        'expr': expr,
+        'color': colorToHex(color),
+        if (hidden) 'hidden': true,
+        if (ink.isNotEmpty)
+          'ink': [
+            for (final s in ink) [for (final p in s) ...[round1(p.dx), round1(p.dy)]],
+          ],
+      };
 
   @override
-  bool operator ==(Object other) => other is GraphLine && other.expr == expr && other.color == color;
+  bool operator ==(Object other) =>
+      other is GraphLine && other.expr == expr && other.color == color && other.hidden == hidden && _sameInk(other.ink, ink);
 
   @override
-  int get hashCode => Object.hash(expr, color);
+  int get hashCode => Object.hash(expr, color, hidden, ink.length);
 }
 
-/// A 2D graph of functions of x (Graph.png's plot). [view] is the window:
-/// x from `xMin` to `xMax`, y from `yMin` to `yMax`.
+bool _sameInk(List<List<Offset>> a, List<List<Offset>> b) {
+  if (identical(a, b)) return true;
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i].length != b[i].length) return false;
+    for (var j = 0; j < a[i].length; j++) {
+      if (a[i][j] != b[i][j]) return false;
+    }
+  }
+  return true;
+}
+
+enum GraphMode { d2, d3 }
+
+/// The point being traced: on the [line]th function, at [x].
+@immutable
+class GraphTrace {
+  const GraphTrace(this.line, this.x);
+
+  final int line;
+  final double x;
+
+  Json toJson() => {'fn': line, 'x': x};
+
+  @override
+  bool operator ==(Object other) => other is GraphTrace && other.line == line && other.x == x;
+
+  @override
+  int get hashCode => Object.hash(line, x);
+}
+
+/// How a 3D graph is looked at: [turn] about the z axis and [tilt] above
+/// the x–y plane (degrees), [zoom], and drawn as a wireframe or a shaded
+/// surface.
+@immutable
+class GraphView3d {
+  const GraphView3d({this.turn = 35, this.tilt = 25, this.zoom = 1, this.surface = false});
+
+  final double turn;
+  final double tilt;
+  final double zoom;
+  final bool surface;
+
+  GraphView3d copyWith({double? turn, double? tilt, double? zoom, bool? surface}) => GraphView3d(
+        turn: turn ?? this.turn,
+        tilt: tilt ?? this.tilt,
+        zoom: zoom ?? this.zoom,
+        surface: surface ?? this.surface,
+      );
+
+  Json toJson() => {'turn': round1(turn), 'tilt': round1(tilt), 'zoom': round3(zoom), 'style': surface ? 'surface' : 'wireframe'};
+
+  @override
+  bool operator ==(Object other) =>
+      other is GraphView3d && other.turn == turn && other.tilt == tilt && other.zoom == zoom && other.surface == surface;
+
+  @override
+  int get hashCode => Object.hash(turn, tilt, zoom, surface);
+}
+
+/// A graph (Graph.png): in 2D, functions of x in the window [view] (x from
+/// `xMin` to `xMax`, y from `yMin` to `yMax`) with a point being traced; in
+/// 3D, surfaces z = f(x, y) and points in [surfaces], seen as [view3d].
+/// [unit] is the card's scale: its parts are Graph.dc.html's sizes × unit.
 class GraphItem extends BoxItem {
   GraphItem({
     required super.id,
@@ -750,7 +829,15 @@ class GraphItem extends BoxItem {
     required this.h,
     required this.functions,
     required this.view,
-  });
+    double? unit,
+    this.mode = GraphMode.d2,
+    this.trace,
+    this.surfaces = const [],
+    this.view3d = const GraphView3d(),
+  }) : unit = unit ?? w / designWidth;
+
+  /// Graph.dc.html's card: a new graph is this big.
+  static const designWidth = 860.0, designHeight = 660.0;
 
   @override
   final double w;
@@ -758,12 +845,48 @@ class GraphItem extends BoxItem {
   final double h;
   final List<GraphLine> functions;
   final Rect view;
+  final double unit;
+  final GraphMode mode;
+  final GraphTrace? trace;
+  final List<GraphLine> surfaces;
+  final GraphView3d view3d;
 
-  /// A graph is 560 wide when it is added; its parts scale with it.
-  double get unit => w / 560;
+  bool get is3d => mode == GraphMode.d3;
+
+  @override
+  Rect get paintRect => (Offset.zero & Size(w, h)).inflate(48 * unit);
 
   @override
   String get type => 'graph';
+
+  GraphItem copyWith({
+    List<GraphLine>? functions,
+    Rect? view,
+    GraphMode? mode,
+    GraphTrace? Function()? trace,
+    List<GraphLine>? surfaces,
+    GraphView3d? view3d,
+  }) =>
+      GraphItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        w: w,
+        h: h,
+        unit: unit,
+        functions: functions ?? this.functions,
+        view: view ?? this.view,
+        mode: mode ?? this.mode,
+        trace: trace == null ? this.trace : trace(),
+        surfaces: surfaces ?? this.surfaces,
+        view3d: view3d ?? this.view3d,
+      );
 
   @override
   GraphItem withBox({
@@ -789,17 +912,234 @@ class GraphItem extends BoxItem {
         extra: extra,
         w: w,
         h: h,
+        // Scaled by a corner, its parts grow with it; stretched by an edge,
+        // the plot takes the room.
+        unit: unit * scale,
         functions: functions,
         view: view,
+        mode: mode,
+        trace: trace,
+        surfaces: surfaces,
+        view3d: view3d,
       );
 
   @override
   Json toJson() => {
         ...boxJson(),
-        'mode': '2d',
+        'unit': round3(unit),
+        'mode': is3d ? '3d' : '2d',
         'functions': [for (final f in functions) f.toJson()],
         'view': {'xMin': view.left, 'xMax': view.right, 'yMin': view.top, 'yMax': view.bottom},
+        if (trace != null) 'trace': trace!.toJson(),
+        if (surfaces.isNotEmpty) 'surfaces': [for (final s in surfaces) s.toJson()],
+        'view3d': view3d.toJson(),
       };
+}
+
+// Math tools (MathKit.png): the number line, unit circle and polar grid,
+// `widget` items on the page (docs/BOARD_FORMAT.md).
+
+/// A point on a number line: [value] is LaTeX for a number (`\sqrt{2}`).
+@immutable
+class NumberPoint {
+  const NumberPoint(this.value, this.color);
+
+  final String value;
+  final Color color;
+
+  Json toJson() => {'value': value, 'color': colorToHex(color)};
+
+  @override
+  bool operator ==(Object other) => other is NumberPoint && other.value == value && other.color == color;
+
+  @override
+  int get hashCode => Object.hash(value, color);
+}
+
+/// An interval on a number line, from [from] to [to] (LaTeX numbers, or
+/// `\infty`), each end open or closed. [hidden] ones are listed only.
+@immutable
+class NumberSpan {
+  const NumberSpan(this.from, this.to, this.color, {this.openFrom = false, this.openTo = false, this.hidden = false});
+
+  final String from;
+  final String to;
+  final Color color;
+  final bool openFrom;
+  final bool openTo;
+  final bool hidden;
+
+  NumberSpan copyWith({bool? openFrom, bool? openTo, bool? hidden}) => NumberSpan(
+        from,
+        to,
+        color,
+        openFrom: openFrom ?? this.openFrom,
+        openTo: openTo ?? this.openTo,
+        hidden: hidden ?? this.hidden,
+      );
+
+  Json toJson() => {
+        'from': from,
+        'to': to,
+        'openFrom': openFrom,
+        'openTo': openTo,
+        'color': colorToHex(color),
+        if (hidden) 'hidden': true,
+      };
+
+  @override
+  bool operator ==(Object other) =>
+      other is NumberSpan &&
+      other.from == from &&
+      other.to == to &&
+      other.color == color &&
+      other.openFrom == openFrom &&
+      other.openTo == openTo &&
+      other.hidden == hidden;
+
+  @override
+  int get hashCode => Object.hash(from, to, color, openFrom, openTo, hidden);
+}
+
+/// What a math tool shows (its `config`). Unknown fields are kept.
+sealed class MathToolData {
+  const MathToolData({this.rest = const {}});
+
+  final Json rest;
+
+  /// The `widget` field.
+  String get kind;
+
+  Json toJson();
+}
+
+class NumberLineData extends MathToolData {
+  const NumberLineData({this.points = const [], this.spans = const [], super.rest});
+
+  final List<NumberPoint> points;
+  final List<NumberSpan> spans;
+
+  @override
+  String get kind => 'numberline';
+
+  NumberLineData copyWith({List<NumberPoint>? points, List<NumberSpan>? spans}) =>
+      NumberLineData(points: points ?? this.points, spans: spans ?? this.spans, rest: rest);
+
+  @override
+  Json toJson() => {
+        ...rest,
+        'points': [for (final p in points) p.toJson()],
+        'intervals': [for (final s in spans) s.toJson()],
+      };
+}
+
+class UnitCircleData extends MathToolData {
+  const UnitCircleData({this.step = 4, super.rest});
+
+  /// Which of the 16 special angles is shown, from 0 (0°) to 15 (330°).
+  final int step;
+
+  @override
+  String get kind => 'unitcircle';
+
+  @override
+  Json toJson() => {...rest, 'step': step};
+}
+
+class PolarData extends MathToolData {
+  const PolarData({this.curves = const [], super.rest});
+
+  /// r = f(θ), each with its color; hidden ones are listed only.
+  final List<GraphLine> curves;
+
+  @override
+  String get kind => 'polar';
+
+  @override
+  Json toJson() => {
+        ...rest,
+        'curves': [for (final c in curves) c.toJson()],
+      };
+}
+
+/// A math tool on the page. [unit] is its scale: its parts are
+/// MathKit.dc.html's sizes × unit.
+class MathToolItem extends BoxItem {
+  MathToolItem({
+    required super.id,
+    required super.x,
+    required super.y,
+    super.rotation,
+    required super.z,
+    required super.createdAt,
+    super.author,
+    super.remember,
+    super.extra,
+    required this.w,
+    required this.h,
+    required this.data,
+    this.unit = 1,
+  });
+
+  @override
+  final double w;
+  @override
+  final double h;
+  final MathToolData data;
+  final double unit;
+
+  @override
+  Rect get paintRect => (Offset.zero & Size(w, h)).inflate(30 * unit);
+
+  @override
+  String get type => 'widget';
+
+  MathToolItem copyWith({MathToolData? data}) => MathToolItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        w: w,
+        h: h,
+        data: data ?? this.data,
+        unit: unit,
+      );
+
+  @override
+  MathToolItem withBox({
+    String? id,
+    int? z,
+    DateTime? createdAt,
+    required double x,
+    required double y,
+    required double w,
+    required double h,
+    double? rotation,
+    double scale = 1,
+  }) =>
+      MathToolItem(
+        id: id ?? this.id,
+        x: x,
+        y: y,
+        rotation: rotation ?? this.rotation,
+        z: z ?? this.z,
+        createdAt: createdAt ?? this.createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        w: w,
+        h: h,
+        data: data,
+        unit: unit * scale,
+      );
+
+  @override
+  Json toJson() => {...boxJson(), 'widget': data.kind, 'unit': round3(unit), 'config': data.toJson()};
 }
 
 /// A note under the top one in a stack.

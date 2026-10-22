@@ -12,6 +12,7 @@ import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
 import 'cards.dart';
 import 'graph_card.dart';
+import 'math_tools.dart';
 import 'office_cards.dart';
 import 'page_runtime.dart' show paintStroke;
 import 'stroke_geometry.dart' show segmentDistance;
@@ -96,6 +97,8 @@ void paintBoxItem(
       paintMathCard(canvas, m, brightness, c, math);
     case GraphItem g:
       paintGraphCard(canvas, g, brightness, c, math);
+    case MathToolItem t:
+      paintMathTool(canvas, t, brightness, c);
     case StickyItem s:
       _paintSticky(canvas, s, c);
     case FrameItem f:
@@ -432,8 +435,10 @@ BoxItem? topBoxAt(List<Item> inZOrder, Offset page, {double slop = 0}) {
 List<int> stretchSides(BoxItem item) => switch (item) {
       TextItem _ => const [1, 3],
       ShapeItem s when s.isLine => const [1, 3],
-      // Math only scales (by a corner), so it keeps its shape.
+      // Math only scales (by a corner), so it keeps its shape; so do the
+      // unit circle and polar grid. A number line gets longer.
       ImageItem _ || MathItem _ => const [],
+      MathToolItem t => t.data is NumberLineData ? const [1, 3] : const [],
       _ => const [0, 1, 2, 3],
     };
 
@@ -446,6 +451,8 @@ BoxItem stretchBox(BoxItem item, int side, Offset page, {double min = 24}) {
   final (minW, minH) = switch (item) {
     CardItem card => (cardMinWidth(card.data) * card.unit, 80 * card.unit),
     OfficeItem f => (officeMinSize(f).width, officeMinSize(f).height),
+    GraphItem g => (graphMinSize(g).width, graphMinSize(g).height),
+    MathToolItem t => (420 * t.unit, item.h),
     _ => (min, min),
   };
   // The corner that doesn't move, as a fraction of the box.
@@ -465,5 +472,7 @@ BoxItem stretchBox(BoxItem item, int side, Offset page, {double min = 24}) {
   final fixed = item.toPage(Offset(anchor.dx * item.w, anchor.dy * item.h));
   final out = item.withBox(x: item.x, y: item.y, w: w, h: h);
   final drift = fixed - out.toPage(Offset(anchor.dx * out.w, anchor.dy * out.h));
-  return out.withBox(x: out.x + drift.dx, y: out.y + drift.dy, w: out.w, h: out.h);
+  final moved = out.withBox(x: out.x + drift.dx, y: out.y + drift.dy, w: out.w, h: out.h);
+  // A longer number line may fit its chips on fewer rows.
+  return moved is MathToolItem ? fitMathTool(moved) : moved;
 }

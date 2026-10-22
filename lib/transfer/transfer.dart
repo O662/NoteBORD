@@ -206,7 +206,7 @@ class Transfers {
             }
             if (item is MathItem) await notifier.mathPictures.load(item.latex);
             if (item is GraphItem) {
-              for (final f in item.functions) {
+              for (final f in [...item.functions, ...item.surfaces]) {
                 await notifier.mathPictures.load(f.expr);
               }
             }

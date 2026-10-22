@@ -41,6 +41,12 @@ extension _CanvasMath on InkCanvasState {
 
   void _mathChanged() {
     if (!mounted) return;
+    if (_math.takeWantedTool() case final kind?) {
+      // After this notification is over: adding changes the page.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _addTool(kind);
+      });
+    }
     if (!_math.on) {
       _mathIdle?.cancel();
       _mathInk.clear();
@@ -179,45 +185,476 @@ extension _CanvasMath on InkCanvasState {
     _toast('Copied the LaTeX', undo: false);
   }
 
-  /// "Graph it": a graph of the function beside it. One undo step; the ink
-  /// stays.
+  /// "Graph it": the function goes on the graph showing beside it (Graph.png:
+  /// "from your handwriting"), or on a new graph to the right of the ink.
+  /// One undo step; the ink stays.
   Future<void> _graphIt() async {
     final pageId = _page.id;
+    final ink = _selectedInk();
     final latex = await _selectedLatex();
     if (!mounted || _page.id != pageId) return;
     if (latex == null) return _cantRead();
     final area = _outline()?.getBounds() ?? _vp.toPage(_vp.size.center(Offset.zero)) & Size.zero;
-    if (!_addGraph(latex, Offset(area.right + 40, area.top))) return;
+    if (!_addGraph(latex, Offset(area.right + 40, area.top), ink: ink, near: area)) return;
     _selection.clear();
     _rebuild(() {});
   }
 
-  /// A graph of [latex] with its top-left at [at]; false (with a message)
-  /// when it isn't a function of x.
-  bool _addGraph(String latex, Offset at) {
+  /// Graphs [latex]: on the 2D graph on screen nearest [near] (if there is
+  /// one), otherwise on a new graph with its top-left at [at]. [ink] is the
+  /// handwriting it was read from. False (with a message) when it isn't a
+  /// function of x.
+  bool _addGraph(String latex, Offset at, {List<StrokeItem> ink = const [], Rect? near}) {
     final f = graphFunction(latex);
     if (f == null) {
       _toast('Only a function of x can be graphed, like y = x²', undo: false);
       return false;
     }
-    final view = graphView([f]);
-    final now = DateTime.now().toUtc();
     _pictures.load(latex);
+    final copy = _inkCopy(ink);
+    Color colorFor(Iterable<Color> used) {
+      final written = ink.isEmpty ? null : ink.first.color;
+      final taken = {for (final c in used) c.toARGB32()};
+      // Written in a color (not black) that's free: the curve takes it.
+      if (written != null && written.toARGB32() != inkDefaults.first.toARGB32() && !taken.contains(written.toARGB32())) {
+        return written;
+      }
+      return nextGraphColor(used);
+    }
+
+    if (near != null) {
+      final screen = Rect.fromPoints(_vp.toPage(Offset.zero), _vp.toPage(_vp.size.bottomRight(Offset.zero)));
+      GraphItem? target;
+      var best = double.infinity;
+      for (final i in _page.items) {
+        if (i is! GraphItem || i.is3d || !i.extent.overlaps(screen)) continue;
+        final d = (i.extent.center - near.center).distance;
+        if (d < best) {
+          best = d;
+          target = i;
+        }
+      }
+      if (target != null) {
+        final lines = target.functions;
+        final added = GraphLine(latex, colorFor(lines.map((l) => l.color)), ink: copy);
+        var g = target.copyWith(functions: [...lines, added]);
+        if (lines.isEmpty) g = g.copyWith(view: _viewFor(f));
+        _notebook.replaceItems(_page.id, [g]);
+        _toast('Added ${latexToLinear(latex)} to the graph');
+        return true;
+      }
+    }
+    final now = DateTime.now().toUtc();
+    const size = Size(GraphItem.designWidth, GraphItem.designHeight);
+    final place = near == null ? (_freeSpot(size, aboveKeyboard: false) ?? at) : at;
     _notebook.insertItems(_page.id, [
       GraphItem(
+        id: newId('it', now: now),
+        x: place.dx,
+        y: place.dy,
+        z: _page.nextZ,
+        createdAt: now,
+        w: size.width,
+        h: size.height,
+        unit: 1,
+        functions: [GraphLine(latex, colorFor(const []), ink: copy)],
+        view: _viewFor(f),
+      ),
+    ]);
+    _toast('Graphed it');
+    return true;
+  }
+
+  static Rect _viewFor(GraphFunction f) {
+    final v = graphView([f]);
+    return Rect.fromLTRB(v.xMin, v.yMin, v.xMax, v.yMax);
+  }
+
+  /// A small copy of [ink] (each stroke at most 40 points, from the
+  /// writing's top-left) for "from your handwriting".
+  static List<List<Offset>> _inkCopy(List<StrokeItem> ink) {
+    if (ink.isEmpty) return const [];
+    final area = ink.map((s) => s.bounds).reduce((a, b) => a.expandToInclude(b));
+    return [
+      for (final s in ink)
+        () {
+          final pts = [for (final p in s.pageInk) Offset(p.x, p.y)];
+          final step = math.max(1, (pts.length / 40).ceil());
+          return [
+            for (var i = 0; i < pts.length; i += step) pts[i] - area.topLeft,
+            if ((pts.length - 1) % step != 0) pts.last - area.topLeft,
+          ];
+        }(),
+    ];
+  }
+
+  // Graphs and math tools on the page: their buttons and plots.
+
+  /// Whether a press at [page] on [top] lands on one of its buttons.
+  bool _controlAt(BoxItem? top, Offset page) => switch (top) {
+        final GraphItem g => switch (graphHitAt(g, g.toLocal(page))) {
+            null || GraphHit(part: GraphPart.plot) => false,
+            _ => true,
+          },
+        final MathToolItem t => mathToolHitAt(t, t.toLocal(page)) != null,
+        _ => false,
+      };
+
+  /// Starts tracing (or turning) [top]'s plot, if [page] is on it.
+  bool _startGraphDrag(BoxItem? top, Offset page) {
+    if (top is! GraphItem || graphHitAt(top, top.toLocal(page))?.part != GraphPart.plot) return false;
+    _selection.clear();
+    _drag = _Drag.graph;
+    _graphId = top.id;
+    _graphLast = top.toLocal(page);
+    _dragGraph(page);
+    return true;
+  }
+
+  /// The pen moved on a graph's plot: the trace follows it (2D), or the
+  /// view turns (3D). Not undo steps: it's where you're looking.
+  void _dragGraph(Offset page) {
+    final g = _graphId == null ? null : _page[_graphId!];
+    if (g is! GraphItem) return;
+    final local = g.toLocal(page);
+    if (g.is3d) {
+      if (local != _graphLast) _notebook.setQuietly(_page.id, graphDragged(g, local - _graphLast));
+    } else if (graphTracedAt(g, local) case final traced? when traced.trace != g.trace) {
+      _notebook.setQuietly(_page.id, traced);
+    }
+    _graphLast = local;
+  }
+
+  /// The selected graph, if [page] is on its plot.
+  GraphItem? _onSelectedPlot(Offset page) {
+    if (_selection.ids.length != 1) return null;
+    final g = _page[_selection.ids.single];
+    if (g is! GraphItem || graphHitAt(g, g.toLocal(page))?.part != GraphPart.plot) return null;
+    return g;
+  }
+
+  /// Fingers on a selected graph's plot: they drag its window (or turn it)
+  /// and pinch to zoom it.
+  void _touchGraph(Offset before, Offset after, double factor) {
+    final g = _graphId == null ? null : _page[_graphId!];
+    if (g is! GraphItem) return;
+    final from = g.toLocal(_vp.toPage(before)), to = g.toLocal(_vp.toPage(after));
+    var next = graphDragged(g, to - from);
+    if (factor != 1) next = graphZoomed(next, factor, local: to);
+    _notebook.setQuietly(_page.id, next);
+  }
+
+  /// A tap on a graph's or math tool's button (or a graph's plot).
+  bool _pressMathControl(Offset at) {
+    switch (topBoxAt(_page.items, at)) {
+      case final GraphItem g:
+        final hit = graphHitAt(g, g.toLocal(at));
+        if (hit == null) return false;
+        _pressGraph(g, hit, g.toLocal(at));
+        return true;
+      case final MathToolItem t:
+        final hit = mathToolHitAt(t, t.toLocal(at));
+        if (hit == null) return false;
+        _pressTool(t, hit);
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  void _quietly(Item item) => _notebook.setQuietly(_page.id, item);
+
+  void _pressGraph(GraphItem g, GraphHit hit, Offset local) {
+    final lines = g.is3d ? g.surfaces : g.functions;
+    switch (hit.part) {
+      case GraphPart.mode2d:
+        _quietly(g.copyWith(mode: GraphMode.d2));
+      case GraphPart.mode3d:
+        _quietly(g.copyWith(mode: GraphMode.d3));
+      case GraphPart.zoomOut || GraphPart.zoomIn:
+        _quietly(graphZoomed(g, hit.part == GraphPart.zoomIn ? 1.5 : 1 / 1.5));
+      case GraphPart.turnLeft || GraphPart.turnRight:
+        _quietly(graphTurned(g, hit.part == GraphPart.turnRight ? 20 : -20));
+      case GraphPart.wireframe || GraphPart.surface:
+        _quietly(g.copyWith(view3d: g.view3d.copyWith(surface: hit.part == GraphPart.surface)));
+      case GraphPart.toggle:
+        final line = lines[hit.index];
+        final next = [...lines]..[hit.index] = line.copyWith(hidden: !line.hidden);
+        _quietly(g.is3d ? g.copyWith(surfaces: next) : g.copyWith(functions: next));
+      case GraphPart.edit:
+        _openKeyboard(MathDraft(
+          itemId: g.id,
+          at: g.toPage(Offset.zero),
+          purpose: DraftFor.graphLine,
+          index: hit.index,
+          text: latexToLinear(lines[hit.index].expr),
+        ));
+      case GraphPart.add:
+        _openKeyboard(MathDraft(
+          itemId: g.id,
+          at: g.toPage(Offset.zero),
+          purpose: DraftFor.graphLine,
+          hint: g.is3d ? 'z = (x² − y²) / 4, or a point (1, 2, 3)' : 'y = x² / 2',
+          write: _tapPen,
+        ));
+      case GraphPart.plot:
+        if (graphTracedAt(g, local) case final traced?) _quietly(traced);
+    }
+  }
+
+  void _pressTool(MathToolItem t, MathToolHit hit) {
+    switch ((t.data, hit.part)) {
+      case (UnitCircleData _, MathToolPart.previous || MathToolPart.next):
+        _quietly(unitCircleStepped(t, hit.part == MathToolPart.next ? 1 : -1));
+      case (final NumberLineData d, MathToolPart.chip):
+        final s = d.spans[hit.index];
+        _quietly(t.copyWith(data: d.copyWith(spans: [...d.spans]..[hit.index] = s.copyWith(hidden: !s.hidden))));
+      case (final NumberLineData d, MathToolPart.spanFrom || MathToolPart.spanTo):
+        // An end opens or closes: a change to the page.
+        final s = d.spans[hit.index];
+        final turned = hit.part == MathToolPart.spanFrom ? s.copyWith(openFrom: !s.openFrom) : s.copyWith(openTo: !s.openTo);
+        _dismissToast();
+        _notebook.replaceItems(_page.id, [fitMathTool(t.copyWith(data: d.copyWith(spans: [...d.spans]..[hit.index] = turned)))]);
+      case (NumberLineData _, MathToolPart.add):
+        _openKeyboard(MathDraft(
+          itemId: t.id,
+          at: t.toPage(Offset.zero),
+          purpose: DraftFor.numberLine,
+          hint: '√2, or an interval like [1, π)',
+          write: _tapPen,
+        ));
+      case (final NumberLineData d, MathToolPart.item):
+        _openKeyboard(MathDraft(
+          itemId: t.id,
+          at: t.toPage(Offset.zero),
+          purpose: DraftFor.numberLine,
+          index: hit.index,
+          text: numberLabel(d.points[hit.index].value),
+        ));
+      case (final NumberLineData d, MathToolPart.span):
+        _openKeyboard(MathDraft(
+          itemId: t.id,
+          at: t.toPage(Offset.zero),
+          purpose: DraftFor.numberLine,
+          index: hit.index,
+          span: true,
+          text: intervalLabel(d.spans[hit.index]),
+        ));
+      case (final PolarData d, MathToolPart.chip):
+        final curve = d.curves[hit.index];
+        _quietly(t.copyWith(data: PolarData(curves: [...d.curves]..[hit.index] = curve.copyWith(hidden: !curve.hidden), rest: d.rest)));
+      case (PolarData _, MathToolPart.add):
+        _openKeyboard(MathDraft(
+          itemId: t.id,
+          at: t.toPage(Offset.zero),
+          purpose: DraftFor.polarCurve,
+          hint: 'r = 1 + cos θ',
+          write: _tapPen,
+        ));
+      case (final PolarData d, MathToolPart.item):
+        _openKeyboard(MathDraft(
+          itemId: t.id,
+          at: t.toPage(Offset.zero),
+          purpose: DraftFor.polarCurve,
+          index: hit.index,
+          text: latexToLinear(d.curves[hit.index].expr),
+        ));
+      default:
+        break;
+    }
+  }
+
+  void _openKeyboard(MathDraft draft) {
+    _selection.clear();
+    _math.type(draft);
+  }
+
+  // Adding to the page from Math tools.
+
+  /// Where a box of [size] fits on screen without covering anything: the
+  /// first free spot from the top-left, above the keyboard if
+  /// [aboveKeyboard] (and it's open). Null when there's none.
+  Offset? _freeSpot(Size size, {bool aboveKeyboard = true}) {
+    final chrome = widget.chrome;
+    final keyboard = aboveKeyboard ? (_keyboardKey.currentContext?.findRenderObject() as RenderBox?)?.size.height : null;
+    final bottom = _vp.size.height - (keyboard != null ? keyboard + 20 : chrome.bottom);
+    final area = Rect.fromPoints(
+      _vp.toPage(Offset(chrome.left + 16, chrome.top + 16)),
+      _vp.toPage(Offset(_vp.size.width - chrome.right - 16, bottom - 16)),
+    );
+    if (area.width < size.width || area.height < size.height) return null;
+    final step = 24 / _vp.scale, gap = 16 / _vp.scale;
+    for (var y = area.top; y + size.height <= area.bottom; y += step) {
+      for (var x = area.left; x + size.width <= area.right; x += step) {
+        final r = (Offset(x, y) & size).inflate(gap);
+        final near = _page.index.query(r);
+        if (near.every((id) => !(_page[id]?.bounds.overlaps(r) ?? false))) return Offset(x, y);
+      }
+    }
+    return null;
+  }
+
+  /// Math tools' Number line, Unit circle and Polar grid: the tool goes on
+  /// a free spot on screen (above the keyboard if there's room). One undo
+  /// step.
+  void _addTool(MathToolKind kind) {
+    if (!_canInk) return;
+    final now = DateTime.now().toUtc();
+    final tool = newMathTool(kind.widget, Offset.zero, z: _page.nextZ, now: now);
+    final size = Size(tool.w, tool.h);
+    final at = _freeSpot(size) ??
+        _freeSpot(size, aboveKeyboard: false) ??
+        _vp.toPage(Offset(widget.chrome.left + 16, widget.chrome.top + 16));
+    _dismissToast();
+    _notebook.insertItems(_page.id, [tool.withBox(x: at.dx, y: at.dy, w: tool.w, h: tool.h)]);
+    _toast('Added ${mathToolName(tool.data)} to the page');
+  }
+
+  /// A formula from the library, straight onto the page (MathKit.png's "Tap
+  /// to add to the page"). One undo step.
+  Future<void> _addFormula(Formula f) async {
+    final pageId = _page.id;
+    final latex = linearToLatex(f.text);
+    final typeset = await _pictures.load(latex);
+    if (!mounted || _page.id != pageId || !_canInk) return;
+    const size = 32.0;
+    final box = MathItem.boxFor(typeset?.size ?? Size(latex.length * 18.0, 56), mathReferenceSize, size);
+    final at = _freeSpot(box) ?? _freeSpot(box, aboveKeyboard: false) ?? _typingSpot();
+    final now = DateTime.now().toUtc();
+    _dismissToast();
+    _notebook.insertItems(pageId, [
+      MathItem(
         id: newId('it', now: now),
         x: at.dx,
         y: at.dy,
         z: _page.nextZ,
         createdAt: now,
-        w: 560,
-        h: 380,
-        functions: [GraphLine(latex, inkDefaults[1])],
-        view: Rect.fromLTRB(view.xMin, view.yMin, view.xMax, view.yMax),
+        latex: latex,
+        w: box.width,
+        h: box.height,
+        size: size,
+        color: ref.read(settingsProvider).penColor,
       ),
     ]);
-    _toast('Graphed it');
-    return true;
+    _toast('Added ${formulaLabel(f.text)} to the page');
+  }
+
+  Offset _typingSpot() => _vp.toPage(Offset(_vp.size.width * 0.25, _vp.size.height * 0.3));
+
+  // Insert, for graphs and math tools.
+
+  /// What the keyboard typed, for a graph: a function added or changed (a
+  /// surface or point, in 3D); an empty line takes it off.
+  void _insertGraphLine(MathDraft draft) {
+    final g = _page[draft.itemId ?? ''];
+    if (g is! GraphItem) return _math.closeKeyboard();
+    final text = draft.text.text.trim();
+    final latex = linearToLatex(text);
+    final lines = g.is3d ? g.surfaces : g.functions;
+    GraphItem withLines(List<GraphLine> next) => g.is3d ? g.copyWith(surfaces: next) : g.copyWith(functions: next);
+    if (latex.trim().isEmpty || const {'y =', 'z =', 'y=', 'z='}.contains(text)) {
+      _math.closeKeyboard();
+      if (draft.index case final i? when i < lines.length) {
+        _notebook.replaceItems(_page.id, [withLines([...lines]..removeAt(i)).copyWith(trace: () => null)]);
+        _toast('Took it off the graph');
+      }
+      return;
+    }
+    final f = g.is3d ? null : graphFunction(latex);
+    if (g.is3d ? !graphable3d(latex) : f == null) {
+      _toast(
+        g.is3d ? 'Type a surface like z = x² − y², or a point like (1, 2, 3)' : 'Only a function of x can be graphed, like y = x²',
+        undo: false,
+      );
+      return;
+    }
+    _pictures.load(latex);
+    final index = draft.index;
+    final changing = index != null && index < lines.length;
+    var next = changing
+        ? withLines([...lines]..[index] = lines[index].copyWith(expr: latex))
+        : withLines([...lines, GraphLine(latex, nextGraphColor(lines.map((l) => l.color)))]);
+    if (f != null && g.functions.isEmpty) next = next.copyWith(view: _viewFor(f));
+    _math.closeKeyboard();
+    if (changing && lines[index].expr == latex) return;
+    _notebook.replaceItems(_page.id, [next]);
+    _toast(changing ? 'Changed the graph' : 'Added $text to the graph');
+  }
+
+  /// A point or interval on a number line, added or changed; an empty line
+  /// takes it off.
+  void _insertNumber(MathDraft draft) {
+    final t = _page[draft.itemId ?? ''];
+    if (t is! MathToolItem || t.data is! NumberLineData) return _math.closeKeyboard();
+    final d = t.data as NumberLineData;
+    final text = draft.text.text.trim();
+    final index = draft.index;
+    // What's being changed comes off; what's typed takes its place.
+    final points = [...d.points], spans = [...d.spans];
+    Color? color;
+    if (index != null) {
+      if (draft.span && index < spans.length) {
+        color = spans.removeAt(index).color;
+      } else if (!draft.span && index < points.length) {
+        color = points.removeAt(index).color;
+      }
+    }
+    if (text.isEmpty) {
+      _math.closeKeyboard();
+      if (index != null) {
+        _notebook.replaceItems(_page.id, [fitMathTool(t.copyWith(data: d.copyWith(points: points, spans: spans)))]);
+        _toast('Took it off the number line');
+      }
+      return;
+    }
+    final read = readNumberLine(text, linearToLatex, color ?? nextNumberColor(d));
+    if (read == null) {
+      _toast('Type a number like √2, or an interval like [1, π)', undo: false);
+      return;
+    }
+    if (read.point case final p?) {
+      points.insert(index != null && !draft.span ? math.min(index, points.length) : points.length, NumberPoint(p, color ?? nextNumberColor(d)));
+    }
+    if (read.span case final s?) {
+      spans.insert(index != null && draft.span ? math.min(index, spans.length) : spans.length, s);
+    }
+    _math.closeKeyboard();
+    _notebook.replaceItems(_page.id, [fitMathTool(t.copyWith(data: d.copyWith(points: points, spans: spans)))]);
+    final what = read.span != null ? intervalLabel(read.span!) : numberLabel(read.point!);
+    _toast(index == null ? 'Added $what to the number line' : 'Changed the number line');
+  }
+
+  /// A curve on a polar grid, added or changed; an empty line takes it off.
+  void _insertCurve(MathDraft draft) {
+    final t = _page[draft.itemId ?? ''];
+    if (t is! MathToolItem || t.data is! PolarData) return _math.closeKeyboard();
+    final d = t.data as PolarData;
+    final text = draft.text.text.trim();
+    final latex = linearToLatex(text);
+    final index = draft.index;
+    final changing = index != null && index < d.curves.length;
+    final curves = [...d.curves];
+    PolarData data(List<GraphLine> c) => PolarData(curves: c, rest: d.rest);
+    if (latex.trim().isEmpty || text == 'r =') {
+      _math.closeKeyboard();
+      if (changing) {
+        _notebook.replaceItems(_page.id, [fitMathTool(t.copyWith(data: data(curves..removeAt(index))))]);
+        _toast('Took it off the polar grid');
+      }
+      return;
+    }
+    if (polarCurve(latex) == null) {
+      _toast('Type a polar curve like r = 1 + cos θ', undo: false);
+      return;
+    }
+    if (changing) {
+      curves[index] = curves[index].copyWith(expr: latex, hidden: false);
+    } else {
+      curves.add(GraphLine(latex, nextGraphColor(curves.map((c) => c.color))));
+    }
+    _math.closeKeyboard();
+    _notebook.replaceItems(_page.id, [fitMathTool(t.copyWith(data: data(curves)))]);
+    _toast(changing ? 'Changed the polar grid' : 'Added $text to the polar grid');
   }
 
   // The math keyboard.
@@ -251,7 +688,7 @@ extension _CanvasMath on InkCanvasState {
     if (draft == null || !mounted) return;
     final latex = linearToLatex(draft.text.text);
     final run = ++_draftRun;
-    if (draft.graph || latex.trim().isEmpty || !isDrawable(latex)) {
+    if (draft.purpose != DraftFor.math || latex.trim().isEmpty || !isDrawable(latex)) {
       // Nothing that can be drawn yet: the item keeps its last look.
       if (latex.trim().isEmpty && _draftItem != null) _rebuild(() => _draftItem = null);
       return;
@@ -292,6 +729,16 @@ extension _CanvasMath on InkCanvasState {
   Future<void> _insertDraft() async {
     final draft = _math.draft;
     if (draft == null) return;
+    switch (draft.purpose) {
+      case DraftFor.graphLine:
+        return _insertGraphLine(draft);
+      case DraftFor.numberLine:
+        return _insertNumber(draft);
+      case DraftFor.polarCurve:
+        return _insertCurve(draft);
+      case DraftFor.math || DraftFor.newGraph:
+        break;
+    }
     final pageId = _page.id;
     final latex = linearToLatex(draft.text.text);
     final was = draft.itemId == null ? null : _page[draft.itemId!];
@@ -350,12 +797,16 @@ extension _CanvasMath on InkCanvasState {
           alignment: Alignment.bottomCenter,
           child: Padding(
             padding: const EdgeInsets.only(bottom: 20),
-            child: MathKeyboard(
-              key: ObjectKey(draft),
-              math: _math,
-              draft: draft,
-              width: math.min(1060.0, math.max(320.0, room)),
-              onInsert: _insertDraft,
+            child: KeyedSubtree(
+              key: _keyboardKey,
+              child: MathKeyboard(
+                key: ObjectKey(draft),
+                math: _math,
+                draft: draft,
+                width: math.min(1060.0, math.max(320.0, room)),
+                onInsert: _insertDraft,
+                onFormula: _addFormula,
+              ),
             ),
           ),
         );

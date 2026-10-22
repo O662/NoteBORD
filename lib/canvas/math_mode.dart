@@ -5,19 +5,60 @@ import 'package:flutter/widgets.dart';
 // math" once the pen rests; the keyboard types math, with the symbols and
 // formulas (MathKit.png's panel) as tabs of its own.
 
+/// What Insert does with what the keyboard typed.
+enum DraftFor {
+  /// Math on the page: new, or [MathDraft.itemId] changed.
+  math,
+
+  /// "Add a graph": a new graph of the function.
+  newGraph,
+
+  /// A function (or, in 3D, a surface or point) on graph [MathDraft.itemId]:
+  /// added, or the [MathDraft.index]th changed.
+  graphLine,
+
+  /// A point or interval on number line [MathDraft.itemId].
+  numberLine,
+
+  /// A curve on polar grid [MathDraft.itemId].
+  polarCurve,
+}
+
 /// What the math keyboard is typing.
 class MathDraft {
-  MathDraft({this.itemId, required this.at, String text = '', this.graph = false})
-      : text = TextEditingController(text: text);
+  MathDraft({
+    this.itemId,
+    required this.at,
+    String text = '',
+    this.purpose = DraftFor.math,
+    this.index,
+    this.span = false,
+    this.hint = '',
+    this.write = false,
+  }) : text = TextEditingController(text: text);
 
-  /// The math item being edited, or null for new math.
+  /// The math item being edited (or the graph or tool being added to), or
+  /// null for new math.
   final String? itemId;
 
   /// Where new math goes (page space, its left middle).
   final Offset at;
 
+  final DraftFor purpose;
+
+  /// Which function, point, interval ([span]) or curve is being changed;
+  /// null to add one.
+  final int? index;
+  final bool span;
+
+  /// Shown in the empty line: what to type.
+  final String hint;
+
+  /// Opens on the writing pad ("write or type an equation…" with the pen).
+  final bool write;
+
   /// "Add a graph": Insert puts a graph of the function on the page.
-  final bool graph;
+  bool get graph => purpose == DraftFor.newGraph;
 
   /// The keyboard's text (linear.dart).
   final TextEditingController text;
@@ -25,17 +66,54 @@ class MathDraft {
   void dispose() => text.dispose();
 }
 
+/// A math tool the Math tools bar asks the canvas to add (MathKit.png).
+enum MathToolKind {
+  numberLine('numberline'),
+  unitCircle('unitcircle'),
+  polarGrid('polar');
+
+  const MathToolKind(this.widget);
+
+  /// The `widget` field in the file.
+  final String widget;
+}
+
 class MathMode extends ChangeNotifier {
   bool _on = false;
   bool _lasso = false;
+  bool _tools = false;
   MathDraft? _draft;
   int _tab = 0;
+  MathToolKind? _wanted;
 
   /// Math mode is on.
   bool get on => _on;
 
   /// The pen draws a lasso instead of writing.
   bool get lasso => _lasso;
+
+  /// The bar is Math tools (MathKit.png): the number line, unit circle,
+  /// polar grid and graph, with the keyboard's symbols and formulas.
+  bool get tools => _tools;
+
+  set tools(bool value) {
+    if (value == _tools) return;
+    _tools = value;
+    notifyListeners();
+  }
+
+  /// Asks the canvas to add a [kind] of tool to the page.
+  void addTool(MathToolKind kind) {
+    _wanted = kind;
+    notifyListeners();
+  }
+
+  /// The tool asked for, once (the canvas takes it).
+  MathToolKind? takeWantedTool() {
+    final t = _wanted;
+    _wanted = null;
+    return t;
+  }
 
   /// What the keyboard is typing, while it's open.
   MathDraft? get draft => _draft;
@@ -53,6 +131,7 @@ class MathMode extends ChangeNotifier {
     if (!_on) return;
     _on = false;
     _lasso = false;
+    _tools = false;
     _closeDraft();
     notifyListeners();
   }

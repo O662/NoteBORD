@@ -456,12 +456,64 @@ The owner's request (2026-10-15). Three recognizers were put to the owner: MyScr
 - **What the model can't read.** It knows CROHME's 101 symbols. There is no ω, ρ, τ, ε, δ or ∂, no capital D, J, K, O, Q, U, W or Z, and no matrices; type those with the keyboard. Expect about 6 in 10 expressions exactly right; a wrong symbol is a fix in the keyboard. One expression at a time reads best.
 - The other readings the model finds are kept (`MathReading.others`) but not offered yet.
 - **The model's licence is non-commercial** (above).
-- Graph cards don't trace, find intersections, zoom, take more functions or do 3D. That's the Graph screen (Graph.png), next in Phase 6. Math tools opens only the formulas and symbols panel; the number line, unit circle and polar grid aren't built.
+- ~~Graph cards don't trace, find intersections, zoom, take more functions or do 3D; the number line, unit circle and polar grid aren't built.~~ Done in Phase 6b (below).
 - The design draws typeset math in Newsreader; `flutter_math_fork` typesets in KaTeX's own fonts (Computer Modern style).
 - The keyboard's line is text, not a structured editor: no cursor inside a fraction's box.
 - Lasso in the math bar isn't in the design (see above).
-- The Symbols keys are the keyboard's size (12 to a row, 48 px), not MathKit.png's big keys 4 to a row, and adding a symbol or formula takes two taps (it, then Insert). Both follow from it being one popup, as the owner asked.
+- The Symbols keys are the keyboard's size (12 to a row, 48 px), not MathKit.png's big keys 4 to a row, because it's one popup, as the owner asked. (Formulas went from two taps to one in Phase 6b.)
 - Split view: Math & graphs and Math tools are still "coming soon" there.
+
+## Phase 6b: graphs and math tools — built, not yet tried on the tablet. **Phase 6 is done.**
+
+The owner asked for this on 2026-10-21. It covers the Graph screen (Graph.png) and Math tools (MathKit.png):
+- **Graphs:** 2D graphs with several functions, functions from handwriting, trace and intersections, and 3D surfaces you can turn. "Graph it" from math mode opens a graph.
+- **Math tools:** the number line, the unit circle, the polar grid and the formula library. Each one goes on the page with "Added … to the page · Undo".
+
+**Two judgment calls, made while building:**
+- **"Graph it" with a graph already on screen.** The function goes on the 2D graph nearest the writing, as in Graph.png's homework, where y = 2 sin x joins the graph "from your handwriting". With no graph on screen, it makes a new one beside the ink.
+- **Formulas.** One tap on a formula in the keyboard's Math or Physics tab now puts it on the page. In 6a it typed the formula at the cursor and Insert added it. Symbols still type at the cursor.
+
+| Item | Status | Where |
+|---|---|---|
+| The graph card (Graph.png) | Drawn at Graph.dc.html's sizes (860 × 660, × `unit`), like the other cards:<br>• **Header:** "Graph", 2D · x y / 3D · x y z, − and +.<br>• **The list (270 wide):** each function in italic serif on its chip (`y = x² / 2`) with a colored dot, "from your handwriting" with the ink beside it, "write or type an equation…", and TRACE.<br>• **The plot (530 × 540):** the grid every step both ways, every other line labelled, the axes and their letters, curves broken at asymptotes, a dot where curves cross, and the traced point with its coordinates.<br>Only what the keyboard can't write as text is typeset. Old 6a graphs read at `w / 860` | `lib/canvas/graph_card.dart` (`paintGraphCard`, `_Layout`) |
+| Its buttons | Hit regions pressed by the canvas, as the Office card's arrows are, by a finger or the pen (any tool but the eraser):<br>• **A dot** shows or hides its function.<br>• **2D / 3D, − / +, turn ↺ ↻ (20°), Wireframe / Surface** change the view.<br>• **A function's chip** opens the keyboard on it: change it, or empty it to take it off.<br>• **"write or type an equation…"** opens the keyboard for a new one; with the pen, it opens on Write it instead's pad.<br>The view changes aren't undo steps (they're where you're looking); functions added, changed or taken off are | `graphHitAt`, `_pressGraph` (`lib/canvas/ink_canvas_math.dart`) |
+| Several functions | Each new one takes the next color not in use (blue, terracotta, green, plum, teal, gold; all stored ink colors). An empty graph fits its window to its first function. Something that isn't a function of x: "Only a function of x can be graphed, like y = x²" | `_insertGraphLine`, `nextGraphColor` |
+| Trace | A finger tap on the plot, or the pen dragged on it, traces the nearest shown curve at that x:<br>• **With the pen:** with Select, or anywhere in math mode. Elsewhere the pen tool writes on the graph, so you can annotate it.<br>• **Snapping:** x goes to a tenth of the grid step, so Graph.png's (2, 2) is easy to land on, or to a crossing when that's nearer (within 12 px). On a crossing, TRACE reads CROSSING. | `graphTracedAt`, `graphTracePoint`, `_Drag.graph` |
+| Intersections | Crossings of every pair of shown functions in the window: sign changes in 400 steps, narrowed by bisection, skipping jumps across asymptotes (1/x, tan x). Graph.png's x²/2 and 2 sin x cross at 0 and 1.934 | `crossingsOf`, `zerosOf` (`lib/math/evaluate.dart`), `graphCrossings` |
+| Fingers on a graph | On a selected graph's plot, one or two fingers drag its window (turn it, in 3D) and a pinch zooms it. Elsewhere on the graph they move it, and on an unselected graph they pan the page | `_Touch.graph`, `_touchGraph` |
+| 3D (x, y, z) | Surfaces z = f(x, y) over x and y from −3 to 3, seen from above at a turn and tilt (35° and 25° to start):<br>• **Wireframe:** Graph.dc.html's two sets of lines.<br>• **Surface:** quads lit from above, drawn far to near.<br>• **Also:** the axes and their letters, points `(1, 2, 3)` with their coordinates, "Two fingers rotate the view. Pinch to zoom." and "View angle".<br>The pen (with Select, or in math mode) and fingers turn and tilt it | `_plot3d`, `graphDragged`, `graphTurned` |
+| Graph it | It adds to the 2D graph on screen nearest the ink, or makes a new 860 × 660 graph beside it. The function is drawn in the ink's color when that's not black and is free. It keeps a copy of the ink (40 points a stroke) for "from your handwriting" | `_graphIt`, `_addGraph`, `_inkCopy` |
+| What can be graphed | The evaluator now reads:<br>• **Variables:** x, y and θ.<br>• **Surfaces:** `z = …`, `f(x, y) = …`.<br>• **Polar curves:** `r = …`; `r = 2` is a circle.<br>• **Numbers:** √2, π, −2.5, ½, ∞.<br>• **3D points:** `(1, 2, 3)`.<br>A function's argument takes the number before its letter: `\cos 3\theta` is cos(3θ). 6a read it as cos(3)·θ | `lib/math/evaluate.dart` |
+| Math tools (MathKit.png) | Formulas & tools, or Study & math → Math tools, turns the math bar into MathKit.png's "∑ Math tools · Number line · Unit circle · Polar grid · Graph · Done" (Done goes back to math mode; Esc closes the keyboard, then Math tools, then math mode). The keyboard opens on Symbols. Each tool goes on the first free spot on screen, from the top-left, above the keyboard if it fits there, with "Added a number line to the page · Undo". Graph is Add a graph | `MathBar._tools`, `MathMode.tools`, `addTool`, `_addTool`, `_freeSpot` |
+| Number line | MathKit.dc.html's line from −5 to 5 (further to reach every number), ticks, labels, arrowheads:<br>• **"+ point"** types a number (√2, π, −2.5) or an interval ([1, π), (−∞, 2]); each end is drawn open or closed in its color.<br>• **Its chip** "interval [1, π)" hides and shows an interval.<br>• **On the line:** a tap on an end opens or closes it (an undo step); a tap on a point or the bar opens the keyboard on it (empty takes it off).<br>Chips that don't fit wrap, and the tool grows | `lib/canvas/math_tools.dart` (`readNumberLine`, `_NumberLine`), `_insertNumber`, `_pressTool` |
+| Unit circle | − and + step through the 16 special angles: "θ = 90° = π/2". The point is labelled with exact (cos, sin), cos is drawn in blue and sin in clay, with the angle's arc. Underneath: cos θ, sin θ and tan θ exact ("undefined" at 90° and 270°). Stepping isn't an undo step | `specialAngles`, `unitCircleStepped` |
+| Polar grid | Rings, rays every 30° with their degrees, and curves r = f(θ) over 0–4π. It starts with r = 1 + cos θ shown and r = 2 cos 3θ hidden, as in the design. A curve's chip shows or hides it, + adds one, and a tap on a curve opens the keyboard on it. The outer ring is 2, or the largest r rounded up | `PolarData`, `_PolarGrid`, `_insertCurve` |
+| Formula library | The keyboard's tabs are Math and Physics (MathKit.png's names; 6a called Math "Formulas"). One tap puts a formula on the page at a free spot, typeset in the pen's color: "Added A = πr² to the page · Undo" | `MathKeyboard.onFormula`, `_addFormula` |
+| The keyboard for graphs and tools | A draft now says what Insert does: `DraftFor.math`, `newGraph`, `graphLine`, `numberLine` or `polarCurve`. It shows a hint in the empty line ("y = x² / 2", "√2, or an interval like [1, π)"). Outside math mode, a tap on the paper puts it away | `lib/canvas/math_mode.dart`, `math_keyboard.dart` |
+| Search, exports, board files | Search finds a graph by its functions and surfaces, and a tool by what it says ("Unit circle θ = 90° = π/2 cos θ = 0 …"). PDFs draw graphs and tools as pictures with that text in the text layer; the picture export draws them too. Both round-trip through board files, and a `widget` of a kind this version doesn't have (a calendar) is kept as it was | `mathToolText`, `handwriting_index.dart`, `pdf_export.dart`, `docs/BOARD_FORMAT.md` |
+| Text for math | `latexToLinear` puts a space before a function's name after a number: "2 sin x", not "2sin x" (it shows in chips and messages) | `lib/math/linear.dart` |
+
+### Not done yet / known limits
+- **Not tried on the tablet.** Things to check there:
+  - tracing with the S Pen, and the 12 px crossing snap with a finger;
+  - two-finger turning in 3D;
+  - the shaded surface's speed (about 600 quads a frame while turning);
+  - where tools land with the tablet's keyboard size.
+- **Graph.png details left out:**
+  - The handwriting graphed isn't marked "Graphed" (the dashed outline and badge beside the ink).
+  - A selected graph has the app's usual dashed selection, not the design's solid outline.
+  - Formulas are in Newsreader italic with KaTeX's fonts for symbols Newsreader lacks.
+- **Gestures:**
+  - With Select, the pen on a graph's plot traces instead of moving the graph; drag it by its header or list.
+  - With the pen tool outside math mode, the pen writes on the plot, as it does on a picture.
+- **The view is fixed per graph:**
+  - 3D surfaces are drawn over x and y from −3 to 3 only; zoom magnifies that.
+  - z beyond ±4 is clipped.
+  - Polar curves are drawn over 0–4π.
+- **What's graphed is read with the 6a evaluator:** no implicit curves (x² + y² = 1), parametric curves, inequalities or sliders.
+- **Number line:** points can't be dragged along it; one number line holds any number of points and intervals, but the chips for many intervals take rows.
+- **Not undo steps:** stepping the unit circle and showing or hiding a curve are kept quietly, like a graph's view.
+- **Split view:** Math & graphs and Math tools are still "coming soon" there.
 - Converted math takes the color of the first stroke.
 - Linux, iOS, macOS and web builds aren't set up yet (`flutter create --platforms=linux .` adds Linux). The recognizer is the same code there, through the same plugin, which downloads ONNX Runtime when it builds.
 
@@ -536,6 +588,49 @@ The owner's request (2026-10-15). Three recognizers were put to the owner: MyScr
   - 2 goldens, typeset for real with KaTeX's fonts: `math` (Math.png) and `math_kit` (the keyboard's Symbols tab, with a graph card).
   - `integration_test/` (run with `-d windows`; they use the real plugin, so they aren't part of `flutter test`): `math_model_test.dart`, `math_typeset_test.dart`, `math_mode_test.dart`.
   - `test/fixtures/math/ink_samples.json` comes from `tool/math_model/make_fixtures.py`.
+- Phase 6b:
+  - `test/math/evaluate_test.dart`:
+    - `sin 2x` and `cos 3θ`;
+    - surfaces (Graph.png's saddle, xy, a plane) and what isn't one;
+    - polar curves (the cardioid, the rose, a circle);
+    - numbers (√2, π, −√3/2, ±∞);
+    - 3D points;
+    - crossings: Graph.png's 0 and 1.934, 1 ± √3, none at 1/x's asymptote, tan x's at 0.
+  - `test/canvas/graph_card_test.dart`:
+    - the plot where Graph.dc.html has it, scaled and stretched;
+    - every button in 2D and 3D, and at half size;
+    - crossings (and none for a hidden function);
+    - tracing (2, 2), the crossing at 1.93, another curve, hidden functions;
+    - zooming about a point, dragging the window, turning and tilting, limits;
+    - number formatting and colors.
+  - `test/canvas/math_tools_test.dart`:
+    - MathKit.dc.html's sizes;
+    - the 16 special angles checked exactly against cos, sin and tan;
+    - stepping round;
+    - reading points and intervals ((−∞, 2]; refusing [3, 1]);
+    - the number line's parts (points, labels, ends, the bar, chips, + point, a longer line, hidden intervals);
+    - wrapping chips;
+    - the unit circle's − and +;
+    - the polar grid's chips, + and curves;
+    - each tool's text.
+  - `test/board/math_items_test.dart`:
+    - a 3D graph round trip (surfaces, a point, `view3d`, the trace, hidden, the handwriting copy, byte for byte);
+    - a 6a graph read with `unit` from its width, and how corners and edges change it;
+    - the three tools as `widget` items with unknown config fields;
+    - a calendar `widget` kept as it was.
+  - `test/transfer/everything.dart` has a 3D graph, the three tools and a calendar widget, so the board file and PDF round trips cover them.
+  - `test/ui/graph_tools_test.dart`:
+    - Math tools' three buttons: free spots, no overlaps, above the keyboard, Undo;
+    - the unit circle by finger and pen, no ink, no undo steps, round to 0°;
+    - the number line: + point, a refusal, √2, [1, π), closing an end and Undo, hiding, editing and taking off a point, changing an interval to (−∞, 2], a tap on the paper putting the keyboard away;
+    - the polar grid: a chip, +, a refusal, a curve tapped and changed;
+    - a graph's buttons: dots by finger and pen, zoom, 3D, turn, Surface, no undo steps, the pen turning it with Select;
+    - typing functions: refused, added in the next color, changed, taken off, Undo, the pen opening the writing pad;
+    - tracing by a finger tap and by the pen with Select onto the crossing, and the pen tool writing on the plot;
+    - fingers: panning the page off a graph, then dragging and pinching a selected graph's window;
+    - Graph it adding to the graph on screen in the ink's color with its copy, then a new graph, and the pen tracing in math mode.
+  - `test/ui/math_mode_test.dart`: Math tools' bar, the Math tab, a formula in one tap (clear of the keyboard and the last one, Undo), Done back to math mode, Esc in three steps.
+  - 4 new goldens: `graph` and `graph_dark` (Graph.png, selected with Select), `graph_3d` (the saddle, wireframe) and `math_tools` (MathKit.png's tools and bar). `math_kit` is now the Math tools bar with the keyboard on Symbols.
 - `test/tokens_sync_test.dart`: generated tokens match `design/tokens.json`.
 
 ## Next
@@ -545,7 +640,11 @@ The owner's request (2026-10-15). Three recognizers were put to the owner: MyScr
   - Tap converted math with a finger, edit it with the keys and with the tablet's keyboard, then Insert. Try Write it instead.
   - Formulas & tools: the keyboard on its Symbols tab; a symbol and a formula, then Insert. Then Add a graph.
   - Try it in airplane mode, to see that it all works offline.
-- After that, the rest of Phase 6: the Graph screen (Graph.png: functions you can add and edit, trace, intersections, 3D) and the number line, unit circle and polar grid (MathKit.png).
+- **Try Phase 6b on the tablet.**
+  - **The graph:** Graph it on `y = 2 sin x` beside a graph; trace with the S Pen (Select) and a finger, onto a crossing; add a function by typing and by writing ("write or type an equation…" with the pen).
+  - **3D:** switch to 3D, turn it with two fingers and the ↺ ↻ buttons, pinch, then try Surface.
+  - **Math tools:** add a number line (√2, [1, π), an end opened and closed), step the unit circle all the way round, add a curve to the polar grid, and tap a formula. Check where each lands with the keyboard open.
+- Phase 7 (docs/SPEC.md) is next once 6a and 6b are checked on the tablet.
 - Try Phase 5a on the tablet: the model download on first use and then offline, writing and searching, Open at this spot, Convert to text (Replace, Keep ink too, Copy text only, another language, the whole page), a PDF export's text in a PDF reader, and locking a page then searching.
 - Try Phase 4a on the tablet: export a page as a PDF to the tablet and through the share sheet, a board file round trip, Print, the Share dialog's Image, and importing a real PDF (a long one too).
 - Still to try from Phase 3: sticky notes, text boxes with the on-screen keyboard, photos from the gallery and the camera, the whole board, the card editors, opening a website, arrows between boxes, and dragging the ruler's ends.

@@ -365,8 +365,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
       case 'Math & graphs':
         _startMath();
       case 'Math tools':
-        // The symbols and formulas; the number line, unit circle and polar
-        // grid come later.
+        // The Math tools bar (MathKit.png), with the keyboard's symbols.
         _startMath();
         _openSymbols();
       case 'Spell check':
@@ -428,16 +427,27 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
   /// Add a graph: type the function, and Insert graphs it.
   void _addGraph() {
     pane.math
-      ..type(MathDraft(at: _typingSpot(), text: 'y = ', graph: true))
+      ..type(MathDraft(at: _typingSpot(), text: 'y = ', purpose: DraftFor.newGraph))
       ..tab = 0;
   }
 
-  /// Formulas & tools: the keyboard on its Symbols tab (opened for new math
-  /// if it isn't open), MathKit.png's symbols and formulas being its tabs.
+  /// Formulas & tools: the Math tools bar, and the keyboard on its Symbols
+  /// tab (opened for new math if it isn't open), MathKit.png's symbols and
+  /// formulas being its tabs.
   void _openSymbols() {
     final mode = pane.math;
     if (mode.draft == null) mode.type(MathDraft(at: _typingSpot()));
-    mode.tab = symbolsTab;
+    mode
+      ..tab = symbolsTab
+      ..tools = true;
+  }
+
+  /// Math tools' Done: back to math mode's own bar.
+  void _closeTools() {
+    pane.math
+      ..closeKeyboard()
+      ..tools = false;
+    _showHint(mathHint);
   }
 
   // Spell check and the dictionary (Spell.png).
@@ -658,6 +668,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
           const SingleActivator(LogicalKeyboardKey.escape): () {
             if (_spell != null) return _endSpell();
             if (pane.math.draft != null) return pane.math.closeKeyboard();
+            if (pane.math.tools) return _closeTools();
             if (pane.math.on) return _endMath();
             _closeMenus();
             pane
@@ -748,6 +759,8 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                                     onFormulas: _openSymbols,
                                     onAddGraph: _addGraph,
                                     onDone: _endMath,
+                                    onTool: mode.addTool,
+                                    onToolsDone: _closeTools,
                                   )
                                 : null,
                       ),

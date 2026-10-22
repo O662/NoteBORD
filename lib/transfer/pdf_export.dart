@@ -19,6 +19,7 @@ import '../recognition/recognized.dart';
 import '../canvas/stroke_geometry.dart';
 import '../math/linear.dart' show latexToLinear;
 import '../canvas/graph_card.dart';
+import '../canvas/math_tools.dart' show mathToolText, paintMathTool;
 import '../math/math_pictures.dart' show MathPicture, MathSource;
 import '../templates/templates.dart';
 import '../theme/colors.dart';
@@ -436,10 +437,13 @@ class _PdfWriter {
         text.add(TextRun(latexToLinear(m.latex), m.extent));
       case GraphItem g:
         final typeset = <String, MathPicture?>{
-          for (final f in g.functions) f.expr: await typesetMath?.call(f.expr),
+          for (final f in [...g.functions, ...g.surfaces]) f.expr: await typesetMath?.call(f.expr),
         };
         await _raster(g.paintRect, (canvas) => paintGraphCard(canvas, g, ui.Brightness.light, c, _Typeset(typeset)));
-        text.add(TextRun([for (final f in g.functions) latexToLinear(f.expr)].join('\n'), g.extent));
+        text.add(TextRun([for (final f in [...g.functions, ...g.surfaces]) latexToLinear(f.expr)].join('\n'), g.extent));
+      case MathToolItem t:
+        await _raster(t.paintRect, (canvas) => paintMathTool(canvas, t, ui.Brightness.light, c));
+        text.add(TextRun(mathToolText(t.data), t.extent));
     }
     g.restoreContext();
   }

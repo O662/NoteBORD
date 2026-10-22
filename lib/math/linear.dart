@@ -845,6 +845,9 @@ String _linear(_Node n) {
         // A fraction stands apart from what's next to it, or the run would
         // join it: ½mv² is "1/2 mv²".
         if (item is _Frac && k > 0 && !b.toString().endsWith(' ')) b.write(' ');
+        // So does a function's name: 2 sin x, not "2sin x".
+        final named = _isFunction(item) || (item is _Scripts && _isFunction(item.base));
+        if (named && b.isNotEmpty && !b.toString().endsWith(' ') && !b.toString().endsWith('(')) b.write(' ');
         b.write(text);
         if (item is _Frac && k + 1 < s.items.length) b.write(' ');
       }

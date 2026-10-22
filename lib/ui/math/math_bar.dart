@@ -10,6 +10,9 @@ import 'math_keys.dart' show symbolsTab;
 /// "∑ Math mode · Handwriting converts as you go", Lasso, Formulas & tools,
 /// Add a graph, Done. Lasso isn't in the design: with the tool pill gone,
 /// it's how to circle math that was written before.
+///
+/// With Formulas & tools it becomes Math tools (MathKit.dc.html's toolbar):
+/// Number line, Unit circle, Polar grid, Graph and Done (back to math mode).
 class MathBar extends StatelessWidget {
   const MathBar({
     super.key,
@@ -17,6 +20,8 @@ class MathBar extends StatelessWidget {
     required this.onFormulas,
     required this.onAddGraph,
     required this.onDone,
+    required this.onTool,
+    required this.onToolsDone,
     this.compact = false,
   });
 
@@ -24,6 +29,8 @@ class MathBar extends StatelessWidget {
   final VoidCallback onFormulas;
   final VoidCallback onAddGraph;
   final VoidCallback onDone;
+  final ValueChanged<MathToolKind> onTool;
+  final VoidCallback onToolsDone;
 
   /// Too narrow for the subtitle.
   final bool compact;
@@ -33,7 +40,42 @@ class MathBar extends StatelessWidget {
     final c = context.colors;
     return ListenableBuilder(
       listenable: math,
-      builder: (context, _) => Semantics(
+      builder: (context, _) => math.tools ? _tools(c) : _mathMode(c),
+    );
+  }
+
+  Widget _tools(EndlessColors c) => Semantics(
+        container: true,
+        label: 'Math tools',
+        explicitChildNodes: true,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 4, 4, 4),
+          decoration: BoxDecoration(
+            color: c.inverse,
+            borderRadius: BorderRadius.circular(Radii.pill),
+            boxShadow: c.pillShadow,
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, spacing: 6, children: [
+            ExcludeSemantics(
+              child: Text(
+                '∑',
+                style: TextStyle(fontFamily: FontFamilies.serif, fontFamilyFallback: mathFontFallback, fontSize: 20, color: c.onInverse),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Text('Math tools', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.onInverse)),
+            ),
+            MathBarButton(label: 'Number line', tight: true, onTap: () => onTool(MathToolKind.numberLine)),
+            MathBarButton(label: 'Unit circle', tight: true, onTap: () => onTool(MathToolKind.unitCircle)),
+            MathBarButton(label: 'Polar grid', tight: true, onTap: () => onTool(MathToolKind.polarGrid)),
+            MathBarButton(label: 'Graph', tight: true, onTap: onAddGraph),
+            MathBarButton(label: 'Done', done: true, onTap: onToolsDone),
+          ]),
+        ),
+      );
+
+  Widget _mathMode(EndlessColors c) => Semantics(
         container: true,
         label: 'Math mode',
         explicitChildNodes: true,
@@ -68,17 +110,25 @@ class MathBar extends StatelessWidget {
             MathBarButton(label: 'Done', done: true, onTap: onDone),
           ]),
         ),
-      ),
-    );
-  }
+      );
 }
 
 class MathBarButton extends StatelessWidget {
-  const MathBarButton({super.key, required this.label, required this.onTap, this.done = false, this.selected = false});
+  const MathBarButton({
+    super.key,
+    required this.label,
+    required this.onTap,
+    this.done = false,
+    this.selected = false,
+    this.tight = false,
+  });
 
   final String label;
   final VoidCallback onTap;
   final bool done;
+
+  /// Math tools' buttons are a little narrower (MathKit.dc.html).
+  final bool tight;
 
   /// A toggle that's on.
   final bool selected;
@@ -100,7 +150,7 @@ class MathBarButton extends StatelessWidget {
           onTap: onTap,
           child: Container(
             height: 44,
-            padding: EdgeInsets.symmetric(horizontal: done ? 16 : 14),
+            padding: EdgeInsets.symmetric(horizontal: done ? 16 : (tight ? 12 : 14)),
             alignment: Alignment.center,
             child: Text(
               label,

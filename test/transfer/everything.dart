@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:ui' show Color, Offset, Size;
+import 'dart:ui' show Color, Offset, Rect, Size;
 
 import 'package:endless/board/codec.dart';
 import 'package:endless/board/lock.dart';
@@ -65,6 +65,53 @@ Future<(MemoryBoardStore, String password)> everythingNotebook() async {
       },
     ),
     UnknownItem({'id': 'it_math', 'type': 'math', 'x': 0, 'y': 1400, 'z': 46, 'createdAt': everythingAt.toIso8601String(), 'w': 200, 'h': 60, 'latex': r'p = mv'}),
+    // Phase 6b: a 3D graph that remembers a 2D trace and handwriting, and
+    // the three math tools; a calendar widget from a newer app.
+    GraphItem(
+      id: 'it_graph',
+      x: 0,
+      y: 1600,
+      z: 48,
+      createdAt: everythingAt,
+      w: 430,
+      h: 330,
+      unit: 0.5,
+      mode: GraphMode.d3,
+      functions: const [
+        GraphLine(r'y=2\sin x', Color(0xFFB5532A), ink: [
+          [Offset(0, 8), Offset(6, 0), Offset(12, 8)],
+        ]),
+      ],
+      trace: const GraphTrace(0, 1.5),
+      surfaces: const [GraphLine(r'z=\frac{x^{2}-y^{2}}{4}', Color(0xFF2B5A8C)), GraphLine('(1,2,3)', Color(0xFF3E7B4F), hidden: true)],
+      view3d: const GraphView3d(turn: -45, tilt: 40, surface: true),
+      view: const Rect.fromLTRB(-5, -3, 5, 3),
+    ),
+    MathToolItem(
+      id: 'it_line',
+      x: 500,
+      y: 1600,
+      z: 49,
+      createdAt: everythingAt,
+      w: 790,
+      h: 160,
+      data: const NumberLineData(
+        points: [NumberPoint('-2.5', Color(0xFF2B5A8C))],
+        spans: [NumberSpan('1', r'\pi', Color(0xFF3E7B4F), openTo: true)],
+      ),
+    ),
+    MathToolItem(id: 'it_circle', x: 500, y: 1800, z: 50, createdAt: everythingAt, w: 400, h: 424, data: const UnitCircleData(step: 2)),
+    MathToolItem(
+      id: 'it_polar',
+      x: 950,
+      y: 1800,
+      z: 51,
+      createdAt: everythingAt,
+      w: 370,
+      h: 406,
+      data: const PolarData(curves: [GraphLine(r'r=1+\cos\theta', Color(0xFF2B5A8C))]),
+    ),
+    UnknownItem({'id': 'it_cal', 'type': 'widget', 'widget': 'calendar', 'x': 0, 'y': 2300, 'z': 52, 'createdAt': everythingAt.toIso8601String(), 'w': 300, 'h': 300, 'config': {'month': '2026-10'}}),
   ];
   final page1 = BoardPage(id: board.pages.single.id, title: 'Board', items: [...board.pages.single.items, ...extra]);
   final page2 = BoardPage(id: 'pg_pdf', title: 'Handout', paper: Paper.lines, template: 'cornell', items: [

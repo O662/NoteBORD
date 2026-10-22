@@ -12,7 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../board/ids.dart';
 import '../board/model.dart';
-import '../math/evaluate.dart' show graphView;
+import '../math/evaluate.dart' show GraphFunction, graphView;
 import '../math/ink_image.dart' show writingSize;
 import '../math/latex.dart' show isDrawable;
 import '../math/linear.dart';
@@ -38,6 +38,7 @@ import '../ui/canvas/text_editor.dart';
 import '../ui/common.dart';
 import '../ui/dialogs.dart';
 import '../ui/math/math_keyboard.dart';
+import '../ui/math/math_keys.dart' show Formula, formulaLabel;
 import '../ui/math/math_preview.dart';
 import 'canvas_view.dart';
 import 'cards.dart';
@@ -48,6 +49,7 @@ import 'graph_card.dart';
 import 'items.dart';
 import 'laser.dart';
 import 'math_mode.dart';
+import 'math_tools.dart';
 import 'new_items.dart';
 import 'office_cards.dart';
 import 'page_runtime.dart';
@@ -98,10 +100,13 @@ enum _Drag {
   shape,
   stretch,
   connectorEnd,
+  // Tracing a graph's curve, or turning its 3D view.
+  graph,
 }
 
-/// What the fingers are doing.
-enum _Touch { navigate, ruler, selection }
+/// What the fingers are doing: on a selected graph's plot, they move its
+/// window (or turn it, in 3D) and pinch to zoom it.
+enum _Touch { navigate, ruler, selection, graph }
 
 /// The endless page. Routes raw pointers: the stylus draws, fingers pan and
 /// zoom, and touches while the stylus is near are rejected as the palm.
@@ -221,6 +226,17 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   /// The sticky note the stroke being drawn started on: it's written on the
   /// note and moves with it.
   String? _inkTarget;
+
+  /// The graph being traced or turned (by the pen, or fingers), and where
+  /// the pointer was, relative to it.
+  String? _graphId;
+  Offset _graphLast = Offset.zero;
+
+  /// The tap in progress is the pen's (or the mouse's), not a finger's.
+  bool _tapPen = false;
+
+  /// The math keyboard, to keep what's added clear of it.
+  final _keyboardKey = GlobalKey();
 
   /// Every stroke the scribble in progress would erase.
   Set<String> _scribbleIds = const {};
@@ -471,6 +487,12 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _strokeStart = e.timeStamp;
         _dismissToast();
         return;
+      } else if ((_canInk ? _onSelectedPlot(page) : null) case final GraphItem g) {
+        _touch = _Touch.graph;
+        _graphId = g.id;
+        _tapFinger = e.pointer;
+        _tapPen = false;
+        _tapDown = e.localPosition;
       } else if (_canInk && _selection.isNotEmpty && _inSelection(page)) {
         _touch = _Touch.selection;
         _touchTransform = Similarity.identity;
@@ -485,6 +507,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
           // A finger tap drops what the tool drops, or presses a website
           // card's Open button; a drag still pans.
           _tapFinger = e.pointer;
+          _tapPen = false;
           _tapDown = e.localPosition;
         }
       }
@@ -579,6 +602,9 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         final step = Similarity.about(from, scale: factor, rotation: turn).then(Similarity.translate(to - from));
         _touchTransform = _touchTransform.then(step);
         _selection.live = _touchTransform;
+      case _Touch.graph:
+        if (pointer == _tapFinger) return; // still a tap
+        _touchGraph(before.$1, after.$1, factor);
     }
   }
 
@@ -598,7 +624,10 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       _land(_touchTransform);
       _touchTransform = Similarity.identity;
     }
-    if (_touches.isEmpty) _touch = _Touch.navigate;
+    if (_touches.isEmpty) {
+      if (_touch == _Touch.graph) _graphId = null;
+      _touch = _Touch.navigate;
+    }
   }
 
   /// Drops every finger (the pen came down), landing a selection pinch.
@@ -633,6 +662,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
   void _startInput(PointerDownEvent e, {required bool erase}) {
     final settings = ref.read(settingsProvider);
+    _tapPen = _isStylus(e);
     _drawPointer = e.pointer;
     _drawAt = e.localPosition;
     _strokeStart = e.timeStamp;
@@ -682,14 +712,17 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _mathIdle?.cancel();
         final top = topBoxAt(_page.items, page);
         if ((top is OfficeItem && officeButtonAt(top, top.toLocal(page)) != null) ||
-            (top is MathItem && pane.math.on && settings.tool != CanvasTool.eraser)) {
-          // The pen presses an Office card's Open and page arrows; in math
-          // mode it taps typeset math to edit it.
+            (top is MathItem && pane.math.on && settings.tool != CanvasTool.eraser) ||
+            (settings.tool != CanvasTool.eraser && _controlAt(top, page))) {
+          // The pen presses an Office card's Open and page arrows, and a
+          // graph's or math tool's buttons; in math mode it taps typeset
+          // math to edit it.
           _drag = _Drag.tap;
           _tapDown = e.localPosition;
           _tapMoved = false;
           return;
         }
+        if (settings.tool != CanvasTool.eraser && pane.math.on && _startGraphDrag(top, page)) return;
         _drag = _Drag.ink;
         _samples = 0;
         // Ink that starts on a sticky note (or an Office file's page) is
@@ -789,6 +822,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         if ((e.localPosition - _chipDown).distance > 10) _chipMoved = true;
       case _Drag.rulerEnd:
         pane.ruler.dragEnd(e.localPosition);
+      case _Drag.graph:
+        _dragGraph(page);
       case _Drag.none:
         break;
     }
@@ -851,7 +886,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _finishStretch();
       case _Drag.connectorEnd:
         _finishConnectorEnd();
-      case _Drag.none:
+      case _Drag.graph || _Drag.none:
         break;
     }
     _resetInput();
@@ -890,6 +925,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     _inkTarget = null;
     _stretching = null;
     _connector = null;
+    if (_touch != _Touch.graph) _graphId = null;
     if (_selection.live == null) _moving = const {};
     _scribbleIds = const {};
     _holdTimer?.cancel();
@@ -1153,7 +1189,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   List<Item> _riders() {
     final frames = [
       for (final i in _selected)
-        if (i is FrameItem || i is ImageItem || i is CardItem || i is OfficeItem) i as BoxItem,
+        if (i is FrameItem || i is ImageItem || i is CardItem || i is OfficeItem || i is GraphItem || i is MathToolItem) i as BoxItem,
     ];
     if (frames.isEmpty) return const [];
     final page = _page;
@@ -1311,6 +1347,18 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   void _startSelectionDrag(Offset screen, Offset page, {required bool lasso}) {
     _dragFrom = page;
     if (_grabHandle(screen, page)) return;
+    if (!lasso) {
+      // Select presses a graph's or math tool's buttons, and traces (or
+      // turns) a graph's plot.
+      final top = topBoxAt(_page.items, page);
+      if (_controlAt(top, page)) {
+        _drag = _Drag.tap;
+        _tapDown = screen;
+        _tapMoved = false;
+        return;
+      }
+      if (_startGraphDrag(top, page)) return;
+    }
     if (_selection.isNotEmpty && _inSelection(page)) {
       _drag = _Drag.move;
       _beginMoving();
@@ -1854,9 +1902,16 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       _typeMathAt(at);
       return;
     }
-    if (!settings.tool.places) {
+    if (pane.math.draft != null && !pane.math.on && topBoxAt(page.items, at) == null) {
+      // Outside math mode, a tap on the paper puts the keyboard away.
+      pane.math.closeKeyboard();
+      return;
+    }
+    if (!settings.tool.places || topBoxAt(page.items, at) is GraphItem || topBoxAt(page.items, at) is MathToolItem) {
       // Any other tool: a tap only presses a website card's Open button,
-      // or an Office card's Open and page arrows.
+      // an Office card's Open and page arrows, or a graph's or math tool's
+      // buttons (and a graph's plot traces).
+      if (_pressMathControl(at)) return;
       if (_pressFileButton(at)) return;
       if (topBoxAt(page.items, at) case final CardItem card when card.data is EmbedData) {
         if (embedOpenRect(card).contains(card.toLocal(at))) _openLink(card);
