@@ -10,7 +10,6 @@ import '../../board/ids.dart';
 import '../../canvas/canvas_view.dart';
 import '../../board/model.dart' show OfficeItem, StickyItem, TextItem;
 import '../../canvas/ink_canvas.dart';
-import '../../canvas/math_mode.dart';
 import '../../canvas/pane.dart';
 import '../../library/library.dart';
 import '../../spelling/dictionary.dart';
@@ -21,7 +20,7 @@ import '../common.dart';
 import '../dialogs.dart';
 import '../lock/lock_dialog.dart';
 import '../lock/unlock.dart';
-import '../math/math_keys.dart' show symbolsTab;
+import '../math/math_actions.dart';
 import '../math/math_bar.dart';
 import '../routes.dart';
 import '../spell/dictionary_drawer.dart';
@@ -41,6 +40,8 @@ import 'panels.dart';
 import 'pen_popover.dart';
 import 'top_bar.dart';
 
+export '../math/math_actions.dart' show mathHint;
+
 const toolHints = {
   CanvasTool.pen: 'Tap the pen again for colors and thickness',
   CanvasTool.marker: 'Tap the marker again for colors and thickness',
@@ -55,7 +56,6 @@ const boardHint = 'The whole board · tap anywhere to zoom in there';
 
 const rulerHint = 'Two fingers rotate the ruler · the pen snaps to its edge';
 
-const mathHint = 'Write math with the pen and pause · tap with a finger to type it';
 
 /// What the ⋯ menu items open, until their screens exist.
 const _moreFeatures = {
@@ -123,6 +123,12 @@ void handleRailItem(
     case 'Laser pointer':
       useTool(CanvasTool.laser);
       hint?.call(toolHints[CanvasTool.laser]!);
+    case 'Math & graphs':
+      startMath(ref, pane);
+      hint?.call(mathHint);
+    case 'Math tools':
+      startMath(ref, pane);
+      openMathTools(pane);
     case 'Need to remember' || 'Convert to text':
       // Until their own screens exist, both start a lasso whose toolbar
       // leads with that action (RememberMark.png, Convert.png).
@@ -381,15 +387,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
 
   void _startMath() {
     _endSpell();
-    pane
-      ..dismiss()
-      ..selection.clear();
-    final mode = pane.math;
-    mode.start();
-    final settings = ref.read(settingsProvider.notifier);
-    if (!ref.read(settingsProvider).tool.inks || ref.read(settingsProvider).tool == CanvasTool.marker) {
-      settings.apply((s) => s.copyWith(tool: CanvasTool.pen));
-    }
+    startMath(ref, pane);
     setState(() {
       _popover = false;
       _dict = false;
@@ -398,55 +396,28 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
   }
 
   void _endMath() {
-    pane.math.end();
-    ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: CanvasTool.pen));
+    endMath(ref, pane);
     _showHint(toolHints[CanvasTool.pen]);
   }
 
-  /// Lasso in the math bar picks the lasso tool (and back to the pen).
+  /// Lasso in the math bar picks the lasso tool (and back to the pen). Math
+  /// mode started from the Insert menu closes what it would cover.
   void _mathChanged() {
     final mode = pane.math;
     if (mode.on) {
-      final want = mode.lasso ? CanvasTool.lasso : CanvasTool.pen;
-      final tool = ref.read(settingsProvider).tool;
-      if (tool != want && (tool == CanvasTool.pen || tool == CanvasTool.lasso)) {
-        ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: want));
-        _showHint(mode.lasso ? 'Circle the math to convert, graph or copy' : mathHint);
-      }
+      if (followMathLasso(ref, pane)) _showHint(mode.lasso ? 'Circle the math to convert, graph or copy' : mathHint);
+      _dict = false;
+      _popover = false;
     }
     if (mounted) setState(() {});
   }
 
-  /// Where new math typed from the bar goes: up and left of the middle,
-  /// clear of the keyboard.
-  Offset _typingSpot() {
-    final view = pane.view;
-    return view.toPage(Offset(view.size.width * 0.25, view.size.height * 0.3));
-  }
-
-  /// Add a graph: type the function, and Insert graphs it.
-  void _addGraph() {
-    pane.math
-      ..type(MathDraft(at: _typingSpot(), text: 'y = ', purpose: DraftFor.newGraph))
-      ..tab = 0;
-  }
-
-  /// Formulas & tools: the Math tools bar, and the keyboard on its Symbols
-  /// tab (opened for new math if it isn't open), MathKit.png's symbols and
-  /// formulas being its tabs.
-  void _openSymbols() {
-    final mode = pane.math;
-    if (mode.draft == null) mode.type(MathDraft(at: _typingSpot()));
-    mode
-      ..tab = symbolsTab
-      ..tools = true;
-  }
+  /// Formulas & tools: the Math tools bar, with the keyboard on Symbols.
+  void _openSymbols() => openMathTools(pane);
 
   /// Math tools' Done: back to math mode's own bar.
   void _closeTools() {
-    pane.math
-      ..closeKeyboard()
-      ..tools = false;
+    closeMathTools(pane);
     _showHint(mathHint);
   }
 
@@ -757,7 +728,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                                     math: mode,
                                     compact: box.maxWidth < 1100,
                                     onFormulas: _openSymbols,
-                                    onAddGraph: _addGraph,
+                                    onAddGraph: () => addGraph(pane),
                                     onDone: _endMath,
                                     onTool: mode.addTool,
                                     onToolsDone: _closeTools,

@@ -48,6 +48,7 @@ extension _CanvasMath on InkCanvasState {
       });
     }
     if (!_math.on) {
+      _clearGraphed();
       _mathIdle?.cancel();
       _mathInk.clear();
       if (_selection.menu == SelectionMenu.math) {
@@ -107,6 +108,8 @@ extension _CanvasMath on InkCanvasState {
     _rebuild(() {
       _preview = PreviewState.reading;
       _previewLatex = null;
+      _previewOthers = const [];
+      _previewChoice = null;
     });
     final reader = _reader;
     reader.read(ink).then((reading) {
@@ -114,6 +117,7 @@ extension _CanvasMath on InkCanvasState {
       if (reading != null) _pictures.load(reading.latex);
       _rebuild(() {
         _previewLatex = reading?.latex;
+        _previewOthers = reading?.others ?? const [];
         _preview = reading != null
             ? PreviewState.read
             : (reader.available ? PreviewState.unreadable : PreviewState.unavailable);
@@ -132,7 +136,15 @@ extension _CanvasMath on InkCanvasState {
     }
     final ink = _selectedInk();
     if (ink.isEmpty) return null;
-    return (await _reader.read(ink))?.latex;
+    return (await _readInk(ink))?.latex;
+  }
+
+  /// What [ink] says: the reading picked in the preview, if it's for this ink.
+  Future<MathReading?> _readInk(List<StrokeItem> ink) async {
+    final reading = await _reader.read(ink);
+    final choice = _previewChoice;
+    if (reading != null && choice != null && setEquals({for (final s in ink) s.id}, _previewFor)) return MathReading(choice);
+    return reading;
   }
 
   void _cantRead() {
@@ -148,7 +160,7 @@ extension _CanvasMath on InkCanvasState {
     final pageId = _page.id;
     final ink = _selectedInk();
     if (ink.isEmpty) return;
-    final reading = await _reader.read(ink);
+    final reading = await _readInk(ink);
     if (!mounted || _page.id != pageId) return;
     if (reading == null) return _cantRead();
     final strokes = [for (final s in ink) [for (final p in s.pageInk) Offset(p.x, p.y)]];
@@ -194,10 +206,42 @@ extension _CanvasMath on InkCanvasState {
     final latex = await _selectedLatex();
     if (!mounted || _page.id != pageId) return;
     if (latex == null) return _cantRead();
-    final area = _outline()?.getBounds() ?? _vp.toPage(_vp.size.center(Offset.zero)) & Size.zero;
+    final loop = _outline();
+    final area = loop?.getBounds() ?? _vp.toPage(_vp.size.center(Offset.zero)) & Size.zero;
     if (!_addGraph(latex, Offset(area.right + 40, area.top), ink: ink, near: area)) return;
     _selection.clear();
+    if (loop != null && ink.isNotEmpty) _markGraphed(ink, loop);
     _rebuild(() {});
+  }
+
+  /// Graph.png's "Graphed": the handwriting's outline stays, dashed, with
+  /// a badge, until you write or select again (or the ink moves).
+  void _markGraphed(List<StrokeItem> ink, Path loop) {
+    _graphedIds = {for (final s in ink) s.id};
+    _graphedArea = ink.map((s) => s.bounds).reduce((a, b) => a.expandToInclude(b));
+    _overlay.graphed = loop;
+  }
+
+  void _clearGraphed() {
+    if (_overlay.graphed == null) return;
+    _graphedIds = const {};
+    _graphedArea = null;
+    _overlay.graphed = null;
+  }
+
+  /// The graphed handwriting was moved, erased or undone: the mark goes.
+  void _checkGraphed(PageRuntime page) {
+    if (_overlay.graphed == null) return;
+    Rect? area;
+    for (final id in _graphedIds) {
+      final s = page[id];
+      if (s is! StrokeItem) {
+        area = null;
+        break;
+      }
+      area = area == null ? s.bounds : area.expandToInclude(s.bounds);
+    }
+    if (area != _graphedArea) WidgetsBinding.instance.addPostFrameCallback((_) => _clearGraphed());
   }
 
   /// Graphs [latex]: on the 2D graph on screen nearest [near] (if there is
@@ -571,9 +615,12 @@ extension _CanvasMath on InkCanvasState {
     _pictures.load(latex);
     final index = draft.index;
     final changing = index != null && index < lines.length;
+    // Written on the pad (and not changed since): the graph keeps the writing.
+    final ink = draft.written.isNotEmpty && draft.writtenAs?.trim() == text ? _inkCopy(draft.written) : const <List<Offset>>[];
+    GraphLine line(Color color, {bool hidden = false}) => GraphLine(latex, color, hidden: hidden, ink: ink);
     var next = changing
-        ? withLines([...lines]..[index] = lines[index].copyWith(expr: latex))
-        : withLines([...lines, GraphLine(latex, nextGraphColor(lines.map((l) => l.color)))]);
+        ? withLines([...lines]..[index] = ink.isEmpty ? lines[index].copyWith(expr: latex) : line(lines[index].color, hidden: lines[index].hidden))
+        : withLines([...lines, line(nextGraphColor(lines.map((l) => l.color)))]);
     if (f != null && g.functions.isEmpty) next = next.copyWith(view: _viewFor(f));
     _math.closeKeyboard();
     if (changing && lines[index].expr == latex) return;
@@ -786,7 +833,12 @@ extension _CanvasMath on InkCanvasState {
           return CustomSingleChildLayout(
             // Under the toolbar when it can't go to the right.
             delegate: _PreviewLayout(box, widget.chrome, box.bottom + 54),
-            child: IgnorePointer(child: MathPreview(state: state, latex: _previewLatex)),
+            child: MathPreview(
+              state: state,
+              latex: _previewChoice ?? _previewLatex,
+              options: [?_previewLatex, ..._previewOthers],
+              onPick: (latex) => _rebuild(() => _previewChoice = latex),
+            ),
           );
         },
       );

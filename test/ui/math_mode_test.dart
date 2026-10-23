@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:endless/board/ids.dart';
 import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
+import 'package:endless/canvas/math_mode.dart' show DraftFor;
 import 'package:endless/canvas/selection.dart';
 import 'package:endless/math/math_pictures.dart';
 import 'package:endless/math/math_reader.dart';
@@ -26,12 +27,15 @@ class FakeMathReader extends MathReader {
   FakeMathReader(this.latex) : super(() async => throw UnsupportedError('no model in tests'));
 
   String? latex;
+
+  /// The model's other readings, best first.
+  List<String> others = const [];
   int reads = 0;
 
   @override
   Future<MathReading?> read(List<StrokeItem> strokes) async {
     reads++;
-    return latex == null ? null : MathReading(latex!);
+    return latex == null ? null : MathReading(latex!, others: others);
   }
 }
 
@@ -460,6 +464,81 @@ void main() {
     await _settle(tester);
     expect(canvasPane.selection.menu, SelectionMenu.math);
     expect(find.bySemanticsLabel('Convert to math'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('the preview offers the model’s other readings; the one picked is what’s converted, graphed and copied', (tester) async {
+    final copied = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') copied.add((call.arguments as Map)['text'] as String);
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+    final reader = FakeMathReader(r'v=z')..others = [r'v=2', r'V=2'];
+    final c = await pumpCanvas(tester, extra: mathOverrides(reader));
+    await _openMath(tester, 'Math & graphs');
+    await _writeMath(tester);
+    await tester.pump(const Duration(milliseconds: 1300));
+    await _settle(tester);
+
+    // "Not sure? Try:" and a chip per reading, the best one picked.
+    expect(find.text('NOT SURE? TRY'), findsOneWidget);
+    for (final text in ['v = z', 'v = 2', 'V = 2']) {
+      expect(find.bySemanticsLabel('Read it as $text'), findsOneWidget, reason: text);
+    }
+    expect(tester.getSemantics(find.bySemanticsLabel('Read it as v = z')).flagsCollection.isSelected, ui.Tristate.isTrue);
+    await tester.tap(find.bySemanticsLabel('Read it as v = 2'));
+    await tester.pump();
+    expect(tester.getSemantics(find.bySemanticsLabel('Read it as v = 2')).flagsCollection.isSelected, ui.Tristate.isTrue);
+    expect(canvasPane.selection.isNotEmpty, isTrue, reason: 'picking keeps the selection');
+
+    await tester.tap(find.bySemanticsLabel('Copy as LaTeX'));
+    await _settle(tester);
+    expect(copied, [r'v=2']);
+    await tester.tap(find.bySemanticsLabel('Convert to math'));
+    await _settle(tester);
+    expect(_math(c).single.latex, r'v=2');
+
+    // One reading only: no chips.
+    c.read(notebookProvider(canvasPane.notebookId).notifier).undo(shownPage(c).id);
+    await tester.pump();
+    reader.others = const [];
+    canvasPane.selection
+      ..menu = SelectionMenu.math
+      ..select([for (final s in _strokes(c)) s.id]);
+    await _settle(tester);
+    expect(find.text('PREVIEW'), findsOneWidget);
+    expect(find.text('NOT SURE? TRY'), findsNothing);
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('the Insert menu’s Math starts math mode, and its Graph is Add a graph', (tester) async {
+    final c = await pumpCanvas(tester, extra: mathOverrides(FakeMathReader(null)));
+    Future<void> insert(String tile) async {
+      await tester.tap(byLabel('Insert'));
+      await tester.pump();
+      await tester.tap(find.text('Everything else'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel(tile));
+      await tester.pumpAndSettle();
+    }
+
+    await insert('Math');
+    expect(find.text('Coming soon'), findsNothing);
+    expect(canvasPane.math.on, isTrue);
+    expect(find.text('Math mode'), findsOneWidget);
+    expect(find.text(mathHint), findsOneWidget);
+    expect(c.read(settingsProvider).tool, CanvasTool.pen);
+    await tester.tap(find.bySemanticsLabel('Done'));
+    await tester.pump();
+
+    await insert('Graph');
+    final draft = canvasPane.math.draft!;
+    expect((canvasPane.math.on, draft.purpose, draft.text.text), (true, DraftFor.newGraph, 'y = '));
+    draft.text.text = 'y = x²';
+    await tester.tap(_insert);
+    await _settle(tester);
+    expect(_graphs(c).single.functions.single.expr, r'y=x^{2}');
     await tester.pump(const Duration(seconds: 5));
   });
 }

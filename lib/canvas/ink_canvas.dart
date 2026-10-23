@@ -235,6 +235,10 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   /// The tap in progress is the pen's (or the mouse's), not a finger's.
   bool _tapPen = false;
 
+  /// The handwriting just graphed, marked "Graphed" while it stays put.
+  Set<String> _graphedIds = const {};
+  Rect? _graphedArea;
+
   /// The math keyboard, to keep what's added clear of it.
   final _keyboardKey = GlobalKey();
 
@@ -269,6 +273,10 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   /// The preview of the selected ink as math, and which strokes it's for.
   PreviewState? _preview;
   String? _previewLatex;
+
+  /// The model's other readings of it, and the one picked from them.
+  List<String> _previewOthers = const [];
+  String? _previewChoice;
   int _previewRun = 0;
   Set<String> _previewFor = const {};
 
@@ -331,6 +339,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   }
 
   void _paneChanged() {
+    _clearGraphed();
     if (_drawPointer != null) _cancelInput();
     _commitEdit();
     _laser.clear();
@@ -344,6 +353,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   /// Convert to text closes when what it was for is no longer selected; a
   /// math selection is read for its preview.
   void _selectionChanged() {
+    if (_selection.isNotEmpty) _clearGraphed();
     _mathSelectionChanged();
     final ids = _convertIds;
     if (ids == null || _convertPage || setEquals(_selection.ids, _convertFor)) return;
@@ -1062,6 +1072,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
   void _finishInk() {
     if (!active.isActive) return;
+    _clearGraphed();
     final settings = ref.read(settingsProvider);
     final notifier = _notebook;
     final page = _page;
@@ -2151,6 +2162,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       });
     }
     if (settings.tool != CanvasTool.laser && !_laser.isEmpty && _drag != _Drag.laser) _laser.clear();
+    _checkGraphed(page);
 
     final hoverRing = switch (settings.tool) {
       CanvasTool.eraser => (eraserRadius * 2, colors.textMuted),

@@ -728,7 +728,6 @@ void main() {
       ];
       expect(later.map((e) => e.label), [
         'Video', 'Audio', 'PDF', //
-        'Math', 'Graph', //
         'Calendar', 'Planner', 'Flashcards', 'Need to remember', 'Chart', 'Clock & date', 'Checklist', //
         'Google Drive', 'OneDrive', 'Scan a document',
       ]);

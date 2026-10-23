@@ -4,6 +4,7 @@
 import 'package:endless/board/ids.dart';
 import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
+import 'package:endless/canvas/gesture_overlay.dart';
 import 'package:endless/canvas/graph_card.dart';
 import 'package:endless/canvas/math_mode.dart';
 import 'package:endless/canvas/math_tools.dart';
@@ -12,7 +13,6 @@ import 'package:endless/state/notebook.dart';
 import 'package:endless/state/settings.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -444,11 +444,23 @@ void main() {
     expect(added.ink, hasLength(4));
     expect(find.text('Added y = 2 sin x to the graph'), findsOneWidget);
     expect(_strokes(c), hasLength(4), reason: 'the ink stays');
+    // Graph.png's "Graphed": the writing stays outlined, with its badge…
+    final ink = _strokes(c).map((s) => s.bounds).reduce((a, b) => a.expandToInclude(b));
+    final marked = _overlay(tester).graphed;
+    expect(marked, isNotNull);
+    expect(marked!.getBounds().contains(ink.topLeft) && marked.getBounds().contains(ink.bottomRight), isTrue);
+    expect(canvasPane.selection.isEmpty, isTrue);
+    // …while you trace the graph…
+    await _drag(tester, _line(_plotAt(g, -1, 0.5), _plotAt(g, 1, 0.5)), pen: true);
+    expect(_graph(c).trace, isNotNull);
+    expect(_overlay(tester).graphed, same(marked));
 
-    // With no graph on screen, a new one beside the ink.
+    // …and goes when you write again. With no graph on screen, a new one
+    // beside the ink.
     canvasPane.view.jumpTo(1, const Offset(0, -2000));
     await tester.pump();
     await _drag(tester, _line(const Offset(400, 300), const Offset(440, 300)), pen: true);
+    expect(_overlay(tester).graphed, isNull);
     await tester.pump(const Duration(milliseconds: 1300));
     await _settle(tester);
     await tester.tap(find.bySemanticsLabel('Graph it'));
@@ -462,6 +474,77 @@ void main() {
     await _drag(tester, _line(_plotAt(fresh, -1, 0), _plotAt(fresh, 1, 0)), pen: true);
     expect((shownPage(c)[fresh.id]! as GraphItem).trace, isNotNull);
     expect(_strokes(c), hasLength(5));
+    // Leaving math mode takes the mark away.
+    expect(_overlay(tester).graphed, isNotNull);
+    await tester.tap(find.bySemanticsLabel('Done'));
+    await tester.pump();
+    expect(_overlay(tester).graphed, isNull);
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('a function written on a graph’s pad goes on the graph, with the writing; changed by hand, without it', (tester) async {
+    final reader = FakeMathReader(r'y=2\sin x');
+    final c = await pumpCanvas(
+      tester,
+      store: _store([_sampleGraph(functions: const [GraphLine(r'y=\frac{x^{2}}{2}', Color(0xFF2B5A8C)), GraphLine(r'y=x+1', Color(0xFF3E7B4F))])]),
+      extra: mathOverrides(reader),
+    );
+    /// "write or type an equation…", wherever it is now.
+    Offset addBox() {
+      final g = _graph(c);
+      final local = [for (var y = 60.0; y < 600; y += 4) Offset(130, y)].firstWhere((p) => graphHitAt(g, p)?.part == GraphPart.add);
+      return _on(g, local + const Offset(0, 8));
+    }
+
+    Future<void> writeOnPad() async {
+      final pad = tester.getRect(_pad);
+      // Two strokes with the S Pen, then the pen rests.
+      await _drag(tester, _line(pad.center + const Offset(-60, -20), pad.center + const Offset(-40, 20)), pen: true);
+      await _drag(tester, _line(pad.center + const Offset(-10, 0), pad.center + const Offset(40, 0)), pen: true);
+      await tester.pump(const Duration(milliseconds: 900));
+      await _settle(tester);
+    }
+
+    // The pen on the box: the keyboard opens on its writing pad.
+    await _tap(tester, addBox(), pen: true);
+    expect(canvasPane.math.draft!.purpose, DraftFor.graphLine);
+    expect(_pad, findsOneWidget);
+    await writeOnPad();
+    expect(reader.reads, 1);
+    expect(canvasPane.math.draft!.text.text, 'y = 2 sin x', reason: 'what the model read, as the keyboard writes it');
+
+    await tester.tap(_insert);
+    await _settle(tester);
+    final added = _graph(c).functions.last;
+    expect(_graph(c).functions, hasLength(3));
+    expect(added.expr, r'y=2\sin x');
+    expect(added.color, const Color(0xFFB5532A));
+    expect(added.ink, hasLength(2), reason: 'from your handwriting');
+    expect(find.text('Added y = 2 sin x to the graph'), findsOneWidget);
+    expect(_strokes(c), isEmpty, reason: 'the pad’s writing isn’t put on the page');
+    expect(canvasPane.math.draft, isNull);
+
+    // Written, then changed with the keys: the writing no longer says it.
+    reader.latex = r'y=3\sin x';
+    await _tap(tester, addBox(), pen: true);
+    await writeOnPad();
+    expect(canvasPane.math.draft!.text.text, 'y = 3 sin x');
+    canvasPane.math.draft!.text.text = 'y = 3 cos x';
+    await tester.tap(_insert);
+    await _settle(tester);
+    expect(_graph(c).functions.last.expr, r'y=3\cos x');
+    expect(_graph(c).functions.last.ink, isEmpty);
     await tester.pump(const Duration(seconds: 5));
   });
 }
+
+/// The math keyboard's writing pad.
+final _pad = find.byWidgetPredicate((w) => w is Semantics && w.properties.label == 'Writing pad');
+
+/// What the canvas's gesture overlay is showing.
+GestureOverlayState _overlay(WidgetTester tester) => tester
+    .widgetList<CustomPaint>(find.byType(CustomPaint))
+    .map((w) => w.painter)
+    .whereType<GestureOverlayPainter>()
+    .first
+    .overlay;

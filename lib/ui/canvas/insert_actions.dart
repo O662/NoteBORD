@@ -20,6 +20,7 @@ import '../common.dart';
 import '../dialogs.dart';
 import '../icons.dart';
 import '../templates/templates_dialog.dart';
+import '../math/math_actions.dart';
 import 'card_editors.dart';
 import 'insert_menu.dart';
 
@@ -81,6 +82,14 @@ Future<void> runInsert(
       await insertOffice(context, ref, pane, OfficeKind.pptx);
     case InsertAction.excel:
       await insertOffice(context, ref, pane, OfficeKind.xlsx);
+    case InsertAction.math:
+      // Math mode (Math.png): write it, and it converts as you go.
+      startMath(ref, pane);
+      hint?.call(mathHint);
+    case InsertAction.graph:
+      // Add a graph: type the function, and Insert graphs it.
+      startMath(ref, pane);
+      addGraph(pane);
     case InsertAction.image:
       // With a camera, ask where the picture comes from.
       final origin = ref.read(photoPickerProvider).hasCamera ? await showImageSources(context) : PhotoOrigin.tablet;

@@ -19,6 +19,8 @@ import '../common.dart';
 import '../icons.dart';
 import '../library/format.dart';
 import '../lock/unlock.dart';
+import '../math/math_actions.dart';
+import '../math/math_bar.dart';
 import '../routes.dart';
 import '../transfer/share_dialog.dart';
 
@@ -73,6 +75,7 @@ class _SplitScreenState extends ConsumerState<SplitScreen> {
     });
     for (final p in _panes) {
       p.addListener(_changed);
+      p.math.addListener(_mathChanged);
     }
   }
 
@@ -81,6 +84,7 @@ class _SplitScreenState extends ConsumerState<SplitScreen> {
     _lifecycle.dispose();
     for (final p in _panes) {
       p.removeListener(_changed);
+      p.math.removeListener(_mathChanged);
       p.dispose();
     }
     super.dispose();
@@ -91,8 +95,16 @@ class _SplitScreenState extends ConsumerState<SplitScreen> {
     ref.read(libraryProvider.notifier).recordOpened(_active.notebookId, _active.page);
   }
 
+  /// Math mode (the bar, the Lasso) follows the side being written in.
+  void _mathChanged() {
+    followMathLasso(ref, _active);
+    if (mounted) setState(() {});
+  }
+
   void _focus(int i) {
     if (_focused == i) return;
+    // Math mode belongs to the side the pen was writing in.
+    if (_active.math.on) endMath(ref, _active);
     setState(() {
       _focused = i;
       _popover = false;
@@ -170,6 +182,9 @@ class _SplitScreenState extends ConsumerState<SplitScreen> {
     final blocking = _more || (_pinned && _fly != null);
     final activeTitle = lib.byId(_active.notebookId)?.title ?? '';
     final canOther = lib.active.any((n) => n.id != _panes[0].notebookId);
+    // Math mode in the side being written in: its bar instead of the tools,
+    // and no rail (Math.png).
+    final math = _active.math;
 
     void undo(bool redo) {
       if (!ref.exists(notebookProvider(_active.notebookId))) return;
@@ -186,6 +201,7 @@ class _SplitScreenState extends ConsumerState<SplitScreen> {
           const SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true): () => undo(true),
           const SingleActivator(LogicalKeyboardKey.keyY, control: true): () => undo(true),
           const SingleActivator(LogicalKeyboardKey.escape): () {
+            if (escapeMath(ref, _active)) return;
             _closeMenus();
             setState(() => _popover = false);
           },
@@ -245,7 +261,18 @@ class _SplitScreenState extends ConsumerState<SplitScreen> {
                     ),
                     pane: _active,
                     showTools: ready,
-                    showActions: ready,
+                    showActions: ready && !math.on,
+                    center: ready && math.on
+                        ? MathBar(
+                            math: math,
+                            compact: true,
+                            onFormulas: () => openMathTools(_active),
+                            onAddGraph: () => addGraph(_active),
+                            onDone: () => endMath(ref, _active),
+                            onTool: math.addTool,
+                            onToolsDone: () => closeMathTools(_active),
+                          )
+                        : null,
                     showTrayButton: false,
                     popoverOpen: _popover,
                     penLink: penLink,
@@ -268,37 +295,38 @@ class _SplitScreenState extends ConsumerState<SplitScreen> {
                 Positioned.fill(
                   child: Listener(behavior: HitTestBehavior.opaque, onPointerDown: (_) => _closeMenus()),
                 ),
-              Positioned(
-                left: 12,
-                top: 170,
-                child: LeftRail(
-                  openId: _fly,
-                  pinned: _pinned,
-                  onHover: (id) {
-                    if (!_pinned) setState(() => _fly = id);
-                  },
-                  onTap: (id) => setState(() {
-                    if (_pinned && _fly == id) {
-                      _fly = null;
-                      _pinned = false;
-                    } else {
-                      _fly = id;
-                      _pinned = true;
-                      _more = false;
-                      _popover = false;
-                    }
-                  }),
-                  onLeave: () {
-                    if (!_pinned && _fly != null) setState(() => _fly = null);
-                  },
-                  onClose: _closeMenus,
-                  onItem: _pickRailItem,
-                  onSearch: () {
-                    _closeMenus();
-                    context.push(Routes.search());
-                  },
+              if (!math.on)
+                Positioned(
+                  left: 12,
+                  top: 170,
+                  child: LeftRail(
+                    openId: _fly,
+                    pinned: _pinned,
+                    onHover: (id) {
+                      if (!_pinned) setState(() => _fly = id);
+                    },
+                    onTap: (id) => setState(() {
+                      if (_pinned && _fly == id) {
+                        _fly = null;
+                        _pinned = false;
+                      } else {
+                        _fly = id;
+                        _pinned = true;
+                        _more = false;
+                        _popover = false;
+                      }
+                    }),
+                    onLeave: () {
+                      if (!_pinned && _fly != null) setState(() => _fly = null);
+                    },
+                    onClose: _closeMenus,
+                    onItem: _pickRailItem,
+                    onSearch: () {
+                      _closeMenus();
+                      context.push(Routes.search());
+                    },
+                  ),
                 ),
-              ),
               if (_more)
                 Positioned(
                   right: 12,

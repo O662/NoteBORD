@@ -2,6 +2,15 @@
 
 Status of each phase in `docs/SPEC.md`. Updated as work lands.
 
+## Before release
+
+These have to be done before Endless is sold (docs/SPEC.md, "Before release").
+
+| Item | Status | Where |
+|---|---|---|
+| **Replace the math recognizer.** CoMER's weights are for personal, non-commercial use only, because they were trained on CROHME, which is CC BY-NC-SA. Replace it with MyScript iink (commercial, on the device) or a model of our own trained on data that may be used commercially. It must keep working offline. | **Not started.** CoMER is what ships today. | `lib/math/decoder.dart` (`MathModel`), `lib/math/onnx_math.dart`, `assets/math/`, `assets/math/NOTICE.txt`, `tool/math_model/README.md` |
+| Check every other bundled licence again (fonts, dictionary data, packages, ML Kit's terms) | Not started. Nothing else known to be non-commercial | `assets/fonts/`, `assets/dictionary/NOTICE.txt`, `pubspec.yaml` |
+
 ## Phase 0: Foundation — done (Paper theme only)
 
 | Item | Status | Where |
@@ -454,14 +463,16 @@ The owner's request (2026-10-15). Three recognizers were put to the owner: MyScr
 ### Not done yet / known limits
 - **Not tried on the tablet beyond that crash.** That includes how fast reading is on its CPU (this PC's numbers are above), the model files being copied out on first use, the 1.2 s pickup, the keyboard and the tablet's own keyboard, and Write it instead with the S Pen.
 - **What the model can't read.** It knows CROHME's 101 symbols. There is no ω, ρ, τ, ε, δ or ∂, no capital D, J, K, O, Q, U, W or Z, and no matrices; type those with the keyboard. Expect about 6 in 10 expressions exactly right; a wrong symbol is a fix in the keyboard. One expression at a time reads best.
-- The other readings the model finds are kept (`MathReading.others`) but not offered yet.
+- ~~The other readings the model finds are kept but not offered.~~ Offered in the preview since the Phase 6 follow-ups (below).
 - **The model's licence is non-commercial** (above).
 - ~~Graph cards don't trace, find intersections, zoom, take more functions or do 3D; the number line, unit circle and polar grid aren't built.~~ Done in Phase 6b (below).
 - The design draws typeset math in Newsreader; `flutter_math_fork` typesets in KaTeX's own fonts (Computer Modern style).
 - The keyboard's line is text, not a structured editor: no cursor inside a fraction's box.
 - Lasso in the math bar isn't in the design (see above).
 - The Symbols keys are the keyboard's size (12 to a row, 48 px), not MathKit.png's big keys 4 to a row, because it's one popup, as the owner asked. (Formulas went from two taps to one in Phase 6b.)
-- Split view: Math & graphs and Math tools are still "coming soon" there.
+- ~~Split view: Math & graphs and Math tools are still "coming soon" there.~~ Built in the Phase 6 follow-ups (below).
+- Converted math takes the color of the first stroke.
+- Linux, iOS, macOS and web builds aren't set up yet (`flutter create --platforms=linux .` adds Linux). The recognizer is the same code there, through the same plugin, which downloads ONNX Runtime when it builds.
 
 ## Phase 6b: graphs and math tools — built, not yet tried on the tablet. **Phase 6 is done.**
 
@@ -493,6 +504,19 @@ The owner asked for this on 2026-10-21. It covers the Graph screen (Graph.png) a
 | Search, exports, board files | Search finds a graph by its functions and surfaces, and a tool by what it says ("Unit circle θ = 90° = π/2 cos θ = 0 …"). PDFs draw graphs and tools as pictures with that text in the text layer; the picture export draws them too. Both round-trip through board files, and a `widget` of a kind this version doesn't have (a calendar) is kept as it was | `mathToolText`, `handwriting_index.dart`, `pdf_export.dart`, `docs/BOARD_FORMAT.md` |
 | Text for math | `latexToLinear` puts a space before a function's name after a number: "2 sin x", not "2sin x" (it shows in chips and messages) | `lib/math/linear.dart` |
 
+### Follow-ups (2026-10-23)
+
+The owner asked for these after a status check of Phase 6.
+
+| Item | Status | Where |
+|---|---|---|
+| Insert menu: Math and Graph | They worked only from the rail; their Insert tiles still said "coming soon". Now Math starts math mode and Graph is Add a graph (the keyboard on `y = `; Insert graphs it). The rail, the Insert menu and Split view share one set of math-mode steps | `InsertAction.math`, `InsertAction.graph`, `lib/ui/math/math_actions.dart` |
+| Math mode in Split view | Study & math → Math & graphs or Math tools works in the side being written in:<br>• the math bar takes the tool pill's place (compact), and the rail and Share make way;<br>• the keyboard opens inside that side;<br>• Esc closes the keyboard, then Math tools, then math mode;<br>• the pen in the other side ends math mode before moving there | `SplitScreen`, `escapeMath`, `followMathLasso` |
+| "Graphed" (Graph.png) | After Graph it, the handwriting keeps its dashed outline, with Graph.dc.html's "Graphed" pill (12 px bold, accent tint) on its top edge. It stays while you look at or trace the graph. It goes when you write, select something, change page or leave math mode, or when the ink is moved, erased or undone | `GestureOverlayState.graphed`, `_markGraphed`, `_checkGraphed` |
+| The model's other readings | Up to four other readings sit beside the preview, on its line, as typeset chips under "NOT SURE? TRY", with the best one picked. A tap picks another. Convert to math, Graph it and Copy as LaTeX then use it, for that ink. Beside the preview rather than under it, so it stays clear of the toolbar under the selection | `MathPreview` (`options`, `onPick`), `_readInk` |
+| Writing on a graph's pad | What's written on the keyboard's writing pad for a graph keeps a copy of the writing ("from your handwriting"), as long as the line still says what the pad read. Edit it with the keys and the copy is dropped | `MathDraft.written`, `writtenAs`, `_insertGraphLine` |
+| Text for math | A minus that starts a script is a sign: the keyboard writes f⁻¹, not `f^(− 1)` | `_scriptText` (`lib/math/linear.dart`) |
+
 ### Not done yet / known limits
 - **Not tried on the tablet.** Things to check there:
   - tracing with the S Pen, and the 12 px crossing snap with a finger;
@@ -500,7 +524,6 @@ The owner asked for this on 2026-10-21. It covers the Graph screen (Graph.png) a
   - the shaded surface's speed (about 600 quads a frame while turning);
   - where tools land with the tablet's keyboard size.
 - **Graph.png details left out:**
-  - The handwriting graphed isn't marked "Graphed" (the dashed outline and badge beside the ink).
   - A selected graph has the app's usual dashed selection, not the design's solid outline.
   - Formulas are in Newsreader italic with KaTeX's fonts for symbols Newsreader lacks.
 - **Gestures:**
@@ -513,9 +536,6 @@ The owner asked for this on 2026-10-21. It covers the Graph screen (Graph.png) a
 - **What's graphed is read with the 6a evaluator:** no implicit curves (x² + y² = 1), parametric curves, inequalities or sliders.
 - **Number line:** points can't be dragged along it; one number line holds any number of points and intervals, but the chips for many intervals take rows.
 - **Not undo steps:** stepping the unit circle and showing or hiding a curve are kept quietly, like a graph's view.
-- **Split view:** Math & graphs and Math tools are still "coming soon" there.
-- Converted math takes the color of the first stroke.
-- Linux, iOS, macOS and web builds aren't set up yet (`flutter create --platforms=linux .` adds Linux). The recognizer is the same code there, through the same plugin, which downloads ONNX Runtime when it builds.
 
 ## Storage layout
 
@@ -631,20 +651,58 @@ The owner asked for this on 2026-10-21. It covers the Graph screen (Graph.png) a
     - Graph it adding to the graph on screen in the ink's color with its copy, then a new graph, and the pen tracing in math mode.
   - `test/ui/math_mode_test.dart`: Math tools' bar, the Math tab, a formula in one tap (clear of the keyboard and the last one, Undo), Done back to math mode, Esc in three steps.
   - 4 new goldens: `graph` and `graph_dark` (Graph.png, selected with Select), `graph_3d` (the saddle, wireframe) and `math_tools` (MathKit.png's tools and bar). `math_kit` is now the Math tools bar with the keyboard on Symbols.
+- Phase 6 follow-ups:
+  - `test/ui/math_mode_test.dart`:
+    - the preview's other readings: the chips, the best one picked, picking another, then Copy as LaTeX and Convert to math using it; one reading, no chips;
+    - the Insert menu's Math (math mode, its hint, the pen) and Graph (the keyboard on `y = `, Insert graphing it).
+  - `test/ui/graph_tools_test.dart`:
+    - Graph it marking the writing "Graphed" (around the ink, not selected), kept while tracing, gone when writing again and when leaving math mode;
+    - end to end: the pen on "write or type an equation…", two strokes on the writing pad, read once as `y = 2 sin x`, Insert, the function on the graph in the next color with the writing, nothing on the page; then writing read as `y = 3 sin x` changed to `y = 3 cos x` with the keys, kept without the writing.
+  - `test/ui/notebook_features_test.dart`: Split view's math mode: the bar, no rail, the keyboard inside the left side, a unit circle added there, Esc in three steps, Math tools from the rail, the pen in the right side ending it.
+  - `test/ui/objects_test.dart`: Math and Graph are no longer "coming soon" tiles.
+  - Goldens:
+    - `graph_it` is new: Graph.png made by Graph it, with the "Graphed" badge and the toast.
+    - `math` now shows the other readings.
 - `test/tokens_sync_test.dart`: generated tokens match `design/tokens.json`.
 
 ## Next
-- **Try Phase 6a on the tablet.**
-  - Study & math → Math & graphs. Write an expression with the S Pen and pause, then check the preview and Convert to math. Note how long "Reading…" takes, the first time and after.
-  - Undo; Graph it on `y = x²/2`; Copy as LaTeX.
-  - Tap converted math with a finger, edit it with the keys and with the tablet's keyboard, then Insert. Try Write it instead.
-  - Formulas & tools: the keyboard on its Symbols tab; a symbol and a formula, then Insert. Then Add a graph.
-  - Try it in airplane mode, to see that it all works offline.
-- **Try Phase 6b on the tablet.**
-  - **The graph:** Graph it on `y = 2 sin x` beside a graph; trace with the S Pen (Select) and a finger, onto a crossing; add a function by typing and by writing ("write or type an equation…" with the pen).
-  - **3D:** switch to 3D, turn it with two fingers and the ↺ ↻ buttons, pinch, then try Surface.
-  - **Math tools:** add a number line (√2, [1, π), an end opened and closed), step the unit circle all the way round, add a curve to the polar grid, and tap a formula. Check where each lands with the keyboard open.
-- Phase 7 (docs/SPEC.md) is next once 6a and 6b are checked on the tablet.
+- **Phase 6 tablet checklist** (math mode, graphs, math tools).
+  - **Setup:** install a release build with `flutter build apk --release` then `adb install -r`. This keeps your notebooks; a release build is what crashed before.
+  - **Reading handwriting (6a):**
+    1. Study & math → Math & graphs. Write `v = v₀ + at` with the S Pen and pause. After about 1.2 s you should see the dashed outline, the toolbar and PREVIEW. Time "Reading…" on the first read (the model is copied out then) and on later ones. It must not crash.
+    2. Write 5–10 of your own: fractions, roots, powers, sin, Greek letters. Note how many read exactly right.
+    3. If "NOT SURE? TRY" shows, tap another reading. The preview changes, and Convert to math uses it.
+    4. Convert to math puts the typeset math where the ink was, in its color; Undo brings the ink back. Copy as LaTeX, then paste it somewhere.
+    5. Repeat 1 and 4 in airplane mode.
+  - **The keyboard:**
+    6. A finger tap on converted math opens the keyboard. Edit with the keys. A tap on the line brings up the tablet's keyboard. Insert, then Undo.
+    7. Write it instead: write on the pad with the S Pen; it reads in about a second. Insert.
+    8. In math mode, a finger tap on empty paper starts new math there.
+  - **Graphs (6b):**
+    9. Add a graph: `y = x² / 2`, then Insert. Write `y = 2 sin x` beside it and tap Graph it. Check that:
+       - it goes on that graph in your ink's color, with "from your handwriting";
+       - your writing shows "Graphed", which stays while you trace and goes when you write again.
+    10. Trace three ways: with Select and the S Pen dragged on the plot, with a finger tap, and onto a crossing marker (TRACE should read CROSSING). In math mode the pen traces; with the pen tool outside math mode it writes on the graph.
+    11. The graph's buttons: the dots hide and show functions; − and + zoom. Tap a function to change it, or empty it to take it off, then Undo.
+    12. With the pen on "write or type an equation…", the pad opens. Write a function and Insert; it should say "from your handwriting".
+    13. Select the graph. One finger on the plot drags the window, a pinch zooms it, and a finger on the header moves the graph.
+    14. In 3D, add `z = (x² − y²) / 4` and the point `(1, 2, 3)`. Turn it with two fingers and with ↺ ↻, and pinch. Then Surface: is it smooth while turning?
+  - **Math tools:**
+    15. Formulas & tools brings up the Math tools bar. Add a number line, the unit circle and a polar grid. Note where each lands with the keyboard open, and try Undo on the message.
+    16. Number line: + point `√2`, then `[1, π)`. Tap the π end to close it and again to open it. The interval's chip hides it. Tap a point to change it or take it off.
+    17. Unit circle: + sixteen times, all the way round. Check the exact cos, sin and tan.
+    18. Polar grid: the rose's chip, then + `r = 2 sin θ`, then tap a curve to change it.
+    19. The Math and Physics tabs: one tap puts a formula on the page; Undo.
+    20. Done goes back to the math bar. With a hardware keyboard, Esc should close the keyboard, then Math tools, then math mode.
+  - **Other ways in:**
+    21. + → Everything else → Math starts math mode; Graph opens the keyboard on `y = `.
+    22. Split view: Math & graphs in one side. The bar replaces the tools and the keyboard stays inside that side. Writing in the other side ends math mode.
+  - **Saved, found, exported:**
+    23. Close and reopen the notebook. Graphs (3D view, trace, hidden functions), tools and math should be as you left them.
+    24. Search for "unit circle" and "2 sin x".
+    25. Export the page as a PDF. Graphs and tools should be pictures, and their text searchable in a PDF reader.
+    26. Dark mode: graphs and tools are readable, with brightened ink.
+- Phase 7 (docs/SPEC.md) is next once Phase 6 is checked on the tablet.
 - Try Phase 5a on the tablet: the model download on first use and then offline, writing and searching, Open at this spot, Convert to text (Replace, Keep ink too, Copy text only, another language, the whole page), a PDF export's text in a PDF reader, and locking a page then searching.
 - Try Phase 4a on the tablet: export a page as a PDF to the tablet and through the share sheet, a board file round trip, Print, the Share dialog's Image, and importing a real PDF (a long one too).
 - Still to try from Phase 3: sticky notes, text boxes with the on-screen keyboard, photos from the gallery and the camera, the whole board, the card editors, opening a website, arrows between boxes, and dragging the ruler's ends.

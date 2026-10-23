@@ -153,7 +153,12 @@ class _MathKeyboardState extends ConsumerState<MathKeyboard> {
               _Button(label: 'Insert', dark: true, onTap: widget.onInsert),
             ]),
             if (_writing)
-              _WritingPad(onRead: (text) => _field.value = TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length)))
+              _WritingPad(onRead: (text, strokes) {
+                _field.value = TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+                widget.draft
+                  ..written = strokes
+                  ..writtenAs = text;
+              })
             else ...[
               Semantics(
                 container: true,
@@ -435,7 +440,8 @@ class _BackspaceState extends State<_Backspace> {
 class _WritingPad extends ConsumerStatefulWidget {
   const _WritingPad({required this.onRead});
 
-  final ValueChanged<String> onRead;
+  /// What the writing says (the keyboard's text), and the strokes.
+  final void Function(String text, List<StrokeItem> strokes) onRead;
 
   @override
   ConsumerState<_WritingPad> createState() => _WritingPadState();
@@ -505,7 +511,7 @@ class _WritingPadState extends ConsumerState<_WritingPad> {
       return;
     }
     setState(() => _status = null);
-    widget.onRead(latexToLinear(reading.latex));
+    widget.onRead(latexToLinear(reading.latex), [..._strokes]);
   }
 
   void _clear() {

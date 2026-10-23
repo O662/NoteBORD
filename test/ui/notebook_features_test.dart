@@ -7,6 +7,7 @@ import 'package:endless/ui/routes.dart';
 import 'package:endless/ui/split/split_screen.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -254,6 +255,59 @@ void main() {
       expect(find.byType(SplitScreen), findsNothing);
       expect(find.byType(CanvasScreen), findsOneWidget);
       expect(find.text('Page 3 of 12 · Saved'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('math mode and Math tools in the focused side; writing in the other side ends it', (tester) async {
+      final c = await _openPhysics(tester);
+      await tester.tap(byLabel('Ruler, laser & view'));
+      await tester.pump();
+      await tester.tap(find.text('Split view'));
+      await _pump(tester);
+      List<Item> items(String id, int page) => c.read(notebookProvider(id)).pages[page].items;
+
+      await tester.tap(byLabel('Study & math'));
+      await tester.pump();
+      await tester.tap(find.text('Math & graphs'));
+      await _pump(tester);
+      expect(find.text('Coming soon'), findsNothing);
+      expect(find.textContaining('is coming soon'), findsNothing);
+      // The math bar in place of the tools; no rail (Math.png).
+      expect(find.text('Math mode'), findsOneWidget);
+      expect(byLabel('Study & math'), findsNothing);
+      expect(byLabel('Pen'), findsNothing);
+
+      // Formulas & tools: Math tools, and the keyboard in the left side.
+      await tester.tap(find.bySemanticsLabel('Formulas & tools'));
+      await _pump(tester);
+      expect(find.bySemanticsLabel('Math keyboard'), findsOneWidget);
+      expect(tester.getRect(find.bySemanticsLabel('Math keyboard')).right, lessThan(700));
+      await tester.tap(find.bySemanticsLabel('Unit circle'));
+      await _pump(tester);
+      expect(items('nb_physics', 2).whereType<MathToolItem>(), hasLength(1));
+      expect(find.text('Added the unit circle to the page'), findsOneWidget);
+
+      // Esc: the keyboard, then Math tools, then math mode.
+      for (final (bar, rail) in [('Math tools', false), ('Math mode', false), (null, true)]) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        await _pump(tester);
+        if (bar != null) expect(find.text(bar), findsOneWidget, reason: bar);
+        expect(byLabel('Study & math'), rail ? findsOneWidget : findsNothing);
+      }
+      expect(find.bySemanticsLabel('Math keyboard'), findsNothing);
+
+      // Math tools from the rail; the pen in the other side ends it there.
+      await tester.tap(byLabel('Study & math'));
+      await tester.pump();
+      await tester.tap(find.text('Math tools'));
+      await _pump(tester);
+      expect(find.text('Math tools'), findsOneWidget);
+      await _stylus(tester, _scribble(const Offset(900, 300)), start: const Duration(seconds: 30));
+      await _pump(tester);
+      expect(find.textContaining('Writing in: Calculus II'), findsOneWidget);
+      expect(find.text('Math mode'), findsNothing);
+      expect(find.bySemanticsLabel('Math keyboard'), findsNothing);
+      expect(byLabel('Pen'), findsOneWidget);
       await tester.pump(const Duration(seconds: 5));
     });
 

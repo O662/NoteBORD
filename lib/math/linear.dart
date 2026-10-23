@@ -897,7 +897,9 @@ bool _isSimple(_Node n) {
 
 /// x², v₀, x^(n+1), x_i.
 String _scriptText(_Node n, Map<String, String> unicode, String mark) {
-  final text = _linear(n).trim();
+  var text = _linear(n).trim();
+  // A minus sign that starts a script is a sign, not a subtraction: f⁻¹.
+  if (text.startsWith('− ')) text = '-${text.substring(2)}';
   if (_unicodeScript(text, unicode) case final u?) return u;
   return _isSimple(n) && text.runes.length == 1 || RegExp(r'^\d+$').hasMatch(text) ? '$mark$text' : '$mark($text)';
 }

@@ -124,3 +124,16 @@ Each feature names the screen that shows it (`design/screens/<Name>.png`, with s
 - Dark mode check on every screen (**[CanvasDark]**), plus High contrast.
 - Version history, sync conflict UI, and crash recovery screens. These are not designed yet; ask the owner first.
 - Phone layout, then Windows, Linux and web.
+
+## Before release
+Endless can't be sold until this is done.
+
+- **Replace the handwritten-math recognizer.**
+  - **The problem:** Math mode reads handwriting with CoMER, an open model, and its weights are for **personal, non-commercial use only**. The checkpoint was trained on CROHME, which is CC BY-NC-SA, and so was every open handwritten-math model checked in Phase 6a.
+  - **Options:**
+    - **MyScript iink:** commercial, works on the device and offline, licensed per app.
+    - **A model of our own:** trained only on data whose licence allows commercial use, for example handwriting we collect with consent.
+  - **Requirement:** whatever replaces it must still work offline and on every platform, or say clearly where it doesn't.
+  - **What changes:** the app only reads math through the `MathModel` interface (`lib/math/decoder.dart`). A replacement model can be two ONNX files with the same inputs and outputs (`tool/math_model/README.md`). A different engine needs its own `MathReader` backend.
+  - **Also:** remove CoMER's notice from the licence page (`assets/math/NOTICE.txt`) and the weights from `assets/math/`.
+- **Check every other bundled licence again.** The fonts (OFL), the dictionary and word lists (`assets/dictionary/NOTICE.txt`), the packages, and ML Kit's terms must all allow selling the app.

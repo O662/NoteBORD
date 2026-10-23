@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../board/model.dart';
 import '../theme/colors.dart';
+import '../theme/tokens.g.dart' show FontFamilies;
 import 'canvas_view.dart';
 import 'gestures.dart';
 import 'page_runtime.dart';
@@ -19,6 +20,7 @@ class GestureOverlayState extends ChangeNotifier {
   List<Offset> _lasso = [];
   Rect? _marquee;
   Item? _ghost;
+  Path? _graphed;
 
   /// While the pen is held: the shape it will snap to (dashed).
   ShapeFit? get holdFit => _holdFit;
@@ -55,6 +57,14 @@ class GestureOverlayState extends ChangeNotifier {
   /// The Select tool's drag box (page space).
   Rect? get marquee => _marquee;
   set marquee(Rect? v) => _set(() => _marquee = v);
+
+  /// Handwriting just graphed (Graph.png): its outline (page space), drawn
+  /// dashed with a "Graphed" badge until you write or select again.
+  Path? get graphed => _graphed;
+  set graphed(Path? v) {
+    if (v == _graphed) return;
+    _set(() => _graphed = v);
+  }
 
   void _set(void Function() change) {
     change();
@@ -202,6 +212,13 @@ class GestureOverlayPainter extends CustomPainter {
       if (handles() case final h?) _handles(canvas, h);
     }
 
+    // Handwriting just graphed: dashed, with "Graphed" over its top edge.
+    if (overlay.graphed case final loop?) {
+      final screen = loop.transform(vp.matrix.storage);
+      canvas.drawPath(dashed(screen, 7, 6), dash);
+      _graphedBadge(canvas, screen.getBounds());
+    }
+
     // A lasso being drawn, or the Select tool's box.
     if (overlay.lasso.length > 1) {
       final loop = Path()..addPolygon([for (final p in overlay.lasso) vp.toScreen(p)], true);
@@ -325,6 +342,22 @@ class GestureOverlayPainter extends CustomPainter {
     )..layout();
     final at = a + Offset(math.cos(mid), math.sin(mid)) * 76;
     label.paint(canvas, at - Offset(label.width / 2, label.height / 2));
+  }
+
+  /// Graph.dc.html's "Graphed" pill: 12 px bold on the accent tint, its
+  /// right end 22 px in from the outline's, sitting on its top edge.
+  void _graphedBadge(Canvas canvas, Rect box) {
+    final text = TextPainter(
+      text: TextSpan(
+        text: 'Graphed',
+        style: TextStyle(fontFamily: FontFamilies.ui, fontSize: 12, fontWeight: FontWeight.w700, color: colors.accentDeep),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final pill = Rect.fromLTWH(box.right - 22 - text.width - 18, box.top - 6 - (text.height + 6) / 2, text.width + 18, text.height + 6);
+    canvas.drawRRect(RRect.fromRectAndRadius(pill, Radius.circular(pill.height / 2)), Paint()..color = colors.accentTint);
+    text.paint(canvas, pill.topLeft + const Offset(9, 3));
+    text.dispose();
   }
 
   @override

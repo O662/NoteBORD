@@ -29,12 +29,13 @@ import '../helpers.dart';
 
 /// Reads any ink as [latex].
 class _Reader extends MathReader {
-  _Reader(this.latex) : super(() async => throw UnsupportedError('no model in tests'));
+  _Reader(this.latex, {this.others = const []}) : super(() async => throw UnsupportedError('no model in tests'));
 
   final String latex;
+  final List<String> others;
 
   @override
-  Future<MathReading?> read(List<StrokeItem> strokes) async => MathReading(latex);
+  Future<MathReading?> read(List<StrokeItem> strokes) async => MathReading(latex, others: others);
 }
 
 /// flutter_math_fork's KaTeX fonts, so typeset math renders for real.
@@ -175,7 +176,7 @@ void main() {
   });
 
   testWidgets('math', (tester) => _withShadows(() async {
-        final c = await pumpCanvas(tester, store: _store(), extra: [mathReaderProvider.overrideWithValue(_Reader(r'f^{-1}(y)=\sqrt{y}'))]);
+        final c = await pumpCanvas(tester, store: _store(), extra: [mathReaderProvider.overrideWithValue(_Reader(r'f^{-1}(y)=\sqrt{y}', others: [r'f^{-1}(y)=\sqrt{4}', r'f^{-1}(y)=y']))]);
         await _typeset(tester, c, [..._row, _omega, r'f^{-1}(y)=\sqrt{y}']);
         final notebook = c.read(notebookProvider(canvasPane.notebookId).notifier);
         final now = DateTime.utc(2026, 10, 15, 9);
@@ -258,6 +259,35 @@ void main() {
         }));
   }
 
+  // Graph.png as it happens: the handwriting graphed in math mode, marked
+  // "Graphed", its function on the graph beside it.
+  testWidgets('graph_it', (tester) => _withShadows(() async {
+        final c = await pumpCanvas(
+          tester,
+          store: _graphStore(ThemeMode.light, threeD: false, graphed: false),
+          extra: [mathReaderProvider.overrideWithValue(_Reader(r'y=2\sin x'))],
+        );
+        await _typeset(tester, c, _graphed);
+        await tester.tap(byLabel('Study & math'));
+        await tester.pump();
+        await tester.tap(find.text('Math & graphs'));
+        await tester.pump();
+        final ink = [for (final i in shownPage(c).items) if (i is StrokeItem && i.id.startsWith('it_ink')) i];
+        final area = ink.map((s) => s.bounds).reduce((a, b) => a.expandToInclude(b)).inflate(14);
+        canvasPane.selection
+          ..menu = SelectionMenu.math
+          ..select(
+            [for (final s in ink) s.id],
+            outline: Path()..addRRect(RRect.fromRectAndRadius(area, Radius.circular(area.shortestSide / 2))),
+            revision: shownNotebook(c).revision,
+          );
+        await _settle(tester);
+        await tester.tap(find.bySemanticsLabel('Graph it'));
+        await _settle(tester);
+        await expectLater(find.byType(MaterialApp), matchesGoldenFile('graph_it.png'));
+        await tester.pump(const Duration(seconds: 5));
+      }));
+
   testWidgets('math_tools', (tester) => _withShadows(() async {
         final now = DateTime.utc(2026, 10, 21, 9);
         final c = await pumpCanvas(tester, store: _store());
@@ -329,7 +359,7 @@ List<List<Offset>> _sample(String label, Offset at, double height) {
 
 /// Graph.png: the graph (just right of the rail, which the design leaves
 /// out), with the handwriting it was graphed from and the notes beside it.
-MemoryBoardStore _graphStore(ThemeMode mode, {required bool threeD}) {
+MemoryBoardStore _graphStore(ThemeMode mode, {required bool threeD, bool graphed = true}) {
   final now = DateTime.utc(2026, 10, 21, 9);
   const clay = Color(0xFFB5532A), blue = Color(0xFF2B5A8C);
   final written = _sample('2sin(x/2)', const Offset(1000, 200), 40);
@@ -372,7 +402,7 @@ MemoryBoardStore _graphStore(ThemeMode mode, {required bool threeD}) {
       mode: threeD ? GraphMode.d3 : GraphMode.d2,
       functions: [
         const GraphLine(r'y=\frac{x^{2}}{2}', blue),
-        GraphLine(r'y=2\sin x', clay, ink: [for (final s in written) [for (final p in s) p - origin]]),
+        if (graphed) GraphLine(r'y=2\sin x', clay, ink: [for (final s in written) [for (final p in s) p - origin]]),
         const GraphLine(r'y=x+1', Color(0xFF3E7B4F)),
       ],
       trace: const GraphTrace(0, 2),

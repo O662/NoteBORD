@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import '../board/model.dart' show StrokeItem;
+
 // Math mode (Math.png): what the screen's chrome and the canvas share. The
 // pen writes math, and what was just written is picked up for "Convert to
 // math" once the pen rests; the keyboard types math, with the symbols and
@@ -56,6 +58,12 @@ class MathDraft {
 
   /// Opens on the writing pad ("write or type an equation…" with the pen).
   final bool write;
+
+  /// What was last written on the writing pad, and the line it was read as:
+  /// while the line still says that, a graph keeps the writing ("from your
+  /// handwriting").
+  List<StrokeItem> written = const [];
+  String? writtenAs;
 
   /// "Add a graph": Insert puts a graph of the function on the page.
   bool get graph => purpose == DraftFor.newGraph;

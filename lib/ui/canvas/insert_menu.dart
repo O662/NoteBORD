@@ -28,6 +28,8 @@ enum InsertAction {
   word,
   powerPoint,
   excel,
+  math,
+  graph,
 }
 
 /// One tile of the Insert menu (Insert.dc.html).
@@ -136,10 +138,8 @@ final List<InsertSection> insertSections = [
     InsertEntry('Excel sheet', badge: 'XLSX', tile: _green, tint: _greenInk, action: InsertAction.excel, keywords: 'xlsx spreadsheet file'),
   ]),
   InsertSection('Build on the board', 7, [
-    InsertEntry('Math', math: true, tile: _blue, tint: _blueInk, small: true, keywords: 'equation formula latex',
-        soon: 'Write an equation by hand and it turns into typeset math as you go.'),
-    InsertEntry('Graph', icon: EIcons.graph, tile: _blue, tint: _blueInk, small: true, keywords: 'plot function xy xyz',
-        soon: 'Plot functions in 2D or 3D, trace them and find where they cross.'),
+    InsertEntry('Math', math: true, tile: _blue, tint: _blueInk, small: true, action: InsertAction.math, keywords: 'equation formula latex'),
+    InsertEntry('Graph', icon: EIcons.graph, tile: _blue, tint: _blueInk, small: true, action: InsertAction.graph, keywords: 'plot function xy xyz'),
     InsertEntry('Table', icon: EIcons.table, tile: _blue, tint: _blueInk, action: InsertAction.table, keywords: 'rows columns grid cells'),
     InsertEntry('Diagram', icon: EIcons.diagram, tile: _plum, tint: _plumInk, action: InsertAction.diagram, keywords: 'flowchart flow steps boxes arrows'),
     InsertEntry('Timeline', icon: EIcons.timeline, tile: _plum, tint: _plumInk, action: InsertAction.timeline, keywords: 'dates schedule milestones events'),
