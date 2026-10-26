@@ -108,6 +108,7 @@ void _useTool(ProviderContainer c, CanvasTool tool) => c.read(settingsProvider.n
 void main() {
   setUpAll(loadAppFonts);
   setUp(() => _clock = const Duration(seconds: 10));
+  _selectTests();
 
   testWidgets('Math tools: Number line, Unit circle and Polar grid go on the page, clear of each other; each is one undo step', (tester) async {
     final c = await pumpCanvas(tester, extra: mathOverrides(FakeMathReader(null)));
@@ -534,6 +535,70 @@ void main() {
     await _settle(tester);
     expect(_graph(c).functions.last.expr, r'y=3\cos x');
     expect(_graph(c).functions.last.ink, isEmpty);
+    await tester.pump(const Duration(seconds: 5));
+  });
+}
+
+// Math tools' Select (asked for on the tablet, 2026-10-26): move what Math
+// tools put on the page.
+void _selectTests() {
+  testWidgets('Math tools’ Select: tap a tool to select it, drag it into place; its buttons still work; new tools come selected', (tester) async {
+    final circle = MathToolItem(id: 'it_circle', x: 100, y: 120, z: 1, createdAt: _now, w: 400, h: 424, data: const UnitCircleData());
+    final c = await pumpCanvas(tester, store: _store([circle]), extra: mathOverrides(FakeMathReader(null)));
+    CanvasTool tool() => c.read(settingsProvider).tool;
+    await tester.tap(byLabel('Study & math'));
+    await tester.pump();
+    await tester.tap(find.text('Math & graphs'));
+    await tester.pump();
+    // Lasso left on in math mode doesn't carry into Math tools.
+    await tester.tap(find.bySemanticsLabel('Lasso'));
+    await tester.pump();
+    expect(tool(), CanvasTool.lasso);
+    await tester.tap(find.bySemanticsLabel('Formulas & tools'));
+    await tester.pump();
+    expect((canvasPane.math.lasso, tool()), (false, CanvasTool.pen));
+    canvasPane.math.closeKeyboard();
+    await tester.pump();
+
+    // Select: the pen selects, with handles and the toolbar for objects.
+    await tester.tap(find.bySemanticsLabel('Select'));
+    await tester.pump();
+    expect((canvasPane.math.select, tool()), (true, CanvasTool.select));
+    expect(find.text('Tap a tool, graph or formula to select it · drag to move · corners resize'), findsOneWidget);
+    await _tap(tester, _on(circle, const Offset(60, 30)), pen: true);
+    expect(canvasPane.selection.ids, {'it_circle'});
+    expect(find.bySemanticsLabel('Delete'), findsOneWidget);
+    // Dragged 100 right and 40 down: one undo step.
+    final from = _on(circle, const Offset(60, 200));
+    await _drag(tester, _line(from, from + const Offset(100, 40), n: 20), pen: true);
+    var moved = _tool(c, 'it_circle');
+    expect((moved.x, moved.y), (200.0, 160.0));
+    expect(_strokes(c), isEmpty);
+    // Its + still steps the angle (no undo step), and it stays where it went.
+    await _tap(tester, _on(moved, const Offset(400 - 16 - 22, 32)), pen: true);
+    moved = _tool(c, 'it_circle');
+    expect(((moved.data as UnitCircleData).step, moved.x), (5, 200.0));
+    c.read(notebookProvider(canvasPane.notebookId).notifier).undo(shownPage(c).id);
+    await tester.pump();
+    expect((_tool(c, 'it_circle').x, _tool(c, 'it_circle').y), (100.0, 120.0));
+
+    // A new tool comes selected, ready to drag.
+    await tester.tap(find.bySemanticsLabel('Number line'));
+    await _settle(tester);
+    final line = _tools(c).firstWhere((t) => t.data is NumberLineData);
+    expect(canvasPane.selection.ids, {line.id});
+
+    // Select off: the pen again, nothing selected. Done leaves it off too.
+    await tester.tap(find.bySemanticsLabel('Select'));
+    await tester.pump();
+    expect((canvasPane.math.select, tool()), (false, CanvasTool.pen));
+    await tester.pump();
+    expect(canvasPane.selection.isEmpty, isTrue);
+    await tester.tap(find.bySemanticsLabel('Select'));
+    await tester.pump();
+    await tester.tap(find.bySemanticsLabel('Done'));
+    await tester.pump();
+    expect((canvasPane.math.tools, canvasPane.math.select, tool()), (false, false, CanvasTool.pen));
     await tester.pump(const Duration(seconds: 5));
   });
 }

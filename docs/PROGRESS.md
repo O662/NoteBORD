@@ -516,6 +516,7 @@ The owner asked for these after a status check of Phase 6.
 | The model's other readings | Up to four other readings sit beside the preview, on its line, as typeset chips under "NOT SURE? TRY", with the best one picked. A tap picks another. Convert to math, Graph it and Copy as LaTeX then use it, for that ink. Beside the preview rather than under it, so it stays clear of the toolbar under the selection | `MathPreview` (`options`, `onPick`), `_readInk` |
 | Writing on a graph's pad | What's written on the keyboard's writing pad for a graph keeps a copy of the writing ("from your handwriting"), as long as the line still says what the pad read. Edit it with the keys and the copy is dropped | `MathDraft.written`, `writtenAs`, `_insertGraphLine` |
 | Text for math | A minus that starts a script is a sign: the keyboard writes f⁻¹, not `f^(− 1)` | `_scriptText` (`lib/math/linear.dart`) |
+| Select in Math tools (owner's request on the tablet, 2026-10-26) | Math tools' bar starts with **Select**, a toggle. It picks the Select tool:<br>• a tap on a tool, graph or formula selects it, with handles and the toolbar for objects (Copy, To front, To back, Delete);<br>• a drag moves it and a corner resizes it, as one undo step;<br>• the tools' own buttons and a graph's plot still work.<br>What Math tools adds while it's on comes selected, ready to drag into place. Select off, Done or leaving math mode goes back to the pen. Lasso belongs to math mode's bar: it goes off on the way into Math tools (it used to stay on there, unseen, and was the only way to select) | `MathMode.select`, `followMathTool`, `_selectAdded` |
 
 ### Not done yet / known limits
 - **Not tried on the tablet.** Things to check there:
@@ -660,6 +661,7 @@ The owner asked for these after a status check of Phase 6.
     - end to end: the pen on "write or type an equation…", two strokes on the writing pad, read once as `y = 2 sin x`, Insert, the function on the graph in the next color with the writing, nothing on the page; then writing read as `y = 3 sin x` changed to `y = 3 cos x` with the keys, kept without the writing.
   - `test/ui/notebook_features_test.dart`: Split view's math mode: the bar, no rail, the keyboard inside the left side, a unit circle added there, Esc in three steps, Math tools from the rail, the pen in the right side ending it.
   - `test/ui/objects_test.dart`: Math and Graph are no longer "coming soon" tiles.
+  - `test/ui/graph_tools_test.dart`: Math tools' Select: Lasso off on the way in, Select's hint, a tool selected with its toolbar, dragged 100 × 40 as one undo step, its + still working, a new tool coming selected, Select off and Done back to the pen.
   - Goldens:
     - `graph_it` is new: Graph.png made by Graph it, with the "Graphed" badge and the toast.
     - `math` now shows the other readings.
@@ -688,7 +690,7 @@ The owner asked for these after a status check of Phase 6.
     13. Select the graph. One finger on the plot drags the window, a pinch zooms it, and a finger on the header moves the graph.
     14. In 3D, add `z = (x² − y²) / 4` and the point `(1, 2, 3)`. Turn it with two fingers and with ↺ ↻, and pinch. Then Surface: is it smooth while turning?
   - **Math tools:**
-    15. Formulas & tools brings up the Math tools bar. Add a number line, the unit circle and a polar grid. Note where each lands with the keyboard open, and try Undo on the message.
+    15. Formulas & tools brings up the Math tools bar. Add a number line, the unit circle and a polar grid. Note where each lands with the keyboard open, and try Undo on the message. Then turn on Select: tap a tool and drag it into place, resize it by a corner, and add another tool, which should come selected. Turn Select off to write again.
     16. Number line: + point `√2`, then `[1, π)`. Tap the π end to close it and again to open it. The interval's chip hides it. Tap a point to change it or take it off.
     17. Unit circle: + sixteen times, all the way round. Check the exact cos, sin and tan.
     18. Polar grid: the rose's chip, then + `r = 2 sin θ`, then tap a curve to change it.

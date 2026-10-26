@@ -552,6 +552,7 @@ extension _CanvasMath on InkCanvasState {
     _dismissToast();
     _notebook.insertItems(_page.id, [tool.withBox(x: at.dx, y: at.dy, w: tool.w, h: tool.h)]);
     _toast('Added ${mathToolName(tool.data)} to the page');
+    _selectAdded(tool.id);
   }
 
   /// A formula from the library, straight onto the page (MathKit.png's "Tap
@@ -581,6 +582,16 @@ extension _CanvasMath on InkCanvasState {
       ),
     ]);
     _toast('Added ${formulaLabel(f.text)} to the page');
+    _selectAdded(_page.items.last.id);
+  }
+
+  /// With Select on, what Math tools just added is selected, ready to drag
+  /// into place.
+  void _selectAdded(String id) {
+    if (!_math.select || ref.read(settingsProvider).tool != CanvasTool.select) return;
+    _selection
+      ..menu = SelectionMenu.convert
+      ..select([id]);
   }
 
   Offset _typingSpot() => _vp.toPage(Offset(_vp.size.width * 0.25, _vp.size.height * 0.3));

@@ -1909,7 +1909,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       _editMath(m);
       return;
     }
-    if (pane.math.on && !settings.tool.places && topBoxAt(page.items, at) == null) {
+    if (pane.math.on && !settings.tool.places && settings.tool != CanvasTool.select && topBoxAt(page.items, at) == null) {
       _typeMathAt(at);
       return;
     }

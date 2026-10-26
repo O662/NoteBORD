@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../canvas/math_mode.dart';
 import '../../canvas/pane.dart';
+import '../../canvas/selection.dart' show SelectionMenu;
 import '../../state/settings.dart';
 import 'math_keys.dart' show symbolsTab;
 
@@ -10,6 +11,8 @@ import 'math_keys.dart' show symbolsTab;
 // menu: start and end it, Add a graph, the Math tools bar, and Esc.
 
 const mathHint = 'Write math with the pen and pause · tap with a finger to type it';
+
+const mathSelectHint = 'Tap a tool, graph or formula to select it · drag to move · corners resize';
 
 /// Math mode in [pane]: the pen writes math (the marker and the other tools
 /// give way to it).
@@ -30,14 +33,21 @@ void endMath(WidgetRef ref, Pane pane) {
   ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: CanvasTool.pen));
 }
 
-/// The math bar's Lasso picks the lasso tool, and back to the pen. True
-/// when the tool changed.
-bool followMathLasso(WidgetRef ref, Pane pane) {
+/// The math bar's Lasso and Math tools' Select pick their tools, and back
+/// to the pen. True when the tool changed.
+bool followMathTool(WidgetRef ref, Pane pane) {
   final mode = pane.math;
   if (!mode.on) return false;
-  final want = mode.lasso ? CanvasTool.lasso : CanvasTool.pen;
+  final want = mode.lasso ? CanvasTool.lasso : (mode.select ? CanvasTool.select : CanvasTool.pen);
   final tool = ref.read(settingsProvider).tool;
-  if (tool == want || (tool != CanvasTool.pen && tool != CanvasTool.lasso)) return false;
+  const ours = {CanvasTool.pen, CanvasTool.lasso, CanvasTool.select};
+  if (tool == want || !ours.contains(tool)) return false;
+  if (want == CanvasTool.select) {
+    // What's selected gets handles and the toolbar for objects.
+    pane.selection
+      ..clear()
+      ..menu = SelectionMenu.convert;
+  }
   ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: want));
   return true;
 }

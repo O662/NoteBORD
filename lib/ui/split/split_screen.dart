@@ -97,7 +97,7 @@ class _SplitScreenState extends ConsumerState<SplitScreen> {
 
   /// Math mode (the bar, the Lasso) follows the side being written in.
   void _mathChanged() {
-    followMathLasso(ref, _active);
+    followMathTool(ref, _active);
     if (mounted) setState(() {});
   }
 

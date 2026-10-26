@@ -89,6 +89,7 @@ enum MathToolKind {
 class MathMode extends ChangeNotifier {
   bool _on = false;
   bool _lasso = false;
+  bool _select = false;
   bool _tools = false;
   MathDraft? _draft;
   int _tab = 0;
@@ -100,13 +101,31 @@ class MathMode extends ChangeNotifier {
   /// The pen draws a lasso instead of writing.
   bool get lasso => _lasso;
 
+  /// Math tools' Select: the pen (and a finger) select what's on the page,
+  /// to move it, resize it or delete it, as the Select tool does.
+  bool get select => _select;
+
+  set select(bool value) {
+    if (value == _select) return;
+    _select = value;
+    if (value) _lasso = false;
+    notifyListeners();
+  }
+
   /// The bar is Math tools (MathKit.png): the number line, unit circle,
-  /// polar grid and graph, with the keyboard's symbols and formulas.
+  /// polar grid and graph, with the keyboard's symbols and formulas. Its
+  /// bar has Select, not Lasso: Lasso goes off on the way in, and Select on
+  /// the way out.
   bool get tools => _tools;
 
   set tools(bool value) {
     if (value == _tools) return;
     _tools = value;
+    if (value) {
+      _lasso = false;
+    } else {
+      _select = false;
+    }
     notifyListeners();
   }
 
@@ -139,6 +158,7 @@ class MathMode extends ChangeNotifier {
     if (!_on) return;
     _on = false;
     _lasso = false;
+    _select = false;
     _tools = false;
     _closeDraft();
     notifyListeners();
@@ -147,6 +167,7 @@ class MathMode extends ChangeNotifier {
   set lasso(bool value) {
     if (value == _lasso) return;
     _lasso = value;
+    if (value) _select = false;
     notifyListeners();
   }
 

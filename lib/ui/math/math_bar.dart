@@ -66,6 +66,7 @@ class MathBar extends StatelessWidget {
               padding: const EdgeInsets.only(right: 4),
               child: Text('Math tools', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.onInverse)),
             ),
+            MathBarButton(label: 'Select', tight: true, toggle: true, selected: math.select, onTap: () => math.select = !math.select),
             MathBarButton(label: 'Number line', tight: true, onTap: () => onTool(MathToolKind.numberLine)),
             MathBarButton(label: 'Unit circle', tight: true, onTap: () => onTool(MathToolKind.unitCircle)),
             MathBarButton(label: 'Polar grid', tight: true, onTap: () => onTool(MathToolKind.polarGrid)),
@@ -98,6 +99,7 @@ class MathBar extends StatelessWidget {
               Text('Handwriting converts as you go', style: TextStyle(fontSize: 13, color: c.onInverseMuted)),
             MathBarButton(
               label: 'Lasso',
+              toggle: true,
               selected: math.lasso,
               onTap: () => math.lasso = !math.lasso,
             ),
@@ -120,6 +122,7 @@ class MathBarButton extends StatelessWidget {
     required this.onTap,
     this.done = false,
     this.selected = false,
+    this.toggle = false,
     this.tight = false,
   });
 
@@ -130,6 +133,9 @@ class MathBarButton extends StatelessWidget {
   /// Math tools' buttons are a little narrower (MathKit.dc.html).
   final bool tight;
 
+  /// On or off (Lasso, Select), not an action.
+  final bool toggle;
+
   /// A toggle that's on.
   final bool selected;
 
@@ -139,7 +145,7 @@ class MathBarButton extends StatelessWidget {
     final light = done || selected;
     return Semantics(
       button: true,
-      toggled: label == 'Lasso' ? selected : null,
+      toggled: toggle ? selected : null,
       label: label,
       excludeSemantics: true,
       child: Material(

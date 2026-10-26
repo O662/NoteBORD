@@ -405,7 +405,9 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
   void _mathChanged() {
     final mode = pane.math;
     if (mode.on) {
-      if (followMathLasso(ref, pane)) _showHint(mode.lasso ? 'Circle the math to convert, graph or copy' : mathHint);
+      if (followMathTool(ref, pane)) {
+        _showHint(mode.lasso ? 'Circle the math to convert, graph or copy' : (mode.select ? mathSelectHint : mathHint));
+      }
       _dict = false;
       _popover = false;
     }
