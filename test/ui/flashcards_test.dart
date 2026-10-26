@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:endless/board/ids.dart';
 import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
+import 'package:endless/canvas/selection.dart';
 import 'package:endless/state/notebook.dart';
 import 'package:endless/state/settings.dart';
 import 'package:endless/study/fsrs.dart';
@@ -195,6 +196,28 @@ void main() {
       final card = shownPage(c).items.whereType<FlashcardItem>().single;
       expect(card.front.ids, [a.id]);
       expect(card.back.ids, [b.id]);
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('the Insert menu\'s Flashcards and Need to remember tiles start them', (tester) async {
+      await pumpCanvas(tester, store: _storeWith([_word(const Offset(150, 220))]));
+      Future<void> insert(String tile) async {
+        await tester.tap(byLabel('Insert'));
+        await tester.pump();
+        await tester.tap(find.text('Everything else'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel(tile));
+        await tester.pumpAndSettle();
+      }
+
+      await insert('Need to remember');
+      expect(find.text('Coming soon'), findsNothing);
+      expect(find.text('Circle what you need to remember'), findsOneWidget);
+      expect(canvasPane.selection.menu, SelectionMenu.remember);
+
+      await insert('Flashcards');
+      expect(find.text('Coming soon'), findsNothing);
+      expect(find.text('Making flashcards'), findsOneWidget);
       await tester.pump(const Duration(seconds: 5));
     });
 

@@ -41,6 +41,7 @@ Future<void> runInsert(
   Pane pane,
   InsertAction action, {
   ValueChanged<String>? hint,
+  VoidCallback? onFlashcards,
 }) async {
   void place(CanvasTool tool) {
     ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: tool));
@@ -90,6 +91,19 @@ Future<void> runInsert(
       // Add a graph: type the function, and Insert graphs it.
       startMath(ref, pane);
       addGraph(pane);
+    case InsertAction.remember:
+      // As the rail's Need to remember: a lasso that leads with Remember.
+      pane.selection.menu = SelectionMenu.remember;
+      if (pane.selection.isEmpty || !ref.read(settingsProvider).tool.selects) {
+        ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: CanvasTool.lasso));
+      }
+      hint?.call('Circle what you need to remember');
+    case InsertAction.flashcards:
+      if (onFlashcards == null) {
+        showComingSoon(context, 'Making flashcards here');
+      } else {
+        onFlashcards();
+      }
     case InsertAction.image:
       // With a camera, ask where the picture comes from.
       final origin = ref.read(photoPickerProvider).hasCamera ? await showImageSources(context) : PhotoOrigin.tablet;

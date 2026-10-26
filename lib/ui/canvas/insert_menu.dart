@@ -30,6 +30,10 @@ enum InsertAction {
   excel,
   math,
   graph,
+  // Until their live widgets come (WidgetBoard.png), the Live widgets tiles
+  // start Need to remember and Making flashcards.
+  remember,
+  flashcards,
 }
 
 /// One tile of the Insert menu (Insert.dc.html).
@@ -152,9 +156,9 @@ final List<InsertSection> insertSections = [
     InsertEntry('Planner', icon: EIcons.planner, tile: _green, tint: _greenInk, keywords: 'today schedule to-do',
         soon: 'Today’s top three, to-dos and schedule, live on the page.'),
     InsertEntry('Flashcards', icon: EIcons.flashcards, tile: _clay, tint: _clayInk, keywords: 'deck study cards',
-        soon: 'A deck on the page showing what’s due, ready to study.'),
+        action: InsertAction.flashcards),
     InsertEntry('Need to remember', icon: EIcons.star, tile: _yellow, tint: _gold, keywords: 'star starred important',
-        soon: 'Everything you starred, gathered on the page.'),
+        action: InsertAction.remember),
     InsertEntry('Chart', icon: EIcons.chart, tile: _blue, tint: _blueInk, keywords: 'bar line area scatter data',
         soon: 'Bar, line, area or scatter charts that follow a table or an Excel sheet.'),
     InsertEntry('Clock & date', icon: EIcons.clock, tile: _blue, tint: _blueInk, small: true, keywords: 'time stamp today',

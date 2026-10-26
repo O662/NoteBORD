@@ -93,6 +93,7 @@ void handleRailItem(
   RailItem item,
   ValueChanged<String> comingSoon, {
   ValueChanged<String>? hint,
+  VoidCallback? onFlashcards,
 }) {
   final settings = ref.read(settingsProvider.notifier);
   void useTool(CanvasTool tool) => settings.apply((s) => s.copyWith(tool: tool));
@@ -108,7 +109,7 @@ void handleRailItem(
       showEntryComingSoon(context, insertSections[1].entries.firstWhere((e) => e.label == 'Audio'));
     case 'Everything else':
       showInsertMenu(context).then((action) {
-        if (action != null && context.mounted) runInsert(context, ref, pane, action, hint: hint);
+        if (action != null && context.mounted) runInsert(context, ref, pane, action, hint: hint, onFlashcards: onFlashcards);
       });
     case 'Templates':
       showTemplatesDialog(context, pane: pane);
@@ -390,7 +391,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
       case 'Dictionary & thesaurus':
         _openDictionary();
       default:
-        handleRailItem(context, ref, pane, item, _comingSoon, hint: _showHint);
+        handleRailItem(context, ref, pane, item, _comingSoon, hint: _showHint, onFlashcards: _startFlashcards);
     }
   }
 
