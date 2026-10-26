@@ -57,6 +57,7 @@ class Similarity {
         StrokeItem s => applyTo(s),
         BoxItem b => b.placed(center: apply(b.center), rotation: b.rotation + rotation * 180 / math.pi, scale: scale),
         UnknownItem u => u,
+        FlashcardItem f => f,
       };
 }
 
@@ -108,8 +109,16 @@ class Selection extends ChangeNotifier {
   int? _outlineRevision;
   Similarity? _live;
 
-  /// Set by the rail's "Need to remember" and "Convert to text".
-  SelectionMenu menu = SelectionMenu.convert;
+  SelectionMenu _menu = SelectionMenu.convert;
+
+  /// Set by the rail's "Need to remember" and "Convert to text" (a change
+  /// redraws the toolbar of what's selected).
+  SelectionMenu get menu => _menu;
+  set menu(SelectionMenu value) {
+    if (value == _menu) return;
+    _menu = value;
+    notifyListeners();
+  }
 
   Set<String> get ids => _ids;
   bool get isEmpty => _ids.isEmpty;

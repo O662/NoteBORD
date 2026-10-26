@@ -101,6 +101,7 @@ class PageRuntime {
       _boundsRevision = revision;
       Rect? r = layoutBounds(page.template);
       for (final i in page.items) {
+        if (i is FlashcardItem) continue;
         r = r == null ? i.extent : r.expandToInclude(i.extent);
       }
       _bounds = r;
@@ -191,6 +192,9 @@ void paintItem(
       paintStroke(canvas, s, displayInk(s.color, brightness));
     case BoxItem b:
       paintBoxItem(canvas, b, brightness, colors, images: images, docs: docs, math: math);
+    case FlashcardItem _:
+      // Not drawn: it points at what's drawn.
+      break;
     case UnknownItem u:
       // Kept and saved, but not drawable by this version: show its footprint.
       canvas.drawRRect(

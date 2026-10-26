@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../canvas/pane.dart';
 import '../library/library.dart';
 import '../state/notebook.dart';
+import '../state/settings.dart' show boardStoreProvider;
 import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
 import 'dialogs.dart';
@@ -34,6 +35,13 @@ abstract final class Routes {
     };
     return Uri(path: '/notebook/$id', queryParameters: q.isEmpty ? null : q).toString();
   }
+
+  /// Need to remember (Remember.png).
+  static const remember = '/remember';
+
+  /// Flashcards (Study.png), on [deck] if given.
+  static String flashcards([String? deck]) =>
+      Uri(path: '/flashcards', queryParameters: deck == null ? null : {'deck': deck}).toString();
 
   /// Handwriting search, optionally with a query.
   static String search([String query = '']) =>
@@ -69,6 +77,30 @@ void leaveNotebook(BuildContext context) {
     context.pop();
   } else {
     context.go(Routes.all);
+  }
+}
+
+/// Opens [pageId] of a notebook with [spot] in the middle, highlighted
+/// (from Remember, Flashcards and reminders). [replace] swaps the screen
+/// showing for it.
+Future<void> openSpot(
+  BuildContext context,
+  WidgetRef ref,
+  String notebookId,
+  String pageId,
+  Rect? spot, {
+  bool replace = false,
+}) async {
+  final pages = (await ref.read(boardStoreProvider).loadNotebookMeta(notebookId))?.pageIds;
+  final index = pages?.indexOf(pageId) ?? -1;
+  final page = index >= 0 ? index : ref.read(libraryProvider).byId(notebookId)?.lastPage ?? 0;
+  if (!context.mounted) return;
+  ref.read(libraryProvider.notifier).recordOpened(notebookId, page);
+  final to = Routes.notebook(notebookId, page: page, spot: index >= 0 ? spot : null);
+  if (replace) {
+    context.pushReplacement(to);
+  } else {
+    context.push(to);
   }
 }
 

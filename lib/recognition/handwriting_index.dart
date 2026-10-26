@@ -12,6 +12,8 @@ import '../canvas/math_tools.dart' show mathToolText;
 import '../math/linear.dart' show mathSearchText;
 import '../search/search_text.dart';
 import '../state/settings.dart';
+import '../study/remember.dart';
+import '../study/study_rows.dart';
 import '../transfer/pdf_export.dart' show HandwritingText, RecognizedHandwriting, cardText;
 import 'models.dart';
 import 'reader.dart';
@@ -36,13 +38,19 @@ abstract interface class IndexSource {
 /// when asked).
 final recognitionIdleProvider = Provider<Duration?>((ref) => const Duration(milliseconds: 1500));
 
+/// How soon after a change what's remembered and the flashcards on a page
+/// reach the index (the Remember and Flashcards screens read it). Null
+/// leaves it to the next full read of the page.
+final studyIdleProvider = Provider<Duration?>((ref) => const Duration(milliseconds: 300));
+
 /// Whether the app goes through older notebooks after it starts, reading
 /// what hasn't been read. Tests turn it off.
 final catchUpOnStartProvider = Provider<bool>((ref) => true);
 
 /// How search rows are made. Bumping it re-indexes every notebook (from
-/// recognition.json, so nothing is recognized twice).
-const indexVersion = 2;
+/// recognition.json, so nothing is recognized twice). 3: things to
+/// remember and flashcards (Phase 7a).
+const indexVersion = 3;
 
 /// The handwriting language in use.
 String handwritingLanguage(AppSettings s) =>
@@ -63,6 +71,7 @@ class HandwritingIndex {
     _store = ref.read(boardStoreProvider);
     _db = ref.read(indexDbProvider);
     _idle = ref.read(recognitionIdleProvider);
+    _studyIdle = ref.read(studyIdleProvider);
     // Once a model arrives, what couldn't be read before is read.
     ref.listen(inkModelsProvider, (_, note) {
       if (note?.phase == ModelPhase.ready) catchUp();
@@ -73,10 +82,16 @@ class HandwritingIndex {
   late final BoardStore _store;
   late final IndexDb _db;
   late final Duration? _idle;
+  late final Duration? _studyIdle;
   bool _disposed = false;
 
   final _sources = <String, IndexSource>{};
   final _timers = <String, Timer>{};
+
+  /// Pages (`notebook/page`) whose things to remember and flashcards are
+  /// about to be written to the index, and pages that have some there.
+  final _studyTimers = <String, Timer>{};
+  final _studyPages = <String>{};
 
   /// Notebooks whose recognition.json is behind.
   final _dirty = <String>{};
@@ -97,6 +112,11 @@ class HandwritingIndex {
   final revision = ValueNotifier<int>(0);
 
   Future<void>? _catchingUp;
+
+  /// Every notebook has been read since the app started (or catching up
+  /// is off): the index has everything.
+  bool get caughtUp => _caughtUp || !ref.read(catchUpOnStartProvider);
+  bool _caughtUp = false;
 
   String get language => handwritingLanguage(ref.read(settingsProvider));
 
@@ -202,6 +222,7 @@ class HandwritingIndex {
 
   /// A page of an open notebook changed: read it once the pen has rested.
   void pageChanged(String notebookId, String pageId) {
+    _studyChanged(notebookId, pageId);
     final idle = _idle;
     if (idle == null) return;
     final key = '$notebookId/$pageId';
@@ -210,6 +231,57 @@ class HandwritingIndex {
       _timers.remove(key);
       _run(() => _indexOpenPage(notebookId, pageId));
     });
+  }
+
+  /// What's remembered and the flashcards on a page go to the index soon
+  /// after it changes, without waiting for its handwriting to be read.
+  /// Pages with none (and none before) are left alone.
+  void _studyChanged(String notebookId, String pageId) {
+    final idle = _studyIdle;
+    if (idle == null || _disposed) return;
+    final key = '$notebookId/$pageId';
+    final open = _sources[notebookId]?.page(pageId);
+    if (open == null || open.private) return;
+    if (!_studyPages.contains(key) && !hasStudyItems(open.page)) return;
+    _studyTimers.remove(key)?.cancel();
+    _studyTimers[key] = Timer(idle, () {
+      _studyTimers.remove(key);
+      _run(() => _studyOpenPage(notebookId, pageId));
+    });
+  }
+
+  Future<void> _studyOpenPage(String notebookId, String pageId) async {
+    final open = _sources[notebookId]?.page(pageId);
+    if (open == null || open.private || _isPrivate(notebookId, pageId)) return;
+    final read = (await _recognition(notebookId))[pageId];
+    if (_disposed || _isPrivate(notebookId, pageId)) return;
+    await _writeStudy(notebookId, open.page, read);
+    _changed();
+  }
+
+  Future<void> _writeStudy(String notebookId, BoardPage page, PageRecognition? read) async {
+    final rows = studyRowsFor(notebookId, page, read);
+    final key = '$notebookId/${page.id}';
+    // Even with none here now, there may be rows from before the app started.
+    await _db.replacePageStudy(notebookId, page.id, rows);
+    if (rows.isEmpty) {
+      _studyPages.remove(key);
+    } else {
+      _studyPages.add(key);
+    }
+  }
+
+  /// Writes what's remembered and the flashcards of pages changed just now,
+  /// then waits for everything asked for so far. The Remember and
+  /// Flashcards screens call this before reading the index.
+  Future<void> studyNow() {
+    for (final key in [..._studyTimers.keys]) {
+      _studyTimers.remove(key)?.cancel();
+      final at = key.indexOf('/');
+      final notebookId = key.substring(0, at), pageId = key.substring(at + 1);
+      _run(() => _studyOpenPage(notebookId, pageId));
+    }
+    return idle;
   }
 
   /// Reads a page of an open notebook now (no waiting for the pen).
@@ -249,6 +321,9 @@ class HandwritingIndex {
     for (final key in [..._timers.keys]) {
       if (key.startsWith('$notebookId/')) _timers.remove(key)?.cancel();
     }
+    for (final key in [..._studyTimers.keys]) {
+      if (key.startsWith('$notebookId/')) _studyTimers.remove(key)?.cancel();
+    }
     if (pageIds == null) {
       _private.add('$notebookId/*');
       _read[notebookId] = {};
@@ -275,6 +350,9 @@ class HandwritingIndex {
     for (final id in pageIds) {
       if (read.remove(id) != null) _dirty.add(notebookId);
       await _db.replacePageText(notebookId, id, const []);
+      await _db.replacePageStudy(notebookId, id, const []);
+      _studyPages.remove('$notebookId/$id');
+      _studyTimers.remove('$notebookId/$id')?.cancel();
     }
     await _save(notebookId);
     _changed();
@@ -331,6 +409,7 @@ class HandwritingIndex {
     }
     if (save) await _save(notebookId);
     await _db.replacePageText(notebookId, page.id, rowsFor(notebookId, page, now));
+    await _writeStudy(notebookId, page, now);
     _changed();
   }
 
@@ -410,6 +489,7 @@ class HandwritingIndex {
           (reads && state.$2 != lang);
       if (stale) await _run(() => _indexNotebook(entry.id));
     }
+    _caughtUp = true;
     _changed();
   }
 
@@ -521,10 +601,11 @@ class HandwritingIndex {
 
   void dispose() {
     _disposed = true;
-    for (final t in _timers.values) {
+    for (final t in [..._timers.values, ..._studyTimers.values]) {
       t.cancel();
     }
     _timers.clear();
+    _studyTimers.clear();
     pending.dispose();
     revision.dispose();
   }
@@ -614,9 +695,32 @@ List<SearchRow> rowsFor(String notebookId, BoardPage page, PageRecognition? read
           'name': f.name,
           if (f.page != null) 'page': f.page,
         }));
+      case FlashcardItem f:
+        // Typed sides (a word's definition, a "why it matters").
+        final text = [f.front.text, f.back.text].map((t) => t.trim()).where((t) => t.isNotEmpty).join('\n');
+        if (text.isNotEmpty) rows.add(typed(f, text, f.extent, extra: {'flashcard': f.id}));
       default:
         break;
     }
   }
+  // Why each thing to remember matters.
+  for (final g in rememberGroups(page.items)) {
+    final why = g.mark.why.trim();
+    if (why.isEmpty) continue;
+    rows.add(SearchRow(
+      notebookId: notebookId,
+      pageId: page.id,
+      kind: SearchKind.typed,
+      ref: 'remember:${g.mark.id}',
+      text: why,
+      context: why,
+      rect: g.area,
+      at: g.mark.at ?? g.items.first.createdAt,
+      data: {'remember': g.mark.id},
+    ));
+  }
   return rows;
 }
+
+/// Whether [page] has anything remembered or a flashcard on it.
+bool hasStudyItems(BoardPage page) => page.items.any((i) => i.remember != null || i is FlashcardItem);

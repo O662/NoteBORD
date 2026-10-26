@@ -160,6 +160,16 @@ abstract final class EIcons {
   static final fullScreen = EIconData([_p('M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5')], strokeWidth: 1.9);
   static final exitFullScreen = EIconData([_p('M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5')], strokeWidth: 1.9);
   static final flashcards = EIconData([_p(_rect(3, 8, 14, 12, 2)), _p('M7 5h12a2 2 0 0 1 2 2v9')]);
+  /// The "Card 2" chips on FlashMake.png.
+  static final flashcardsBold = EIconData([_p(_rect(3, 8, 14, 12, 2)), _p('M7 5h12a2 2 0 0 1 2 2v9')], strokeWidth: 2.4);
+  /// An unstarred card on Remember.png: the star's outline only.
+  static final starOutline = EIconData([
+    const IconPart('M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z', tint: IconTint.gold),
+  ], strokeWidth: 1.6);
+  /// A reminder (Remember.dc.html's chips).
+  static final bell = EIconData([_p('M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4')], strokeWidth: 2.4);
+  /// "Review all" (Remember.dc.html).
+  static final play = EIconData([_p('M8 5v14l11-7z')], strokeWidth: 2);
   static final mic = EIconData([_p(_rect(9, 3, 6, 11, 3)), _p('M5 11a7 7 0 0 0 14 0M12 18v3')], strokeWidth: 1.9);
   static final ruler = EIconData([_p('M3 16L16 3l5 5L8 21z'), _p('M7 12l2 2M10 9l2 2M13 6l2 2')]);
   static final laser = EIconData([

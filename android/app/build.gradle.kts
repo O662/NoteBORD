@@ -13,6 +13,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications (reminders) needs java.time on older Androids.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -49,4 +51,6 @@ dependencies {
     // Handwriting recognition on the tablet (InkRecognition.kt). Models are
     // downloaded per language on first use.
     implementation("com.google.mlkit:digital-ink-recognition:19.0.0")
+    // java.time for flutter_local_notifications' scheduled reminders.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

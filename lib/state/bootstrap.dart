@@ -4,11 +4,13 @@ import '../board/store.dart';
 import '../library/index_db.dart';
 import '../library/library.dart';
 import '../spelling/my_handwriting.dart';
+import '../study/study_state.dart';
 import '../templates/templates.dart';
 import 'settings.dart';
 
 /// Loads settings, the library (refreshing the index from the `.board`
-/// files) and saved templates, and returns the overrides the app starts with.
+/// files), saved templates and the flashcard decks, and returns the
+/// overrides the app starts with.
 Future<List<Override>> bootstrap(BoardStore store, {IndexDb? index, DateTime Function() clock = DateTime.now}) async {
   final json = await store.loadSettings();
   final settings = json == null ? AppSettings() : AppSettings.fromJson(json);
@@ -16,6 +18,7 @@ Future<List<Override>> bootstrap(BoardStore store, {IndexDb? index, DateTime Fun
   final library = await loadLibrary(store, db, clock().toUtc());
   final templates = await loadUserTemplates(store);
   final hand = MyHandwriting.fromJson(await store.loadHandwriting());
+  final decks = decksFromJson(await store.loadDecks());
 
   return [
     boardStoreProvider.overrideWithValue(store),
@@ -24,6 +27,7 @@ Future<List<Override>> bootstrap(BoardStore store, {IndexDb? index, DateTime Fun
     initialLibraryProvider.overrideWithValue(library),
     initialTemplatesProvider.overrideWithValue(templates),
     initialHandwritingProvider.overrideWithValue(hand),
+    initialDecksProvider.overrideWithValue(decks),
     clockProvider.overrideWithValue(clock),
   ];
 }

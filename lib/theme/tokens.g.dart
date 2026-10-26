@@ -65,6 +65,12 @@ const paperLight = EndlessColors(
   searchHit: Color(0xB3F0D25A),
   inverseTick: Color(0xFF8CCB9A),
   onInverseMuted: Color(0xFFD8D0C0),
+  rememberPaper: Color(0xFFFBF5E3),
+  rememberLine: Color(0xFFEFDFAE),
+  rememberDot: Color(0xFFEADBB2),
+  clayLine: Color(0xFFE9C3AE),
+  accentLine: Color(0xFFBCCDE2),
+  greenLine: Color(0xFFBFD3C1),
 );
 
 const paperDark = EndlessColors(
@@ -127,6 +133,12 @@ const paperDark = EndlessColors(
   searchHit: Color(0x66C9A23A),
   inverseTick: Color(0xFF2F5D3A),
   onInverseMuted: Color(0xFF5E574C),
+  rememberPaper: Color(0xFF332E22),
+  rememberLine: Color(0xFF5C5130),
+  rememberDot: Color(0xFF4A4230),
+  clayLine: Color(0xFF6B4130),
+  accentLine: Color(0xFF3E5068),
+  greenLine: Color(0xFF3B5241),
 );
 
 const inkDefaults = <Color>[

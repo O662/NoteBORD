@@ -20,7 +20,7 @@ These have to be done before Endless is sold (docs/SPEC.md, "Before release").
 | Figtree, Newsreader and Caveat bundled, with OFL licenses registered | Done | `assets/fonts/`, `lib/main.dart` |
 | Modes: Light, Dark, Match tablet | Done, switched from ⋯ → Settings (a stand-in until the Settings screen exists) | `lib/ui/canvas/top_bar.dart` (`showQuickSettings`) |
 | Other themes (Midnight, Sage, Blush, Graphite, High contrast, Harbor) and accent colors | Swatches are generated; full palettes come with the Themes screen | `themeSwatches`, `accents` in `tokens.g.dart` |
-| Routing | `go_router`: Start `/`, Library `/library` (a folder is `?f=School&f=Physics`), Trash `/trash`, a notebook `/notebook/:id?page=`, Split view `/split`. Calendar, Flashcards, Remember and Settings are added as they're built | `lib/app.dart`, `lib/ui/routes.dart` |
+| Routing | `go_router`: Start `/`, Library `/library` (a folder is `?f=School&f=Physics`), Trash `/trash`, a notebook `/notebook/:id?page=`, Split view `/split`, Remember `/remember` and Flashcards `/flashcards?deck=` (Phase 7a). Calendar and Settings are added as they're built | `lib/app.dart`, `lib/ui/routes.dart` |
 | Local storage and autosave | Done. Each notebook is a `.board` folder in the app's documents directory; see below | `lib/board/store.dart` |
 | Save status in the title pill | `Saving… / Saved / Couldn’t save · retrying` | `TitlePill` |
 | drift (SQLite) index | Done in Phase 2 (see below) | `lib/library/index_db.dart` |
@@ -71,7 +71,7 @@ Not yet checked there: how the pen feels, latency, and palm rejection.
 |---|---|---|
 | Compact left rail: Insert, Study & math, Writing help, Ruler/laser/view, divider, Search | Done, with the corner tick on group buttons | `lib/ui/canvas/left_rail.dart` (`railGroups`) |
 | Rail menus: hover (S Pen hover or mouse) previews, tap pins ("Pinned" + ×) | Done. Pinned menus close on a tap outside (which doesn't draw), a re-tap, the ×, Esc, or picking an item | `LeftRail`, `CanvasScreen` |
-| Menu items | Ruler, Laser pointer, Templates and Split view work; "Need to remember" and "Convert to text" start a lasso (Phase 3a); the whole Insert menu is wired (Phase 3b). The rest are "coming soon" | |
+| Menu items | Ruler, Laser pointer, Templates and Split view work; "Need to remember" and "Convert to text" start a lasso (Phase 3a); the whole Insert menu is wired (Phase 3b); Make flashcards since Phase 7a. The rest are "coming soon" | |
 | Top right: dark Share + ⋯ | Done; Export button and top-bar spell check removed | `ActionsPill` |
 | ⋯ menu: Export, Import, Print, Password protect, Page & paper, Version history, Settings | Done. Settings opens a small stand-in (Light/Dark/Match tablet, Draw with finger); Export, Import and Print work since Phase 4a; Page & paper and Version history are "coming soon" | `MoreMenu`, `showQuickSettings` |
 | Share dialog "Export a copy" row | Done in Phase 4a, in a stand-in Share dialog | `lib/ui/transfer/share_dialog.dart` |
@@ -108,7 +108,7 @@ The app now opens on the Start page. Start → Library → a notebook → Canvas
 
 ### Not done yet / known limits
 - **Fingerprint unlock for a password works on the tablet** (owner, 2026-10-15). The rest of Phase 2 has been checked in tests, a debug APK build, and a Windows build that starts on the Start page.
-- Scan, Calendar, Flashcards, Remember and cloud sync are "coming soon" (later phases). Import works since Phase 4a, Search since Phase 5a. Flashcards and Remember show no counts until those features exist.
+- Scan, Calendar, Flashcards, Remember and cloud sync are "coming soon" (later phases). Import works since Phase 4a, Search since Phase 5a, Flashcards and Remember (with their counts) since Phase 7a.
 - Locked content is dropped from memory when you leave the notebook, not when the app goes to the background.
 - A page locked with its own password inside a locked notebook keeps its own password; unlocking the notebook doesn't open it.
 - Library covers show the page this tablet last had open (or else the first page with ink). The small Recent cards show the notebook's color only, as in the design.
@@ -133,7 +133,7 @@ The first half of Phase 3: selection and the pen gestures. Shapes, text boxes, s
 | Connectors that snap to shapes | Done in Phase 3d (below) | |
 | Scribble to erase (`Scribble.png`) | Done for the pen and marker. Counts sharp back-and-forth turns (Light 2, Normal 3, Firm 4 plus a denser path) and only acts when there is ink under it: a stroke goes only if the scribble touches it and at least half of it lies in the scribbled area, so long lines it clips and shading on empty paper are safe. While scribbling, what will go turns faded red with "Lift the pen to erase N strokes"; the scribble itself is never kept. "Erased N strokes · Undo" (the design's "word" needs handwriting recognition, Phase 5) | `looksLikeScribble`, `scribbleTargets` |
 | Select and Lasso (`Convert.png`, `RememberMark.png`) | Done for ink. Select: tap a stroke or drag a box. Lasso: circle strokes (half their points inside). The dashed outline has corner handles (uniform resize; the pen width scales too) and a rotate knob (settles on 0/90/180/270° within 4°). Drag inside with the pen, or one finger, to move; the handles work with the pen or a finger; two fingers on the selection pinch and turn it. Page and tool changes, Esc and an empty tap clear it | `lib/canvas/selection.dart`, `InkCanvas` |
-| Selection toolbar | Done, 12 px above the selection (below it when the top chrome is in the way). Leads with **Convert to text** (Copy · Color · Straighten lines · Delete), or with **Remember** (To text · Flashcard · Copy · Delete) when started from the rail's "Need to remember". Copy duplicates 24 px down-right and selects the copy; Color offers the 9 pen colors; Straighten lines fits each selected stroke. Convert to text works since Phase 5a; Remember and Flashcard are "coming soon" (Phase 7) | `lib/ui/canvas/selection_toolbar.dart` |
+| Selection toolbar | Done, 12 px above the selection (below it when the top chrome is in the way). Leads with **Convert to text** (Copy · Color · Straighten lines · Delete), or with **Remember** (To text · Flashcard · Copy · Delete) when started from the rail's "Need to remember". Copy duplicates 24 px down-right and selects the copy; Color offers the 9 pen colors; Straighten lines fits each selected stroke. Convert to text works since Phase 5a; Remember and Flashcard since Phase 7a | `lib/ui/canvas/selection_toolbar.dart` |
 | Ruler (`Tools.png`) | Done. Rail → Ruler, 620 × 72, level across the lower middle; pick it again to put it away. One finger drags it, two fingers move and turn it (whole degrees, settling on multiples of 45° within 2°) and, spread along it past a 12% dead zone, make it 240–2400 px long. Dragging either end (finger or pen, the grips 48 px in from each end) swings and stretches it about the other end, with the same whole-degree and 45° settling; a second finger joining turns that into a normal two-finger move. Ticks in cm, mm or inches (an inch is 160 page px, Android's dp, so at 100% it matches a real ruler; they follow the zoom). Its chip shows the angle (counter-clockwise positive, −180° to 180°) and, while you draw along it, the line's length. Tapping the chip (pen or finger) opens presets (0–180°), a number pad (to 3 decimals, ±) and the unit (`lib/ui/canvas/ruler_menu.dart`). A pen stroke that starts on it or within 28 px of an edge is laid along the nearer edge, just outside it. It lives in screen space, so it stays put while the page pans | `lib/canvas/ruler.dart` |
 | Laser pointer (`Tools.png`) | Done. Rail → Laser pointer makes it the tool; red, green or blue under the tool pill. The trail lives in page space, each point fades over 1 s, and nothing touches the notebook (no undo step, no save). The app never reopens on the laser | `lib/canvas/laser.dart` |
 | Settings | Arrowhead (Open / Filled / Like my ink) and scribble sensitivity (Light / Normal / Firm), plus the two switches, in the stand-in Settings dialog, styled like the "Settings › Pen & S Pen" panels until the Settings screen exists | `lib/ui/canvas/pen_settings.dart` |
@@ -374,7 +374,7 @@ Spell check and the dictionary and thesaurus drawer from `Spell.png`, both opene
 | Add to my dictionary | The word is never flagged again, in any notebook. Kept in settings.json (`myWords`) | `AppSettings.myWords` |
 | Dictionary & thesaurus drawer | 400 wide on the right (`Spell.dc.html`'s aside), from Writing help → Dictionary & thesaurus or the card's Look up (which looks up the first suggestion, as the design does). Search (looked up 0.4 s after typing stops, or on Search); Dictionary / Thesaurus; the word in Newsreader with its pronunciation; Hear it; meanings grouped by word class (the class with most meanings first: "conserve" is a verb before a noun), numbered, each with an example (the one using the word, when there is one); Thesaurus: similar words (tap to look one up) and opposites; Recent (the last 8 searches and taps, newest first; as many as fit in one row); Add definition to page; Make flashcard; "Works offline · English (US)". Forms find their word ("geese" → goose, "hugged" → hug, "Collisions" → collision). A word it doesn't have: "“momentem” isn’t in the dictionary." with "Did you mean" | `lib/ui/spell/dictionary_drawer.dart`, `Dictionary` (`lib/spelling/dictionary.dart`) |
 | Add definition to page | A text box in the middle of what's showing: "conserve · verb" and the first meaning, in the pen's color. One undo step | `CanvasScreen._addDefinition` |
-| Make flashcard | "Making flashcards is coming soon" (Phase 7) | |
+| Make flashcard | Since Phase 7a: a card with the word and its meaning (below) | |
 | Hear it | Android's own text-to-speech through the app's channel `endless/speech` (`Speech.kt`), offline once a voice is installed (most tablets have English). The manifest declares the TTS service query Android 11+ needs. Hidden where there's none (Windows, for now) | `lib/spelling/speech.dart` |
 | Loading | The word list loads on a background isolate the first time spell check or the dictionary is used (about 0.2 s). The dictionary unpacks once, into the app's support folder, on a background isolate ("Opening the dictionary…"); a new app version with a newer dictionary unpacks it again and deletes the old one | `wordListProvider`, `dictionaryProvider` (`lib/spelling/spelling_state.dart`) |
 | Tokens | Added `inverseTick` and `onInverseMuted` (light and dark) for the bar's tick and count | `design/tokens.json` |
@@ -538,6 +538,52 @@ The owner asked for these after a status check of Phase 6.
 - **Number line:** points can't be dragged along it; one number line holds any number of points and intervals, but the chips for many intervals take rows.
 - **Not undo steps:** stepping the unit circle and showing or hiding a curve are kept quietly, like a graph's view.
 
+## Phase 7a: flashcards and Need to remember — built, not yet tried on the tablet
+
+The owner's request (2026-10-26): Make flashcards (FlashMake.png), Study (Study.png), Need to remember (RememberMark.png, Remember.png), reminders, all in the `.board` format, undoable and searchable. The calendar, planner, widgets, charts and live items are the rest of Phase 7.
+
+**How it's stored (docs/BOARD_FORMAT.md):**
+- **Remembering** sets the `remember` field every item already had: items sharing a `remember.id` are one thing to remember, with `why`, `remind`/`remindAt` and the `flashcard` made from it.
+- **A flashcard** is a new `flashcard` item on the page it was made on. Its front and back name items by id, so the card shows the notes as they are now (rule 6: a reference, not a copy). Typed text can go on a side too.
+- **How well each card is known** (FSRS) is the package's new `study.json`. **The decks** are the app's `decks.json`. Each card carries its deck's name, so a board file brings its deck along.
+- Marking, forgetting, adding and deleting cards are item edits: undo steps, sealed with a locked page, carried by board files.
+- **The index** (`index.sqlite`, schema 3) gains `study_items`, filled from the pages like the search rows. The Remember and Flashcards screens and the sidebar's counts read it. An open page reaches it about 0.3 s after a change. `indexVersion` 3 reads every notebook again once, from recognition.json, so marks made before show up.
+
+| Item | Status | Where |
+|---|---|---|
+| Remember this (RememberMark.png) | Study & math → Need to remember, lasso anything (ink, pictures, text, cards), then **Remember**. The panel shows what's remembered, **Why it matters (optional)**, **Remind me** (No reminder · Tomorrow · Before an event · Pick a date) and **Also make it a flashcard**, with the tip, Cancel and Save. It sits beside the selection at the top. The pages rail and map make way while it's open, as in the design. Save is one undo step: "Saved to Need to remember · reminder tomorrow" with **Open** (the Remember screen) and Undo. Something already selected (with Select) gets the Remember toolbar when Need to remember is picked | `lib/ui/study/remember_panel.dart`, `lib/canvas/ink_canvas_study.dart` |
+| On the page | What's remembered has a yellow wash under its ink and a "★ Remembered" chip; a drawn star gets "Drawn star · remembered" (no wash, as in the design). Tapping a chip opens Remember this to change it, or **Forget it**. Never drawn into the page, thumbnails or exports | `RememberWashPainter`, `MarkChip` (`lib/ui/study/study_marks.dart`) |
+| Draw a star next to it | A five-pointed star drawn with the pen (crossing itself, or its outline) next to something marks it: what's at the star's height on the nearer side, along the line of writing, and a circle drawn round it. Two undo steps, like arrows: the star as drawn, then the mark ("Drawn star · remembered · Undo" leaves the star as ink). A star with nothing near it, in math mode, on a sticky note, or with Settings' new **starRemember** off stays ink. It's told from a scribble because its tips all turn the same way | `looksLikeStar`, `besideStar` (`lib/study/star.dart`) |
+| Need to remember (Remember.png) | `/remember`, from the sidebar's Remember (with its count). "8 things from 6 notebooks · …", **Review all**, filter chips (All, Has a reminder, then each folder, with counts), and a card for each, newest first: what's remembered drawn as on the page (typed text as text), the star, why it matters, the reminder ("Tue 29 · 6 PM"), "Also a flashcard" and "Drawn star" tags, and the notebook with its color and page ("Physics — Lecture notes · p. 3"), which opens it there, highlighted. **Unstarring** removes the mark in its notebook (opened for a moment if it's closed) and fades the card; starring again puts the same mark back. **Review all** shows one at a time: "1 of 8", Previous, Next, Done (arrow keys and Esc too) | `lib/ui/study/remember_screen.dart`, `lib/study/remember_edits.dart` |
+| Reminders | Local notifications (`flutter_local_notifications` 22.3.2): "Need to remember" with what it says (its recognized handwriting or typed text) and why. Set at an instant in UTC, so time zones need no database (`timezone` 0.11.1). Android's are **inexact** alarms (no exact-alarm permission; they may come a few minutes late) and come back after a restart (the boot receiver). Android 13+ asks to show notifications the first time a reminder is set. A tapped one opens the notebook at the thing, highlighted, also when it started the app. Kept in step with the index: changed, undone, unstarred or forgotten, the reminder moves or goes; reminders left over from before are cancelled at start | `lib/study/reminders.dart` (`ReminderSync`), `android/app/src/main/AndroidManifest.xml`, `android/app/build.gradle.kts` (core library desugaring), `android/app/proguard-rules.pro` |
+| Making flashcards (FlashMake.png) | Study & math → Make flashcards, or the Remember toolbar's **Flashcard** (what's selected is the front). The tool pill becomes "Making flashcards · Deck: … ▾ · Done"; the rail, pages rail, map and zoom pill go; the lasso circles. **Circle the front, then the back**: each is outlined dashed in blue or clay with FRONT / BACK, and a tap picks one thing (a picture or text box). The hint above the page says what's next. The **New card** panel shows both sides as they are on the page, "N cards in this deck so far", **Also quiz me back to front**, Clear and **Add card** (one undo step), then "Card added to … · Study now". Cards made on the page show plum "Card 2" chips (or "· front" / "· back" when far apart); a chip's menu deletes it. **The deck** menu lists the decks and **New deck…**; the one used last is remembered, and the first deck is named after the notebook. Done or Esc goes back to the pen | `lib/ui/study/flash_widgets.dart`, `flash_actions.dart`, `lib/canvas/flashcard_mode.dart` |
+| Dictionary's Make flashcard | The word on the front, "verb · its meaning" on the back, as typed text, into the deck used last: "Card added to … · Study now · Undo" | `CanvasScreen._wordCard`, `addTextCard` |
+| "Also make it a flashcard" | The front is what's remembered; the back is why it matters. With nothing on the back, Study shows the front again with "Rate how well you remembered it" | `_saveRemember` |
+| Flashcards (Study.png) | `/flashcards`, from the sidebar's Flashcards (with the number due, in clay). **Decks** on the left: "5 due · 12 cards · from 2 notebooks", "All caught up · 8 cards", **New deck**, "Make cards from your notes" (opens the notebook used last). **On the right**: the deck, "Card 3 of 5 due" and its progress bar, **Flip · Write the answer**. The 660 × 400 dotted card shows the front as on the page (scaled up to 3×) or typed text in Newsreader. "Tap the card to flip". **Open in notes** goes to it on its page. **Show answer**, then **Again · Hard · Good · Easy**, each saying when the card comes back ("in 1 min", "in 2 days"). The back says "From Physics — Lecture notes · page 3". When done: "All 5 due cards done. Next review: tomorrow." and Study again. With nothing due: "All caught up" and Study anyway. Space flips, 1–4 rate | `lib/ui/study/study_screen.dart` |
+| Write the answer | A dashed pad on the front, "Write your answer here with the S Pen" (pen, finger or mouse). **Check my answer** flips the card and shows what was written under the answer, "YOUR ANSWER", to compare before rating | `_writePad`, `_yourAnswer` |
+| FSRS | FSRS-6 ported to Dart, checked against py-fsrs 6.3.2 (the reference) on four runs of answers: the same stability, difficulty, phase, step and due date at every answer. Default weights, learning steps 1 and 10 minutes, relearning 10 minutes, 90% retention, no fuzz. A card answered Again (or still being learned) comes back in the same round once it's due, or when nothing else is left. Back to front is scheduled on its own | `lib/study/fsrs.dart`, `lib/study/session.dart`, `tool/fsrs_reference.py` |
+| Searchable | "Why it matters" and typed card text are typed text in Search; what's remembered and the cards' ink were searchable already | `rowsFor` (`lib/recognition/handwriting_index.dart`) |
+| Board files | `study.json` goes along with the exported cards' entries and comes back on import; `flashcard` items and marks are page items, so they round-trip with the pages | `lib/transfer/board_file.dart` (`studyFor`) |
+| Tokens | Added `rememberPaper`, `rememberLine`, `rememberDot` (the yellow paper), `clayLine`, `accentLine`, `greenLine` (the rating buttons' edges), light and dark | `design/tokens.json` |
+| Also fixed | An item type this version doesn't know lost its `remember` mark when read | `UnknownItem` |
+
+**Judgment calls:**
+- **What a card shows.** A card points at the items circled, as rule 6 asks, rather than copying them. The index keeps a copy of how they looked when the page was last read, so the Flashcards and Remember screens open without loading every notebook. Studying shows that copy.
+- **Filter chips are folders** (a notebook's innermost folder; "No folder" for the rest). Remember.png's Physics / Calculus / Work / Personal look like folders.
+- **Study again** goes through every card of the deck and does change their schedule (FSRS handles early reviews).
+
+### Not done yet / known limits
+- **Not tried on the tablet yet**, in particular: the S Pen star (how often a quick star is recognised, and whether any real writing gets mistaken for one), reminders arriving (and their permission prompt), tapping one, and a reminder after a restart.
+- **Pages and notebooks with a password** never reach the index, so what's remembered and the cards on them aren't on the Remember and Flashcards screens, and their reminders don't go off, while they have one (unlocked ones neither: it would put their content in a notification).
+- **Before an event** says it comes with the calendar (Phase 7c).
+- Reminders work on Android (and iOS and macOS once those builds exist). Windows and Linux have none yet: the setting is saved in the notebook and goes off on the tablet.
+- The notification's icon is the app's launcher icon; Android shows it as a plain shape. A monochrome notification icon is still to make.
+- Making flashcards isn't in Split view yet (its Study & math → Make flashcards and the Remember toolbar's Flashcard say "coming soon" there). Remember this and drawn stars are part of the canvas, so Split view has them too, though they haven't been tested there.
+- A card's sides must be on one page; changing page while making one starts it again.
+- The Remember panel's preview shows the ink as written, small when it's long; Remember.png reflows it as text.
+- Remember.png's cards are 224 tall; ours are 250 so the notebook link keeps a 44 dp target. The selection toolbar can cover the "Remembered" chip while something is selected.
+- Copies are made of what was circled at the time the page was read for the index: a card whose notes changed shows the change about a third of a second later (open notebook) or when the notebook is next read (closed).
+
 ## Storage layout
 
 ```
@@ -545,6 +591,7 @@ The owner asked for these after a status check of Phase 6.
 ├── settings.json                  # tools, colors, theme mode, your name, library view and sort, my dictionary
 ├── handwriting.json               # the handwriting sample for spelling fixes (this device only)
 ├── library.json                   # folders and their colors, in the order they were made
+├── decks.json                     # flashcard decks
 ├── index.sqlite                   # the library index and search index (caches; rebuilt from the .board files)
 ├── templates/<templateId>.json    # My templates
 └── notebooks/<notebookId>.board/  # the .board package, unzipped (docs/BOARD_FORMAT.md)
@@ -552,6 +599,7 @@ The owner asked for these after a status check of Phase 6.
     ├── lock.json                  # only when a page or the notebook has a password
     ├── pages/<pageId>.json        # or <pageId>.json.enc while locked
     ├── assets/<sha256>.<ext>      # images, imported PDFs and their pages' pictures, Word/PowerPoint/Excel files; <name>.enc on a locked page
+    ├── study.json                 # how well each flashcard is known (FSRS)
     └── index/recognition.json     # what the handwriting says, per page (never a locked page)
 
 <app support>/dictionary/en-dictionary-v1.sqlite   # the bundled dictionary, unpacked on first use (app data, not the user's)
@@ -665,9 +713,25 @@ The owner asked for these after a status check of Phase 6.
   - Goldens:
     - `graph_it` is new: Graph.png made by Graph it, with the "Graphed" badge and the toast.
     - `math` now shows the other readings.
+- Phase 7a:
+  - `test/study/fsrs_test.dart`: FSRS-6 against py-fsrs 6.3.2 on four runs (`test/fixtures/study/fsrs_reference.json`, from `tool/fsrs_reference.py`), a new card's four answers, Study.png's "in 2 days", a lapse, study.json round trips, wait labels; a round of studying (both ways, Again coming back, finishing), the buttons' times.
+  - `test/study/star_test.dart`: stars drawn both ways, at any size, wobbly (45 of 50), and as an outline; not circles, triangles, squares, scribbles, handwriting or an open zig-zag; too small on screen; what a star is next to (the line, not the lines above and below; a circle round the words; the nearer side; nothing; not its frame or highlighter).
+  - `test/study/study_data_test.dart`: a flashcard round trip with unknown fields; remembering any kind of item changes only the mark; old marks; things to remember (the drawn star apart); what the index keeps for both (copies, what they say, what's gone); marks reaching the index, leaving it on Undo and a password, why notes found by Search; the study data and study.json read back; board files carrying study.json; reminders (one per future reminder, their text and target) kept in step (set, moved, cancelled, left-overs cancelled).
+  - `test/ui/remember_test.dart`: Remember this end to end (why, Before an event's note, Tomorrow at 9, Also make it a flashcard, the permission asked, the toast's Open and Undo as one step); a chip changing and forgetting it; Remember for what's selected; a drawn star (and Undo keeping the star), alone, and with the setting off; the Remember screen (counts, chips, reminders, tags, pages, filters); unstarring and starring again on disk, Review all, opening at page 8; nothing yet; the toast's Open.
+  - `test/ui/flashcards_test.dart`: making a card (circling, FRONT/BACK, the hint, back to front, Add card, the chips, Undo); a tap picking a text box, Clear, deleting a card from its chip; decks (New deck…, the last one used), Done and Esc; the Remember toolbar's Flashcard; Study now; the Flashcards screen (decks with what's due, flip and rate through to the end with study.json saved, Again in the round, Study again, write the answer, Open in notes, a new deck, no decks, the sidebar's count).
+  - `test/ui/spell_test.dart`: the dictionary's Make flashcard. `test/transfer/everything.dart` has a remembered stroke with a reminder and a two-way card, so the board file and PDF round trips cover them.
+  - 6 goldens: `flash_make`, `remember_mark`, `remember`, `remember_dark`, `study`, `study_back`. `test/study/study_samples.dart` is Remember.png's and Study.png's sample data.
 - `test/tokens_sync_test.dart`: generated tokens match `design/tokens.json`.
 
 ## Next
+- **Phase 7a tablet checklist** (flashcards and Need to remember). Install a release build (`flutter build apk --release`, then `adb install -r`).
+  1. **Remember with a reminder.** Lasso a line (Study & math → Need to remember), tap Remember, write a why, pick a date a few minutes ahead, Save. Allow notifications when Android asks. Lock the screen and wait: the reminder should arrive (inexact, so up to a few minutes late). Tap it: Endless opens on that page with the line highlighted.
+  2. **Draw a star** with the S Pen next to a word or two, about the height of the writing: the words get "Drawn star · remembered", and Undo leaves the star as ink. Write normally for a while: nothing else should turn into a star.
+  3. **Make flashcards** (Study & math → Make flashcards): circle a word, then its meaning, tick "Also quiz me back to front", Add card. Make a second card in a New deck…. Tap a picture to make it a front.
+  4. **Study now**: flip, rate Good, Again (it comes back), and finish. Try Write the answer with the S Pen. Open in notes. The sidebar's Flashcards count should match what's due.
+  5. **Need to remember** (sidebar): the cards, the chips, a folder filter, Review all. Unstar one and open its notebook: it's no longer marked; star it again.
+  6. **Board file round trip**: export the notebook, import it, and Study: the cards come back with their progress.
+  7. **Restart the tablet** with a reminder set for later: it should still go off.
 - **Phase 6 tablet checklist** (math mode, graphs, math tools).
   - **Setup:** install a release build with `flutter build apk --release` then `adb install -r`. This keeps your notebooks; a release build is what crashed before.
   - **Reading handwriting (6a):**
@@ -704,7 +768,7 @@ The owner asked for these after a status check of Phase 6.
     24. Search for "unit circle" and "2 sin x".
     25. Export the page as a PDF. Graphs and tools should be pictures, and their text searchable in a PDF reader.
     26. Dark mode: graphs and tools are readable, with brightened ink.
-- Phase 7 (docs/SPEC.md) is next once Phase 6 is checked on the tablet.
+- The rest of Phase 7 (docs/SPEC.md): calendar sync and the planner (7c brings "Before an event"), the live widgets, charts and live items.
 - Try Phase 5a on the tablet: the model download on first use and then offline, writing and searching, Open at this spot, Convert to text (Replace, Keep ink too, Copy text only, another language, the whole page), a PDF export's text in a PDF reader, and locking a page then searching.
 - Try Phase 4a on the tablet: export a page as a PDF to the tablet and through the share sheet, a board file round trip, Print, the Share dialog's Image, and importing a real PDF (a long one too).
 - Still to try from Phase 3: sticky notes, text boxes with the on-screen keyboard, photos from the gallery and the camera, the whole board, the card editors, opening a website, arrows between boxes, and dragging the ruler's ends.

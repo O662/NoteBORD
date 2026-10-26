@@ -112,6 +112,18 @@ double _num(Object? v, [double fallback = 0]) => (v as num?)?.toDouble() ?? fall
 
 List<Item> _nested(Object? list) => [for (final i in (list as List? ?? const [])) decodeItem((i as Map).cast<String, dynamic>())];
 
+/// [item] marked as remembered with [remember] (or no longer, with null):
+/// the same item otherwise, whatever its type.
+Item withRemember(Item item, Json? remember) {
+  if (item is UnknownItem) {
+    final raw = {...item.raw}..remove('remember');
+    return UnknownItem({...raw, 'remember': ?remember});
+  }
+  return decodeItem({...item.toJson(), 'remember': remember});
+}
+
+const _flashcardKeys = {..._itemKeys, 'deck', 'deckName', 'reverse', 'front', 'back'};
+
 Item? _decodeKnown(Json json) {
   final id = json['id'] as String;
   final x = (json['x'] as num).toDouble();
@@ -122,6 +134,22 @@ Item? _decodeKnown(Json json) {
   final author = json['author'] as String? ?? localAuthor;
   final remember = (json['remember'] as Map?)?.cast<String, dynamic>();
   switch (json['type']) {
+    case 'flashcard':
+      return FlashcardItem(
+        id: id,
+        x: x,
+        y: y,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, _flashcardKeys),
+        deck: json['deck'] as String,
+        deckName: json['deckName'] as String? ?? '',
+        reverse: json['reverse'] as bool? ?? false,
+        front: CardSide.fromJson(json['front']),
+        back: CardSide.fromJson(json['back']),
+      );
     case 'stroke':
       return StrokeItem(
         id: id,

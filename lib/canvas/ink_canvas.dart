@@ -9,7 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../board/codec.dart' show withRemember;
 import '../board/ids.dart';
 import '../board/model.dart';
 import '../math/evaluate.dart' show GraphFunction, graphView;
@@ -22,11 +24,16 @@ import '../office/office_model.dart';
 import '../recognition/convert.dart';
 import '../recognition/reader.dart';
 import '../recognition/segment.dart' show isHandwriting, writingIn;
+import '../library/library.dart' show clockProvider, libraryProvider;
 import '../state/links.dart';
 import '../state/notebook.dart';
 import '../state/office_docs.dart';
 import '../transfer/files.dart';
 import '../state/settings.dart';
+import '../study/reminders.dart' show reminderServiceProvider;
+import '../study/remember.dart';
+import '../study/star.dart';
+import '../study/study_state.dart' show decksProvider;
 import '../templates/templates.dart';
 import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
@@ -40,9 +47,16 @@ import '../ui/dialogs.dart';
 import '../ui/math/math_keyboard.dart';
 import '../ui/math/math_keys.dart' show Formula, formulaLabel;
 import '../ui/math/math_preview.dart';
+import '../ui/routes.dart' show Routes;
+import '../ui/study/item_preview.dart' show itemsBounds;
+import '../ui/study/remember_panel.dart';
+import '../ui/study/study_format.dart' show reminderShort;
+import '../ui/icons.dart' show EIcons;
+import '../ui/study/study_marks.dart';
 import 'canvas_view.dart';
 import 'cards.dart';
 import 'connectors.dart';
+import 'flashcard_mode.dart';
 import 'gesture_overlay.dart';
 import 'gestures.dart';
 import 'graph_card.dart';
@@ -60,6 +74,7 @@ import 'selection.dart';
 import 'stroke_geometry.dart';
 
 part 'ink_canvas_math.dart';
+part 'ink_canvas_study.dart';
 
 /// Eraser radius in screen px.
 const eraserRadius = 10.0;
@@ -125,6 +140,7 @@ class InkCanvas extends ConsumerStatefulWidget {
     this.onActivate,
     this.onViewTap,
     this.chrome = const EdgeInsets.fromLTRB(12, 84, 12, 12),
+    this.onFlashcards,
   });
 
   final Pane pane;
@@ -142,6 +158,11 @@ class InkCanvas extends ConsumerStatefulWidget {
   /// How far the floating chrome reaches in from each edge. The selection
   /// toolbar stays inside, going below the selection when the top is taken.
   final EdgeInsets chrome;
+
+  /// The Remember toolbar's Flashcard: start making flashcards with this as
+  /// the front (the screen's chrome changes for it). Null where flashcards
+  /// can't be made.
+  final ValueChanged<CircledSide>? onFlashcards;
 
   @override
   ConsumerState<InkCanvas> createState() => InkCanvasState();
@@ -260,6 +281,11 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   /// its own coordinates), or null for ink on the page.
   String? _convertSticky;
 
+  /// Remember this is open for these items, and for the thing remembered
+  /// as [_rememberGroup] when changing one (ink_canvas_study.dart).
+  List<String>? _rememberIds;
+  String? _rememberGroup;
+
   /// Typing in a text box or on a sticky note.
   TextEditSession? _edit;
   Set<String> _editHidden = const {};
@@ -316,6 +342,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     pane.addListener(_paneChanged);
     pane.status.addListener(_statusChanged);
     pane.math.addListener(_mathChanged);
+    pane.cards.addListener(_cardsChanged);
     _selection.addListener(_overlay.ping);
     _selection.addListener(_selectionChanged);
     _watchDraft();
@@ -330,7 +357,9 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       oldWidget.pane.selection.removeListener(_overlay.ping);
       oldWidget.pane.selection.removeListener(_selectionChanged);
       oldWidget.pane.math.removeListener(_mathChanged);
+      oldWidget.pane.cards.removeListener(_cardsChanged);
       widget.pane.math.addListener(_mathChanged);
+      widget.pane.cards.addListener(_cardsChanged);
       widget.pane.addListener(_paneChanged);
       widget.pane.status.addListener(_statusChanged);
       widget.pane.selection.addListener(_overlay.ping);
@@ -340,6 +369,9 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
   void _paneChanged() {
     _clearGraphed();
+    _rememberIds = null;
+    _rememberGroup = null;
+    pane.panel.value = false;
     if (_drawPointer != null) _cancelInput();
     _commitEdit();
     _laser.clear();
@@ -370,6 +402,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     pane.removeListener(_paneChanged);
     pane.status.removeListener(_statusChanged);
     pane.math.removeListener(_mathChanged);
+    pane.cards.removeListener(_cardsChanged);
     _draftFor?.text.removeListener(_draftChanged);
     _mathIdle?.cancel();
     _selection.removeListener(_overlay.ping);
@@ -390,7 +423,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
   void _status(String? text) => pane.showStatus(text);
 
-  void _toast(String text, {bool undo = true}) => pane.toast(text, undoPageId: undo ? _page.id : null);
+  void _toast(String text, {bool undo = true, (String, VoidCallback)? action}) =>
+      pane.toast(text, undoPageId: undo ? _page.id : null, action: action);
 
   /// A new edit makes an old "Undo" mean something else, so it goes.
   void _dismissToast() {
@@ -1080,6 +1114,13 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     final scribble = _scribbleIds;
     _status(null);
 
+    // A star drawn next to something marks it to remember (before a
+    // scribble: a star's tips look like back-and-forths).
+    if (snapped == null && _rememberStar(active.toItem(z: page.nextZ), settings)) {
+      active.clear();
+      return;
+    }
+
     if (scribble.isNotEmpty) {
       // The scribble itself is never kept.
       if (_targetNote case final note?) {
@@ -1177,7 +1218,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   /// What's selected, in no particular order.
   List<Item> get _selected => [
         for (final id in _selection.ids)
-          if (_page[id] case final Item i when i is! UnknownItem) i,
+          if (_page[id] case final Item i when i is! UnknownItem && i is! FlashcardItem) i,
       ];
 
   /// The one box selected on its own (not lassoed): its outline follows its
@@ -1209,7 +1250,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     for (final f in frames) {
       for (final id in page.index.query(f.extent)) {
         final item = page[id];
-        if (item == null || item is UnknownItem || _selection.ids.contains(id)) continue;
+        if (item == null || item is UnknownItem || item is FlashcardItem || _selection.ids.contains(id)) continue;
         // A connector joined to something that stays bends to follow instead.
         if (item is StrokeItem &&
             [item.startItemId, item.endItemId].any((a) => a != null && !_selection.ids.contains(a))) {
@@ -1391,12 +1432,13 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     final page = _page;
     return [
       for (final id in page.index.query(area))
-        if (page[id] case final Item i when i is! UnknownItem) i,
+        if (page[id] case final Item i when i is! UnknownItem && i is! FlashcardItem) i,
     ];
   }
 
   void _finishLasso() {
     final loop = _overlay.lasso;
+    if (pane.cards.on) return _circleForCard(loop);
     if (loop.length < 3 || pathLength(loop) < 20 * _unit) return;
     final picked = itemsInPolygon(loop, _selectable(_boundsOf(loop)));
     if (picked.isEmpty) return;
@@ -1483,6 +1525,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   /// (null when ink is selected: that gets Convert to text or Remember).
   List<SelectionAction>? _objectActions() {
     final items = _selected;
+    // From "Need to remember": anything lassoed gets the Remember toolbar.
+    if (_selection.menu == SelectionMenu.remember) return null;
     if (items.isEmpty || items.any((i) => i is StrokeItem)) return null;
     final one = items.length == 1 ? items.single : null;
     return [
@@ -1541,9 +1585,13 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       case SelectionAction.editMath:
         if (items.singleOrNull case final MathItem m) _editMath(m);
       case SelectionAction.remember:
-        showComingSoon(context, 'Need to remember');
+        _openRemember();
       case SelectionAction.flashcard:
-        showComingSoon(context, 'Flashcards');
+        if (widget.onFlashcards == null) {
+          showComingSoon(context, 'Making flashcards here');
+        } else {
+          _flashcardFromSelection();
+        }
       case SelectionAction.color:
         setState(() => _colorsOpen = !_colorsOpen);
       case SelectionAction.copy:
@@ -1590,7 +1638,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
                 w: b.w,
                 h: b.h,
               ),
-            UnknownItem _ => null,
+            // A card stays with what it was made from.
+            UnknownItem _ || FlashcardItem _ => null,
           };
           if (copy == null) continue;
           z++;
@@ -2194,6 +2243,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
               child: CustomPaint(painter: PaperPainter(_vp, page.page.paper, colors)),
             ),
             if (layout != null) RepaintBoundary(child: CustomPaint(painter: LayoutPainter(_vp, layout))),
+            // What's remembered has a yellow wash under its ink.
+            _rememberWash(page, colors),
             RepaintBoundary(
               child: CustomPaint(
                 painter: InkLayerPainter(_vp, page, notebook.revision, brightness, colors, hidden: _hidden, repaint: _overlay),
@@ -2217,6 +2268,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
                 ),
               ),
             ),
+            _cardOutlines(colors),
             RepaintBoundary(
               child: CustomPaint(painter: ActiveStrokePainter(active, _vp, brightness)),
             ),
@@ -2228,6 +2280,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
               IgnorePointer(child: CustomPaint(painter: HoverRingPainter(_hover, hoverRing))),
           ]),
         ),
+        // Chips on what's remembered, and the flashcards being made.
+        if (!_viewOnly) _studyMarks(page),
         if (_edit case final session?)
           TextEditor(
             key: ObjectKey(session),
@@ -2244,6 +2298,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
             ),
           _toolbar(),
           if (_convertIds != null) _convertPanel(),
+          if (_rememberIds != null) _rememberPanel(),
           _mathPreview(),
           if (pane.math.draft case final draft?) _mathKeyboard(draft),
         ],

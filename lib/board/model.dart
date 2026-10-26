@@ -2280,6 +2280,97 @@ class CardItem extends BoxItem {
 }
 
 /// An item type this version can't show yet. Kept verbatim.
+/// One side of a flashcard: items on the page it was made on, by id (drawn
+/// as they are now, so the card follows the notes), and typed [text] (a
+/// word's definition, a "why it matters" note).
+@immutable
+class CardSide {
+  const CardSide({this.ids = const [], this.text = ''});
+
+  factory CardSide.fromJson(Object? json) {
+    if (json is! Map) return const CardSide();
+    return CardSide(
+      ids: [...?(json['ids'] as List?)?.whereType<String>()],
+      text: json['text'] as String? ?? '',
+    );
+  }
+
+  final List<String> ids;
+  final String text;
+
+  bool get isEmpty => ids.isEmpty && text.trim().isEmpty;
+
+  Json toJson() => {
+        if (ids.isNotEmpty) 'ids': ids,
+        if (text.isNotEmpty) 'text': text,
+      };
+}
+
+/// A flashcard made on this page (FlashMake.png): its front and back, the
+/// deck it's in, and whether it's also asked back to front. It isn't drawn
+/// and can't be selected; `x`/`y` is where its front was when it was made.
+/// How well it's known lives in the package's `study.json`.
+class FlashcardItem extends Item {
+  FlashcardItem({
+    required super.id,
+    required super.x,
+    required super.y,
+    required super.z,
+    required super.createdAt,
+    super.author,
+    super.remember,
+    super.extra,
+    required this.deck,
+    required this.deckName,
+    required this.front,
+    required this.back,
+    this.reverse = false,
+  });
+
+  /// The deck's id (`dk_…`), and its name when the card was made, so a
+  /// board file brings its deck along.
+  final String deck;
+  final String deckName;
+  final CardSide front;
+  final CardSide back;
+
+  /// "Also quiz me back to front".
+  final bool reverse;
+
+  @override
+  String get type => 'flashcard';
+
+  @override
+  Rect get bounds => Rect.fromLTWH(x, y, 1, 1);
+
+  FlashcardItem copyWith({String? deck, String? deckName, CardSide? front, CardSide? back, bool? reverse}) =>
+      FlashcardItem(
+        id: id,
+        x: x,
+        y: y,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        deck: deck ?? this.deck,
+        deckName: deckName ?? this.deckName,
+        front: front ?? this.front,
+        back: back ?? this.back,
+        reverse: reverse ?? this.reverse,
+      );
+
+  @override
+  Json toJson() => {
+        ...baseJson(),
+        'deck': deck,
+        'deckName': deckName,
+        'reverse': reverse,
+        'front': front.toJson(),
+        'back': back.toJson(),
+      };
+}
+
 class UnknownItem extends Item {
   UnknownItem(this.raw)
       : super(
@@ -2288,6 +2379,7 @@ class UnknownItem extends Item {
           y: (raw['y'] as num?)?.toDouble() ?? 0,
           z: (raw['z'] as num?)?.toInt() ?? 0,
           createdAt: DateTime.tryParse(raw['createdAt'] as String? ?? '') ?? DateTime.utc(1970),
+          remember: (raw['remember'] as Map?)?.cast<String, dynamic>(),
         );
 
   final Json raw;

@@ -66,6 +66,12 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
     required this.searchHit,
     required this.inverseTick,
     required this.onInverseMuted,
+    required this.rememberPaper,
+    required this.rememberLine,
+    required this.rememberDot,
+    required this.clayLine,
+    required this.accentLine,
+    required this.greenLine,
   });
 
   final Color text;
@@ -176,6 +182,17 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
   /// Quieter text on [inverse] (“1 of 4”).
   final Color onInverseMuted;
 
+  /// The yellow paper a remembered thing is shown on (Remember.dc.html), its
+  /// edge and its dots.
+  final Color rememberPaper;
+  final Color rememberLine;
+  final Color rememberDot;
+
+  /// Edges of Study.png's Again, Good and Easy buttons.
+  final Color clayLine;
+  final Color accentLine;
+  final Color greenLine;
+
   /// Floating pill shadow: `0 6px 18px -12px shadow`.
   List<BoxShadow> get pillShadow => [
         BoxShadow(color: shadow, offset: const Offset(0, 6), blurRadius: 18, spreadRadius: -12),
@@ -279,6 +296,12 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
       searchHit: l(searchHit, other.searchHit),
       inverseTick: l(inverseTick, other.inverseTick),
       onInverseMuted: l(onInverseMuted, other.onInverseMuted),
+      rememberPaper: l(rememberPaper, other.rememberPaper),
+      rememberLine: l(rememberLine, other.rememberLine),
+      rememberDot: l(rememberDot, other.rememberDot),
+      clayLine: l(clayLine, other.clayLine),
+      accentLine: l(accentLine, other.accentLine),
+      greenLine: l(greenLine, other.greenLine),
     );
   }
 }

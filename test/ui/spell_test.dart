@@ -260,8 +260,13 @@ void main() {
     expect(added.last.text, 'conserve · verb\nKeep constant through physical or chemical reactions or evolutionary change.');
     expect(find.text('Added the definition of “conserve” to the page'), findsOneWidget);
 
+    // The word on the front, its meaning on the back, in a deck named after
+    // the notebook (test/ui/flashcards_test.dart covers the rest).
     await _tap(tester, 'Make flashcard');
-    expect(find.text('Making flashcards is coming soon'), findsOneWidget);
+    final card = shownPage(c).items.whereType<FlashcardItem>().single;
+    expect(card.front.text, 'conserve');
+    expect(card.back.text, 'verb · Keep constant through physical or chemical reactions or evolutionary change.');
+    expect(find.text('Card added to ${card.deckName}'), findsOneWidget);
 
     await _tap(tester, 'Close the dictionary');
     expect(find.bySemanticsLabel('Dictionary and thesaurus'), findsNothing);

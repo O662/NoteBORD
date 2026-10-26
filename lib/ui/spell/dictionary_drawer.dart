@@ -32,7 +32,7 @@ class DictionaryDrawer extends ConsumerStatefulWidget {
   final int serial;
   final VoidCallback onClose;
   final void Function(DictEntry entry, DictSense sense) onAddDefinition;
-  final VoidCallback onFlashcard;
+  final void Function(DictEntry entry, DictSense sense) onFlashcard;
 
   static const width = 400.0;
 
@@ -185,7 +185,7 @@ class _DictionaryDrawerState extends ConsumerState<DictionaryDrawer> {
                 onTap: entry == null ? null : () => widget.onAddDefinition(entry, entry.senses.first),
               ),
             ),
-            _Button(label: 'Make flashcard', onTap: entry == null ? null : widget.onFlashcard),
+            _Button(label: 'Make flashcard', onTap: entry == null ? null : () => widget.onFlashcard(entry, entry.senses.first)),
           ]),
           Text('Works offline · English (US)', style: TextStyle(fontSize: 12, color: c.textMuted)),
         ]),

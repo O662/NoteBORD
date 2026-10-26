@@ -13,6 +13,7 @@ My notebook.board
 │   ├── <sha256>.pdf     # an imported PDF; its pages' pictures are .png
 │   ├── <sha256>.jpg.enc # the same, sealed, on a locked page or notebook
 │   └── ...
+├── study.json           # optional: how well each flashcard is known (FSRS)
 └── index/
     └── recognition.json # optional cache: handwriting text per stroke group
 ```
@@ -81,6 +82,7 @@ Every item has these fields:
 | `table` | `w`, `h`, `title`, `unit`, `cells: [[…]]`, `header` |
 | `chart` | `w`, `h`, `chartType`, `source: {kind: table/xlsx, ref, range}`, `linked: true`, `snapshot?` |
 | `widget` | `w`, `h`, `widget` (calendar/planner/flashcards/remember/clock/date/checklist/numberline/unitcircle/polar), `config`, `unit` |
+| `flashcard` | `deck`, `deckName`, `reverse`, `front: {ids?, text?}`, `back: {ids?, text?}` (not drawn; see below) |
 | `audio` | `asset`, `durationMs`, `inkTimeline: [{strokeId, tMs}]`, `transcript?: [{tMs, speaker, text}]` |
 | `video` | `w`, `h`, `asset` or `remoteUrl`, `pins: [{tMs, itemId}]` |
 | `timestamp` | `at` (ISO), `display` (clock/ago) |
@@ -157,7 +159,44 @@ Every item has these fields:
 - When the card gets a newer version of its file, each page's ink moves to where that page is now: slides by their `p:sldId` and sheets by their `sheetId`, so ink follows a slide that was moved, and goes with one that was deleted. Word pages keep their numbers.
 - Ink written beside a card is ordinary page ink.
 
-`remember` is either `null` or `{ "why": "...", "remindAt": "...", "flashcard": false }`.
+**Need to remember, as implemented (v1, Phase 7a, RememberMark.png):** `remember` is `null`, or the item is marked to remember:
+
+```json
+"remember": { "id": "rm_01J…", "why": "always on the exam", "remind": "tomorrow",
+              "remindAt": "2026-09-26T07:00:00.000Z", "flashcard": "fc_01J…", "at": "2026-09-25T10:00:00.000Z" }
+```
+
+- Items with the same `id` are **one thing to remember**: what was lassoed together, or a drawn star and what it was drawn next to. A mark without an `id` (an older file's `{why, remindAt, flashcard: false}`) is a thing of its own, named after its item.
+- `why` (optional) is "Why it matters".
+- `remind` is how the reminder was picked: `tomorrow` (9 in the morning, the device's time), `date` (a date and time picked) or `event` (before a calendar event; comes with calendar sync, a file that has one keeps it). `remindAt` is when it goes off, in UTC. Neither is written when there's no reminder.
+- `flashcard` is the id of the `flashcard` item made from it ("Also make it a flashcard"). `drawn: true` means it was marked by drawing a star; the star stroke itself carries the same mark with `star: true` and is not part of what's remembered. `at` is when it was marked.
+- Marking, changing and forgetting are item edits, so they are undo steps, are sealed with a page that has a password, and go along in board files. A copy of a marked item isn't marked.
+- Reminders are local notifications on the device, set from these marks (nothing leaves the device). A page or notebook with a password is never read for them, so its reminders don't go off while it has one.
+
+**Flashcards, as implemented (v1, Phase 7a, FlashMake.png):** a `flashcard` item is a card made on its page. It isn't drawn, can't be selected, and isn't exported to PDF; `x`/`y` is where its front was when it was made.
+
+```json
+{ "id": "fc_01J…", "type": "flashcard", "x": 150, "y": 196, "rotation": 0, "z": 31, "createdAt": "…",
+  "deck": "dk_01J…", "deckName": "Physics — Momentum", "reverse": true,
+  "front": { "ids": ["it_a"] }, "back": { "ids": ["it_b", "it_c"], "text": "a push over a time" } }
+```
+
+- `front` and `back` name items on the same page by id (what was circled: ink, pictures, text boxes, anything), so the card shows them as they are now. `text` is typed text on that side (a dictionary word's definition, a "why it matters"). A side whose items were all erased says so when studied.
+- `deck` is the deck's id; `deckName` its name when the card was made, so a board file brings its deck along (the deck list is the app's `decks.json`, below).
+- `reverse: true` is "Also quiz me back to front": the card is asked both ways, each with its own schedule.
+- Adding and deleting a card are undo steps.
+
+## study.json
+How well each flashcard of the notebook is known, from FSRS-6 (py-fsrs 6.3.2's default weights, learning steps of 1 and 10 minutes, a relearning step of 10 minutes, 90% retention, no fuzz). A card never studied has no entry: it is new, and due.
+
+```json
+{ "version": 1, "cards": {
+    "fc_01J…": {
+      "f": { "phase": "review", "s": 10.971, "d": 2.1043, "due": "2026-10-08T10:10:00.000Z", "last": "2026-09-27T10:10:00.000Z", "reps": 3, "lapses": 0 },
+      "r": { "phase": "learning", "step": 1, "s": 2.3065, "d": 2.1181, "due": "2026-09-25T10:10:00.000Z", "last": "2026-09-25T10:00:00.000Z", "reps": 1, "lapses": 0 } } } }
+```
+
+`f` is front to back, `r` back to front. `phase` is `learning`, `review` or `relearning`; `step` the learning or relearning step (absent in review); `s` stability in days; `d` difficulty from 1 to 10; `due` and `last` (the last review) in UTC. Unknown entries are kept. It is written as cards are rated, not on a timer, and isn't an undo step. It holds no content, so it is never sealed.
 
 ## Locks
 `lock.json`:
@@ -219,11 +258,12 @@ What the handwriting says, kept so it is read once (Phase 5). It is a cache: del
 A `.board` file is the package zipped, with `notebook.json` at the top of the zip (a zip holding one `<name>.board/` folder is read too). Pictures and PDFs are stored without compressing them again.
 
 - **Export** writes what is on disk, after the open notebook is saved. Locked pages stay sealed (`.json.enc`), with their `lock.json` entries, so the password still protects them. Exporting some pages writes a `notebook.json` listing only those pages, only their entries in `lock.json`, and only the files their clear pages use (plus every sealed file, if a locked page goes along, since which pages use them can't be read without the password). Without images, `assets/` is left out and pictures show as empty boxes.
-- **Import** makes a new notebook: a new `id`, the folder picked in Import into, `pinned` false, `trashedAt` null, `updatedAt` now. Everything else in `notebook.json` and every page and item, ids included, comes in as it was. Only `notebook.json`, `lock.json`, `pages/<pageId>.json(.enc)` for page ids listed in `notebook.json` (letters, digits, `_` and `-`), `index/recognition.json`, and `assets/<name>` with a plain file name are read: nothing else in the zip is written anywhere. A page whose file is damaged comes in empty. Fingerprint unlock has to be turned on again for the copy.
+- **Import** makes a new notebook: a new `id`, the folder picked in Import into, `pinned` false, `trashedAt` null, `updatedAt` now. Everything else in `notebook.json` and every page and item, ids included, comes in as it was. Only `notebook.json`, `lock.json`, `pages/<pageId>.json(.enc)` for page ids listed in `notebook.json` (letters, digits, `_` and `-`), `index/recognition.json`, `study.json`, and `assets/<name>` with a plain file name are read: nothing else in the zip is written anywhere. A page whose file is damaged comes in empty. Fingerprint unlock has to be turned on again for the copy.
 - `index/recognition.json` goes along when "Include recognized handwriting text" is on (the default), with only the exported clear pages. Import keeps it for clear pages only, and not at all for a notebook with a password, so search works straight away.
+- `study.json` goes along with the entries of the flashcards on the exported pages (all of them when a page with a password goes along, since its cards can't be told apart), and comes back on import, so studying carries on where it was.
 
 ## Outside the packages
-The app's data folder also holds `settings.json`, `library.json` (folders: `{"version": 1, "folders": [{"path": ["School", "Physics"], "color": "#2B5A8C"}]}`), `templates/<id>.json` (My templates: `format: "endless.template"`, `name`, `paper`, `template`, `items`) and `index.sqlite` (the library index, a cache rebuilt from the packages).
+The app's data folder also holds `settings.json`, `library.json` (folders: `{"version": 1, "folders": [{"path": ["School", "Physics"], "color": "#2B5A8C"}]}`), `decks.json` (the flashcard decks: `{"version": 1, "decks": [{"id": "dk_…", "name": "Physics — Momentum", "createdAt": "…"}]}`; a card from another device adds its deck from its `deckName`), `templates/<id>.json` (My templates: `format: "endless.template"`, `name`, `paper`, `template`, `items`) and `index.sqlite` (the library index and search index, and what's remembered and the flashcards on each page for the Remember and Flashcards screens: caches rebuilt from the packages).
 
 ## Rules
 - Unknown item types and fields must be kept on load and written back on save, so newer files survive older apps. A known type whose fields can't be read (a missing `w`, a bad color) is kept as it is too.

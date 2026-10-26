@@ -142,6 +142,7 @@ const maxSheet = 14400.0;
 Rect? pageContent(BoardPage page) {
   Rect? r = layoutBounds(page.template);
   for (final i in page.items) {
+    if (i is FlashcardItem) continue;
     r = r == null ? i.bounds : r.expandToInclude(i.bounds);
   }
   return r;
@@ -349,7 +350,8 @@ class _PdfWriter {
           _stroke(s, s.color);
         case BoxItem b:
           await _box(b, text);
-        case UnknownItem _:
+        // Flashcards aren't drawn; unknown items aren't exported.
+        case UnknownItem _ || FlashcardItem _:
           break;
       }
     }
@@ -584,7 +586,7 @@ class _PdfWriter {
           g.restoreContext();
         case BoxItem box:
           await _box(box, []);
-        case UnknownItem _:
+        case UnknownItem _ || FlashcardItem _:
           break;
       }
     }

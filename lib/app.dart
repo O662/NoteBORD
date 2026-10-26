@@ -8,6 +8,7 @@ import 'canvas/pane.dart';
 import 'library/library.dart';
 import 'recognition/handwriting_index.dart';
 import 'state/settings.dart';
+import 'study/reminders.dart';
 import 'theme/app_theme.dart';
 import 'ui/canvas/canvas_screen.dart';
 import 'ui/library/library_screen.dart';
@@ -15,6 +16,8 @@ import 'ui/library/start_screen.dart';
 import 'ui/routes.dart';
 import 'ui/search/search_screen.dart';
 import 'ui/split/split_screen.dart';
+import 'ui/study/remember_screen.dart';
+import 'ui/study/study_screen.dart';
 
 /// Where the app opens. Tests start straight in a notebook.
 final initialLocationProvider = Provider<String>((ref) => Routes.start);
@@ -44,6 +47,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           spot: Routes.spotFrom(state.uri.queryParameters['spot']),
           turn: Routes.turnFrom(state.uri.queryParameters['turn']),
         ),
+      ),
+      GoRoute(path: Routes.remember, builder: (context, state) => const RememberScreen()),
+      GoRoute(
+        path: '/flashcards',
+        builder: (context, state) => StudyScreen(deck: state.uri.queryParameters['deck']),
       ),
       GoRoute(
         path: '/search',
@@ -122,6 +130,24 @@ class _EndlessAppState extends ConsumerState<EndlessApp> {
     if (ref.read(catchUpOnStartProvider)) {
       _catchUp = Timer(EndlessApp.catchUpAfter, () => ref.read(handwritingIndexProvider).catchUp());
     }
+    // Reminders from Need to remember follow what's remembered; a tapped
+    // one opens the notebook where it is.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final service = ref.read(reminderServiceProvider);
+      if (!service.available) return;
+      service.start(_openReminder);
+      ref.read(reminderSyncProvider);
+    });
+  }
+
+  Future<void> _openReminder(String payload) async {
+    final target = ReminderTarget.parse(payload);
+    if (target == null || !mounted) return;
+    final pages = (await ref.read(boardStoreProvider).loadNotebookMeta(target.notebookId))?.pageIds;
+    if (pages == null || !mounted) return;
+    final page = pages.indexOf(target.pageId);
+    ref.read(routerProvider).push(Routes.notebook(target.notebookId, page: page < 0 ? 0 : page, spot: page < 0 ? null : target.rect));
   }
 
   @override

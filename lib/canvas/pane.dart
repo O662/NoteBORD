@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 
 import 'canvas_status.dart';
 import 'canvas_view.dart';
+import 'flashcard_mode.dart';
 import 'math_mode.dart';
 import 'ruler.dart';
 import 'selection.dart';
@@ -29,6 +30,13 @@ class Pane extends ChangeNotifier {
   /// Math mode and the math keyboard (Math.png).
   final math = MathMode();
 
+  /// Making flashcards (FlashMake.png).
+  final cards = FlashcardMode();
+
+  /// A panel is open beside something on the page (Remember this): the
+  /// pages rail and the map make room for it (RememberMark.png).
+  final panel = ValueNotifier<bool>(false);
+
   /// A place on the page (page coordinates) to show and highlight once the
   /// canvas is laid out: where a search match is. Cleared when shown.
   Rect? spot;
@@ -52,10 +60,11 @@ class Pane extends ChangeNotifier {
   }
 
   /// Shows what just happened for a few seconds, with an Undo button for
-  /// the last step on [undoPageId].
-  void toast(String text, {String? undoPageId}) {
+  /// the last step on [undoPageId], and [action] (a label and what it does)
+  /// before it.
+  void toast(String text, {String? undoPageId, (String, VoidCallback)? action}) {
     _statusTimer?.cancel();
-    final s = CanvasStatus(text, undoPageId: undoPageId);
+    final s = CanvasStatus(text, undoPageId: undoPageId, action: action);
     status.value = s;
     _statusTimer = Timer(toastDuration, () {
       if (status.value == s) status.value = null;
@@ -75,6 +84,7 @@ class Pane extends ChangeNotifier {
     if (page == _page) return;
     _page = page;
     selection.clear();
+    if (cards.front != null || cards.back != null) cards.clear();
     view.reset();
     notifyListeners();
   }
@@ -87,6 +97,7 @@ class Pane extends ChangeNotifier {
     _notebookId = notebookId;
     _page = page;
     selection.clear();
+    cards.end();
     view.reset();
     notifyListeners();
   }
@@ -98,6 +109,8 @@ class Pane extends ChangeNotifier {
     selection.dispose();
     ruler.dispose();
     math.dispose();
+    cards.dispose();
+    panel.dispose();
     status.dispose();
     super.dispose();
   }

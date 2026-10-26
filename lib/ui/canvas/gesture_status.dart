@@ -24,10 +24,21 @@ class GestureStatus extends ConsumerWidget {
         builder: (context, status, _) {
           if (status == null) return orElse ?? const SizedBox.shrink();
           final pageId = status.undoPageId;
-          if (pageId == null) return HintPill(text: status.text);
+          if (pageId == null && status.action == null) return HintPill(text: status.text);
           return UndoToast(
             text: status.text,
-            onUndo: () {
+            action: status.action == null
+                ? null
+                : (
+                    status.action!.$1,
+                    () {
+                      pane.status.value = null;
+                      status.action!.$2();
+                    },
+                  ),
+            onUndo: pageId == null
+                ? null
+                : () {
               ref.read(notebookProvider(pane.notebookId).notifier).undo(pageId);
               pane.status.value = null;
             },
@@ -91,16 +102,46 @@ class LaserColors extends ConsumerWidget {
   }
 }
 
-/// "Line straightened  [Undo]" (Tools.dc.html, Arrows.dc.html, Scribble.dc.html).
+/// "Line straightened  [Undo]" (Tools.dc.html, Arrows.dc.html, Scribble.dc.html),
+/// with another button before Undo when there's an [action]: "Saved to
+/// Need to remember  [Open] [Undo]" (RememberMark.dc.html) or "Card added
+/// to …  [Study now]" (FlashMake.dc.html).
 class UndoToast extends StatelessWidget {
-  const UndoToast({super.key, required this.text, required this.onUndo});
+  const UndoToast({super.key, required this.text, this.onUndo, this.action});
 
   final String text;
-  final VoidCallback onUndo;
+  final VoidCallback? onUndo;
+  final (String, VoidCallback)? action;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    Widget button(String label, String semantics, VoidCallback onTap, {Color? bg, Color? fg, bool bold = false}) => Semantics(
+          button: true,
+          label: semantics,
+          excludeSemantics: true,
+          child: Material(
+            color: bg ?? c.inverseRaised,
+            borderRadius: BorderRadius.circular(999),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: onTap,
+              child: Container(
+                height: 36,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                alignment: Alignment.center,
+                child: Text(
+                  label,
+                  style: TextStyle(fontSize: 13, fontWeight: bold ? FontWeight.w700 : FontWeight.w600, color: fg ?? c.onInverse),
+                ),
+              ),
+            ),
+          ),
+        );
+
+    final act = action;
+    // Remember's Open is on the star's yellow (RememberMark.dc.html).
+    final gold = act != null && act.$1 == 'Open';
     return Semantics(
       liveRegion: true,
       explicitChildNodes: true,
@@ -113,25 +154,13 @@ class UndoToast extends StatelessWidget {
         ),
         child: Row(mainAxisSize: MainAxisSize.min, spacing: 12, children: [
           Text(text, style: TextStyle(fontSize: 14, color: c.onInverse)),
-          Semantics(
-            button: true,
-            label: 'Undo: $text',
-            excludeSemantics: true,
-            child: Material(
-              color: c.inverseRaised,
-              borderRadius: BorderRadius.circular(999),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(999),
-                onTap: onUndo,
-                child: Container(
-                  height: 36,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  alignment: Alignment.center,
-                  child: Text('Undo', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.onInverse)),
-                ),
-              ),
-            ),
-          ),
+          if (act != null || onUndo != null)
+            Row(mainAxisSize: MainAxisSize.min, spacing: 6, children: [
+              if (act != null)
+                button(act.$1, '${act.$1}: $text', act.$2,
+                    bg: gold ? c.star : null, fg: gold ? c.onStar : null, bold: gold),
+              if (onUndo != null) button('Undo', 'Undo: $text', onUndo!),
+            ]),
         ]),
       ),
     );

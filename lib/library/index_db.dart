@@ -7,6 +7,7 @@ import 'package:drift/native.dart';
 
 import '../board/model.dart';
 import '../search/search_text.dart';
+import '../study/study_rows.dart';
 import 'library.dart';
 import 'thumbs.dart';
 
@@ -21,6 +22,10 @@ import 'thumbs.dart';
 /// handwriting, typed text, text inside files), and `search_state` which
 /// version of each notebook it was taken from. Both are caches too: the
 /// handwriting comes from each package's `index/recognition.json`.
+///
+/// `study_items` holds each thing to remember and each flashcard on a page,
+/// with copies of what they show, for the Remember and Flashcards screens
+/// (a cache as well).
 ///
 /// Queries are plain SQL, because drift's code generator can't run on this
 /// Flutter SDK yet; move to generated tables when it can.
@@ -37,16 +42,18 @@ class IndexDb extends GeneratedDatabase {
   Iterable<TableInfo<Table, dynamic>> get allTables => const [];
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await _createNotebooks();
           await _createSearch();
+          await _createStudy();
         },
         onUpgrade: (m, from, to) async {
           if (from < 2) await _createSearch();
+          if (from < 3) await _createStudy();
         },
       );
 
@@ -93,6 +100,23 @@ class IndexDb extends GeneratedDatabase {
         lang TEXT NOT NULL,
         version INTEGER NOT NULL
       )''');
+  }
+
+  Future<void> _createStudy() async {
+    await customStatement('''
+      CREATE TABLE study_items (
+        notebook_id TEXT NOT NULL,
+        page_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        ref TEXT NOT NULL,
+        x REAL NOT NULL,
+        y REAL NOT NULL,
+        w REAL NOT NULL,
+        h REAL NOT NULL,
+        at INTEGER NOT NULL,
+        data TEXT NOT NULL
+      )''');
+    await customStatement('CREATE INDEX study_items_page ON study_items (notebook_id, page_id)');
   }
 
   Future<List<NotebookEntry>> all() async {
@@ -152,13 +176,24 @@ class IndexDb extends GeneratedDatabase {
         }
       });
 
-  /// Forgets a notebook's searchable text, or only the pages not in
-  /// [keepPages].
+  /// Forgets a notebook's searchable text (and what's remembered and the
+  /// flashcards in it), or only the pages not in [keepPages].
   Future<void> removeNotebookText(String notebookId, {Set<String>? keepPages}) async {
     if (keepPages == null) {
       await customStatement('DELETE FROM search_text WHERE notebook_id = ?', [notebookId]);
       await customStatement('DELETE FROM search_state WHERE notebook_id = ?', [notebookId]);
+      await customStatement('DELETE FROM study_items WHERE notebook_id = ?', [notebookId]);
       return;
+    }
+    final study = await customSelect(
+      'SELECT DISTINCT page_id FROM study_items WHERE notebook_id = ?',
+      variables: [Variable.withString(notebookId)],
+    ).get();
+    for (final r in study) {
+      final page = r.read<String>('page_id');
+      if (!keepPages.contains(page)) {
+        await customStatement('DELETE FROM study_items WHERE notebook_id = ? AND page_id = ?', [notebookId, page]);
+      }
     }
     final rows = await customSelect(
       'SELECT DISTINCT page_id FROM search_text WHERE notebook_id = ?',
@@ -172,10 +207,58 @@ class IndexDb extends GeneratedDatabase {
     }
   }
 
+  // Need to remember and flashcards.
+
+  /// Replaces what's remembered and the flashcards on a page with [rows].
+  Future<void> replacePageStudy(String notebookId, String pageId, List<StudyRow> rows) => transaction(() async {
+        await customStatement('DELETE FROM study_items WHERE notebook_id = ? AND page_id = ?', [notebookId, pageId]);
+        for (final r in rows) {
+          await customStatement(
+            'INSERT INTO study_items (notebook_id, page_id, kind, ref, x, y, w, h, at, data) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+              r.notebookId,
+              r.pageId,
+              r.kind.name,
+              r.ref,
+              r.rect.left,
+              r.rect.top,
+              r.rect.width,
+              r.rect.height,
+              r.at.millisecondsSinceEpoch,
+              r.dataJson,
+            ],
+          );
+        }
+      });
+
+  /// Every thing to remember and flashcard (of [kind] only, if given),
+  /// oldest first.
+  Future<List<StudyRow>> studyRows({StudyKind? kind}) async {
+    final rows = await customSelect(
+      kind == null ? 'SELECT * FROM study_items ORDER BY at' : 'SELECT * FROM study_items WHERE kind = ? ORDER BY at',
+      variables: [if (kind != null) Variable.withString(kind.name)],
+    ).get();
+    return [
+      for (final r in rows)
+        if (StudyKind.values.where((k) => k.name == r.read<String>('kind')).firstOrNull case final k?)
+          StudyRow(
+            notebookId: r.read<String>('notebook_id'),
+            pageId: r.read<String>('page_id'),
+            kind: k,
+            ref: r.read<String>('ref'),
+            rect: Rect.fromLTWH(r.read<double>('x'), r.read<double>('y'), r.read<double>('w'), r.read<double>('h')),
+            at: DateTime.fromMillisecondsSinceEpoch(r.read<int>('at'), isUtc: true),
+            data: (jsonDecode(r.read<String>('data')) as Map).cast<String, dynamic>(),
+          ),
+    ];
+  }
+
   /// The notebooks that have searchable text or were indexed.
   Future<Set<String>> indexedNotebooks() async {
     final rows = await customSelect(
-      'SELECT notebook_id FROM search_state UNION SELECT DISTINCT notebook_id FROM search_text',
+      'SELECT notebook_id FROM search_state UNION SELECT DISTINCT notebook_id FROM search_text '
+      'UNION SELECT DISTINCT notebook_id FROM study_items',
     ).get();
     return {for (final r in rows) r.read<String>('notebook_id')};
   }

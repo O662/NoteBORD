@@ -230,7 +230,7 @@ void _paintSticky(Canvas canvas, StickyItem s, EndlessColors c) {
         paintStroke(canvas, ink, ink.color);
       case BoxItem box:
         paintBoxItem(canvas, box, Brightness.light, c);
-      case UnknownItem _:
+      case UnknownItem _ || FlashcardItem _:
         break;
     }
   }

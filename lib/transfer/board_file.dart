@@ -106,6 +106,14 @@ Future<Uint8List> exportBoardFile(
     if (read != null) add('index/recognition.json', utf8.encode(jsonEncode(read)));
   }
 
+  // How well its flashcards are known goes along, for the cards that do.
+  final study = studyFor(await store.loadStudy(notebookId), {
+    for (final p in pages)
+      for (final i in p.items)
+        if (i is FlashcardItem) i.id,
+  }, keepAll: anySealed);
+  if (study != null) add('study.json', utf8.encode(jsonEncode(study)));
+
   if (includeAssets) {
     for (final name in await store.listAssets(notebookId)) {
       final sealed = name.endsWith('.enc');
@@ -244,6 +252,18 @@ Future<ImportedBoard> importBoardFile(
   );
   await store.saveNotebook(notebook);
 
+  // How well its flashcards are known (after notebook.json: it's only kept
+  // for a notebook that exists).
+  final studyBytes = read('study.json');
+  if (studyBytes != null && studyBytes.length < 16 * 1024 * 1024) {
+    try {
+      final json = jsonDecode(utf8.decode(studyBytes));
+      if (json is Map && json['cards'] is Map) await store.saveStudy(id, json.cast<String, dynamic>());
+    } on Object {
+      // A damaged study.json only means the cards start again as new.
+    }
+  }
+
   // What the handwriting says, for the clear pages only (never a locked one).
   if (!source.locked && lock == null) {
     final raw = read('index/recognition.json');
@@ -262,6 +282,19 @@ Future<ImportedBoard> importBoardFile(
     }
   }
   return ImportedBoard(id, unreadablePages: unreadable);
+}
+
+/// [json] (a study.json) with only the cards in [cardIds] (all of them with
+/// [keepAll]: a locked page's cards can't be told apart), or null if none
+/// are left.
+Json? studyFor(Json? json, Set<String> cardIds, {bool keepAll = false}) {
+  final cards = json?['cards'];
+  if (cards is! Map) return null;
+  final kept = {
+    for (final e in cards.entries)
+      if (e.key is String && (keepAll || cardIds.contains(e.key)) && e.value is Map) e.key as String: e.value,
+  };
+  return kept.isEmpty ? null : {'version': 1, 'cards': kept};
 }
 
 /// [json] (a recognition.json) with only [pageIds]' pages, or null if none

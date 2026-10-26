@@ -76,6 +76,8 @@ class AppSettings {
     List<String> myWords = const [],
     this.fixInHandwriting = true,
     List<String> recentLookups = const [],
+    this.starRemember = true,
+    this.lastDeck,
   })  : myWords = List.unmodifiable(myWords),
         recentLookups = List.unmodifiable(recentLookups),
         penColor = penColor ?? tokens.inkDefaults[1],
@@ -141,6 +143,12 @@ class AppSettings {
   /// written their sample), not typed in the handwriting font.
   final bool fixInHandwriting;
 
+  /// A star drawn next to something marks it to remember (RememberMark.png).
+  final bool starRemember;
+
+  /// The deck new flashcards go into (its id), until another is picked.
+  final String? lastDeck;
+
   InkTool get inkTool => tool == CanvasTool.marker ? InkTool.marker : InkTool.pen;
 
   /// Color of the pen or marker (the eraser shows the pen's).
@@ -180,6 +188,8 @@ class AppSettings {
     List<String>? myWords,
     List<String>? recentLookups,
     bool? fixInHandwriting,
+    bool? starRemember,
+    String? Function()? lastDeck,
   }) =>
       AppSettings(
         tool: tool ?? this.tool,
@@ -211,6 +221,8 @@ class AppSettings {
         myWords: myWords ?? this.myWords,
         recentLookups: recentLookups ?? this.recentLookups,
         fixInHandwriting: fixInHandwriting ?? this.fixInHandwriting,
+        starRemember: starRemember ?? this.starRemember,
+        lastDeck: lastDeck == null ? this.lastDeck : lastDeck(),
       );
 
   Json toJson() => {
@@ -243,6 +255,8 @@ class AppSettings {
         if (myWords.isNotEmpty) 'myWords': myWords,
         if (recentLookups.isNotEmpty) 'recentLookups': recentLookups,
         'fixInHandwriting': fixInHandwriting,
+        'starRemember': starRemember,
+        if (lastDeck != null) 'lastDeck': lastDeck,
       };
 
   factory AppSettings.fromJson(Json j) {
@@ -288,6 +302,8 @@ class AppSettings {
       myWords: [...?(j['myWords'] as List?)?.whereType<String>()],
       recentLookups: [...?(j['recentLookups'] as List?)?.whereType<String>()],
       fixInHandwriting: j['fixInHandwriting'] as bool? ?? true,
+      starRemember: j['starRemember'] as bool? ?? true,
+      lastDeck: j['lastDeck'] as String?,
     );
   }
 }

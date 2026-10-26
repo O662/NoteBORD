@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../board/ids.dart';
 import '../../canvas/canvas_view.dart';
+import '../../canvas/flashcard_mode.dart' show CircledSide;
 import '../../board/model.dart' show OfficeItem, StickyItem, TextItem;
 import '../../canvas/ink_canvas.dart';
 import '../../canvas/pane.dart';
@@ -26,6 +27,8 @@ import '../routes.dart';
 import '../spell/dictionary_drawer.dart';
 import '../spell/spell_mode.dart';
 import '../spell/teach_handwriting.dart';
+import '../study/flash_actions.dart';
+import '../study/flash_widgets.dart';
 import '../templates/templates_dialog.dart';
 import '../transfer/share_dialog.dart';
 import '../transfer/transfer_dialog.dart';
@@ -130,10 +133,12 @@ void handleRailItem(
       startMath(ref, pane);
       openMathTools(pane);
     case 'Need to remember' || 'Convert to text':
-      // Until their own screens exist, both start a lasso whose toolbar
-      // leads with that action (RememberMark.png, Convert.png).
+      // Both start a lasso whose toolbar leads with that action
+      // (RememberMark.png, Convert.png). Something already selected gets
+      // that toolbar straight away.
       final convert = item.label == 'Convert to text';
       pane.selection.menu = convert ? SelectionMenu.convert : SelectionMenu.remember;
+      if (pane.selection.isNotEmpty && ref.read(settingsProvider).tool.selects) return;
       useTool(CanvasTool.lasso);
       hint?.call(convert ? 'Circle the handwriting to convert' : 'Circle what you need to remember');
     default:
@@ -238,6 +243,8 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     });
     pane.addListener(_paneChanged);
     pane.math.addListener(_mathChanged);
+    pane.cards.addListener(_cardsChanged);
+    pane.panel.addListener(_cardsChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _recordOpened();
       _showSpot();
@@ -249,6 +256,8 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
   void dispose() {
     pane.removeListener(_paneChanged);
     pane.math.removeListener(_mathChanged);
+    pane.cards.removeListener(_cardsChanged);
+    pane.panel.removeListener(_cardsChanged);
     _spell?.dispose();
     _lifecycle.dispose();
     _hintTimer?.cancel();
@@ -374,6 +383,8 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
         // The Math tools bar (MathKit.png), with the keyboard's symbols.
         _startMath();
         _openSymbols();
+      case 'Make flashcards':
+        _startFlashcards();
       case 'Spell check':
         _startSpell();
       case 'Dictionary & thesaurus':
@@ -383,10 +394,53 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     }
   }
 
+  // Making flashcards (FlashMake.png).
+
+  void _startFlashcards([CircledSide? front]) {
+    _endSpell();
+    startFlashcards(ref, pane, front: front);
+    setState(() {
+      _popover = false;
+      _dict = false;
+    });
+    _hintTimer?.cancel();
+    _hint = null;
+  }
+
+  void _endFlashcards() {
+    endFlashcards(ref, pane);
+    _showHint(toolHints[CanvasTool.pen]);
+  }
+
+  void _cardsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _addCard() => addCard(ref, pane);
+
+  /// The dictionary's Make flashcard: the word on the front, its meaning on
+  /// the back, into the deck used last.
+  void _wordCard(DictEntry entry, DictSense sense) {
+    final card = addTextCard(
+      ref,
+      pane,
+      front: entry.word,
+      back: '${sense.wordClass.label} · ${sentence(sense.definition)}',
+    );
+    if (card == null) return;
+    final page = ref.read(notebookProvider(pane.notebookId)).pageAt(pane.page);
+    pane.toast(
+      'Card added to ${card.deckName}',
+      undoPageId: page.id,
+      action: ('Study now', () => context.push(Routes.flashcards(card.deck))),
+    );
+  }
+
   // Math mode (Math.png, MathKit.png).
 
   void _startMath() {
     _endSpell();
+    if (pane.cards.on) endFlashcards(ref, pane);
     startMath(ref, pane);
     setState(() {
       _popover = false;
@@ -434,6 +488,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
   void _startSpell() {
     if (_spell != null) return;
     if (pane.math.on) pane.math.end();
+    if (pane.cards.on) endFlashcards(ref, pane);
     pane
       ..dismiss()
       ..selection.clear();
@@ -622,11 +677,14 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     final spelling = _spell != null && !sealed;
     final mode = pane.math;
     final mathOn = mode.on && !sealed;
+    final cardsOn = pane.cards.on && !sealed;
     final chrome = !_full && !_board;
-    final tools = chrome && !sealed && !spelling && !mathOn;
+    final tools = chrome && !sealed && !spelling && !mathOn && !cardsOn;
     // The dictionary drawer covers the pages rail, the map and the zoom pill;
-    // math mode has neither (Math.png).
-    final right = !spelling && !_dict && !mathOn;
+    // math mode and making flashcards have neither (Math.png, FlashMake.png),
+    // and Remember this takes their place (RememberMark.png).
+    final panel = pane.panel.value && !sealed;
+    final right = !spelling && !_dict && !mathOn && !cardsOn && !panel;
     final mapShown = tools && right && settings.mapOpen;
     final blocking = tools && (_more || (_pinned && _fly != null));
     // The math keyboard is where the hint would be.
@@ -640,6 +698,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
           const SingleActivator(LogicalKeyboardKey.keyY, control: true): () => notebook.redo(pageId),
           const SingleActivator(LogicalKeyboardKey.escape): () {
             if (_spell != null) return _endSpell();
+            if (pane.cards.on) return _endFlashcards();
             if (pane.math.draft != null) return pane.math.closeKeyboard();
             if (pane.math.tools) return _closeTools();
             if (pane.math.on) return _endMath();
@@ -663,13 +722,14 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                 child: InkCanvas(
                   pane: pane,
                   onViewTap: _board ? (at) => _leaveBoard(at: at) : (spelling ? _spellTap : null),
+                  onFlashcards: _startFlashcards,
                   // Clear of the rail, the top pills (and the color tray), and the pages rail.
                   chrome: EdgeInsets.fromLTRB(
                     80,
                     tools && (settings.trayOpen || settings.tool == CanvasTool.laser || settings.tool == CanvasTool.shape)
                         ? 128
                         : 84,
-                    _dict ? _drawerReach : (chrome && settings.pagesOpen && !mathOn ? 124 : 60),
+                    _dict ? _drawerReach : (chrome && settings.pagesOpen && !mathOn && !panel ? 124 : 60),
                     16,
                   ),
                 ),
@@ -725,7 +785,9 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                         onShare: () => showShareDialog(context, pane),
                         center: spelling
                             ? SpellBar(spell: _spell!, onDone: _endSpell)
-                            : mathOn
+                            : cardsOn
+                                ? FlashBar(pane: pane, compact: box.maxWidth < 1100, onDone: _endFlashcards)
+                                : mathOn
                                 ? MathBar(
                                     math: mode,
                                     compact: box.maxWidth < 1100,
@@ -751,7 +813,26 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                       // Never below zero: the on-screen keyboard can take most of the height.
                       child: PagesRail(pane: pane, maxHeight: math.max(0, box.maxHeight - 84 - (mapShown ? 250 : 80))),
                     ),
-                  if (!sealed && !blocking)
+                  if (cardsOn && chrome) ...[
+                    Positioned(
+                      top: 84,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: FlashHint(
+                          mode: pane.cards,
+                          onStudy: () => context.push(Routes.flashcards(pane.cards.deckId)),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 42,
+                      child: Center(child: NewCardPanel(pane: pane, onAdd: _addCard)),
+                    ),
+                  ],
+                  if (!sealed && !blocking && !cardsOn)
                     Positioned(
                       left: 0,
                       right: 0,
@@ -798,7 +879,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                         serial: _lookupSerial,
                         onClose: () => setState(() => _dict = false),
                         onAddDefinition: _addDefinition,
-                        onFlashcard: () => _comingSoon('Making flashcards'),
+                        onFlashcard: _wordCard,
                       ),
                     ),
                   // The handwriting model downloading on first use.

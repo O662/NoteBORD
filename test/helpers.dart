@@ -21,6 +21,7 @@ import 'package:endless/state/notebook.dart';
 import 'package:endless/state/office_docs.dart';
 import 'package:endless/state/photos.dart';
 import 'package:endless/state/settings.dart';
+import 'package:endless/study/reminders.dart';
 import 'package:endless/theme/tokens.g.dart' as tokens;
 import 'package:endless/transfer/board_file.dart' show ImportProblem;
 import 'package:endless/transfer/files.dart';
@@ -148,6 +149,7 @@ Future<List<Override>> testOverrides(
   IndexDb? index,
   InkRecognizer recognizer = const NoInkRecognizer(),
   Duration? recognitionIdle,
+  ReminderService reminders = const NoReminders(),
 }) async {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   final db = index ?? IndexDb.memory();
@@ -166,6 +168,8 @@ Future<List<Override>> testOverrides(
     recognitionIdleProvider.overrideWithValue(recognitionIdle),
     inkRecognizerProvider.overrideWithValue(recognizer),
     catchUpOnStartProvider.overrideWithValue(false),
+    // No notifications in tests unless a test brings its own.
+    reminderServiceProvider.overrideWithValue(reminders),
     if (location != null) initialLocationProvider.overrideWithValue(location),
   ];
 }
@@ -179,6 +183,7 @@ Future<ProviderContainer> pumpApp(
   IndexDb? index,
   InkRecognizer recognizer = const NoInkRecognizer(),
   Duration? recognitionIdle,
+  ReminderService reminders = const NoReminders(),
   List<Override> extra = const [],
 }) async {
   tester.view.physicalSize = tokens.Sizes.tabletFrame;
@@ -191,6 +196,7 @@ Future<ProviderContainer> pumpApp(
     index: index,
     recognizer: recognizer,
     recognitionIdle: recognitionIdle,
+    reminders: reminders,
   );
   await tester.pumpWidget(ProviderScope(overrides: [...overrides, ...extra], child: const EndlessApp()));
   await tester.pump();
@@ -225,6 +231,7 @@ Future<ProviderContainer> pumpCanvas(
   FakeBiometric? biometric,
   InkRecognizer recognizer = const NoInkRecognizer(),
   Duration? recognitionIdle,
+  ReminderService reminders = const NoReminders(),
   List<Override> extra = const [],
 }) async {
   final s = store ?? MemoryBoardStore();
@@ -236,6 +243,7 @@ Future<ProviderContainer> pumpCanvas(
     biometric: biometric,
     recognizer: recognizer,
     recognitionIdle: recognitionIdle,
+    reminders: reminders,
     extra: extra,
   );
   canvasPane = tester.widget<CanvasScreen>(find.byType(CanvasScreen)).pane;
@@ -459,4 +467,35 @@ Future<void> settleReal(WidgetTester tester, bool Function() done, {Duration tim
     await tester.pump(const Duration(milliseconds: 1));
   }
   await tester.pump();
+}
+
+/// A reminder service that writes down what it's asked.
+class FakeReminders implements ReminderService {
+  final set = <int, Reminder>{};
+  final cancelled = <int>[];
+  int asked = 0;
+
+  @override
+  bool get available => true;
+
+  @override
+  Future<void> start(void Function(String payload) onOpen) async {}
+
+  @override
+  Future<bool> askPermission() async {
+    asked++;
+    return true;
+  }
+
+  @override
+  Future<void> schedule(Reminder r) async => set[r.id] = r;
+
+  @override
+  Future<void> cancel(int id) async {
+    cancelled.add(id);
+    set.remove(id);
+  }
+
+  @override
+  Future<Set<int>> scheduled() async => {...set.keys};
 }

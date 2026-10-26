@@ -409,7 +409,8 @@ void main() {
       }
       await tester.tap(find.bySemanticsLabel('Remember'));
       await tester.pump();
-      expect(find.text('Need to remember is coming soon'), findsOneWidget);
+      // Remember this opens (test/ui/remember_test.dart goes on from here).
+      expect(find.text('Remember this'), findsOneWidget);
       await tester.pump(const Duration(seconds: 5));
     });
   });

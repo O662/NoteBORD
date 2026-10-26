@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../library/library.dart';
+import '../../study/study_state.dart';
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart';
 import '../canvas/top_bar.dart' show showQuickSettings;
@@ -12,7 +13,7 @@ import '../icons.dart';
 import '../routes.dart';
 import 'widgets.dart';
 
-enum SidebarItem { home, all, trash }
+enum SidebarItem { home, all, flashcards, remember, trash }
 
 /// Folders expanded in the sidebar tree (kept while moving between screens).
 final expandedFoldersProvider = NotifierProvider<ExpandedFolders, Set<String>>(ExpandedFolders.new);
@@ -43,6 +44,9 @@ class AppSidebar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final lib = ref.watch(libraryProvider);
+    final now = ref.read(clockProvider)().toUtc();
+    final due = ref.watch(studyProvider.select((s) => s?.dueAt(now) ?? 0));
+    final remembered = ref.watch(studyProvider.select((s) => s?.remembered.length ?? 0));
     final current = folder;
     // The open folder's parents are always expanded, so it shows.
     final expanded = {
@@ -105,8 +109,23 @@ class AppSidebar extends ConsumerWidget {
               onTap: () => context.go(Routes.all),
             ),
             _NavRow(icon: EIcons.calendar, label: 'Calendar', onTap: () => showComingSoon(context, 'The calendar')),
-            _NavRow(icon: EIcons.flashcards, label: 'Flashcards', onTap: () => showComingSoon(context, 'Flashcards')),
-            _NavRow(icon: EIcons.star, label: 'Remember', onTap: () => showComingSoon(context, 'Need to remember')),
+            _NavRow(
+              icon: EIcons.flashcards,
+              label: 'Flashcards',
+              selected: selected == SidebarItem.flashcards,
+              badge: due > 0 ? '$due' : null,
+              badgeLabel: '$due due',
+              onTap: () => context.go(Routes.flashcards()),
+            ),
+            _NavRow(
+              icon: EIcons.star,
+              label: 'Remember',
+              selected: selected == SidebarItem.remember,
+              badge: remembered > 0 ? '$remembered' : null,
+              badgeLabel: '$remembered to remember',
+              remember: true,
+              onTap: () => context.go(Routes.remember),
+            ),
             _NavRow(
               icon: EIcons.trash,
               label: 'Trash',
@@ -190,7 +209,16 @@ class _SearchBox extends StatelessWidget {
 }
 
 class _NavRow extends StatelessWidget {
-  const _NavRow({required this.icon, required this.label, required this.onTap, this.selected = false, this.count});
+  const _NavRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.selected = false,
+    this.count,
+    this.badge,
+    this.badgeLabel,
+    this.remember = false,
+  });
 
   final EIconData icon;
   final String label;
@@ -200,6 +228,12 @@ class _NavRow extends StatelessWidget {
   /// Shown on the right (All notebooks, Trash).
   final String? count;
 
+  /// A count in a pill (Remember.dc.html): clay for cards due, yellow for
+  /// what's [remember]ed. [badgeLabel] is what it says aloud.
+  final String? badge;
+  final String? badgeLabel;
+  final bool remember;
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -207,7 +241,7 @@ class _NavRow extends StatelessWidget {
       button: true,
       selected: selected,
       label: label,
-      value: count,
+      value: count ?? (badge == null ? null : badgeLabel),
       excludeSemantics: true,
       child: Material(
         color: selected ? c.sideSelected : Colors.transparent,
@@ -227,6 +261,18 @@ class _NavRow extends StatelessWidget {
                 ),
               ),
               if (count != null) Text(count!, style: TextStyle(fontSize: 13, color: c.textMuted)),
+              if (badge != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: remember ? c.stickyYellow : c.clay,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    badge!,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: remember ? c.goldDeep : c.onAccent),
+                  ),
+                ),
             ]),
           ),
         ),

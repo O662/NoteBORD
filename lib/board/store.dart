@@ -30,6 +30,7 @@ class LoadedNotebook {
 /// <root>/settings.json
 /// <root>/handwriting.json             the user's handwriting sample (spell check)
 /// <root>/library.json                 folders and their colors
+/// <root>/decks.json                   flashcard decks (for every notebook)
 /// <root>/templates/<id>.json          "My templates"
 /// <root>/notebooks/<id>.board/        one package per notebook
 /// ```
@@ -86,6 +87,16 @@ abstract class BoardStore {
   /// Writes it ([json] null removes it). Does nothing if the notebook is
   /// gone, so a late write can't bring back a deleted one.
   Future<void> saveRecognition(String notebookId, Json? json);
+
+  /// `study.json`: how well each of the notebook's flashcards is known.
+  Future<Json?> loadStudy(String notebookId);
+
+  /// Writes it. Does nothing if the notebook is gone.
+  Future<void> saveStudy(String notebookId, Json json);
+
+  /// `decks.json`: the flashcard decks, for every notebook.
+  Future<Json?> loadDecks();
+  Future<void> saveDecks(Json decks);
 }
 
 class FileBoardStore implements BoardStore {
@@ -263,6 +274,25 @@ class FileBoardStore implements BoardStore {
     await _writeAtomic(_recognitionFile(notebookId), jsonEncode(json));
   }
 
+  File _studyFile(String nb) => File(p.join(_notebookDir(nb).path, 'study.json'));
+
+  @override
+  Future<Json?> loadStudy(String notebookId) => _readJson(_studyFile(notebookId));
+
+  @override
+  Future<void> saveStudy(String notebookId, Json json) async {
+    if (!await File(p.join(_notebookDir(notebookId).path, 'notebook.json')).exists()) return;
+    await _writeAtomic(_studyFile(notebookId), jsonEncode(json));
+  }
+
+  File get _decksFile => File(p.join(root.path, 'decks.json'));
+
+  @override
+  Future<Json?> loadDecks() => _readJson(_decksFile);
+
+  @override
+  Future<void> saveDecks(Json decks) => _writeJson(_decksFile, decks);
+
   static Future<void> _deleteIfExists(File f) async {
     if (await f.exists()) await f.delete();
   }
@@ -381,6 +411,7 @@ class MemoryBoardStore implements BoardStore {
     locks.remove(id);
     assets.remove(id);
     recognition.remove(id);
+    study.remove(id);
   }
 
   @override
@@ -419,4 +450,24 @@ class MemoryBoardStore implements BoardStore {
       recognition[notebookId] = jsonEncode(json);
     }
   }
+
+  final study = <String, String>{};
+  Json? decks;
+
+  @override
+  Future<Json?> loadStudy(String notebookId) async {
+    final src = study[notebookId];
+    return src == null ? null : jsonDecode(src) as Json;
+  }
+
+  @override
+  Future<void> saveStudy(String notebookId, Json json) async {
+    if (notebooks.containsKey(notebookId)) study[notebookId] = jsonEncode(json);
+  }
+
+  @override
+  Future<Json?> loadDecks() async => decks == null ? null : _copy(decks!);
+
+  @override
+  Future<void> saveDecks(Json d) async => decks = _copy(d);
 }

@@ -9,6 +9,7 @@ import 'package:endless/board/store.dart';
 import 'package:endless/canvas/connectors.dart';
 import 'package:endless/canvas/new_items.dart';
 import 'package:endless/state/assets.dart';
+import 'package:endless/study/remember.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers.dart';
@@ -114,10 +115,30 @@ Future<(MemoryBoardStore, String password)> everythingNotebook() async {
     UnknownItem({'id': 'it_cal', 'type': 'widget', 'widget': 'calendar', 'x': 0, 'y': 2300, 'z': 52, 'createdAt': everythingAt.toIso8601String(), 'w': 300, 'h': 300, 'config': {'month': '2026-10'}}),
   ];
   final page1 = BoardPage(id: board.pages.single.id, title: 'Board', items: [...board.pages.single.items, ...extra]);
+  // Phase 7a: ink marked to remember (with a reminder), and a flashcard
+  // made from it and a line of the handout.
+  final remembered = withRemember(strokeFrom([const Offset(80, 140), const Offset(300, 150)], z: 4), {
+    ...const RememberMark(id: 'rm_1', why: 'on the exam', remind: RemindKind.date, flashcard: 'fc_1').toJson(),
+    'remindAt': '2026-10-14T07:00:00.000Z',
+  });
+  final handoutLine = strokeFrom([const Offset(80, 80), const Offset(300, 90)], z: 2);
   final page2 = BoardPage(id: 'pg_pdf', title: 'Handout', paper: Paper.lines, template: 'cornell', items: [
     FileItem(id: 'it_pdf', x: 0, y: 0, z: 1, createdAt: everythingAt, w: 612, h: 792, asset: pdfName, mime: 'pdf', page: 1, preview: previewName, name: 'Handout.pdf', text: 'Momentum handout'),
-    strokeFrom([const Offset(80, 80), const Offset(300, 90)], z: 2),
+    handoutLine,
     newFrame(const Offset(900, 400), z: 3, now: everythingAt).withBox(x: 900, y: 0, w: 560, h: 792),
+    remembered,
+    FlashcardItem(
+      id: 'fc_1',
+      x: 80,
+      y: 140,
+      z: 5,
+      createdAt: everythingAt,
+      deck: 'dk_1',
+      deckName: 'Physics — Momentum',
+      front: CardSide(ids: [remembered.id]),
+      back: CardSide(ids: [handoutLine.id], text: 'on the exam'),
+      reverse: true,
+    ),
   ], extra: {'pageFuture': 'kept'});
   final secret = BoardPage(id: 'pg_secret', title: 'Grades', items: [strokeFrom([const Offset(0, 0), const Offset(50, 50)])]);
 
