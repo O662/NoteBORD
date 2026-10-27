@@ -34,6 +34,10 @@ enum InsertAction {
   // start Need to remember and Making flashcards.
   remember,
   flashcards,
+  // Charts and live items (Phase 7b).
+  chart,
+  clock,
+  checklist,
 }
 
 /// One tile of the Insert menu (Insert.dc.html).
@@ -159,12 +163,12 @@ final List<InsertSection> insertSections = [
         action: InsertAction.flashcards),
     InsertEntry('Need to remember', icon: EIcons.star, tile: _yellow, tint: _gold, keywords: 'star starred important',
         action: InsertAction.remember),
-    InsertEntry('Chart', icon: EIcons.chart, tile: _blue, tint: _blueInk, keywords: 'bar line area scatter data',
-        soon: 'Bar, line, area or scatter charts that follow a table or an Excel sheet.'),
-    InsertEntry('Clock & date', icon: EIcons.clock, tile: _blue, tint: _blueInk, small: true, keywords: 'time stamp today',
-        soon: 'A live clock, the date, or a time stamp.'),
+    InsertEntry('Chart', icon: EIcons.chart, tile: _blue, tint: _blueInk, keywords: 'bar line area scatter data graph excel table',
+        action: InsertAction.chart),
+    InsertEntry('Clock & date', icon: EIcons.clock, tile: _blue, tint: _blueInk, small: true, keywords: 'time stamp today live',
+        action: InsertAction.clock),
     InsertEntry('Checklist', icon: EIcons.checklist, tile: _green, tint: _greenInk, small: true, keywords: 'to-do tasks tick',
-        soon: 'Tick things off and watch the progress bar fill.'),
+        action: InsertAction.checklist),
   ]),
 ];
 

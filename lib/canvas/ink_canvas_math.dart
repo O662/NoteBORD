@@ -334,13 +334,21 @@ extension _CanvasMath on InkCanvasState {
 
   // Graphs and math tools on the page: their buttons and plots.
 
-  /// Whether a press at [page] on [top] lands on one of its buttons.
-  bool _controlAt(BoxItem? top, Offset page) => switch (top) {
+  /// Whether a press at [page] on [top] lands on one of its buttons. With
+  /// [select], a time stamp is something to select, not a button.
+  bool _controlAt(BoxItem? top, Offset page, {bool select = false}) => switch (top) {
         final GraphItem g => switch (graphHitAt(g, g.toLocal(page))) {
             null || GraphHit(part: GraphPart.plot) => false,
             _ => true,
           },
         final MathToolItem t => mathToolHitAt(t, t.toLocal(page)) != null,
+        final ChartItem c => chartHitAt(c, c.toLocal(page)) != null,
+        final LiveItem l => switch (liveHitAt(l, l.toLocal(page))) {
+            null => false,
+            LivePart.stamp => !select,
+            _ => true,
+          },
+        final ChecklistItem l => checklistBoxAt(l, l.toLocal(page)) != null,
         _ => false,
       };
 

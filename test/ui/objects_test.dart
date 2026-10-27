@@ -728,7 +728,7 @@ void main() {
       ];
       expect(later.map((e) => e.label), [
         'Video', 'Audio', 'PDF', //
-        'Calendar', 'Planner', 'Chart', 'Clock & date', 'Checklist', //
+        'Calendar', 'Planner', //
         'Google Drive', 'OneDrive', 'Scan a document',
       ]);
       for (final e in later) {

@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'canvas_status.dart';
 import 'canvas_view.dart';
 import 'flashcard_mode.dart';
+import 'live_mode.dart';
 import 'math_mode.dart';
 import 'ruler.dart';
 import 'selection.dart';
@@ -32,6 +33,9 @@ class Pane extends ChangeNotifier {
 
   /// Making flashcards (FlashMake.png).
   final cards = FlashcardMode();
+
+  /// Live items: clocks, dates, time stamps and checklists (LiveItems.png).
+  final live = LiveMode();
 
   /// A panel is open beside something on the page (Remember this): the
   /// pages rail and the map make room for it (RememberMark.png).
@@ -110,6 +114,7 @@ class Pane extends ChangeNotifier {
     ruler.dispose();
     math.dispose();
     cards.dispose();
+    live.dispose();
     panel.dispose();
     status.dispose();
     super.dispose();

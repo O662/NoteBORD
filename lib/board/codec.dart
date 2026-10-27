@@ -289,6 +289,97 @@ Item? _decodeKnown(Json json) {
         unit: _num(json['unit'], 1),
         data: data,
       );
+    case 'chart':
+      final source = (json['source'] as Map?)?.cast<String, dynamic>();
+      final snapshot = (json['snapshot'] as Map?)?.cast<String, dynamic>() ?? const {};
+      return ChartItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, const {..._boxKeys, 'unit', 'title', 'chartType', 'source', 'linked', 'snapshot', 'colors', 'suffix'}),
+        w: (json['w'] as num).toDouble(),
+        h: (json['h'] as num).toDouble(),
+        unit: _num(json['unit'], 1),
+        title: json['title'] as String? ?? '',
+        chartType: _named(ChartType.values, json['chartType'], ChartType.bar),
+        source: source == null
+            ? null
+            : ChartSource(
+                kind: source['kind'] == 'xlsx' ? 'xlsx' : 'table',
+                ref: source['ref'] as String,
+                sheet: source['sheet'] as String?,
+                range: source['range'] as String? ?? '',
+                name: source['name'] as String? ?? '',
+                extra: _unknown(source, const {'kind', 'ref', 'sheet', 'range', 'name'}),
+              ),
+        linked: json['linked'] != false,
+        cells: [
+          for (final row in (snapshot['cells'] as List?) ?? const []) [for (final cell in row as List) '${cell ?? ''}'],
+        ],
+        colors: [for (final c in (json['colors'] as List?) ?? const []) if (c is String) colorFromHex(c)],
+        suffix: json['suffix'] as String? ?? '',
+        snapshotRest: _unknown(snapshot, const {'cells'}),
+      );
+    case 'widget' when const {'clock', 'date'}.contains(json['widget']):
+      final config = (json['config'] as Map?)?.cast<String, dynamic>() ?? const {};
+      return LiveItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, const {..._boxKeys, 'widget', 'unit', 'config'}),
+        unit: _num(json['unit'], 1),
+        data: json['widget'] == 'clock'
+            ? ClockData(analog: config['style'] != 'digital', rest: _unknown(config, const {'style'}))
+            : DateData(rest: config),
+      );
+    case 'timestamp':
+      return LiveItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, const {..._boxKeys, 'unit', 'at', 'display'}),
+        unit: _num(json['unit'], 1),
+        data: StampData(DateTime.parse(json['at'] as String), ago: json['display'] == 'ago'),
+      );
+    case 'checklist':
+      return ChecklistItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, const {..._boxKeys, 'unit', 'title', 'entries'}),
+        w: (json['w'] as num).toDouble(),
+        unit: _num(json['unit'], 1),
+        title: json['title'] as String? ?? '',
+        entries: [
+          for (final e in ((json['entries'] as List?) ?? const []).map(_map))
+            ChecklistEntry(
+              text: e['text'] as String? ?? '',
+              done: e['done'] == true,
+              ink: [..._nested(e['ink']).whereType<StrokeItem>()],
+              extra: _unknown(e, const {'text', 'done', 'ink'}),
+            ),
+        ],
+      );
     case 'sticky':
       final stack = json['stack'] as Map?;
       return StickyItem(

@@ -73,6 +73,46 @@ Uint8List sampleXlsx() {
 
 const _strings = ['Trial', 'm', 'v', 'p', 'When', 'What', 'Share', 'Lab report'];
 
+/// Charts.png's "Lab data.xlsx": momentum before and after for six trials
+/// (and a seventh, with [seventh]), to two places.
+Uint8List momentumXlsx({bool seventh = false}) {
+  const s = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  const strings = ['Trial', 'p before', 'p after'];
+  const rows = [
+    [1, 1.00, 0.97],
+    [2, 0.80, 0.78],
+    [3, 1.20, 1.15],
+    [4, 0.90, 0.88],
+    [5, 1.10, 1.06],
+    [6, 1.00, 0.95],
+    [7, 1.30, 1.24],
+  ];
+  final sheet = StringBuffer('$_xml<worksheet xmlns="$s" xmlns:r="$_rel"><sheetData><row r="1">');
+  for (var i = 0; i < strings.length; i++) {
+    sheet.write('<c r="${'ABC'[i]}1" t="s"><v>$i</v></c>');
+  }
+  sheet.write('</row>');
+  for (final (r, row) in rows.take(seventh ? 7 : 6).indexed) {
+    sheet.write('<row r="${r + 2}"><c r="A${r + 2}"><v>${row[0]}</v></c>'
+        '<c r="B${r + 2}" s="1"><v>${row[1]}</v></c><c r="C${r + 2}" s="1"><v>${row[2]}</v></c></row>');
+  }
+  sheet.write('</sheetData></worksheet>');
+  return _zip({
+    '[Content_Types].xml': '$_xml<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>',
+    '_rels/.rels': _rels({'rId1': ('officeDocument', 'xl/workbook.xml')}),
+    'xl/workbook.xml': '$_xml<workbook xmlns="$s" xmlns:r="$_rel"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>',
+    'xl/_rels/workbook.xml.rels': _rels({
+      'rId1': ('worksheet', 'worksheets/sheet1.xml'),
+      'rId3': ('sharedStrings', 'sharedStrings.xml'),
+      'rId4': ('styles', 'styles.xml'),
+    }),
+    'xl/sharedStrings.xml': '$_xml<sst xmlns="$s">${strings.map((t) => '<si><t>$t</t></si>').join()}</sst>',
+    'xl/styles.xml': '$_xml<styleSheet xmlns="$s"><fonts><font/></fonts>'
+        '<cellXfs><xf numFmtId="0" fontId="0"/><xf numFmtId="2" fontId="0"/></cellXfs></styleSheet>',
+    'xl/worksheets/sheet1.xml': sheet.toString(),
+  });
+}
+
 /// Three slides drawn without a layout: a title (id 256), bullets (257),
 /// and a dark slide with a slide number and a group (258). [order] lists the
 /// slides' ids in the order the deck shows them: a newer version can move

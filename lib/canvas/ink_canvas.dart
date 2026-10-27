@@ -38,6 +38,7 @@ import '../templates/templates.dart';
 import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
 import '../ui/canvas/card_editors.dart';
+import '../ui/canvas/chart_actions.dart';
 import '../ui/canvas/convert_panel.dart';
 import '../ui/canvas/ruler_menu.dart';
 import '../ui/canvas/selection_toolbar.dart';
@@ -51,7 +52,7 @@ import '../ui/routes.dart' show Routes;
 import '../ui/study/item_preview.dart' show itemsBounds;
 import '../ui/study/remember_panel.dart';
 import '../ui/study/study_format.dart' show reminderShort;
-import '../ui/icons.dart' show EIcons;
+import '../ui/icons.dart' show EIcons, paintEIcon;
 import '../ui/study/study_marks.dart';
 import 'canvas_view.dart';
 import 'cards.dart';
@@ -62,6 +63,9 @@ import 'gestures.dart';
 import 'graph_card.dart';
 import 'items.dart';
 import 'laser.dart';
+import 'charts.dart';
+import 'live_items.dart';
+import 'live_mode.dart';
 import 'math_mode.dart';
 import 'math_tools.dart';
 import 'new_items.dart';
@@ -75,6 +79,7 @@ import 'stroke_geometry.dart';
 
 part 'ink_canvas_math.dart';
 part 'ink_canvas_study.dart';
+part 'ink_canvas_live.dart';
 
 /// Eraser radius in screen px.
 const eraserRadius = 10.0;
@@ -296,6 +301,14 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   final _mathInk = <String>{};
   Timer? _mathIdle;
 
+  // Live items (ink_canvas_live.dart).
+
+  /// Checks once a second whether clocks, the date or "time ago" on the
+  /// page show something new, while there are any.
+  Timer? _liveTimer;
+  String _liveShown = '';
+  final _liveTick = ValueNotifier<int>(0);
+
   /// The preview of the selected ink as math, and which strokes it's for.
   PreviewState? _preview;
   String? _previewLatex;
@@ -343,6 +356,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     pane.status.addListener(_statusChanged);
     pane.math.addListener(_mathChanged);
     pane.cards.addListener(_cardsChanged);
+    pane.live.addListener(_liveChanged);
     _selection.addListener(_overlay.ping);
     _selection.addListener(_selectionChanged);
     _watchDraft();
@@ -358,6 +372,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       oldWidget.pane.selection.removeListener(_selectionChanged);
       oldWidget.pane.math.removeListener(_mathChanged);
       oldWidget.pane.cards.removeListener(_cardsChanged);
+      oldWidget.pane.live.removeListener(_liveChanged);
+      widget.pane.live.addListener(_liveChanged);
       widget.pane.math.addListener(_mathChanged);
       widget.pane.cards.addListener(_cardsChanged);
       widget.pane.addListener(_paneChanged);
@@ -416,6 +432,9 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     active.dispose();
     _hover.dispose();
     _overlay.dispose();
+    pane.live.removeListener(_liveChanged);
+    _liveTimer?.cancel();
+    _liveTick.dispose();
     super.dispose();
   }
 
@@ -921,8 +940,14 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       case _Drag.tap:
         final at = _tapDown;
         final tapped = !_tapMoved;
+        final pen = _tapPen;
         _resetInput();
-        if (tapped) _tapped(at);
+        if (tapped) {
+          _tapped(at);
+        } else if (pen) {
+          // A tick drawn on a checklist's box ticks it.
+          _tickDrawn(at);
+        }
         return;
       case _Drag.shape:
         _finishShape();
@@ -1124,7 +1149,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     if (scribble.isNotEmpty) {
       // The scribble itself is never kept.
       if (_targetNote case final note?) {
-        notifier.replaceItems(page.id, [note.withoutInk(scribble)]);
+        final left = note.withoutInk(scribble);
+        notifier.replaceItems(page.id, [if (left is ChecklistItem) left.pruned else left]);
       } else {
         notifier.removeItems(page.id, scribble);
       }
@@ -1403,7 +1429,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       // Select presses a graph's or math tool's buttons, and traces (or
       // turns) a graph's plot.
       final top = topBoxAt(_page.items, page);
-      if (_controlAt(top, page)) {
+      if (_controlAt(top, page, select: true)) {
         _drag = _Drag.tap;
         _tapDown = screen;
         _tapMoved = false;
@@ -1535,7 +1561,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       if (one is TextItem || (one is StickyItem && !one.isStack)) SelectionAction.edit,
       if (one is MathItem) ...[SelectionAction.editMath, SelectionAction.copyLatex],
       if (one is GraphItem) SelectionAction.copyLatex,
-      if (one is CardItem) SelectionAction.editCard,
+      if (one is CardItem || one is ChecklistItem) SelectionAction.editCard,
+      if ((one is CardItem && one.data is TableData) || (one is OfficeItem && one.mime == 'xlsx')) SelectionAction.makeChart,
       if (one is CardItem && one.data is EmbedData) SelectionAction.open,
       if (one is OfficeItem) ...[SelectionAction.open, SelectionAction.replaceFile],
       if (one is StickyItem && one.isStack) ...[SelectionAction.fanOut, SelectionAction.nextNote],
@@ -1678,6 +1705,9 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         if (items.singleOrNull case final BoxItem b) _beginEdit(b);
       case SelectionAction.editCard:
         if (items.singleOrNull case final CardItem card) _editCard(card);
+        if (items.singleOrNull case final ChecklistItem list) _editChecklist(list);
+      case SelectionAction.makeChart:
+        if (items.singleOrNull case final BoxItem source) makeChart(context, ref, pane, from: source);
       case SelectionAction.open:
         if (items.singleOrNull case final CardItem card) _openLink(card);
         if (items.singleOrNull case final OfficeItem file) _openFile(file);
@@ -1967,10 +1997,11 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       pane.math.closeKeyboard();
       return;
     }
-    if (!settings.tool.places || topBoxAt(page.items, at) is GraphItem || topBoxAt(page.items, at) is MathToolItem) {
+    if (!settings.tool.places || topBoxAt(page.items, at) is GraphItem || topBoxAt(page.items, at) is MathToolItem || _isLive(topBoxAt(page.items, at))) {
       // Any other tool: a tap only presses a website card's Open button,
-      // an Office card's Open and page arrows, or a graph's or math tool's
-      // buttons (and a graph's plot traces).
+      // an Office card's Open and page arrows, a graph's or math tool's
+      // buttons (and a graph's plot traces), or a chart's or live item's.
+      if (_pressLiveControl(at)) return;
       if (_pressMathControl(at)) return;
       if (_pressFileButton(at)) return;
       if (topBoxAt(page.items, at) case final CardItem card when card.data is EmbedData) {
@@ -2212,6 +2243,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     }
     if (settings.tool != CanvasTool.laser && !_laser.isEmpty && _drag != _Drag.laser) _laser.clear();
     _checkGraphed(page);
+    _watchLive(page);
 
     final hoverRing = switch (settings.tool) {
       CanvasTool.eraser => (eraserRadius * 2, colors.textMuted),
@@ -2245,9 +2277,12 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
             if (layout != null) RepaintBoundary(child: CustomPaint(painter: LayoutPainter(_vp, layout))),
             // What's remembered has a yellow wash under its ink.
             _rememberWash(page, colors),
+            // Charts' links to their tables and sheets, under the ink too.
+            _chartLinks(page, colors),
             RepaintBoundary(
               child: CustomPaint(
-                painter: InkLayerPainter(_vp, page, notebook.revision, brightness, colors, hidden: _hidden, repaint: _overlay),
+                painter: InkLayerPainter(_vp, page, notebook.revision, brightness, colors,
+                    hidden: _hidden, repaint: Listenable.merge([_overlay, _liveTick])),
               ),
             ),
             RepaintBoundary(

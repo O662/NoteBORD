@@ -11,7 +11,9 @@ import '../templates/templates.dart';
 import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
 import 'cards.dart';
+import 'charts.dart';
 import 'graph_card.dart';
+import 'live_items.dart';
 import 'math_tools.dart';
 import 'office_cards.dart';
 import 'page_runtime.dart' show paintStroke;
@@ -107,6 +109,12 @@ void paintBoxItem(
       _paintImage(canvas, i, c, images);
     case CardItem card:
       paintCard(canvas, card, c);
+    case ChartItem chart:
+      paintChart(canvas, chart, brightness, c);
+    case LiveItem live:
+      paintLiveItem(canvas, live, brightness, c);
+    case ChecklistItem list:
+      paintChecklist(canvas, list, brightness, c);
     case OfficeItem f:
       paintOfficeCard(canvas, f, brightness, c, docs);
     case ShapeItem s:
@@ -439,6 +447,10 @@ List<int> stretchSides(BoxItem item) => switch (item) {
       // unit circle and polar grid. A number line gets longer.
       ImageItem _ || MathItem _ => const [],
       MathToolItem t => t.data is NumberLineData ? const [1, 3] : const [],
+      // Clocks, dates and stamps only scale; a checklist's height follows
+      // its rows.
+      LiveItem _ => const [],
+      ChecklistItem _ => const [1, 3],
       _ => const [0, 1, 2, 3],
     };
 
@@ -453,6 +465,8 @@ BoxItem stretchBox(BoxItem item, int side, Offset page, {double min = 24}) {
     OfficeItem f => (officeMinSize(f).width, officeMinSize(f).height),
     GraphItem g => (graphMinSize(g).width, graphMinSize(g).height),
     MathToolItem t => (420 * t.unit, item.h),
+    ChartItem chart => (chartMinSize(chart).width, chartMinSize(chart).height),
+    ChecklistItem l => (240 * l.unit, item.h),
     _ => (min, min),
   };
   // The corner that doesn't move, as a fraction of the box.

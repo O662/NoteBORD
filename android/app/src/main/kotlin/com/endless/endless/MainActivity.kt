@@ -21,6 +21,10 @@ class MainActivity : FlutterFragmentActivity() {
         // The dictionary's "Hear it" (lib/spelling/speech.dart).
         speech = Speech(this, flutterEngine.dartExecutor.binaryMessenger)
         keyboard = Keyboard(this, flutterEngine.dartExecutor.binaryMessenger)
+        // The clocks on the page show the time zone by name (lib/state/time_zone.dart).
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "endless/time").setMethodCallHandler { call, result ->
+            if (call.method == "zone") result.success(java.util.TimeZone.getDefault().id) else result.notImplemented()
+        }
         // Opens a Word, PowerPoint or Excel file from the board in the app
         // the tablet uses for it, which may save back to it; Endless watches
         // the file and updates the card (lib/state/office_docs.dart).

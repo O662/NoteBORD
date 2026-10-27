@@ -21,8 +21,9 @@ final everythingAt = DateTime.utc(2026, 9, 30, 9);
 /// A notebook with every kind of item: ink (with an arrow, a straightened
 /// line and a connector joined at both ends), shapes, text, sticky notes and
 /// a stack, frames (plain and from a template), a picture, an imported PDF
-/// page, the five cards, a PowerPoint with ink on its second slide, and an
-/// item type from a newer app. Page 2 has a
+/// page, the five cards, a PowerPoint with ink on its second slide, math,
+/// graphs and math tools, a chart, a clock, the date, a time stamp, a
+/// checklist, and an item type from a newer app. Page 2 has a
 /// template and lined paper; page 3 has its own password.
 Future<(MemoryBoardStore, String password)> everythingNotebook() async {
   final store = MemoryBoardStore();
@@ -113,6 +114,38 @@ Future<(MemoryBoardStore, String password)> everythingNotebook() async {
       data: const PolarData(curves: [GraphLine(r'r=1+\cos\theta', Color(0xFF2B5A8C))]),
     ),
     UnknownItem({'id': 'it_cal', 'type': 'widget', 'widget': 'calendar', 'x': 0, 'y': 2300, 'z': 52, 'createdAt': everythingAt.toIso8601String(), 'w': 300, 'h': 300, 'config': {'month': '2026-10'}}),
+    // Phase 7b: a chart following the board's table, a clock, today's date,
+    // a time stamp and a checklist written on.
+    ChartItem(
+      id: 'it_chart',
+      x: 400,
+      y: 2300,
+      z: 53,
+      createdAt: everythingAt,
+      w: 700,
+      h: 404,
+      title: 'Momentum',
+      chartType: ChartType.line,
+      source: ChartSource(kind: 'table', ref: sampleTable.id, name: 'Lab data'),
+      cells: (sampleTable.data as TableData).cells,
+      colors: const [Color(0xFF3E7B4F)],
+    ),
+    LiveItem(id: 'it_clock', x: 1200, y: 2300, z: 54, createdAt: everythingAt, data: const ClockData(analog: false)),
+    LiveItem(id: 'it_date', x: 1200, y: 2500, z: 55, createdAt: everythingAt, data: const DateData()),
+    LiveItem(id: 'it_stamp', x: 1200, y: 2560, z: 56, createdAt: everythingAt, data: StampData(everythingAt, ago: true)),
+    ChecklistItem(
+      id: 'it_list',
+      x: 0,
+      y: 2700,
+      z: 57,
+      createdAt: everythingAt,
+      w: ChecklistItem.width,
+      title: 'Before the lab',
+      entries: [
+        ChecklistEntry(done: true, ink: [strokeFrom([const Offset(0, 20), const Offset(90, 24)])]),
+        const ChecklistEntry(text: 'print data table'),
+      ],
+    ),
   ];
   final page1 = BoardPage(id: board.pages.single.id, title: 'Board', items: [...board.pages.single.items, ...extra]);
   // Phase 7a: ink marked to remember (with a reminder), and a flashcard

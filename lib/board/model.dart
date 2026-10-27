@@ -1157,7 +1157,8 @@ class StickyNote {
 }
 
 /// A box that ink is written on and kept in, so the ink moves, turns and
-/// scales with it: a sticky note, or the page of an Office file showing.
+/// scales with it: a sticky note, the page of an Office file showing, or a
+/// checklist's rows.
 abstract interface class InkHolder {
   /// The ink as stored.
   Iterable<StrokeItem> get ink;
@@ -2277,6 +2278,583 @@ class CardItem extends BoxItem {
 
   @override
   Json toJson() => {...boxJson(), 'title': title, 'unit': round3(unit), ...data.toJson()};
+}
+
+// Charts and live items (Phase 7b: Charts.png, LiveItems.png).
+
+enum ChartType { bar, line, area, scatter }
+
+/// Where a chart's numbers come from: a table on the page, or a range of an
+/// Excel card's sheet. [ref] is that item's id; [name] is what it was
+/// called when the chart was last linked ("Lab data.xlsx", "Study hours").
+@immutable
+class ChartSource {
+  const ChartSource({
+    required this.kind,
+    required this.ref,
+    this.sheet,
+    this.range = '',
+    this.name = '',
+    this.extra = const {},
+  });
+
+  /// `table` or `xlsx`.
+  final String kind;
+  final String ref;
+
+  /// The sheet's name (Excel).
+  final String? sheet;
+
+  /// "A1:C7"; empty for the whole table or sheet.
+  final String range;
+  final String name;
+  final Json extra;
+
+  bool get isExcel => kind == 'xlsx';
+
+  ChartSource copyWith({String? sheet, String? range, String? name}) => ChartSource(
+        kind: kind,
+        ref: ref,
+        sheet: sheet ?? this.sheet,
+        range: range ?? this.range,
+        name: name ?? this.name,
+        extra: extra,
+      );
+
+  Json toJson() => {
+        ...extra,
+        'kind': kind,
+        'ref': ref,
+        if (sheet != null) 'sheet': sheet,
+        if (range.isNotEmpty) 'range': range,
+        'name': name,
+      };
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChartSource && other.kind == kind && other.ref == ref && other.sheet == sheet && other.range == range && other.name == name;
+
+  @override
+  int get hashCode => Object.hash(kind, ref, sheet, range, name);
+}
+
+/// A chart (Charts.dc.html) of the numbers in [cells]: a copy of its
+/// source's range as it was last read, which is what's drawn. While
+/// [linked], a change to the source changes it too; unlinked, it's a
+/// snapshot. [unit] is the card's scale: its parts are the design's sizes
+/// times unit.
+class ChartItem extends BoxItem {
+  ChartItem({
+    required super.id,
+    required super.x,
+    required super.y,
+    super.rotation,
+    required super.z,
+    required super.createdAt,
+    super.author,
+    super.remember,
+    super.extra,
+    required this.w,
+    required this.h,
+    this.unit = 1,
+    this.title = '',
+    this.chartType = ChartType.bar,
+    this.source,
+    this.linked = true,
+    this.cells = const [],
+    this.colors = const [],
+    this.suffix = '',
+    this.snapshotRest = const {},
+  });
+
+  /// A new chart at 100% (Charts.dc.html's first chart).
+  static const size = Size(700, 404);
+
+  @override
+  final double w;
+  @override
+  final double h;
+  final double unit;
+  final String title;
+  final ChartType chartType;
+  final ChartSource? source;
+  final bool linked;
+
+  /// The source's range as last read: rows of cells as shown.
+  final List<List<String>> cells;
+
+  /// Each series' color, in order; series past the end take the next
+  /// graph color.
+  final List<Color> colors;
+
+  /// What follows the numbers ("h" for hours): on the axis and the total.
+  final String suffix;
+
+  /// Fields of `snapshot` this version doesn't know.
+  final Json snapshotRest;
+
+  /// Following its source.
+  bool get live => linked && source != null;
+
+  @override
+  Rect get paintRect => (Offset.zero & Size(w, h)).inflate(30 * unit);
+
+  @override
+  String get type => 'chart';
+
+  ChartItem copyWith({
+    String? title,
+    ChartType? chartType,
+    ChartSource? Function()? source,
+    bool? linked,
+    List<List<String>>? cells,
+    List<Color>? colors,
+    String? suffix,
+  }) =>
+      ChartItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        w: w,
+        h: h,
+        unit: unit,
+        title: title ?? this.title,
+        chartType: chartType ?? this.chartType,
+        source: source == null ? this.source : source(),
+        linked: linked ?? this.linked,
+        cells: cells ?? this.cells,
+        colors: colors ?? this.colors,
+        suffix: suffix ?? this.suffix,
+        snapshotRest: snapshotRest,
+      );
+
+  @override
+  ChartItem withBox({
+    String? id,
+    int? z,
+    DateTime? createdAt,
+    required double x,
+    required double y,
+    required double w,
+    required double h,
+    double? rotation,
+    double scale = 1,
+  }) =>
+      ChartItem(
+        id: id ?? this.id,
+        x: x,
+        y: y,
+        rotation: rotation ?? this.rotation,
+        z: z ?? this.z,
+        createdAt: createdAt ?? this.createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        w: w,
+        h: h,
+        unit: unit * scale,
+        title: title,
+        chartType: chartType,
+        source: source,
+        linked: linked,
+        cells: cells,
+        colors: colors,
+        suffix: suffix,
+        snapshotRest: snapshotRest,
+      );
+
+  @override
+  Json toJson() => {
+        ...boxJson(),
+        'unit': round3(unit),
+        'title': title,
+        'chartType': chartType.name,
+        if (source != null) 'source': source!.toJson(),
+        'linked': linked,
+        'snapshot': {...snapshotRest, 'cells': cells},
+        if (colors.isNotEmpty) 'colors': [for (final c in colors) colorToHex(c)],
+        if (suffix.isNotEmpty) 'suffix': suffix,
+      };
+}
+
+/// What a live item shows: a clock, today's date, or a time stamp.
+sealed class LiveData {
+  const LiveData({this.rest = const {}});
+
+  /// Fields of `config` this version doesn't know (clocks and dates).
+  final Json rest;
+
+  /// Its size at 100% (LiveItems.dc.html).
+  Size get size;
+
+  /// The item's fields, for its JSON.
+  Json toJson();
+
+  /// The item's `type`.
+  String get type => 'widget';
+}
+
+/// A clock in the device's time zone, analog (with the time under it) or
+/// digital.
+class ClockData extends LiveData {
+  const ClockData({this.analog = true, super.rest});
+
+  final bool analog;
+
+  @override
+  Size get size => analog ? const Size(280, 330) : const Size(280, 148);
+
+  @override
+  Json toJson() => {
+        'widget': 'clock',
+        'config': {...rest, 'style': analog ? 'analog' : 'digital'},
+      };
+}
+
+/// Today's date on a chip; it always shows today.
+class DateData extends LiveData {
+  const DateData({super.rest});
+
+  /// Room for the longest date ("Wednesday, September 30").
+  @override
+  Size get size => const Size(236, 32);
+
+  @override
+  Json toJson() => {'widget': 'date', 'config': rest};
+}
+
+/// The moment it was made, shown as clock time ("8:36 PM") or how long ago
+/// ("12 min ago").
+class StampData extends LiveData {
+  const StampData(this.at, {this.ago = false});
+
+  final DateTime at;
+  final bool ago;
+
+  @override
+  String get type => 'timestamp';
+
+  @override
+  Size get size => const Size(108, 26);
+
+  @override
+  Json toJson() => {'at': at.toUtc().toIso8601String(), 'display': ago ? 'ago' : 'clock'};
+}
+
+/// A clock, the date or a time stamp on the page. Its size follows from
+/// what it shows, times [unit] (it scales by a corner, and doesn't stretch).
+class LiveItem extends BoxItem {
+  LiveItem({
+    required super.id,
+    required super.x,
+    required super.y,
+    super.rotation,
+    required super.z,
+    required super.createdAt,
+    super.author,
+    super.remember,
+    super.extra,
+    required this.data,
+    this.unit = 1,
+  });
+
+  final LiveData data;
+  final double unit;
+
+  @override
+  double get w => data.size.width * unit;
+
+  @override
+  double get h => data.size.height * unit;
+
+  @override
+  Rect get paintRect => (Offset.zero & Size(w, h)).inflate(30 * unit);
+
+  @override
+  String get type => data.type;
+
+  LiveItem copyWith({LiveData? data}) => LiveItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        data: data ?? this.data,
+        unit: unit,
+      );
+
+  @override
+  LiveItem withBox({
+    String? id,
+    int? z,
+    DateTime? createdAt,
+    required double x,
+    required double y,
+    required double w,
+    required double h,
+    double? rotation,
+    double scale = 1,
+  }) =>
+      LiveItem(
+        id: id ?? this.id,
+        x: x,
+        y: y,
+        rotation: rotation ?? this.rotation,
+        z: z ?? this.z,
+        createdAt: createdAt ?? this.createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        data: data,
+        unit: unit * scale,
+      );
+
+  @override
+  Json toJson() => {...boxJson(), 'unit': round3(unit), ...data.toJson()};
+}
+
+/// One thing on a checklist: written with the pen ([ink], from the top-left
+/// of its row's writing area, at 100%), or typed ([text]).
+@immutable
+class ChecklistEntry {
+  const ChecklistEntry({this.text = '', this.done = false, this.ink = const [], this.extra = const {}});
+
+  final String text;
+  final bool done;
+  final List<StrokeItem> ink;
+  final Json extra;
+
+  bool get isEmpty => text.trim().isEmpty && ink.isEmpty;
+
+  ChecklistEntry copyWith({String? text, bool? done, List<StrokeItem>? ink}) =>
+      ChecklistEntry(text: text ?? this.text, done: done ?? this.done, ink: ink ?? this.ink, extra: extra);
+
+  Json toJson() => {
+        ...extra,
+        'text': text,
+        'done': done,
+        if (ink.isNotEmpty) 'ink': [for (final s in ink) s.toJson()],
+      };
+}
+
+/// A checklist (LiveItems.dc.html): its title, how many are done with a
+/// progress bar, a row per entry with its box, and "write another item…",
+/// where writing with the pen starts a new entry. Ink written on a row
+/// belongs to that entry. Its height follows from its rows.
+class ChecklistItem extends BoxItem implements InkHolder {
+  ChecklistItem({
+    required super.id,
+    required super.x,
+    required super.y,
+    super.rotation,
+    required super.z,
+    required super.createdAt,
+    super.author,
+    super.remember,
+    super.extra,
+    required this.w,
+    this.title = '',
+    this.entries = const [],
+    this.unit = 1,
+  });
+
+  /// The design's sizes (at 100%).
+  static const width = 400.0;
+  static const pad = 16.0;
+  static const gap = 4.0;
+
+  /// Where the rows start: the title line, the progress bar and the gaps.
+  static const rowsTop = pad + 23 + gap + 12 + gap;
+  static const rowMin = 46.0;
+
+  /// Where writing on a row starts: after the box.
+  static const writeLeft = pad + 22 + 12;
+  static const slotHeight = 44.0;
+
+  @override
+  final double w;
+  final String title;
+  final List<ChecklistEntry> entries;
+  final double unit;
+
+  int get doneCount => entries.where((e) => e.done).length;
+
+  /// Each row's top and height, at 100%.
+  late final List<(double, double)> rows = () {
+    final out = <(double, double)>[];
+    var y = rowsTop;
+    for (final e in entries) {
+      var bottom = 0.0;
+      for (final s in e.ink) {
+        bottom = math.max(bottom, s.bounds.bottom);
+      }
+      final height = math.max(rowMin, bottom + 8);
+      out.add((y, height));
+      y += height + 1 + gap;
+    }
+    return out;
+  }();
+
+  /// The top of the next row: where a new entry goes.
+  double get _nextRow => rows.isEmpty ? rowsTop : rows.last.$1 + rows.last.$2 + 1 + gap;
+
+  /// "write another item…", at 100%.
+  Rect get slot => Rect.fromLTWH(pad, _nextRow + 8, w / unit - 2 * pad, slotHeight);
+
+  @override
+  double get h => (slot.bottom + pad) * unit;
+
+  /// Entry [i]'s row, at 100%.
+  Rect rowRect(int i) => Rect.fromLTWH(pad, rows[i].$1, w / unit - 2 * pad, rows[i].$2);
+
+  /// Entry [i]'s box, at 100%.
+  Rect boxRect(int i) => Rect.fromLTWH(pad, rows[i].$1 + rows[i].$2 / 2 - 11, 22, 22);
+
+  @override
+  Rect get paintRect => (Offset.zero & Size(w, h)).inflate(30 * unit);
+
+  @override
+  String get type => 'checklist';
+
+  /// The entry whose row is at [y] (at 100%), or null.
+  int? rowAt(double y) {
+    for (final (i, (top, height)) in rows.indexed) {
+      if (y >= top - gap / 2 && y < top + height + 1 + gap / 2) return i;
+    }
+    return null;
+  }
+
+  Offset _origin(int i) => Offset(writeLeft, rows[i].$1);
+
+  StrokeItem _onPage(StrokeItem s, Offset origin) => s.mapped((p) => toPage((p + origin) * unit), widthScale: unit);
+
+  StrokeItem _stored(StrokeItem pageStroke, Offset origin, {String? id}) =>
+      pageStroke.mapped((p) => toLocal(p) / unit - origin, widthScale: 1 / unit, id: id);
+
+  @override
+  Iterable<StrokeItem> get ink => entries.expand((e) => e.ink);
+
+  @override
+  late final List<StrokeItem> pageInk = [
+    for (final (i, e) in entries.indexed)
+      for (final s in e.ink) _onPage(s, _origin(i)),
+  ];
+
+  /// The ink where it's drawn on the card, at 100% (for reading it).
+  late final List<StrokeItem> cardInk = [
+    for (final (i, e) in entries.indexed)
+      for (final s in e.ink) s.mapped((p) => p + _origin(i)),
+  ];
+
+  /// Writing starts anywhere on "write another item…", or on a row past its
+  /// box.
+  @override
+  bool takesInkAt(Offset page) {
+    final p = toLocal(page) / unit;
+    if (slot.inflate(4).contains(p)) return true;
+    if (p.dx < writeLeft - 8 || p.dx > w / unit - pad / 2) return false;
+    return rowAt(p.dy) != null;
+  }
+
+  /// With [stroke] written on the row it starts on, or as a new entry.
+  @override
+  ChecklistItem withInk(StrokeItem stroke) {
+    final start = stroke.pagePoints.isEmpty ? Offset.zero : toLocal(stroke.pagePoints.first) / unit;
+    final i = rowAt(start.dy);
+    if (i == null) {
+      return copyWith(entries: [...entries, ChecklistEntry(ink: [_stored(stroke, Offset(writeLeft, _nextRow))])]);
+    }
+    final e = entries[i];
+    return copyWith(entries: [...entries]..[i] = e.copyWith(ink: [...e.ink, _stored(stroke, _origin(i))]));
+  }
+
+  @override
+  ChecklistItem replaceInk(String id, StrokeItem after) => copyWith(entries: [
+        for (final (i, e) in entries.indexed)
+          e.ink.any((s) => s.id == id)
+              ? e.copyWith(ink: [for (final s in e.ink) s.id == id ? _stored(after, _origin(i), id: id) : s])
+              : e,
+      ]);
+
+  /// Without that ink. Its rows stay where they are, so an eraser still
+  /// moving doesn't meet the next one; see [pruned].
+  @override
+  ChecklistItem withoutInk(Set<String> ids) => copyWith(entries: [
+        for (final e in entries)
+          e.ink.any((s) => ids.contains(s.id)) ? e.copyWith(ink: [for (final s in e.ink) if (!ids.contains(s.id)) s]) : e,
+      ]);
+
+  /// Without entries that have nothing on them any more.
+  ChecklistItem get pruned => entries.any((e) => e.isEmpty) ? copyWith(entries: [for (final e in entries) if (!e.isEmpty) e]) : this;
+
+  ChecklistItem copyWith({String? title, List<ChecklistEntry>? entries}) => ChecklistItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        w: w,
+        title: title ?? this.title,
+        entries: entries ?? this.entries,
+        unit: unit,
+      );
+
+  @override
+  ChecklistItem withBox({
+    String? id,
+    int? z,
+    DateTime? createdAt,
+    required double x,
+    required double y,
+    required double w,
+    required double h,
+    double? rotation,
+    double scale = 1,
+  }) {
+    // A copy gets ink of its own.
+    final copy = id != null && id != this.id;
+    return ChecklistItem(
+      id: id ?? this.id,
+      x: x,
+      y: y,
+      rotation: rotation ?? this.rotation,
+      z: z ?? this.z,
+      createdAt: createdAt ?? this.createdAt,
+      author: author,
+      remember: remember,
+      extra: extra,
+      w: w,
+      title: title,
+      entries: copy
+          ? [
+              for (final e in entries) e.copyWith(ink: [for (final s in e.ink) s.mapped((p) => p, id: newId('it'))]),
+            ]
+          : entries,
+      unit: unit * scale,
+    );
+  }
+
+  @override
+  Json toJson() => {
+        ...boxJson(),
+        'unit': round3(unit),
+        'title': title,
+        'entries': [for (final e in entries) e.toJson()],
+      };
 }
 
 /// An item type this version can't show yet. Kept verbatim.

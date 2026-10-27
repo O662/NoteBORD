@@ -11,6 +11,7 @@ import '../board/ids.dart';
 import '../board/lock.dart';
 import '../board/model.dart';
 import '../board/store.dart';
+import '../canvas/charts.dart' show refreshedChart;
 import '../canvas/connectors.dart';
 import '../canvas/office_cards.dart';
 import '../canvas/page_runtime.dart';
@@ -695,7 +696,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
 
   void _commit(PageRuntime page, List<EditStep> steps) {
     if (steps.isEmpty) return;
-    final c = Command(page.id, _withConnectors(page, steps));
+    final c = Command(page.id, _withCharts(page, _withConnectors(page, steps)));
     _apply(c);
     _push(c);
     _changed(page.id);
@@ -767,6 +768,67 @@ class NotebookNotifier extends Notifier<NotebookState> {
     return out;
   }
 
+  /// [steps] plus what they do to charts, in the same undo step: a chart
+  /// following a table or Excel card that changed reads its numbers again,
+  /// and one whose source is removed keeps them, as a snapshot.
+  List<EditStep> _withCharts(PageRuntime page, List<EditStep> steps) {
+    final changed = <String, Item>{};
+    final removed = <String>{};
+    final inserted = <String>{};
+    final charts = <String, int>{}; // replaced charts: where their step is
+    for (final (i, s) in steps.indexed) {
+      switch (s) {
+        case ReplaceStep(item: final ChartItem chart):
+          charts[chart.id] = i;
+        case ReplaceStep(item: final CardItem card) when card.data is TableData:
+          changed[card.id] = card;
+        case ReplaceStep(item: final OfficeItem f) when f.mime == 'xlsx':
+          changed[f.id] = f;
+        case RemoveStep(item: final item):
+          removed.add(item.id);
+        case InsertStep(item: final item):
+          inserted.add(item.id);
+        default:
+          break;
+      }
+    }
+    // Moved in the z-order (To front, To back), not gone.
+    removed.removeAll(inserted);
+    if (changed.isEmpty && removed.isEmpty) return steps;
+    final out = [...steps];
+    for (final (at, item) in page.items.indexed) {
+      if (item is! ChartItem || removed.contains(item.id) || inserted.contains(item.id)) continue;
+      final step = charts[item.id];
+      final now = step == null ? item : out[step].item as ChartItem;
+      final ref = now.live ? now.source!.ref : null;
+      if (ref == null) continue;
+      final ChartItem? next;
+      if (removed.contains(ref)) {
+        next = now.copyWith(linked: false);
+      } else if (changed[ref] case final source?) {
+        next = refreshedChart(now, source, book: _workbookOf(source));
+      } else {
+        next = null;
+      }
+      if (next == null) continue;
+      if (step != null) {
+        final s = out[step] as ReplaceStep;
+        out[step] = ReplaceStep(s.at, next, s.before);
+      } else {
+        out.add(ReplaceStep(at, next, item));
+      }
+    }
+    return out;
+  }
+
+  /// An Excel card's workbook, if it has been read.
+  Workbook? _workbookOf(Item item) => item is OfficeItem && item.kind == OfficeKind.xlsx
+      ? switch (_docs.preview(item.asset, OfficeKind.xlsx)?.doc) {
+          final Workbook book => book,
+          _ => null,
+        }
+      : null;
+
   /// Starts an eraser drag. Everything erased until [endErase] is one undo step.
   void beginErase(String pageId) {
     if (state.isSealed(pageId)) return;
@@ -811,6 +873,14 @@ class NotebookNotifier extends Notifier<NotebookState> {
     _erasing = null;
     _erasePage = null;
     if (steps == null || pageId == null || steps.isEmpty) return;
+    // A checklist's entries rubbed out go once the eraser lifts.
+    final page = _pageById(pageId);
+    for (final id in {for (final s in steps) if (s.item is ChecklistItem) s.item.id}) {
+      if (page?[id] case final ChecklistItem list when !identical(list.pruned, list)) {
+        steps.add(ReplaceStep(page!.items.indexOf(list), list.pruned, list));
+        page.replace(list.pruned);
+      }
+    }
     _push(Command(pageId, steps));
     _changed(pageId);
   }

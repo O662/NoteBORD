@@ -8,6 +8,8 @@ import '../board/model.dart';
 import '../board/store.dart';
 import '../library/index_db.dart';
 import '../library/library.dart';
+import '../canvas/charts.dart' show chartText;
+import '../canvas/live_items.dart' show checklistText;
 import '../canvas/math_tools.dart' show mathToolText;
 import '../math/linear.dart' show mathSearchText;
 import '../search/search_text.dart';
@@ -640,7 +642,7 @@ List<SearchRow> rowsFor(String notebookId, BoardPage page, PageRecognition? read
   final rows = <SearchRow>[];
   final visible = visibleInk(page);
   final all = allInk(page);
-  final holders = {for (final i in page.items) if (i is StickyItem || i is OfficeItem) i.id: i};
+  final holders = {for (final i in page.items) if (i is StickyItem || i is OfficeItem || i is ChecklistItem) i.id: i};
   if (read != null) {
     for (final line in read.lines) {
       if (line.text.isEmpty) continue;
@@ -669,7 +671,11 @@ List<SearchRow> rowsFor(String notebookId, BoardPage page, PageRecognition? read
           ],
           if (on != null) ...{
             'holder': on.id,
-            'on': on is OfficeItem ? on.mime : 'sticky',
+            'on': switch (on) {
+              OfficeItem f => f.mime,
+              ChecklistItem _ => 'checklist',
+              _ => 'sticky',
+            },
             if (line.sub != null) 'sub': line.sub,
           },
         },
@@ -707,6 +713,10 @@ List<SearchRow> rowsFor(String notebookId, BoardPage page, PageRecognition? read
       case CardItem c:
         final text = cardText(c).trim();
         if (text.isNotEmpty) rows.add(typed(c, text, c.extent));
+      case ChartItem c:
+        rows.add(typed(c, chartText(c), c.extent));
+      case ChecklistItem l:
+        rows.add(typed(l, checklistText(l), l.extent));
       case FileItem f when f.text.trim().isNotEmpty:
         rows.add(typed(f, f.text.trim(), f.extent, kind: SearchKind.pdf, extra: {
           'name': f.name,

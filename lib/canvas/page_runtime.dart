@@ -81,6 +81,15 @@ class PageRuntime {
   /// Drops the cached pictures (an image on the page finished loading).
   void invalidate() => _changed();
 
+  /// Drops the pictures of the items near the view, so clocks, the date and
+  /// "time ago" are drawn again; nothing on the page changed.
+  void refreshLive() {
+    _region?.picture.dispose();
+    _region = null;
+    _partial?.picture.dispose();
+    _partial = null;
+  }
+
   void _changed() {
     revision++;
     _full?.dispose();

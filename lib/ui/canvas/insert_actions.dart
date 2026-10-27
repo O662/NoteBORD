@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../board/model.dart';
 import '../../canvas/cards.dart';
+import '../../canvas/live_mode.dart';
 import '../../canvas/new_items.dart';
 import '../../canvas/pane.dart';
 import '../../canvas/selection.dart';
@@ -22,6 +23,7 @@ import '../icons.dart';
 import '../templates/templates_dialog.dart';
 import '../math/math_actions.dart';
 import 'card_editors.dart';
+import 'chart_actions.dart';
 import 'insert_menu.dart';
 
 /// What the tools that drop something say when picked.
@@ -34,7 +36,8 @@ const placeHints = {
 };
 
 /// Does what was picked in the Insert menu (or the rail's Insert flyout)
-/// for [pane]. [hint] shows a tool's hint where the screen has one.
+/// for [pane]. [hint] shows a tool's hint where the screen has one;
+/// [onLive] brings up the Live items bar where the screen has one.
 Future<void> runInsert(
   BuildContext context,
   WidgetRef ref,
@@ -42,6 +45,7 @@ Future<void> runInsert(
   InsertAction action, {
   ValueChanged<String>? hint,
   VoidCallback? onFlashcards,
+  VoidCallback? onLive,
 }) async {
   void place(CanvasTool tool) {
     ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: tool));
@@ -104,6 +108,21 @@ Future<void> runInsert(
       } else {
         onFlashcards();
       }
+    case InsertAction.chart:
+      await makeChart(context, ref, pane);
+    case InsertAction.clock:
+      // The Live items bar (LiveItems.png) picks a clock, the date, a time
+      // stamp or a checklist; without one (Split view), a clock.
+      if (onLive != null) {
+        onLive();
+      } else {
+        pane.live.add(LiveKind.clock);
+      }
+    case InsertAction.checklist:
+      onLive?.call();
+      // Written in with the pen.
+      ref.read(settingsProvider.notifier).apply((s) => s.tool.inks ? s : s.copyWith(tool: CanvasTool.pen));
+      pane.live.add(LiveKind.checklist);
     case InsertAction.image:
       // With a camera, ask where the picture comes from.
       final origin = ref.read(photoPickerProvider).hasCamera ? await showImageSources(context) : PhotoOrigin.tablet;

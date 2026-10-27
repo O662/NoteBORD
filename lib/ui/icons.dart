@@ -204,6 +204,14 @@ abstract final class EIcons {
   static final home = EIconData([_p('M4 11l8-7 8 7v9h-5v-6H9v6H4z')]);
   static final notebook = EIconData([_p('M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z'), _p('M5 18a2 2 0 0 1 2-2h12')]);
   static final calendar = EIconData([_p(_rect(4, 5, 16, 15, 2)), _p('M4 10h16M9 3v4M15 3v4')]);
+
+  // Charts and live items (Charts.dc.html, LiveItems.dc.html).
+  static final link = EIconData([
+    _p('M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1'),
+    _p('M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1'),
+  ], strokeWidth: 2.4);
+  static final dateChip = EIconData([_p(_rect(4, 5, 16, 15, 2)), _p('M4 10h16M9 3v4M15 3v4')], strokeWidth: 2.2);
+  static final stamp = EIconData([_p(_circle(12, 12, 9)), _p('M12 7v5l3 2')], strokeWidth: 2.4);
   static final trash = EIconData([_p('M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12')]);
   static final folder = EIconData([_p('M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z')]);
   static final gridView = EIconData([

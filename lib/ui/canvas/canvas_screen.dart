@@ -9,7 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../board/ids.dart';
 import '../../canvas/canvas_view.dart';
 import '../../canvas/flashcard_mode.dart' show CircledSide;
-import '../../board/model.dart' show OfficeItem, StickyItem, TextItem;
+import '../../board/model.dart' show ChartItem, OfficeItem, StickyItem, TextItem;
 import '../../canvas/ink_canvas.dart';
 import '../../canvas/pane.dart';
 import '../../library/library.dart';
@@ -33,11 +33,13 @@ import '../templates/templates_dialog.dart';
 import '../transfer/share_dialog.dart';
 import '../transfer/transfer_dialog.dart';
 import '../../canvas/selection.dart';
+import 'chart_actions.dart';
 import 'color_tray.dart';
 import 'gesture_status.dart';
 import 'insert_actions.dart';
 import 'insert_menu.dart';
 import 'left_rail.dart';
+import 'live_bar.dart';
 import 'model_note.dart';
 import 'panels.dart';
 import 'pen_popover.dart';
@@ -94,6 +96,7 @@ void handleRailItem(
   ValueChanged<String> comingSoon, {
   ValueChanged<String>? hint,
   VoidCallback? onFlashcards,
+  VoidCallback? onLive,
 }) {
   final settings = ref.read(settingsProvider.notifier);
   void useTool(CanvasTool tool) => settings.apply((s) => s.copyWith(tool: tool));
@@ -109,7 +112,9 @@ void handleRailItem(
       showEntryComingSoon(context, insertSections[1].entries.firstWhere((e) => e.label == 'Audio'));
     case 'Everything else':
       showInsertMenu(context).then((action) {
-        if (action != null && context.mounted) runInsert(context, ref, pane, action, hint: hint, onFlashcards: onFlashcards);
+        if (action != null && context.mounted) {
+          runInsert(context, ref, pane, action, hint: hint, onFlashcards: onFlashcards, onLive: onLive);
+        }
       });
     case 'Templates':
       showTemplatesDialog(context, pane: pane);
@@ -246,6 +251,8 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     pane.math.addListener(_mathChanged);
     pane.cards.addListener(_cardsChanged);
     pane.panel.addListener(_cardsChanged);
+    pane.live.addListener(_cardsChanged);
+    pane.selection.addListener(_selectionChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _recordOpened();
       _showSpot();
@@ -259,6 +266,8 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     pane.math.removeListener(_mathChanged);
     pane.cards.removeListener(_cardsChanged);
     pane.panel.removeListener(_cardsChanged);
+    pane.live.removeListener(_cardsChanged);
+    pane.selection.removeListener(_selectionChanged);
     _spell?.dispose();
     _lifecycle.dispose();
     _hintTimer?.cancel();
@@ -391,14 +400,58 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
       case 'Dictionary & thesaurus':
         _openDictionary();
       default:
-        handleRailItem(context, ref, pane, item, _comingSoon, hint: _showHint, onFlashcards: _startFlashcards);
+        handleRailItem(context, ref, pane, item, _comingSoon, hint: _showHint, onFlashcards: _startFlashcards, onLive: _startLive);
     }
+  }
+
+  // Live items (LiveItems.png) and charts (Charts.png).
+
+  /// The Live items bar in place of the tool pill: a clock, the date, a
+  /// time stamp or a checklist where there's room. The pen keeps writing.
+  void _startLive() {
+    _endSpell();
+    if (pane.cards.on) endFlashcards(ref, pane);
+    if (pane.math.on) endMath(ref, pane);
+    ref.read(settingsProvider.notifier).apply((s) => s.tool.inks ? s : s.copyWith(tool: CanvasTool.pen));
+    pane.live.start();
+    setState(() {
+      _popover = false;
+      _dict = false;
+    });
+    _showHint(liveHint);
+  }
+
+  void _endLive() {
+    pane.live.end();
+    _showHint(toolHints[ref.read(settingsProvider).tool]);
+  }
+
+  /// The chart selected on its own, for the Chart selected bar.
+  String? _chartId;
+
+  ChartItem? _selectedChart() {
+    final ids = pane.selection.ids;
+    if (ids.length != 1) return null;
+    final item = ref.read(notebookProvider(pane.notebookId)).pageAt(pane.page)[ids.single];
+    return item is ChartItem ? item : null;
+  }
+
+  void _selectionChanged() {
+    final id = _selectedChart()?.id;
+    if (id != _chartId && mounted) setState(() => _chartId = id);
+  }
+
+  /// Done on the Chart selected bar: back to writing.
+  void _chartDone() {
+    pane.selection.clear();
+    ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: CanvasTool.pen));
   }
 
   // Making flashcards (FlashMake.png).
 
   void _startFlashcards([CircledSide? front]) {
     _endSpell();
+    pane.live.end();
     startFlashcards(ref, pane, front: front);
     setState(() {
       _popover = false;
@@ -441,6 +494,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
 
   void _startMath() {
     _endSpell();
+    pane.live.end();
     if (pane.cards.on) endFlashcards(ref, pane);
     startMath(ref, pane);
     setState(() {
@@ -489,6 +543,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
   void _startSpell() {
     if (_spell != null) return;
     if (pane.math.on) pane.math.end();
+    pane.live.end();
     if (pane.cards.on) endFlashcards(ref, pane);
     pane
       ..dismiss()
@@ -679,13 +734,15 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     final mode = pane.math;
     final mathOn = mode.on && !sealed;
     final cardsOn = pane.cards.on && !sealed;
+    final liveOn = pane.live.on && !sealed;
     final chrome = !_full && !_board;
-    final tools = chrome && !sealed && !spelling && !mathOn && !cardsOn;
+    final tools = chrome && !sealed && !spelling && !mathOn && !cardsOn && !liveOn;
+    final chart = tools ? _selectedChart() : null;
     // The dictionary drawer covers the pages rail, the map and the zoom pill;
     // math mode and making flashcards have neither (Math.png, FlashMake.png),
     // and Remember this takes their place (RememberMark.png).
     final panel = pane.panel.value && !sealed;
-    final right = !spelling && !_dict && !mathOn && !cardsOn && !panel;
+    final right = !spelling && !_dict && !mathOn && !cardsOn && !liveOn && !panel;
     final mapShown = tools && right && settings.mapOpen;
     final blocking = tools && (_more || (_pinned && _fly != null));
     // The math keyboard is where the hint would be.
@@ -703,6 +760,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
             if (pane.math.draft != null) return pane.math.closeKeyboard();
             if (pane.math.tools) return _closeTools();
             if (pane.math.on) return _endMath();
+            if (pane.live.on) return _endLive();
             _closeMenus();
             pane
               ..dismiss()
@@ -797,6 +855,17 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                                     onDone: _endMath,
                                     onTool: mode.addTool,
                                     onToolsDone: _closeTools,
+                                  )
+                                : liveOn
+                                ? LiveBar(onAdd: pane.live.add, onDone: _endLive)
+                                : chart != null
+                                ? ChartBar(
+                                    linked: chart.linked,
+                                    onChangeData: () => editChartData(context, ref, pane, chart),
+                                    onColors: () => editChartColors(context, ref, pane, chart),
+                                    onUnlink: () => unlinkChart(ref, pane, chart),
+                                    onLinkAgain: canLinkAgain(nb.pageAt(pane.page), chart) ? () => linkChartAgain(ref, pane, chart) : null,
+                                    onDone: _chartDone,
                                   )
                                 : null,
                       ),

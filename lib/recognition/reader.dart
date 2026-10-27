@@ -66,8 +66,8 @@ Future<PageRecognition> readInk(
 /// Letters straightened into lines and circles count ([writingIn]).
 Iterable<StrokeItem> handwritingOn(BoardPage page) => writingIn(page.items.whereType<StrokeItem>());
 
-/// Handwriting written in one place: on the page, on a sticky note, or on
-/// one page, slide or sheet of an Office file.
+/// Handwriting written in one place: on the page, on a sticky note, on
+/// one page, slide or sheet of an Office file, or on a checklist.
 class InkGroup {
   const InkGroup(this.strokes, {this.holder, this.sub});
 
@@ -98,6 +98,9 @@ List<InkGroup> inkGroupsOf(BoardPage page) {
         for (final e in o.inkByPage.entries) {
           groups.add(InkGroup(hand(e.value), holder: o.id, sub: e.key));
         }
+      case ChecklistItem l:
+        // Its rows, where they are on the card.
+        groups.add(InkGroup(hand(l.cardInk), holder: l.id));
       default:
         break;
     }
@@ -158,6 +161,7 @@ Map<String, StrokeItem> allInk(BoardPage page) => {
             for (final strokes in o.inkByPage.values)
               for (final s in strokes) s.id: s,
           },
+        ChecklistItem l => {for (final s in l.ink) s.id: s},
         _ => const <String, StrokeItem>{},
       },
     };

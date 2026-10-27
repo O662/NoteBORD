@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import '../../board/ids.dart';
 import '../../board/model.dart';
 import '../../canvas/cards.dart';
+import '../../canvas/charts.dart';
+import '../../canvas/graph_card.dart' show graphColors;
+import '../../office/office_model.dart' show Workbook;
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart';
 import '../common.dart';
@@ -12,8 +15,9 @@ import '../dialogs.dart';
 import '../icons.dart';
 
 // Editors for the cards built on the board: Kanban, timeline, diagram,
-// table and website. Each opens from Select → Edit, works on a copy, and
-// hands back the changed card (one undo step) or null for Cancel.
+// table and website; a chart's data and colors, and a checklist. Each
+// works on a copy and hands back the changed card (one undo step) or null
+// for Cancel.
 
 const _maxColumns = 5;
 const _maxTableColumns = 8;
@@ -887,6 +891,421 @@ class _WebsiteEditorState extends State<_WebsiteEditor> {
           'The card shows the site’s name and opens the page in your browser.',
           style: TextStyle(fontSize: 13, height: 1.45, color: context.colors.textMuted),
         ),
+      ]),
+    );
+  }
+}
+
+// Charts (Charts.png's Change data and Colors).
+
+/// Opens Chart data for [chart]: where its numbers come from ([sources]:
+/// the tables and Excel cards on its page), which cells, its name and what
+/// follows the numbers. [readBook] reads an Excel card's workbook. Returns
+/// the chart following what was picked, with its numbers read, or null.
+Future<ChartItem?> showChartDataEditor(
+  BuildContext context, {
+  required ChartItem chart,
+  required List<BoxItem> sources,
+  required Future<Workbook?> Function(OfficeItem file) readBook,
+}) =>
+    showEndlessDialog<ChartItem>(context, builder: (context) => _ChartDataEditor(chart, sources, readBook));
+
+/// An outlined choice, filled when picked ("Lab data.xlsx", "Sheet1").
+class _Choice extends StatelessWidget {
+  const _Choice({super.key, required this.label, required this.picked, required this.onTap});
+
+  final String label;
+  final bool picked;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Semantics(
+      button: true,
+      selected: picked,
+      label: label,
+      excludeSemantics: true,
+      child: Material(
+        color: picked ? c.accentTint : Colors.transparent,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: picked ? c.accent : c.lineStrong, width: picked ? 1.5 : 1),
+          borderRadius: BorderRadius.circular(Radii.key),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(Radii.key),
+          onTap: onTap,
+          child: Container(
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 14, fontWeight: picked ? FontWeight.w600 : FontWeight.w500, color: picked ? c.accentDeep : c.text),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Widget _heading(BuildContext context, String text) =>
+    Text(text, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: context.colors.text));
+
+class _ChartDataEditor extends StatefulWidget {
+  const _ChartDataEditor(this.chart, this.sources, this.readBook);
+
+  final ChartItem chart;
+  final List<BoxItem> sources;
+  final Future<Workbook?> Function(OfficeItem file) readBook;
+
+  @override
+  State<_ChartDataEditor> createState() => _ChartDataEditorState();
+}
+
+class _ChartDataEditorState extends State<_ChartDataEditor> {
+  late final _name = TextEditingController(text: widget.chart.title);
+  late final _range = TextEditingController(text: widget.chart.source?.range ?? '');
+  late final _suffix = TextEditingController(text: widget.chart.suffix);
+  late BoxItem? _picked = widget.sources.where((s) => s.id == widget.chart.source?.ref).firstOrNull ?? widget.sources.firstOrNull;
+  late String? _sheet = widget.chart.source?.sheet;
+  Workbook? _book;
+  bool _reading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _range.addListener(_changed);
+    _readBook();
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _range.dispose();
+    _suffix.dispose();
+    super.dispose();
+  }
+
+  void _changed() => setState(() {});
+
+  Future<void> _readBook() async {
+    final file = _picked;
+    if (file is! OfficeItem) return;
+    setState(() => _reading = true);
+    final book = await widget.readBook(file);
+    if (!mounted || _picked != file) return;
+    setState(() {
+      _book = book;
+      _reading = false;
+      final names = [for (final s in book?.sheets ?? const []) s.name];
+      if (!names.contains(_sheet)) _sheet = names.elementAtOrNull(file.page - 1) ?? names.firstOrNull;
+    });
+  }
+
+  void _pick(BoxItem source) {
+    if (source == _picked) return;
+    setState(() {
+      _picked = source;
+      _book = null;
+      _sheet = null;
+    });
+    _readBook();
+  }
+
+  bool get _rangeOk => _range.text.trim().isEmpty || parseRange(_range.text) != null;
+
+  ChartSource? get _source {
+    final s = _picked;
+    if (s == null) return null;
+    final given = parseRange(_range.text);
+    return ChartSource(
+      kind: s is OfficeItem ? 'xlsx' : 'table',
+      ref: s.id,
+      sheet: s is OfficeItem ? _sheet : null,
+      range: given == null ? '' : rangeLabel(given),
+      name: sourceName(s),
+    );
+  }
+
+  List<List<String>>? get _cells {
+    final s = _source;
+    return s == null || !_rangeOk ? null : sourceCells(s, _picked, book: _book);
+  }
+
+  void _save() {
+    final cells = _cells;
+    Navigator.of(context).pop(widget.chart.copyWith(
+      title: _name.text.trim(),
+      source: () => _source,
+      linked: true,
+      cells: cells ?? widget.chart.cells,
+      suffix: _suffix.text.trim(),
+    ));
+  }
+
+  String _summary() {
+    if (_reading) return 'Reading the file…';
+    final cells = _cells;
+    if (cells == null) return _picked is OfficeItem ? 'This file can’t be read right now' : '';
+    final data = readChart(cells, name: _picked == null ? '' : sourceName(_picked!));
+    if (data.isEmpty) return 'No numbers in these cells yet';
+    final n = data.categories.length;
+    return '${n == 1 ? '1 group' : '$n groups'} · ${data.series.map((s) => s.name).join(', ')}';
+  }
+
+  String _sourceLabel(BoxItem s) => switch (s) {
+        final OfficeItem f => f.name.isEmpty ? 'Excel sheet' : f.name,
+        final CardItem card => '${cardTitle(card)} (table)',
+        _ => '',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final picked = _picked;
+    return _EditorFrame(
+      title: 'Chart data',
+      width: 600,
+      saveLabel: widget.chart.live ? 'Save' : 'Link and save',
+      onSave: picked == null || !_rangeOk || _reading ? null : _save,
+      body: Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 12, children: [
+        _NameField(_name, chartTitle(widget.chart)),
+        _heading(context, 'Numbers from'),
+        if (widget.sources.isEmpty)
+          Text('There’s no table or Excel sheet on this page.', style: TextStyle(fontSize: 14, color: c.textMuted))
+        else
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final s in widget.sources)
+              _Choice(key: ValueKey('chart-source-${s.id}'), label: _sourceLabel(s), picked: s == picked, onTap: () => _pick(s)),
+          ]),
+        if (picked is OfficeItem && (_book?.sheets.length ?? 0) > 1) ...[
+          _heading(context, 'Sheet'),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final sheet in _book!.sheets)
+              _Choice(
+                key: ValueKey('chart-sheet-${sheet.name}'),
+                label: sheet.name,
+                picked: sheet.name == _sheet,
+                onTap: () => setState(() => _sheet = sheet.name),
+              ),
+          ]),
+        ],
+        _heading(context, 'Cells'),
+        _Field(
+          key: const ValueKey('chart-range'),
+          controller: _range,
+          label: 'Cells',
+          hint: 'All of them, or a range like A1:C7',
+        ),
+        if (!_rangeOk) Text('That isn’t a range of cells, like A1:C7', style: TextStyle(fontSize: 13, color: c.danger)),
+        _heading(context, 'After the numbers'),
+        _Field(key: const ValueKey('chart-suffix'), controller: _suffix, label: 'After the numbers', hint: 'h, kg, % (optional)'),
+        Text(_summary(), style: TextStyle(fontSize: 14, color: c.textMuted)),
+      ]),
+    );
+  }
+}
+
+/// Opens Chart colors: a color for each of [chart]'s series. Returns them,
+/// or null for Cancel.
+Future<List<Color>?> showChartColors(BuildContext context, ChartItem chart) =>
+    showEndlessDialog<List<Color>>(context, builder: (context) => _ChartColors(chart));
+
+/// The colors a series can have: the graphs' (stored like ink), and red.
+final chartPalette = <Color>[...graphColors, extraInkDefaults[1]];
+
+class _ChartColors extends StatefulWidget {
+  const _ChartColors(this.chart);
+
+  final ChartItem chart;
+
+  @override
+  State<_ChartColors> createState() => _ChartColorsState();
+}
+
+class _ChartColorsState extends State<_ChartColors> {
+  late final _series = chartDataOf(widget.chart).series;
+  late final _colors = [for (var i = 0; i < _series.length; i++) chartColor(widget.chart, i)];
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final brightness = Theme.of(context).brightness;
+    return _EditorFrame(
+      title: 'Chart colors',
+      width: 600,
+      onSave: () => Navigator.of(context).pop(_colors),
+      body: Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 10, children: [
+        if (_series.isEmpty) Text('This chart has no numbers yet.', style: TextStyle(fontSize: 14, color: c.textMuted)),
+        for (final (i, s) in _series.indexed)
+          Row(spacing: 2, children: [
+            Expanded(
+              child: Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.text)),
+            ),
+            for (final color in chartPalette)
+              Semantics(
+                button: true,
+                selected: color.toARGB32() == _colors[i].toARGB32(),
+                label: '${s.name}: ${colorToHex(color)}',
+                excludeSemantics: true,
+                child: InkWell(
+                  key: ValueKey('chart-color-$i-${colorToHex(color)}'),
+                  customBorder: const CircleBorder(),
+                  onTap: () => setState(() => _colors[i] = color),
+                  child: SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Center(
+                      child: ColorDot(color: displayInk(color, brightness), selected: color.toARGB32() == _colors[i].toARGB32()),
+                    ),
+                  ),
+                ),
+              ),
+          ]),
+      ]),
+    );
+  }
+}
+
+String _sourceTitle(BoxItem s) => switch (s) {
+      final OfficeItem f => f.name,
+      final CardItem card => cardTitle(card),
+      _ => '',
+    };
+
+/// Asks which table or Excel card on the page a new chart follows.
+Future<BoxItem?> showChartSourcePicker(BuildContext context, List<BoxItem> sources) => showEndlessDialog<BoxItem>(
+      context,
+      builder: (context) {
+        final c = context.colors;
+        return DialogFrame(
+          title: 'Make a chart from',
+          width: 480,
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 8, children: [
+            for (final s in sources)
+              Semantics(
+                button: true,
+                label: _sourceTitle(s),
+                excludeSemantics: true,
+                child: Material(
+                  color: c.surface,
+                  shape: RoundedRectangleBorder(side: BorderSide(color: c.cardLine), borderRadius: BorderRadius.circular(Radii.button)),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    key: ValueKey('chart-from-${s.id}'),
+                    onTap: () => Navigator.of(context).pop(s),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      child: Row(spacing: 12, children: [
+                        EIcon(s is OfficeItem ? EIcons.chart : EIcons.table, size: 20, color: s is OfficeItem ? c.greenDeep : c.accentDeep),
+                        Expanded(
+                          child: Text(
+                            _sourceTitle(s),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.text),
+                          ),
+                        ),
+                        Text(s is OfficeItem ? 'Excel sheet' : 'Table on this page', style: TextStyle(fontSize: 13, color: c.textMuted)),
+                      ]),
+                    ),
+                  ),
+                ),
+              ),
+          ]),
+        );
+      },
+    );
+
+// Checklists.
+
+/// Opens the editor for [list]: its name, and its entries (ticked or not,
+/// typed ones changed, any removed, typed ones added). Returns the changed
+/// checklist, or null.
+Future<ChecklistItem?> showChecklistEditor(BuildContext context, ChecklistItem list) =>
+    showEndlessDialog<ChecklistItem>(context, builder: (context) => _ChecklistEditor(list));
+
+class _EntryEdit {
+  _EntryEdit(this.entry)
+      : done = entry.done,
+        text = TextEditingController(text: entry.text);
+
+  final ChecklistEntry entry;
+  bool done;
+  final TextEditingController text;
+}
+
+class _ChecklistEditor extends StatefulWidget {
+  const _ChecklistEditor(this.list);
+
+  final ChecklistItem list;
+
+  @override
+  State<_ChecklistEditor> createState() => _ChecklistEditorState();
+}
+
+class _ChecklistEditorState extends State<_ChecklistEditor> {
+  late final _name = TextEditingController(text: widget.list.title);
+  late final _entries = [for (final e in widget.list.entries) _EntryEdit(e)];
+
+  @override
+  void dispose() {
+    _name.dispose();
+    for (final e in _entries) {
+      e.text.dispose();
+    }
+    super.dispose();
+  }
+
+  void _save() {
+    final entries = [
+      for (final e in _entries)
+        if (e.entry.copyWith(text: e.text.text.trim(), done: e.done) case final next when !next.isEmpty) next,
+    ];
+    Navigator.of(context).pop(widget.list.copyWith(title: _name.text.trim(), entries: entries));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return _EditorFrame(
+      title: 'Checklist',
+      width: 560,
+      onSave: _save,
+      leading: [
+        SecondaryButton(
+          label: 'Add item',
+          icon: EIcons.plus,
+          onPressed: () => setState(() => _entries.add(_EntryEdit(const ChecklistEntry()))),
+        ),
+      ],
+      body: Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 8, children: [
+        _NameField(_name, 'Before the lab'),
+        for (final (i, e) in _entries.indexed)
+          Row(key: ObjectKey(e), spacing: 6, children: [
+            Semantics(
+              label: 'Item ${i + 1} done',
+              checked: e.done,
+              excludeSemantics: true,
+              child: InkWell(
+                key: ValueKey('checklist-done-$i'),
+                customBorder: const CircleBorder(),
+                onTap: () => setState(() => e.done = !e.done),
+                child: SizedBox(width: 44, height: 44, child: IgnorePointer(child: Checkbox(value: e.done, onChanged: (_) {}))),
+              ),
+            ),
+            Expanded(
+              child: e.entry.ink.isNotEmpty && e.entry.text.isEmpty
+                  ? Text('Written by hand', style: TextStyle(fontSize: 15, fontStyle: FontStyle.italic, color: c.textMuted))
+                  : _Field(key: ValueKey('checklist-text-$i'), controller: e.text, label: 'Item ${i + 1}', hint: 'Something to do'),
+            ),
+            _iconButton('Remove item ${i + 1}', EIcons.trash, () => setState(() => _entries.removeAt(i).text.dispose()),
+                key: ValueKey('checklist-remove-$i')),
+          ]),
       ]),
     );
   }

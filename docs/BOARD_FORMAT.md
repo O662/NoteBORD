@@ -80,13 +80,13 @@ Every item has these fields:
 | `math` | `w`, `h`, `latex`, `size`, `color` |
 | `graph` | `w`, `h`, `unit`, `mode` (2d/3d), `functions: [{expr, color, hidden?, ink?}]`, `view: {xMin, xMax, yMin, yMax}`, `trace?: {fn, x}`, `surfaces?: [{expr, color, hidden?}]`, `view3d: {turn, tilt, zoom, style}` |
 | `table` | `w`, `h`, `title`, `unit`, `cells: [[…]]`, `header` |
-| `chart` | `w`, `h`, `chartType`, `source: {kind: table/xlsx, ref, range}`, `linked: true`, `snapshot?` |
-| `widget` | `w`, `h`, `widget` (calendar/planner/flashcards/remember/clock/date/checklist/numberline/unitcircle/polar), `config`, `unit` |
+| `chart` | `w`, `h`, `unit`, `title`, `chartType` (bar/line/area/scatter), `source?: {kind: table/xlsx, ref, sheet?, range?, name}`, `linked`, `snapshot: {cells}`, `colors?`, `suffix?` |
+| `widget` | `w`, `h`, `widget` (calendar/planner/flashcards/remember/clock/date/numberline/unitcircle/polar), `config`, `unit` |
 | `flashcard` | `deck`, `deckName`, `reverse`, `front: {ids?, text?}`, `back: {ids?, text?}` (not drawn; see below) |
 | `audio` | `asset`, `durationMs`, `inkTimeline: [{strokeId, tMs}]`, `transcript?: [{tMs, speaker, text}]` |
 | `video` | `w`, `h`, `asset` or `remoteUrl`, `pins: [{tMs, itemId}]` |
-| `timestamp` | `at` (ISO), `display` (clock/ago) |
-| `checklist` | `w`, `title`, `entries: [{text, done}]` |
+| `timestamp` | `w`, `h`, `unit`, `at` (ISO), `display` (clock/ago) |
+| `checklist` | `w`, `h`, `unit`, `title`, `entries: [{text, done, ink?}]` |
 
 **Strokes, as implemented (v1):** `x`/`y` is the top-left of the stroke's points, and each point's `x`/`y` is relative to it, so moving a stroke only changes `x`/`y`. `tMs` is milliseconds since the stroke started (`createdAt` gives the absolute time). `pressure` is normalized to 0–1. `width` is the nominal width in page px at medium pressure. Two extra stroke fields: `penType` (`ballpoint`/`fountain`/`pencil`) and `usePressure` (false when "Pressure changes thickness" was off).
 
@@ -114,6 +114,28 @@ Every item has these fields:
   - `numberline`: `config: {points: [{value, color}], intervals: [{from, to, openFrom, openTo, color, hidden?}]}`. `value`, `from` and `to` are LaTeX numbers (`-2.5`, `\sqrt{2}`, `\pi`), and an interval's end may be `\infty` or `-\infty` (always open). The line runs from −5 to 5, or further to show every number. Opening or closing an end is an undo step; hiding an interval isn't.
   - `unitcircle`: `config: {step}`, which of the 16 special angles is shown, from 0 (0°) to 15 (330°). Stepping isn't an undo step.
   - `polar`: `config: {curves: [{expr, color, hidden?}]}`, each `expr` LaTeX for r as a function of θ (`r = 1 + \cos\theta`; `r = 2` is a circle). The outer ring is 2, or the largest r shown, rounded up.
+
+**Charts and live items, as implemented (v1, Phase 7b: Charts.png, LiveItems.png):**
+
+```json
+{ "id": "it_…", "type": "chart", "x": 540, "y": 96, "rotation": 0, "z": 9, "w": 700, "h": 404, "unit": 1,
+  "title": "Momentum before vs. after", "chartType": "bar",
+  "source": { "kind": "xlsx", "ref": "it_labdata", "sheet": "Sheet1", "name": "Lab data.xlsx" },
+  "linked": true,
+  "snapshot": { "cells": [["Trial", "p before", "p after"], ["1", "1.00", "0.97"], …] },
+  "colors": ["#2B5A8C", "#B5532A"], "suffix": "" }
+```
+
+- `chart`:
+  - `source` names what the numbers come from: a `table` item or an Excel `file` item (`xlsx`) **on the same page**, by its `ref` (item id). `sheet` is the Excel sheet's name (absent: the first sheet); `range` is cells like `A1:C7` (absent: everything in the table or sheet, so it grows with it). `name` is what the source was called when it was last read ("Lab data.xlsx", "Study hours"), for the link's label.
+  - `snapshot.cells` is the range as it was last read, rows of cells as shown. **It is what's drawn**, so a chart draws without its source loaded, with its source deleted, and in other apps. Unknown fields in `snapshot` and `source` are kept.
+  - While `linked` is true, any change to the source (a table edited, an Excel card given a newer version of its file, a renamed table) rewrites `snapshot.cells` and `source.name` **in the same undo step** as the change. Deleting the source sets `linked` false in the same step (Undo links it again). Unlink (snapshot) sets `linked` false; the chart keeps its numbers. A chart without `source` is a snapshot from somewhere else.
+  - How the cells are read: a first row with words in it names the series; the first column labels the groups (words, or numbers under a name: "Trial" over 1, 2 reads "Trial 1", "Trial 2"); with more columns of numbers than rows, each row is a series, otherwise each column is. Numbers may have thousands commas, a currency sign, % or a short unit ("2 h").
+  - `chartType` is how it's drawn; changing it isn't an undo step. `colors` are the series' colors in order, stored like ink (brightened in dark mode); series past the end take the graph colors. `suffix` follows the numbers on the axis and the total ("h").
+  - `unit` is the card's scale (Charts.dc.html's sizes × `unit`). A chart at least 300 × `unit` tall shows the first header (title, link, chart type and Data); a shorter one the second (title, link, total).
+- `widget` with `widget: clock`: `config: {style: analog/digital}`, a clock in the device's time zone, drawn for the moment it's drawn. With `widget: date`: today's date on a chip. Their `w` and `h` follow from what they show × `unit` (280 × 330 analog, 280 × 148 digital, 236 × 32 for the date); they scale and don't stretch. Analog or Digital isn't an undo step. Unknown fields in `config` are kept.
+- `timestamp`: `at` is the moment it was made (UTC); `display` is `clock` ("8:36 PM", in the device's time zone) or `ago` ("12 min ago"). 108 × 26 × `unit`. Switching between them (all the page's stamps at once) isn't an undo step.
+- `checklist`: `w` is its width (400 × `unit` new); its height follows from its rows (`h` is written for other readers). Each entry has typed `text` and/or handwritten `ink` (strokes from the top-left of the entry's writing area, past its box, at 100%), and `done`. Ink written on a row belongs to that entry; ink written on "write another item…" starts a new one. Ticking is an undo step. An entry whose ink is all erased goes when the eraser lifts. Unknown fields in entries are kept.
 
 **Text, sticky notes, frames, images and shapes, as implemented (v1):**
 
@@ -223,7 +245,7 @@ How well each flashcard of the notebook is known, from FSRS-6 (py-fsrs 6.3.2's d
 - Images on a page with a password are sealed the same way, with the same key, as `assets/<name>.enc` (the item's `asset` stays `<name>`). When a page is locked, its images are sealed and their clear copies deleted, along with any clear image no unlocked page still uses; when the password is removed they are written in the clear again.
 
 ## index/recognition.json
-What the handwriting says, kept so it is read once (Phase 5). It is a cache: deleting it only means the handwriting is read again. Only pen ink is read (not highlighter, shapes a hold made, arrows or connectors), a line at a time: on the page itself, on sticky notes (each note of a stack too), and on every page, slide or sheet of an Office card.
+What the handwriting says, kept so it is read once (Phase 5). It is a cache: deleting it only means the handwriting is read again. Only pen ink is read (not highlighter, shapes a hold made, arrows or connectors), a line at a time: on the page itself, on sticky notes (each note of a stack too), on every page, slide or sheet of an Office card, and on checklists.
 ```json
 {
   "version": 1,
@@ -248,7 +270,7 @@ What the handwriting says, kept so it is read once (Phase 5). It is a cache: del
   }
 }
 ```
-- `holder` (omitted for ink on the page) is the sticky note or Office card the line is written on, in that item's own coordinates. `sub` is which page, slide or sheet of the Office file (from 1), or which note under a stack's top one (from 1); omitted for a top note.
+- `holder` (omitted for ink on the page) is the sticky note, Office card or checklist the line is written on, in that item's own coordinates (a checklist's: where its rows are on the card, at 100%). `sub` is which page, slide or sheet of the Office file (from 1), or which note under a stack's top one (from 1); omitted for a top note.
 - `lang` is the ML Kit language tag it was read in. `strokes` are the line's stroke ids in pen order; `block` is its paragraph on the page, counting from 0 in reading order.
 - `key` is a hash (FNV-1a, 64-bit, hex) of the language and, per stroke, its id, point count, size and place relative to the line's first stroke. The same ink, moved anywhere on the page, has the same key, so its text is reused; any change to its strokes reads it again.
 - `words` tie each word to the strokes that wrote it (`s`, empty when the line's gaps didn't match its words), and `alts` lists other readings when recognition wasn't sure (for Convert to text).

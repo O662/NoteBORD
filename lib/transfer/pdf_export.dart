@@ -9,6 +9,7 @@ import 'package:pdf/pdf.dart';
 
 import '../board/model.dart';
 import '../canvas/cards.dart';
+import '../canvas/charts.dart' show chartText, paintChart;
 import '../canvas/items.dart';
 import '../canvas/office_cards.dart';
 import '../office/office_model.dart';
@@ -19,6 +20,7 @@ import '../recognition/recognized.dart';
 import '../canvas/stroke_geometry.dart';
 import '../math/linear.dart' show latexToLinear;
 import '../canvas/graph_card.dart';
+import '../canvas/live_items.dart';
 import '../canvas/math_tools.dart' show mathToolText, paintMathTool;
 import '../math/math_pictures.dart' show MathPicture, MathSource;
 import '../templates/templates.dart';
@@ -427,6 +429,26 @@ class _PdfWriter {
         await _raster(card.paintRect, (canvas) => paintCard(canvas, card, c));
         final words = cardText(card);
         if (words.isNotEmpty) text.add(TextRun(words, card.extent));
+      case ChartItem chart:
+        await _raster(chart.paintRect, (canvas) => paintChart(canvas, chart, ui.Brightness.light, c));
+        text.add(TextRun(chartText(chart), chart.extent));
+      case LiveItem live:
+        // As it is at the moment of the export.
+        await _raster(live.paintRect, (canvas) => paintLiveItem(canvas, live, ui.Brightness.light, c));
+        text.add(TextRun(liveText(live, liveNow()), live.extent));
+      case ChecklistItem list:
+        // The card as a picture, the writing on it as vectors.
+        await _raster(list.paintRect, (canvas) => paintChecklist(canvas, list, ui.Brightness.light, c, ink: false));
+        for (final (i, e) in list.entries.indexed) {
+          final top = list.rows[i].$1;
+          for (final s in e.ink) {
+            _stroke(
+              s.mapped((p) => (p + Offset(ChecklistItem.writeLeft, top)) * list.unit, widthScale: list.unit),
+              e.done ? c.textFaint : s.color,
+            );
+          }
+        }
+        text.add(TextRun(checklistText(list), list.extent));
       case OfficeItem f:
         await _office(f, text);
       case ShapeItem s:

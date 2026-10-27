@@ -93,7 +93,8 @@ class SearchRow {
   /// which note of a sticky stack under the top one.
   int? get sub => (data['sub'] as num?)?.toInt();
 
-  /// What it's written on, for its label: `sticky`, `docx`, `pptx`, `xlsx`.
+  /// What it's written on, for its label: `sticky`, `docx`, `pptx`, `xlsx`,
+  /// `checklist`.
   String? get on => data['on'] as String?;
 
   /// "Handwriting on slide 3", "Typed text"…
@@ -102,6 +103,7 @@ class SearchRow {
         'pptx' => '${kind.label} on slide $sub',
         'docx' => '${kind.label} on page $sub of a Word file',
         'xlsx' => '${kind.label} on sheet $sub',
+        'checklist' => '${kind.label} on a checklist',
         _ => kind.label,
       };
 

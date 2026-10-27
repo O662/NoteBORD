@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -12,10 +13,13 @@ import 'board/store.dart';
 import 'library/index_db.dart';
 import 'spelling/spelling_state.dart';
 import 'state/bootstrap.dart';
+import 'state/time_zone.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _registerLicenses();
+  // For the clocks on the page.
+  unawaited(readTimeZone());
 
   // The design is for tablets in landscape. Phones get their own layout later.
   await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);

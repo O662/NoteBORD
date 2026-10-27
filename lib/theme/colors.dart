@@ -72,6 +72,8 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
     required this.clayLine,
     required this.accentLine,
     required this.greenLine,
+    required this.plumBright,
+    required this.onPlumBright,
   });
 
   final Color text;
@@ -193,6 +195,10 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
   final Color accentLine;
   final Color greenLine;
 
+  /// LiveItems.png's Stamp time button on the dark bar, and its label.
+  final Color plumBright;
+  final Color onPlumBright;
+
   /// Floating pill shadow: `0 6px 18px -12px shadow`.
   List<BoxShadow> get pillShadow => [
         BoxShadow(color: shadow, offset: const Offset(0, 6), blurRadius: 18, spreadRadius: -12),
@@ -302,6 +308,8 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
       clayLine: l(clayLine, other.clayLine),
       accentLine: l(accentLine, other.accentLine),
       greenLine: l(greenLine, other.greenLine),
+      plumBright: l(plumBright, other.plumBright),
+      onPlumBright: l(onPlumBright, other.onPlumBright),
     );
   }
 }
