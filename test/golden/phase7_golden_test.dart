@@ -238,6 +238,16 @@ void main() {
         await expectLater(find.byType(MaterialApp), matchesGoldenFile('study.png'));
       }));
 
+  // All cards: the whole Physics — Momentum deck (owner's request, 2026-10-27).
+  testWidgets('study_all_cards', (tester) => _withShadows(() async {
+        final c = await pumpApp(tester, store: studySample(), location: Routes.flashcards('dk_mom'));
+        await indexAll(tester, c);
+        await _settle(tester);
+        await tester.tap(find.text('All cards'));
+        await _settle(tester);
+        await expectLater(find.byType(MaterialApp), matchesGoldenFile('study_all_cards.png'));
+      }));
+
   // Its back, rated (Study.dc.html's second state).
   testWidgets('study_back', (tester) => _withShadows(() async {
         final c = await pumpApp(tester, store: studySample(), location: Routes.flashcards('dk_mom'));

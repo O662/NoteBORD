@@ -184,7 +184,7 @@ MemoryBoardStore studySample({DateTime? now}) {
     ('p = ?', 'm · v  (kg·m/s)'),
     ('Momentum is…', 'conserved in a closed system'),
     ('Elastic collision', 'kinetic energy kept'),
-    ('Newton\'s 2nd law', 'F = Δp / Δt'),
+    ('Newton\'s 2nd law', 'F = m · a'),
     ('Units of impulse', 'N·s'),
     ('Inelastic collision', 'objects stick together'),
   ].indexed) {

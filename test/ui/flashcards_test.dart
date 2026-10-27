@@ -296,6 +296,34 @@ void main() {
       expect(find.text('Card 1 of 3 due'), findsOneWidget);
     });
 
+    // Owner, 2026-10-27: a way to see every card in a deck.
+    testWidgets('All cards: every card of the deck, when it\'s next asked, and where it is', (tester) async {
+      await open(tester, studySample(), deck: 'dk_calc');
+      await tester.tap(find.bySemanticsLabel('All cards'));
+      await _settle(tester);
+      expect(find.text('3 cards'), findsOneWidget);
+      expect(find.text('Show answer'), findsNothing);
+      expect(find.text('FRONT'), findsNWidgets(3));
+      expect(find.text('BACK'), findsNWidgets(3));
+      // Two learned and due again; one learned just now (Good twice: 2 days).
+      expect(find.text('Due now'), findsNWidgets(2));
+      expect(find.text('Next: in 2 days'), findsOneWidget);
+      expect(find.text('Calculus II · p. 1'), findsNWidgets(3));
+
+      // Back to studying.
+      await tester.tap(find.text('Study'));
+      await tester.pump();
+      expect(find.text('Card 1 of 2 due'), findsOneWidget);
+
+      // Open one where it is.
+      await tester.tap(find.bySemanticsLabel('All cards'));
+      await _settle(tester);
+      await tester.tap(find.bySemanticsLabel('Open Calculus II · p. 1').first);
+      await _settle(tester);
+      expect(find.byType(CanvasScreen), findsOneWidget);
+      await tester.pump(const Duration(seconds: 3));
+    });
+
     testWidgets('write the answer, then check it', (tester) async {
       await open(tester, studySample());
       await tester.tap(find.bySemanticsLabel('Write the answer'));

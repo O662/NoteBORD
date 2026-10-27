@@ -7,6 +7,7 @@ import '../../library/library.dart';
 import '../../recognition/handwriting_index.dart';
 import '../../study/fsrs.dart';
 import '../../study/session.dart';
+import '../../study/study_rows.dart';
 import '../../study/study_state.dart';
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart';
@@ -39,6 +40,9 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
     if (ref.read(catchUpOnStartProvider)) index.catchUp();
   }
   late String? _deck = widget.deck;
+
+  /// All cards: every card of the deck at once, instead of studying.
+  bool _browse = false;
   StudySession? _session;
   String? _sessionDeck;
   bool _flipped = false;
@@ -168,14 +172,18 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
     final finished = session != null && session.finished;
     final total = session?.total ?? 0;
     final done = session?.done ?? 0;
-    final label = session == null
-        ? (deck.items.isEmpty ? 'No cards yet' : 'All caught up')
-        : finished
-            ? 'Done for today'
-            : 'Card ${done + 1} of $total due';
+    final label = _browse
+        ? cardsLabel(deck.cards)
+        : session == null
+            ? (deck.items.isEmpty ? 'No cards yet' : 'All caught up')
+            : finished
+                ? 'Done for today'
+                : 'Card ${done + 1} of $total due';
 
     Widget body;
-    if (deck.items.isEmpty) {
+    if (_browse && deck.items.isNotEmpty) {
+      body = _AllCards(deck: deck, now: now);
+    } else if (deck.items.isEmpty) {
       body = _Note(
         title: 'No cards in this deck yet',
         text: 'In a notebook, pick Study & math → Make flashcards, then circle the front and the back.',
@@ -206,7 +214,7 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
 
     return CallbackShortcuts(
       bindings: {
-        if (item != null && !finished) ...{
+        if (item != null && !finished && !_browse) ...{
           const SingleActivator(LogicalKeyboardKey.space): _flip,
           if (_flipped) ...{
             const SingleActivator(LogicalKeyboardKey.digit1): () => _rate(item, Rating.again),
@@ -235,7 +243,8 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
                     ),
                     Text(label, style: TextStyle(fontSize: 14, color: c.textMuted)),
                   ]),
-                  Semantics(
+                  if (!_browse)
+                    Semantics(
                     label: 'Progress',
                     value: '$done of $total',
                     child: ClipRRect(
@@ -252,13 +261,26 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
                   ),
                 ]),
               ),
-              _ModePicker(write: _write, onPick: (w) => setState(() {
-                    _write = w;
+              if (!_browse)
+                _ModePicker(write: _write, onPick: (w) => setState(() {
+                      _write = w;
+                      _flipped = false;
+                      _answer.clear();
+                    })),
+              // Every card of the deck, or back to studying.
+              if (deck.items.isNotEmpty)
+                SecondaryButton(
+                  label: _browse ? 'Study' : 'All cards',
+                  icon: _browse ? EIcons.play : EIcons.flashcards,
+                  height: 50,
+                  onPressed: () => setState(() {
+                    _browse = !_browse;
                     _flipped = false;
                     _answer.clear();
-                  })),
+                  }),
+                ),
             ]),
-            Expanded(child: Align(alignment: Alignment.topCenter, child: body)),
+            Expanded(child: _browse ? body : Align(alignment: Alignment.topCenter, child: body)),
           ]),
         ),
       ),
@@ -274,12 +296,7 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
       if (due != null && due.isAfter(now) && (soonest == null || due.isBefore(soonest))) soonest = due;
     }
     if (soonest == null) return null;
-    final local = soonest.toLocal(), today = now.toLocal();
-    final days = DateTime(local.year, local.month, local.day).difference(DateTime(today.year, today.month, today.day)).inDays;
-    if (days <= 0) return 'later today';
-    if (days == 1) return 'tomorrow';
-    if (days < 7) return 'in $days days';
-    return monthDay(soonest);
+    return _when(soonest, now);
   }
 
   Widget _card(BuildContext context, StudyItem item) {
@@ -542,6 +559,148 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
                 );
               }),
             ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// When [due] comes, from [now]: "later today", "tomorrow", "in 3 days",
+/// or "Oct 30".
+String _when(DateTime due, DateTime now) {
+  final local = due.toLocal(), today = now.toLocal();
+  final days = DateTime(local.year, local.month, local.day).difference(DateTime(today.year, today.month, today.day)).inDays;
+  if (days <= 0) return 'later today';
+  if (days == 1) return 'tomorrow';
+  if (days < 7) return 'in $days days';
+  return monthDay(due);
+}
+
+/// All cards: every card of a deck, its front and back as they are in the
+/// notes, when it's next asked, and where it is.
+class _AllCards extends StatelessWidget {
+  const _AllCards({required this.deck, required this.now});
+
+  final DeckSummary deck;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    // One tile per card (back to front is the same card), oldest first.
+    final byCard = <String, List<StudyItem>>{};
+    for (final i in deck.items) {
+      (byCard['${i.card.notebookId}/${i.card.id}'] ??= []).add(i);
+    }
+    final cards = byCard.values.toList()..sort((a, b) => a.first.card.at.compareTo(b.first.card.at));
+    return GridView.builder(
+      padding: const EdgeInsets.only(bottom: 24),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 360,
+        mainAxisExtent: 300,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 16,
+      ),
+      itemCount: cards.length,
+      itemBuilder: (context, i) => _CardTile(ways: cards[i], now: now),
+    );
+  }
+}
+
+class _CardTile extends ConsumerWidget {
+  const _CardTile({required this.ways, required this.now});
+
+  /// The card asked front to back, and back to front too when it is.
+  final List<StudyItem> ways;
+  final DateTime now;
+
+  /// "New", "Due now", or "Next: tomorrow": the soonest way of asking it.
+  String get _status {
+    if (ways.any((w) => w.state == null)) return 'New';
+    final due = ways.map((w) => w.state!.due).reduce((a, b) => a.isBefore(b) ? a : b);
+    return due.isAfter(now) ? 'Next: ${_when(due, now)}' : 'Due now';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
+    final card = ways.first.card;
+    final status = _status;
+    final due = status == 'Due now' || status == 'New';
+    final pages = ref.watch(pageIdsProvider(card.notebookId)).value;
+    final page = pages == null ? 0 : pages.indexOf(card.pageId) + 1;
+    final source = '${ref.watch(libraryProvider).byId(card.notebookId)?.title ?? 'A notebook'}${page > 0 ? ' · p. $page' : ''}';
+
+    Widget side(String label, SideView view, Color color) => Expanded(
+          child: Container(
+            decoration: BoxDecoration(color: c.surfaceSunk, borderRadius: BorderRadius.circular(10)),
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 4, children: [
+              Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.88, color: color)),
+              Expanded(
+                child: view.isEmpty
+                    ? Center(
+                        child: Text(
+                          view.missing > 0 ? 'Erased from your notes' : 'Nothing on this side',
+                          style: TextStyle(fontSize: 13, color: c.textMuted),
+                        ),
+                      )
+                    : Column(spacing: 4, children: [
+                        if (view.items.isNotEmpty)
+                          Expanded(child: ItemsPreview(items: view.items, notebookId: card.notebookId, maxScale: 1.5, label: view.said)),
+                        if (view.text.isNotEmpty)
+                          Text(
+                            view.text,
+                            textAlign: TextAlign.center,
+                            maxLines: view.items.isEmpty ? 3 : 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontFamily: FontFamilies.serif, fontSize: 17, height: 1.25, color: c.text),
+                          ),
+                      ]),
+              ),
+            ]),
+          ),
+        );
+
+    Widget chip(String text, {bool strong = false}) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(color: strong ? c.clayTint : c.side, borderRadius: BorderRadius.circular(999)),
+          child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: strong ? c.clayDeep : c.inverseRaised)),
+        );
+
+    final front = card.front.label.isEmpty ? 'a picture or drawing' : card.front.label;
+    final back = card.back.label.isEmpty ? 'a picture or drawing' : card.back.label;
+    return Semantics(
+      container: true,
+      label: 'Card. Front: $front. Back: $back. $status${card.reverse ? '. Asked both ways' : ''}',
+      explicitChildNodes: true,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: c.surface, border: Border.all(color: c.line), borderRadius: BorderRadius.circular(16)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 8, children: [
+          side('FRONT', card.front, c.accentDeep),
+          side('BACK', card.back, c.clayDeep),
+          Row(spacing: 6, children: [
+            chip(status, strong: due),
+            if (card.reverse) chip('Both ways'),
+          ]),
+          Semantics(
+            link: true,
+            label: 'Open $source',
+            excludeSemantics: true,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: () => openSpot(context, ref, card.notebookId, card.pageId, card.rect),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 44),
+                child: Row(spacing: 6, children: [
+                  EIcon(EIcons.notebook, size: 16, color: c.accent),
+                  Expanded(
+                    child: Text(source, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.accent)),
+                  ),
+                ]),
+              ),
+            ),
+          ),
         ]),
       ),
     );
