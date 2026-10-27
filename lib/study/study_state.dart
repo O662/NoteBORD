@@ -200,7 +200,22 @@ class StudyData extends Notifier<StudySnapshot?> {
     for (final c in cards) {
       if (decks.byId(c.deck) == null) decks.ensure(c.deck, c.deckName);
     }
-    state = StudySnapshot(remembered: remembered, cards: cards, states: _parse());
+    final states = _parse();
+    state = StudySnapshot(
+      remembered: oneOfEach(remembered, (t) => t.id, (t) => t.notebookId),
+      cards: oneOfEach(cards, (c) => c.id, (c) => c.notebookId, lastStudied: (c) => _lastStudied(c, states)),
+      states: states,
+    );
+  }
+
+  /// When [card] was last studied, either way round, or null if never.
+  static DateTime? _lastStudied(StudyCard card, Map<String, CardState> states) {
+    DateTime? last;
+    for (final side in const ['f', 'r']) {
+      final at = states['${card.notebookId}/${card.id}/$side']?.lastReview;
+      if (at != null && (last == null || at.isAfter(last))) last = at;
+    }
+    return last;
   }
 
   Map<String, CardState> _parse() => {
@@ -225,6 +240,36 @@ class StudyData extends Notifier<StudySnapshot?> {
     final json = {...file};
     await ref.read(writeQueueProvider).run(() => store.saveStudy(nb, json));
   }
+}
+
+/// [list] with each id once. A notebook imported from a board file (or
+/// copied) keeps its items' ids, so its cards and things to remember are
+/// the same ones as in the notebook it came from: the copy studied last
+/// is kept ([lastStudied]), else the one in the oldest notebook (notebook
+/// ids sort by when they were made), in [list]'s order.
+List<T> oneOfEach<T>(
+  List<T> list,
+  String Function(T) id,
+  String Function(T) notebookId, {
+  DateTime? Function(T)? lastStudied,
+}) {
+  final best = <String, T>{};
+  bool better(T a, T b) {
+    final la = lastStudied?.call(a), lb = lastStudied?.call(b);
+    if (la != null || lb != null) {
+      if (la == null) return false;
+      if (lb == null) return true;
+      if (la != lb) return la.isAfter(lb);
+    }
+    return notebookId(a).compareTo(notebookId(b)) < 0;
+  }
+
+  for (final t in list) {
+    final key = id(t);
+    final have = best[key];
+    if (have == null || better(t, have)) best[key] = t;
+  }
+  return [for (final t in list) if (identical(best[id(t)], t)) t];
 }
 
 /// A deck with its cards, for the Flashcards screen.

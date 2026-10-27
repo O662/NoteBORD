@@ -301,6 +301,55 @@ void main() {
     });
   });
 
+  // Owner, 2026-10-27: exporting a notebook and importing it doubled its
+  // flashcards. The copy keeps its items' ids, so they're shown once.
+  testWidgets('a notebook and its imported copy: each card, thing to remember and reminder once', (tester) async {
+    final store = MemoryBoardStore();
+    final at = DateTime.utc(2026, 9, 26, 9);
+    final mark = {...const RememberMark(id: 'rm_1', remind: RemindKind.date).toJson(), 'remindAt': at.toIso8601String()};
+    for (final (nb, made) in [('nb_01A_original', DateTime.utc(2026, 9, 1)), ('nb_01B_imported', DateTime.utc(2026, 9, 20))]) {
+      final page = BoardPage(id: 'pg_1', items: [
+        _text('t1', 'Impulse', remember: mark),
+        _text('t2', 'J = F · t'),
+        _card('fc_1', front: ['t1'], back: ['t2']),
+      ]);
+      await store.savePage(nb, page);
+      await store.saveNotebook(Notebook(id: nb, title: 'Physics', createdAt: made, updatedAt: made, pageIds: ['pg_1']));
+    }
+    // Studied in the copy since it was imported.
+    final studied = const Fsrs().review(null, Rating.good, _t);
+    await store.saveStudy('nb_01B_imported', {
+      'version': 1,
+      'cards': {'fc_1': {'f': studied.toJson()}},
+    });
+    final fake = FakeReminders();
+    final c = ProviderContainer(overrides: await testOverrides(store, reminders: fake));
+    addTearDown(c.dispose);
+    c.listen(libraryProvider, (_, _) {});
+    c.listen(studyProvider, (_, _) {});
+    c.read(reminderSyncProvider);
+    await _wait(tester, c.read(handwritingIndexProvider).catchUp());
+    await _wait(tester, c.read(studyProvider.notifier).refresh());
+    await _settle(tester);
+
+    final snap = c.read(studyProvider)!;
+    expect(snap.cards, hasLength(1));
+    expect(snap.cards.single.notebookId, 'nb_01B_imported', reason: 'the copy studied last');
+    expect(snap.items.first.state!.reps, 1);
+    expect(snap.remembered, hasLength(1));
+    expect(snap.remembered.single.notebookId, 'nb_01A_original', reason: 'else the oldest notebook');
+    final deck = deckSummaries(snap, c.read(decksProvider), _t).single;
+    expect(deck.cards, 1);
+    expect(deck.notebooks, 1);
+    expect(fake.set.keys, [reminderId('nb_01A_original', 'rm_1')], reason: 'one notification, not two');
+  });
+
+  test('one of each: studied last, else the oldest notebook, in order', () {
+    final list = [('a', 'nb_2', null), ('b', 'nb_1', null), ('a', 'nb_1', null), ('c', 'nb_3', DateTime.utc(2026)), ('c', 'nb_1', null)];
+    final kept = oneOfEach(list, (t) => t.$1, (t) => t.$2, lastStudied: (t) => t.$3);
+    expect(kept, [('b', 'nb_1', null), ('a', 'nb_1', null), ('c', 'nb_3', DateTime.utc(2026))]);
+  });
+
   group('board files', () {
     test('study.json goes along for the cards exported, and comes back', () async {
       final store = MemoryBoardStore();
