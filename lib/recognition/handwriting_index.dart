@@ -449,6 +449,23 @@ class HandwritingIndex {
         }
       });
 
+  /// Notebook [notebookId] was written over (a board file replaced it):
+  /// what was known about it goes, and [catchUp] reads it again.
+  Future<void> forgetNotebook(String notebookId) => _run(() async {
+        bool ours(String key) => key == notebookId || key.startsWith('$notebookId/');
+        for (final timers in [_timers, _studyTimers]) {
+          for (final key in [...timers.keys.where(ours)]) {
+            timers.remove(key)!.cancel();
+          }
+        }
+        _studyPages.removeWhere(ours);
+        _dirty.remove(notebookId);
+        _read.remove(notebookId);
+        _loading.remove(notebookId);
+        await _db.removeNotebookText(notebookId);
+        _changed();
+      });
+
   // Catching up.
 
   /// Goes through every notebook changed since it was last indexed (or

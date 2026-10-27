@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../library/library.dart';
 import '../../recognition/handwriting_index.dart';
 import '../../study/fsrs.dart';
+import '../../study/remember_edits.dart' show deleteCardCopies;
 import '../../study/session.dart';
 import '../../study/study_rows.dart';
 import '../../study/study_state.dart';
@@ -146,6 +147,8 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
         child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           _DeckList(
             decks: list,
+            copies: snapshot?.copies.length ?? 0,
+            onDeleteCopies: _deleteCopies,
             picked: picked?.deck.id,
             onPick: _pick,
             onNewDeck: _newDeck,
@@ -162,6 +165,24 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
         ]),
       ),
     );
+  }
+
+  /// Deletes the hidden copies of cards (from a notebook imported again).
+  Future<void> _deleteCopies() async {
+    final copies = ref.read(studyProvider)?.copies ?? const [];
+    if (copies.isEmpty) return;
+    final n = copies.length;
+    final sure = await showConfirm(
+      context,
+      title: n == 1 ? 'Delete 1 copied card?' : 'Delete $n copied cards?',
+      message: 'A notebook imported again brought its flashcards along, so ${n == 1 ? 'this card is' : 'these cards are'} '
+          'here twice. The hidden ${n == 1 ? 'copy is' : 'copies are'} deleted. Each card stays, with how well you know it, '
+          'and your notes aren’t changed.',
+      action: 'Delete copies',
+    );
+    if (!sure || !mounted) return;
+    final gone = await deleteCardCopies(ref, copies);
+    if (mounted) showNote(context, gone == 1 ? 'Deleted 1 copied card' : 'Deleted $gone copied cards');
   }
 
   Widget _main(BuildContext context, DeckSummary deck) {
@@ -766,6 +787,8 @@ class _ModePicker extends StatelessWidget {
 class _DeckList extends StatelessWidget {
   const _DeckList({
     required this.decks,
+    required this.copies,
+    required this.onDeleteCopies,
     required this.picked,
     required this.onPick,
     required this.onNewDeck,
@@ -774,6 +797,10 @@ class _DeckList extends StatelessWidget {
   });
 
   final List<DeckSummary> decks;
+
+  /// Hidden copies of cards, from notebooks imported again.
+  final int copies;
+  final VoidCallback onDeleteCopies;
   final String? picked;
   final ValueChanged<String> onPick;
   final VoidCallback onNewDeck;
@@ -826,6 +853,26 @@ class _DeckList extends StatelessWidget {
             ),
           ),
           const Spacer(),
+          if (copies > 0)
+            Semantics(
+              container: true,
+              explicitChildNodes: true,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                decoration: BoxDecoration(color: c.clayTint, borderRadius: BorderRadius.circular(14)),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, spacing: 8, children: [
+                  Text(
+                    copies == 1 ? '1 card is here twice' : '$copies cards are here twice',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.text),
+                  ),
+                  Text(
+                    'A notebook imported again brought copies along. They’re hidden; delete them to free up space.',
+                    style: TextStyle(fontSize: 13, height: 1.4, color: c.textMuted),
+                  ),
+                  SecondaryButton(label: 'Delete copies', icon: EIcons.trash, onPressed: onDeleteCopies),
+                ]),
+              ),
+            ),
           Semantics(
             button: true,
             label: 'Make cards from your notes. Circle the front, then the back. Ink, images and text all work.',

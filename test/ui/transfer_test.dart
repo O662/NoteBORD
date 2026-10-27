@@ -311,6 +311,104 @@ void main() {
       expect(study.remembered.single.id, 'rm_1');
     });
 
+    // Owner, 2026-10-27: importing a notebook that's already here asks
+    // whether to replace it, instead of always making a copy.
+    group('a notebook already here', () {
+      /// The sample notebook, pinned, with a picture; and a board file of
+      /// it with a page fewer and a new title.
+      Future<(MemoryBoardStore, Uint8List)> setUp() async {
+        final store = storeWith(sampleNotebook());
+        final nb = (await store.loadNotebook('nb_sample'))!.notebook..pinned = true;
+        await store.saveNotebook(nb);
+        await store.saveAsset('nb_sample', 'old.png', Uint8List.fromList([1]));
+        final other = storeWith(sampleNotebook());
+        await other.saveNotebook(Notebook(
+          id: 'nb_sample',
+          title: 'Physics — backup',
+          folderPath: const ['Elsewhere'],
+          createdAt: nb.createdAt,
+          updatedAt: nb.updatedAt,
+          pageIds: nb.pageIds.take(3).toList(),
+        ));
+        return (store, await exportBoardFile(other, 'nb_sample'));
+      }
+
+      Future<ProviderContainer> importIt(WidgetTester tester, MemoryBoardStore store, Uint8List bytes) async {
+        final files = FakeFileTransfer()..toPick = [PickedFile('Physics.board', bytes)];
+        final c = await pumpApp(tester, store: store, location: Routes.library(const ['School', 'Physics']), extra: [
+          fileTransferProvider.overrideWithValue(files),
+          decodeAs(testPicture()),
+        ]);
+        await tester.tap(find.widgetWithText(SecondaryButton, 'Import'));
+        await tester.pumpAndSettle();
+        await tester.tap(_primary('Browse files'));
+        await tester.pump();
+        await tester.tap(_primary('Import'));
+        await settleReal(tester, () => find.text('“Physics — Lecture notes” is already here').evaluate().isNotEmpty);
+        return c;
+      }
+
+      testWidgets('Replace puts the file in its place, where it was', (tester) async {
+        final (store, bytes) = await setUp();
+        final c = await importIt(tester, store, bytes);
+        await tester.tap(_primary('Replace'));
+        await settleReal(tester, () => find.byType(CanvasScreen).evaluate().isNotEmpty);
+
+        final entry = c.read(libraryProvider).notebooks.single;
+        expect(entry.id, 'nb_sample');
+        expect(entry.title, 'Physics — backup');
+        expect(entry.folder, ['School', 'Physics'], reason: 'it stays where it was');
+        expect(entry.pinned, isTrue);
+        expect(entry.pageCount, 3);
+        expect(await store.listAssets('nb_sample'), isNot(contains('old.png')));
+        expect(find.text('Replaced “Physics — backup”'), findsWidgets);
+      });
+
+      testWidgets('replacing the notebook that’s open shows what came in', (tester) async {
+        final (store, bytes) = await setUp();
+        final (c, files, _) = await _canvas(tester, store: store);
+        await _more(tester, 'Import');
+        files.toPick = [PickedFile('Physics.board', bytes)];
+        await tester.tap(_primary('Browse files'));
+        await tester.pump();
+        await tester.tap(_primary('Import'));
+        await settleReal(tester, () => find.text('Replace').evaluate().isNotEmpty);
+        await tester.tap(_primary('Replace'));
+        await settleReal(tester, () => find.byType(CanvasScreen).evaluate().isNotEmpty && find.text('Browse files').evaluate().isEmpty);
+        await tester.pump(const Duration(seconds: 2));
+        await tester.pump();
+
+        expect(shownNotebook(c).pages, hasLength(3));
+        expect(shownNotebook(c).notebook.title, 'Physics — backup');
+        final saved = (await store.loadNotebook('nb_sample'))!;
+        expect(saved.notebook.pageIds, hasLength(3), reason: 'the open copy didn’t write the old pages back');
+        expect(c.read(libraryProvider).notebooks, hasLength(1));
+      });
+
+      testWidgets('Cancel imports nothing; Keep both makes a copy', (tester) async {
+        final (store, bytes) = await setUp();
+        final c = await importIt(tester, store, bytes);
+        await tester.tap(find.widgetWithText(SecondaryButton, 'Cancel').last);
+        await tester.pumpAndSettle();
+        expect(find.text('Nothing was imported'), findsOneWidget);
+        expect(c.read(libraryProvider).notebooks, hasLength(1));
+        expect((await store.loadNotebook('nb_sample'))!.notebook.pageIds, hasLength(4));
+
+        await tester.tap(find.widgetWithText(SecondaryButton, 'Import'));
+        await tester.pumpAndSettle();
+        await tester.tap(_primary('Browse files'));
+        await tester.pump();
+        await tester.tap(_primary('Import'));
+        await settleReal(tester, () => find.text('Keep both').evaluate().isNotEmpty);
+        await tester.tap(find.widgetWithText(SecondaryButton, 'Keep both'));
+        await settleReal(tester, () => find.byType(CanvasScreen).evaluate().isNotEmpty);
+        final ids = {for (final n in c.read(libraryProvider).notebooks) n.id};
+        expect(ids, hasLength(2));
+        expect(ids, contains('nb_sample'));
+        expect((await store.loadNotebook('nb_sample'))!.notebook.pageIds, hasLength(4), reason: 'the one here is untouched');
+      });
+    });
+
     testWidgets('a file it can’t import, or a PDF with a password, says so and stays open', (tester) async {
       final files = FakeFileTransfer()..toPick = [PickedFile('notes.txt', Uint8List.fromList(utf8.encode('hello')))];
       await pumpApp(tester, extra: [

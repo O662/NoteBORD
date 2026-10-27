@@ -11,7 +11,8 @@ import '../state/assets.dart';
 
 // A `.board` file is the notebook's package folder, zipped
 // (docs/BOARD_FORMAT.md). Export writes what is on disk, so locked pages
-// stay sealed; import makes a new notebook from one.
+// stay sealed; import makes a notebook from one, or replaces the one it
+// came from.
 
 /// Raised when a file can't be imported; [message] is shown as it is.
 class ImportProblem implements Exception {
@@ -28,6 +29,7 @@ class ImportProblem implements Exception {
 const _maxEntries = 50000;
 const _maxTotalBytes = 2 * 1024 * 1024 * 1024;
 final _pageIdPattern = RegExp(r'^[A-Za-z0-9_-]{1,100}$');
+final _notebookIdPattern = RegExp(r'^nb_[A-Za-z0-9_-]{1,100}$');
 final _assetPattern = RegExp(r'^[A-Za-z0-9_-][A-Za-z0-9._-]{0,199}$');
 
 /// Zips notebook [notebookId] as read from [store]. [pageIds] (in any
@@ -140,15 +142,13 @@ class ImportedBoard {
   final int unreadablePages;
 }
 
-/// Makes a new notebook in [folder] from the `.board` file [bytes]. It gets
-/// a new id, so importing the same file twice makes two notebooks; items
-/// keep their ids. Throws [ImportProblem] if it isn't a board file.
-Future<ImportedBoard> importBoardFile(
-  BoardStore store,
-  Uint8List bytes, {
-  required List<String> folder,
-  required DateTime now,
-}) async {
+/// The notebook the `.board` file [bytes] holds, as the file has it (its id
+/// and title), read before anything is written. Throws [ImportProblem] if
+/// it isn't a board file.
+Notebook boardFileNotebook(Uint8List bytes) => _open(bytes).$2;
+
+/// Its files by name, and its notebook.json.
+(Map<String, ArchiveFile>, Notebook) _open(Uint8List bytes) {
   final Archive archive;
   try {
     archive = ZipDecoder().decodeBytes(bytes);
@@ -170,16 +170,48 @@ Future<ImportedBoard> importBoardFile(
     for (final f in files)
       if (f.name.startsWith(root)) f.name.substring(root.length): f,
   };
-  Uint8List? read(String name) => byName[name]?.readBytes();
-
-  final Notebook source;
   try {
-    source = decodeNotebook(utf8.decode(read('notebook.json')!));
+    return (byName, decodeNotebook(utf8.decode(byName['notebook.json']!.readBytes()!)));
   } on Object {
     throw const ImportProblem('This board file’s notebook.json can’t be read.');
   }
+}
 
-  final id = newId('nb', now: now);
+/// Makes a notebook in [folder] from the `.board` file [bytes]; items keep
+/// their ids. A notebook new to this tablet keeps its id too, so the same
+/// file imported again can [replace] it; else it gets a new one (keep
+/// both). [replace] is a notebook to write over, everything in it gone.
+/// Throws [ImportProblem] if it isn't a board file, before anything is
+/// written.
+Future<ImportedBoard> importBoardFile(
+  BoardStore store,
+  Uint8List bytes, {
+  required List<String> folder,
+  required DateTime now,
+  String? replace,
+  bool pinned = false,
+}) async {
+  final (byName, source) = _open(bytes);
+  Uint8List? read(String name) => byName[name]?.readBytes();
+
+  final lockBytes = read('lock.json');
+  Json? lock;
+  if (lockBytes != null) {
+    try {
+      lock = jsonDecode(utf8.decode(lockBytes)) as Json;
+    } on Object {
+      throw const ImportProblem('This board file’s password information is damaged.');
+    }
+  }
+
+  final String id;
+  if (replace != null) {
+    id = replace;
+    await store.deleteNotebook(id);
+  } else {
+    final taken = await store.listNotebookIds();
+    id = _notebookIdPattern.hasMatch(source.id) && !taken.contains(source.id) ? source.id : newId('nb', now: now);
+  }
   final pageIds = <String>[];
   var unreadable = 0;
   for (final pageId in source.pageIds) {
@@ -218,14 +250,7 @@ Future<ImportedBoard> importBoardFile(
     await store.savePage(id, page);
   }
 
-  final lock = read('lock.json');
-  if (lock != null) {
-    try {
-      await store.saveLock(id, jsonDecode(utf8.decode(lock)) as Json);
-    } on Object {
-      throw const ImportProblem('This board file’s password information is damaged.');
-    }
-  }
+  if (lock != null) await store.saveLock(id, lock);
 
   for (final entry in byName.entries) {
     if (!entry.key.startsWith('assets/')) continue;
@@ -247,6 +272,7 @@ Future<ImportedBoard> importBoardFile(
     defaultPaper: source.defaultPaper,
     theme: source.theme,
     locked: source.locked,
+    pinned: pinned,
     extra: source.extra,
     extraDefaults: source.extraDefaults,
   );

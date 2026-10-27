@@ -244,6 +244,7 @@ class _TransferDialogState extends ConsumerState<TransferDialog> {
             onStatus: (s) {
               if (mounted) setState(() => _progress = s);
             },
+            sameNotebook: (title) async => mounted ? showSameNotebook(context, title) : null,
           );
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -1335,3 +1336,25 @@ class _TargetPicker extends ConsumerWidget {
     );
   }
 }
+
+/// A board file of a notebook already here: Replace it, Keep both, or
+/// Cancel (null: that file isn't imported).
+Future<SameNotebook?> showSameNotebook(BuildContext context, String title) => showEndlessDialog<SameNotebook>(
+      context,
+      builder: (context) => DialogFrame(
+        title: '“$title” is already here',
+        width: 500,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 18, children: [
+          Text(
+            'This file is a copy of a notebook in your library. Replace it with what’s in the file, or keep both '
+            '(the copy’s flashcards and things to remember show once).',
+            style: TextStyle(fontSize: 15, height: 1.45, color: context.colors.textMuted),
+          ),
+          Row(mainAxisAlignment: MainAxisAlignment.end, spacing: 10, children: [
+            SecondaryButton(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
+            SecondaryButton(label: 'Keep both', onPressed: () => Navigator.of(context).pop(SameNotebook.keepBoth)),
+            PrimaryButton(label: 'Replace', onPressed: () => Navigator.of(context).pop(SameNotebook.replace)),
+          ]),
+        ]),
+      ),
+    );

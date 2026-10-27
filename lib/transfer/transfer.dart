@@ -17,6 +17,7 @@ import '../office/office_reader.dart';
 import '../office/office_render.dart';
 import '../recognition/handwriting_index.dart';
 import '../state/assets.dart';
+import '../study/study_state.dart';
 import '../state/notebook.dart';
 import '../state/office_docs.dart';
 import '../state/settings.dart';
@@ -84,6 +85,10 @@ class ImportOutcome {
 }
 
 enum ImportKind { pdf, board, image, office, unknown }
+
+/// A board file of a notebook already in the library: write over that one
+/// (a backup restored, or notes brought over again), or keep both.
+enum SameNotebook { replace, keepBoth }
 
 /// What a picked file is, from its first bytes and then its name.
 ImportKind importKindOf(PickedFile f) {
@@ -226,8 +231,15 @@ class Transfers {
 
   /// Imports [files] into [target]. PDFs and pictures for a new notebook go
   /// into one notebook, named after the first; each board file becomes its
-  /// own notebook. Throws [ImportProblem] when nothing could be imported.
-  Future<ImportOutcome> import(List<PickedFile> files, ImportTarget target, {void Function(String status)? onStatus}) async {
+  /// own notebook, or replaces the one it came from when [sameNotebook]
+  /// says so (null skips that file; without it, both are kept). Throws
+  /// [ImportProblem] when nothing could be imported.
+  Future<ImportOutcome> import(
+    List<PickedFile> files,
+    ImportTarget target, {
+    void Function(String status)? onStatus,
+    Future<SameNotebook?> Function(String title)? sameNotebook,
+  }) async {
     final boards = <PickedFile>[], pages = <PickedFile>[], skipped = <String>[];
     for (final f in files) {
       switch (importKindOf(f)) {
@@ -246,16 +258,32 @@ class Transfers {
     }
 
     final made = <String>[];
-    var unreadable = 0;
+    var unreadable = 0, replaced = 0, kept = 0;
     final library = ref.read(libraryProvider.notifier);
     final boardFolder = target.folder ?? ref.read(libraryProvider).byId(target.notebookId!)?.folder ?? const <String>[];
     for (final f in boards) {
+      final source = boardFileNotebook(f.bytes);
+      final have = ref.read(libraryProvider).byId(source.id);
+      final choice = have == null || have.trashed || sameNotebook == null
+          ? SameNotebook.keepBoth
+          : await sameNotebook(have.title.trim().isEmpty ? 'Untitled' : have.title);
+      if (choice == null) {
+        kept++;
+        continue;
+      }
       onStatus?.call('Importing ${f.name}…');
+      if (choice == SameNotebook.replace) {
+        await _replace(have!, f.bytes);
+        replaced++;
+        made.add(have.id);
+        continue;
+      }
       final result = await importBoardFile(_store, f.bytes, folder: boardFolder, now: _now);
       await library.addFromStore(result.notebookId);
       made.add(result.notebookId);
       unreadable += result.unreadablePages;
     }
+    if (made.isEmpty && pages.isEmpty) return const ImportOutcome('Nothing was imported');
 
     int? goTo;
     var pdfPages = 0, pictures = 0, office = 0;
@@ -280,12 +308,26 @@ class Transfers {
       if (goTo != null && pdfPages > 0) 'Added ${count(pdfPages, 'page', 'pages')}',
       if (goTo != null && pictures > 0) 'Added ${count(pictures, 'picture', 'pictures')}',
       if (goTo != null && office > 0) 'Added ${count(office, 'file', 'files')}',
-      if (made.length == 1) 'Imported “${ref.read(libraryProvider).byId(made.single)?.title ?? 'notebook'}”',
-      if (made.length > 1) 'Imported ${made.length} notebooks',
+      if (made.length == 1) '${replaced == 1 ? 'Replaced' : 'Imported'} “${ref.read(libraryProvider).byId(made.single)?.title ?? 'notebook'}”',
+      if (made.length > 1) 'Imported ${made.length} notebooks${replaced > 0 ? ' ($replaced replaced)' : ''}',
+      if (kept > 0) 'Skipped ${count(kept, 'notebook', 'notebooks')} already here',
       if (unreadable > 0) '${count(unreadable, 'page', 'pages')} couldn’t be read',
       if (skipped.isNotEmpty) 'Skipped ${skipped.join(', ')}',
     ].join(' · ');
     return ImportOutcome(message, openNotebook: made.length == 1 && goTo == null ? made.single : null, goToPage: goTo);
+  }
+
+  /// Writes the board file [bytes] over notebook [have], which keeps its
+  /// place in the library. An open copy is saved first, then read again.
+  Future<void> _replace(NotebookEntry have, Uint8List bytes) async {
+    final id = have.id;
+    if (ref.exists(notebookProvider(id))) await ref.read(notebookProvider(id).notifier).flush();
+    await ref.read(writeQueueProvider).idle;
+    await ref.read(handwritingIndexProvider).forgetNotebook(id);
+    await importBoardFile(_store, bytes, folder: have.folder, now: _now, replace: id, pinned: have.pinned);
+    await ref.read(libraryProvider.notifier).addFromStore(id);
+    ref.read(studyProvider.notifier).forget(id);
+    ref.invalidate(loadedNotebookProvider(id));
   }
 
   /// Pages (one per PDF page or picture) and the files they use.

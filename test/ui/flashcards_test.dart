@@ -9,6 +9,7 @@ import 'package:endless/state/settings.dart';
 import 'package:endless/study/fsrs.dart';
 import 'package:endless/study/study_state.dart';
 import 'package:endless/ui/canvas/canvas_screen.dart';
+import 'package:endless/ui/dialogs.dart';
 import 'package:endless/ui/routes.dart';
 import 'package:endless/ui/study/study_screen.dart';
 import 'package:flutter/gestures.dart';
@@ -322,6 +323,42 @@ void main() {
       await _settle(tester);
       expect(find.byType(CanvasScreen), findsOneWidget);
       await tester.pump(const Duration(seconds: 3));
+    });
+
+    // Owner, 2026-10-27: a notebook imported again keeps its cards' ids,
+    // so they're hidden; delete them so they don't take up space.
+    testWidgets('cards here twice: Delete copies deletes the hidden ones, and nothing else', (tester) async {
+      final store = studySample();
+      final calc = (await store.loadNotebook('nb_calc'))!;
+      for (final p in calc.pages) {
+        await store.savePage('nb_calc_copy', p);
+      }
+      await store.saveNotebook(Notebook(
+        id: 'nb_calc_copy',
+        title: 'Calculus II',
+        createdAt: calc.notebook.createdAt,
+        updatedAt: calc.notebook.updatedAt,
+        pageIds: calc.notebook.pageIds,
+      ));
+      await store.saveStudy('nb_calc_copy', (await store.loadStudy('nb_calc'))!);
+      await open(tester, store, deck: 'dk_calc');
+      expect(find.bySemanticsLabel('Calculus II — Integrals, 2 due · 3 cards'), findsOneWidget);
+      expect(find.text('6 cards are here twice'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(SecondaryButton, 'Delete copies'));
+      await tester.pumpAndSettle();
+      expect(find.text('Delete 6 copied cards?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(PrimaryButton, 'Delete copies'));
+      await settleReal(tester, () => find.text('Deleted 6 copied cards').evaluate().isNotEmpty);
+      await _settle(tester);
+
+      expect(find.text('6 cards are here twice'), findsNothing);
+      expect(find.bySemanticsLabel('Calculus II — Integrals, 2 due · 3 cards'), findsOneWidget);
+      final copy = (await store.loadNotebook('nb_calc_copy'))!.pages.single.items;
+      expect(copy.whereType<FlashcardItem>(), isEmpty);
+      expect(copy, hasLength(calc.pages.single.items.length - 6), reason: 'the notes stay');
+      expect((await store.loadStudy('nb_calc_copy'))!['cards'], isEmpty);
+      expect((await store.loadNotebook('nb_calc'))!.pages.single.items.whereType<FlashcardItem>(), hasLength(6));
     });
 
     testWidgets('write the answer, then check it', (tester) async {

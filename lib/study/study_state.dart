@@ -96,12 +96,16 @@ class Decks extends Notifier<List<Deck>> {
 /// each card is known.
 @immutable
 class StudySnapshot {
-  const StudySnapshot({required this.remembered, required this.cards, required this.states});
+  const StudySnapshot({required this.remembered, required this.cards, required this.states, this.copies = const []});
 
   static const empty = StudySnapshot(remembered: [], cards: [], states: {});
 
   final List<RememberedThing> remembered;
   final List<StudyCard> cards;
+
+  /// Cards that are copies of ones in [cards] (from a notebook imported
+  /// again, with its cards' ids), hidden from studying.
+  final List<StudyCard> copies;
 
   /// [StudyItem.key] → how well it's known.
   final Map<String, CardState> states;
@@ -113,7 +117,7 @@ class StudySnapshot {
   int dueAt(DateTime now) => items.where((i) => i.dueAt(now)).length;
 
   StudySnapshot withState(String key, CardState s) =>
-      StudySnapshot(remembered: remembered, cards: cards, states: {...states, key: s});
+      StudySnapshot(remembered: remembered, cards: cards, states: {...states, key: s}, copies: copies);
 }
 
 /// The study data, read again whenever the index or the library changes.
@@ -201,10 +205,13 @@ class StudyData extends Notifier<StudySnapshot?> {
       if (decks.byId(c.deck) == null) decks.ensure(c.deck, c.deckName);
     }
     final states = _parse();
+    final kept = oneOfEach(cards, (c) => c.id, (c) => c.notebookId, lastStudied: (c) => _lastStudied(c, states));
+    final shown = Set<StudyCard>.identity()..addAll(kept);
     state = StudySnapshot(
       remembered: oneOfEach(remembered, (t) => t.id, (t) => t.notebookId),
-      cards: oneOfEach(cards, (c) => c.id, (c) => c.notebookId, lastStudied: (c) => _lastStudied(c, states)),
+      cards: kept,
       states: states,
+      copies: [for (final c in cards) if (!shown.contains(c)) c],
     );
   }
 
@@ -225,6 +232,26 @@ class StudyData extends Notifier<StudySnapshot?> {
               if (c.value case final Map sides)
                 for (final side in const ['f', 'r']) '${f.key}/${c.key}/$side': ?CardState.fromJson(sides[side]),
       };
+
+  /// Notebook [notebookId]'s study.json changed on disk (a board file
+  /// replaced it): it's read again.
+  void forget(String notebookId) {
+    _files.remove(notebookId);
+    _changed();
+  }
+
+  /// Cards [cardIds] are gone from notebook [notebookId]: how well they
+  /// were known goes from its study.json too.
+  Future<void> dropCards(String notebookId, Set<String> cardIds) async {
+    final store = ref.read(boardStoreProvider);
+    final file = _files[notebookId] ??= await store.loadStudy(notebookId) ?? {'version': 1, 'cards': <String, dynamic>{}};
+    final cards = {...?(file['cards'] as Map?)?.cast<String, dynamic>()};
+    if (!cards.keys.any(cardIds.contains)) return;
+    cards.removeWhere((id, _) => cardIds.contains(id));
+    file['cards'] = cards;
+    final json = {...file};
+    await ref.read(writeQueueProvider).run(() => store.saveStudy(notebookId, json));
+  }
 
   /// Saves how [item] is known now, in its notebook's study.json.
   Future<void> record(StudyItem item, CardState s) async {

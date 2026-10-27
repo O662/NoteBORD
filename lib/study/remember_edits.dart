@@ -2,9 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../board/codec.dart' show withRemember;
 import '../board/model.dart';
+import '../recognition/handwriting_index.dart';
 import '../state/notebook.dart';
 import 'remember.dart';
 import 'study_rows.dart';
+import 'study_state.dart';
 
 /// Opens notebook [notebookId] (if it isn't open), runs [edit] on it, and
 /// saves. The notebook closes again once nothing else shows it.
@@ -17,6 +19,8 @@ Future<void> editNotebook(WidgetRef ref, String notebookId, void Function(Notebo
       final notifier = ref.read(notebookProvider(notebookId).notifier);
       edit(notifier, ref.read(notebookProvider(notebookId)));
       await notifier.flush();
+      // Its flashcards and what's remembered reach the index while it's open.
+      await ref.read(handwritingIndexProvider).studyNow();
     } finally {
       open.close();
     }
@@ -56,4 +60,33 @@ Future<void> restoreThing(WidgetRef ref, RememberedThing thing, Map<String, Json
         if (page[e.key] case final item?) withRemember(item, e.value),
     ]);
   });
+}
+
+/// Deletes [copies] (StudySnapshot.copies): the hidden copies of cards in
+/// notebooks imported again, and how well they were known. The notes they
+/// were made from stay. Returns how many went.
+Future<int> deleteCardCopies(WidgetRef ref, List<StudyCard> copies) async {
+  final byNotebook = <String, List<StudyCard>>{};
+  for (final c in copies) {
+    (byNotebook[c.notebookId] ??= []).add(c);
+  }
+  var gone = 0;
+  for (final MapEntry(key: notebookId, value: cards) in byNotebook.entries) {
+    final ids = {for (final c in cards) c.id};
+    await editNotebook(ref, notebookId, (n, s) {
+      for (final pageId in {for (final c in cards) c.pageId}) {
+        final i = s.indexOf(pageId);
+        if (i < 0 || s.isSealed(pageId)) continue;
+        final here = [
+          for (final item in s.pages[i].page.items)
+            if (item is FlashcardItem && ids.contains(item.id)) item.id,
+        ];
+        gone += here.length;
+        n.removeItems(pageId, here);
+      }
+    });
+    await ref.read(studyProvider.notifier).dropCards(notebookId, ids);
+  }
+  await ref.read(studyProvider.notifier).refresh();
+  return gone;
 }

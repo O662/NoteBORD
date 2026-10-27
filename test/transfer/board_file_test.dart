@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui' show Color;
 
 import 'package:archive/archive.dart';
 import 'package:endless/board/codec.dart';
@@ -20,7 +21,7 @@ void main() {
 
     final into = MemoryBoardStore();
     final result = await importBoardFile(into, bytes, folder: const ['Imports'], now: testNow);
-    expect(result.notebookId, isNot(id), reason: 'an import is a new notebook');
+    expect(result.notebookId, id, reason: 'new to this tablet, it keeps its id (a later import can replace it)');
     expect(result.unreadablePages, 0);
 
     final before = (await store.loadNotebook(id))!;
@@ -143,6 +144,61 @@ void main() {
       final loaded = (await store.loadNotebook(result.notebookId))!;
       expect(loaded.pages.single.items, isEmpty);
       expect(loaded.notebook.folderPath, ['School']);
+    });
+  });
+
+  group('the same notebook again', () {
+    Future<MemoryBoardStore> withPages(List<String> pageIds, {String title = 'Physics'}) async {
+      final store = MemoryBoardStore();
+      for (final p in pageIds) {
+        await store.savePage('nb_same', BoardPage(id: p, items: [
+          TextItem(id: 't_$p', x: 0, y: 0, z: 1, createdAt: testNow, wrap: 200, text: '$title $p', color: const Color(0xFF1E1C19)),
+        ]));
+      }
+      await store.saveNotebook(Notebook(id: 'nb_same', title: title, folderPath: const ['From'], createdAt: testNow, updatedAt: testNow, pageIds: pageIds));
+      return store;
+    }
+
+    test('a notebook already here: keep both gives the copy a new id', () async {
+      final store = await withPages(['pg_1']);
+      final bytes = await exportBoardFile(store, 'nb_same');
+      final copy = await importBoardFile(store, bytes, folder: const [], now: testNow);
+      expect(copy.notebookId, isNot('nb_same'));
+      expect((await store.listNotebookIds()).toSet(), {'nb_same', copy.notebookId});
+      expect(boardFileNotebook(bytes).id, 'nb_same');
+    });
+
+    test('replace: the file’s pages, files and flashcard progress, in the notebook’s place', () async {
+      final file = await withPages(['pg_1', 'pg_2'], title: 'Physics (backup)');
+      await file.saveStudy('nb_same', {'version': 1, 'cards': <String, dynamic>{}});
+      await file.saveAsset('nb_same', 'kept.png', Uint8List.fromList([1, 2]));
+      final bytes = await exportBoardFile(file, 'nb_same');
+
+      final store = await withPages(['pg_1', 'pg_3']);
+      await store.saveAsset('nb_same', 'old.png', Uint8List.fromList([3]));
+      await store.saveStudy('nb_same', {'version': 1, 'cards': {'fc_old': <String, dynamic>{}}});
+      final result = await importBoardFile(store, bytes, folder: const ['School'], now: testNow, replace: 'nb_same', pinned: true);
+      expect(result.notebookId, 'nb_same');
+      expect(await store.listNotebookIds(), ['nb_same']);
+      final after = (await store.loadNotebook('nb_same'))!;
+      expect(after.notebook.title, 'Physics (backup)');
+      expect(after.notebook.folderPath, ['School']);
+      expect(after.notebook.pinned, isTrue);
+      expect([for (final p in after.pages) (p.items.single as TextItem).text], ['Physics (backup) pg_1', 'Physics (backup) pg_2']);
+      expect(await store.listAssets('nb_same'), ['kept.png']);
+      expect(((await store.loadStudy('nb_same'))?['cards'] as Map?)?.keys ?? const [], isNot(contains('fc_old')));
+    });
+
+    test('a damaged file changes nothing', () async {
+      final store = await withPages(['pg_1']);
+      final bad = ZipEncoder().encodeBytes(Archive()
+        ..addFile(ArchiveFile.bytes('notebook.json', utf8.encode(encodeNotebook((await store.loadNotebook('nb_same'))!.notebook))))
+        ..addFile(ArchiveFile.bytes('lock.json', utf8.encode('{nope'))));
+      await expectLater(
+        importBoardFile(store, Uint8List.fromList(bad), folder: const [], now: testNow, replace: 'nb_same'),
+        throwsA(isA<ImportProblem>()),
+      );
+      expect((await store.loadNotebook('nb_same'))!.pages.single.items, hasLength(1));
     });
   });
 }
