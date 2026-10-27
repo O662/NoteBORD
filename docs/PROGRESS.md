@@ -547,6 +547,7 @@ The owner's request (2026-10-26): Make flashcards (FlashMake.png), Study (Study.
 - **Stars took a few tries.** Measured on hand-like stars (rounded tips, ending short of the start, uneven arms, a landing hook, outlines): ends that stopped more than 0.3 of the star's size short were refused outright, and rounded tips and outlines were found about half the time. Now the end may stop up to 0.6 short, tips are measured over a short and a longer stretch, one wobble the other way is allowed, and a star needs four distinct tip places (so a triangle gone round twice isn't one). Every variant is found 95–100% of the time; none of the 117 strokes of real writing in the fixtures (the owner's page and MathWriting), nor W, M, N, Z, 4, E, a lightning bolt, a zig-zag, a square, a hexagon or a spiral, is taken for one.
 - **No highlight on what a star caught.** Drawn-star things now get the yellow wash too (the design had only the chip).
 - **Unstarring asks first**: "Remove from Need to remember?" with what it loses (its star, why it matters, its reminder) and Remove / Cancel.
+- **A board file round trip (owner asked me to run it on the tablet, 2026-10-27).** Exported over USB: the file held both remembered things with their marks and reminder, the drawn star, both cards (one with a photo front), study.json with their progress, the photo and recognition.json; imported, the notebook came back whole, washes and chips included. But the Flashcards and Remember screens didn't show its cards and things until the app was restarted: a notebook is read into the index when it's edited or when the app catches up at start. Now an import catches up at once, and so do the Flashcards and Remember screens when they open (as Search does).
 - Open question for the owner: making a card from a photo in the gallery (now the picture has to be on the page first; Insert → Image puts it there).
 
 **How it's stored (docs/BOARD_FORMAT.md):**
@@ -581,7 +582,7 @@ The owner's request (2026-10-26): Make flashcards (FlashMake.png), Study (Study.
 - **Study again** goes through every card of the deck and does change their schedule (FSRS handles early reviews).
 
 ### Not done yet / known limits
-- **Still to check on the tablet**: the looser star (how often it's found now, and that writing never turns into one), a reminder after a restart, and a board file round trip.
+- **Still to check on the tablet**: the looser star (how often it's found now, and that writing never turns into one). A reminder after a restart was checked by the owner: it comes once the tablet is unlocked (Android holds apps' alarms until the first unlock).
 - **Pages and notebooks with a password** never reach the index, so what's remembered and the cards on them aren't on the Remember and Flashcards screens, and their reminders don't go off, while they have one (unlocked ones neither: it would put their content in a notification).
 - **Before an event** says it comes with the calendar (Phase 7c).
 - Reminders work on Android (and iOS and macOS once those builds exist). Windows and Linux have none yet: the setting is saved in the notebook and goes off on the tablet.

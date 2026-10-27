@@ -16,6 +16,7 @@ import 'package:endless/ui/routes.dart';
 import 'package:endless/ui/transfer/transfer_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:endless/study/study_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers.dart';
@@ -299,6 +300,15 @@ void main() {
         }
       }
       expect((await store.listAssets(entry.id)).toSet(), (await source.listAssets('nb_board')).toSet());
+
+      // Owner, 2026-10-27: an imported notebook's flashcards and what's
+      // remembered show straight away, not after a restart.
+      c.listen(studyProvider, (_, _) {});
+      await settleReal(tester, () => c.read(studyProvider)?.cards.isNotEmpty ?? false);
+      final study = c.read(studyProvider)!;
+      expect(study.cards.single.id, 'fc_1');
+      expect(study.cards.single.notebookId, entry.id);
+      expect(study.remembered.single.id, 'rm_1');
     });
 
     testWidgets('a file it can’t import, or a PDF with a password, says so and stays open', (tester) async {

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../board/model.dart';
 import '../../library/library.dart';
+import '../../recognition/handwriting_index.dart';
 import '../../study/remember_edits.dart';
 import '../../study/study_rows.dart';
 import '../../study/study_state.dart';
@@ -46,6 +47,15 @@ class RememberScreen extends ConsumerStatefulWidget {
 
 class _RememberScreenState extends ConsumerState<RememberScreen> {
   _Filter _filter = _Filter.all;
+
+  @override
+  void initState() {
+    super.initState();
+    // Anything not read into the index yet (as Search does): a notebook
+    // imported or changed elsewhere shows here too.
+    final index = ref.read(handwritingIndexProvider);
+    if (ref.read(catchUpOnStartProvider)) index.catchUp();
+  }
 
   /// Unstarred while this screen is open: shown faded, with their marks as
   /// they were, so a second tap stars them again.

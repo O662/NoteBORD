@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../library/library.dart';
+import '../../recognition/handwriting_index.dart';
 import '../../study/fsrs.dart';
 import '../../study/session.dart';
 import '../../study/study_state.dart';
@@ -29,6 +30,14 @@ class StudyScreen extends ConsumerStatefulWidget {
 }
 
 class _StudyScreenState extends ConsumerState<StudyScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Anything not read into the index yet (as Search does): a notebook
+    // imported or changed elsewhere shows here too.
+    final index = ref.read(handwritingIndexProvider);
+    if (ref.read(catchUpOnStartProvider)) index.catchUp();
+  }
   late String? _deck = widget.deck;
   StudySession? _session;
   String? _sessionDeck;

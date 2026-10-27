@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -269,6 +270,10 @@ class Transfers {
         goTo = await _intoNotebook(target, built);
       }
     }
+
+    // New notebooks are read into the index now (their flashcards, what's
+    // remembered and their text), not at the next start.
+    if (made.isNotEmpty) unawaited(ref.read(handwritingIndexProvider).catchUp());
 
     String count(int n, String one, String many) => n == 1 ? '1 $one' : '$n $many';
     final message = [
