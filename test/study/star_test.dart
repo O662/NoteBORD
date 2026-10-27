@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:endless/board/model.dart';
 import 'package:endless/study/star.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,6 +22,139 @@ void main() {
         if (looksLikeStar(pentagram(const Offset(100, 100), 30, wobble: 0.06, seed: seed))) found++;
       }
       expect(found, greaterThanOrEqualTo(45));
+    });
+
+    // Owner, 2026-10-27: stars took a few tries on the tablet. Hand-drawn
+    // ones round their tips, stop short of where they started, and wobble.
+    test('as a hand draws it: rounded, open, uneven, hooked, an outline', () {
+      final rand = math.Random(7);
+      final kinds = <String, List<Offset> Function()>{
+        'typical': () => handStar(rand),
+        'very rounded': () => handStar(rand, round: 0.5),
+        'stopping short': () => handStar(rand, gap: 0.35),
+        'uneven': () => handStar(rand, jitter: 0.25),
+        'with a hook': () => handStar(rand, hook: 6),
+        'outline, rounded': () => handStar(rand, outline: true, round: 0.3),
+        'messy': () => handStar(rand, round: 0.3, gap: 0.35, jitter: 0.2, hook: 4),
+      };
+      for (final e in kinds.entries) {
+        var found = 0;
+        for (var i = 0; i < 100; i++) {
+          if (looksLikeStar(e.value())) found++;
+        }
+        expect(found, greaterThanOrEqualTo(95), reason: e.key);
+      }
+    });
+
+    test('never real writing, letters with corners, or shapes gone round twice', () {
+      final real = realStrokes();
+      expect(real.length, greaterThan(100));
+      expect([
+        for (final s in real)
+          if (s.length > 3 && looksLikeStar(s)) s,
+      ], isEmpty);
+      final rand = math.Random(3);
+      List<Offset> poly(List<List<double>> c, {double s = 40}) {
+        final pts = <Offset>[];
+        for (var i = 0; i < c.length - 1; i++) {
+          for (var t = 0; t < 12; t++) {
+            pts.add(
+              Offset(
+                200 + s * (c[i][0] + (c[i + 1][0] - c[i][0]) * t / 12) + (rand.nextDouble() - .5),
+                200 + s * (c[i][1] + (c[i + 1][1] - c[i][1]) * t / 12),
+              ),
+            );
+          }
+        }
+        pts.add(Offset(200 + s * c.last[0], 200 + s * c.last[1]));
+        return pts;
+      }
+
+      final negatives = {
+        'W': [
+          [0.0, 0.0],
+          [0.25, 1.0],
+          [0.5, 0.2],
+          [0.75, 1.0],
+          [1.0, 0.0],
+        ],
+        'M': [
+          [0.0, 1.0],
+          [0.2, 0.0],
+          [0.5, 0.8],
+          [0.8, 0.0],
+          [1.0, 1.0],
+        ],
+        'N': [
+          [0.0, 1.0],
+          [0.0, 0.0],
+          [0.8, 1.0],
+          [0.8, 0.0],
+        ],
+        'Z': [
+          [0.0, 0.0],
+          [1.0, 0.0],
+          [0.0, 1.0],
+          [1.0, 1.0],
+        ],
+        '4': [
+          [0.7, 1.0],
+          [0.7, 0.0],
+          [0.0, 0.7],
+          [1.0, 0.7],
+        ],
+        'E': [
+          [1.0, 0.0],
+          [0.0, 0.0],
+          [0.0, 0.5],
+          [0.8, 0.5],
+          [0.0, 0.5],
+          [0.0, 1.0],
+          [1.0, 1.0],
+        ],
+        'bolt': [
+          [0.6, 0.0],
+          [0.2, 0.55],
+          [0.6, 0.45],
+          [0.2, 1.0],
+        ],
+        'triangle twice': [
+          [0.5, 0.0],
+          [1.0, 1.0],
+          [0.0, 1.0],
+          [0.5, 0.0],
+          [1.0, 1.0],
+          [0.0, 1.0],
+          [0.5, 0.05],
+        ],
+        'square': [
+          [0.0, 0.0],
+          [1.0, 0.0],
+          [1.0, 1.0],
+          [0.0, 1.0],
+          [0.0, 0.05],
+        ],
+        'square and a bit': [
+          [0.0, 0.0],
+          [1.0, 0.0],
+          [1.0, 1.0],
+          [0.0, 1.0],
+          [0.0, 0.0],
+          [1.0, 0.0],
+        ],
+        'hexagon': [
+          for (var k = 0; k <= 6; k++) [0.5 + 0.5 * math.cos(k * math.pi / 3), 0.5 + 0.5 * math.sin(k * math.pi / 3)],
+        ],
+        'zigzag': [
+          for (var k = 0; k <= 8; k++) [k / 8, k.isEven ? 0.0 : 0.8],
+        ],
+        'spiral': [
+          for (var k = 0; k <= 40; k++) [0.5 + k / 80 * math.cos(k / 3), 0.5 + k / 80 * math.sin(k / 3)],
+        ],
+      };
+      for (final e in negatives.entries) {
+        expect(looksLikeStar(poly(e.value)), isFalse, reason: e.key);
+      }
     });
 
     test('its outline', () {

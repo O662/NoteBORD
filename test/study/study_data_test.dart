@@ -77,8 +77,13 @@ Future<T> _wait<T>(WidgetTester tester, Future<T> f) async {
   return out as T;
 }
 
-Future<ProviderContainer> _open(MemoryBoardStore store, String id, {ReminderService reminders = const NoReminders()}) async {
-  final c = ProviderContainer(overrides: await testOverrides(store, reminders: reminders));
+Future<ProviderContainer> _open(
+  MemoryBoardStore store,
+  String id, {
+  ReminderService reminders = const NoReminders(),
+  DateTime Function()? clock,
+}) async {
+  final c = ProviderContainer(overrides: await testOverrides(store, reminders: reminders, clock: clock));
   addTearDown(c.dispose);
   c.listen(settingsProvider, (_, _) {});
   c.listen(libraryProvider, (_, _) {});
@@ -323,6 +328,41 @@ void main() {
   });
 
   group('reminders', () {
+    testWidgets('one whose time has come is left to arrive, never cancelled (Android\'s are a few minutes late)', (tester) async {
+      final store = MemoryBoardStore();
+      final id = addUntitled(store);
+      final fake = FakeReminders();
+      var now = testNow.toUtc();
+      final c = await _open(store, id, reminders: fake, clock: () => now);
+      c.read(reminderSyncProvider);
+      final n = c.read(notebookProvider(id).notifier);
+      final page = c.read(notebookProvider(id)).pages[0];
+      final at = now.add(const Duration(minutes: 3));
+      n.insertItems(page.id, [
+        _text('t1', 'Lab report due', remember: {
+          ...const RememberMark(id: 'rm_1', remind: RemindKind.date).toJson(),
+          'remindAt': at.toIso8601String(),
+        }),
+      ]);
+      await tester.pump(const Duration(milliseconds: 400));
+      await _settle(tester);
+      expect(fake.set.keys, [reminderId(id, 'rm_1')]);
+
+      // A minute after it was due, and not here yet: something else changes.
+      now = at.add(const Duration(minutes: 1));
+      n.insertItems(page.id, [_text('t2', 'Another', remember: const RememberMark(id: 'rm_2').toJson())]);
+      await tester.pump(const Duration(milliseconds: 400));
+      await _settle(tester);
+      expect(fake.cancelled, isEmpty);
+      expect(fake.set.keys, [reminderId(id, 'rm_1')]);
+
+      // Forgotten after all: then it goes.
+      n.replaceItems(page.id, [withRemember(page['t1']!, null)]);
+      await tester.pump(const Duration(milliseconds: 400));
+      await _settle(tester);
+      expect(fake.cancelled, [reminderId(id, 'rm_1')]);
+    });
+
     RememberedThing thing(String id, {DateTime? at, String why = '', String said = ''}) => RememberedThing.fromRow(StudyRow(
           notebookId: 'nb',
           pageId: 'pg',

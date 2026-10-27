@@ -250,7 +250,20 @@ void main() {
       final stars = byLabel('Remove from Need to remember');
       expect(stars, findsNWidgets(8));
       // The newest first: "total momentum…".
+      // Asked first; Cancel keeps it.
       await tester.tap(stars.first);
+      await tester.pumpAndSettle();
+      expect(find.text('Remove from Need to remember?'), findsOneWidget);
+      expect(find.text('It stays in your notes, but loses its star, why it matters and its reminder. '
+          'Tap its star again before you leave this screen to bring it back.'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(byLabel('Add back to Need to remember'), findsNothing);
+      expect(RememberMark.of((await store.loadNotebook('nb_phys'))!.pages.last.items.firstWhere((i) => i.id == 't_mom')), isNotNull);
+
+      await tester.tap(stars.first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove'));
       await _settle(tester);
       expect(byLabel('Add back to Need to remember'), findsOneWidget);
       expect(find.text('7 things from 6 notebooks · lasso anything and tap Remember, or draw a star next to it'), findsOneWidget);

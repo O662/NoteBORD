@@ -10,6 +10,7 @@ import '../../study/study_state.dart';
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart';
 import '../common.dart';
+import '../dialogs.dart' show showConfirm;
 import '../icons.dart';
 import '../library/sidebar.dart';
 import '../routes.dart';
@@ -70,6 +71,17 @@ class _RememberScreenState extends ConsumerState<RememberScreen> {
     final key = _key(t);
     final off = _off[key];
     if (off == null) {
+      // Asked first: it's easy to tap a star by accident.
+      final sure = await showConfirm(
+        context,
+        title: 'Remove from Need to remember?',
+        message: t.hasReminder || t.why.isNotEmpty
+            ? 'It stays in your notes, but loses its star${t.why.isNotEmpty ? ', why it matters' : ''}'
+                '${t.hasReminder ? ' and its reminder' : ''}. Tap its star again before you leave this screen to bring it back.'
+            : 'It stays in your notes, without its star. Tap its star again before you leave this screen to bring it back.',
+        action: 'Remove',
+      );
+      if (!sure || !mounted) return;
       final was = await forgetThing(ref, t);
       if (mounted && was.isNotEmpty) setState(() => _off[key] = (t, was));
     } else {

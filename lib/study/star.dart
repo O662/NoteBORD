@@ -21,49 +21,68 @@ bool looksLikeStar(List<Offset> raw, {double unit = 1}) {
   if (diag < 22 * unit || box.width <= 0 || box.height <= 0) return false;
   final aspect = box.width / box.height;
   if (aspect < 0.55 || aspect > 1.8) return false;
-  // It closes: the end comes back near the start.
-  if ((raw.first - raw.last).distance > 0.3 * diag) return false;
+  // It comes back towards the start (a quick star often stops a little
+  // short).
+  if ((raw.first - raw.last).distance > 0.6 * diag) return false;
   final pts = resample(raw, diag / 60);
   if (pts.length < 20) return false;
-  if (pathLength(pts) < 2.4 * diag) return false;
+  if (pathLength(pts) < 2.2 * diag) return false;
 
-  const k = 3;
+  // How sharply the stroke turns at [i], over a short and a longer stretch
+  // (a rounded tip turns over a longer one).
+  double turnAt(int i) {
+    var best = 0.0;
+    for (final k in const [3, 6]) {
+      if (i - k < 0 || i + k >= pts.length) continue;
+      final t = _signedTurn(pts[i] - pts[i - k], pts[i + k] - pts[i]);
+      if (t.abs() > best.abs()) best = t;
+    }
+    return best;
+  }
+
   final tips = <int>[];
-  var opposite = 0;
-  var turning = 0.0;
   var lastTip = -100;
-  for (var i = k; i < pts.length - k; i++) {
-    final a = pts[i] - pts[i - k], b = pts[i + k] - pts[i];
-    final turn = _signedTurn(a, b);
-    if (turn.abs() > 100 && i - lastTip > 2 * k) {
-      tips.add(i);
-      lastTip = i;
+  for (var i = 3; i < pts.length - 3; i++) {
+    if (turnAt(i).abs() > 95 && i - lastTip > 8) {
+      // The sharpest point of this tip.
+      var at = i;
+      for (var j = i + 1; j < math.min(pts.length - 3, i + 8); j++) {
+        if (turnAt(j).abs() > turnAt(at).abs()) at = j;
+      }
+      tips.add(at);
+      lastTip = at;
+      i = at;
     }
   }
+  var turning = 0.0;
   for (var i = 1; i < pts.length - 1; i++) {
     turning += _signedTurn(pts[i] - pts[i - 1], pts[i + 1] - pts[i]);
   }
-  if (tips.length < 4 || tips.length > 6) return false;
-  // Every tip turns the way the whole star goes round.
+  if (tips.length < 4 || tips.length > 7) return false;
+  // Its tips turn the way the whole star goes round (a scribble's turns go
+  // back and forth); one the other way is a wobble.
   final sign = turning.sign;
-  for (final i in tips) {
-    final t = _signedTurn(pts[i] - pts[i - k], pts[i + k] - pts[i]);
-    if (t.sign != sign) opposite++;
-  }
-  if (opposite > 0) return false;
+  final opposite = tips.where((i) => turnAt(i).sign != sign).length;
+  if (opposite > 1 || tips.length - opposite < 4) return false;
   // A pentagram turns about 720° (576° from tip to tip), its outline 360°
   // (216° from tip to tip: the tips turn one way, its inner corners back).
-  if (turning.abs() < 180 || turning.abs() > 860) return false;
+  if (turning.abs() < 170 || turning.abs() > 860) return false;
 
-  // The tips (with where it started) go all the way round its middle.
-  final points = [pts.first, for (final i in tips) pts[i]];
+  // The tips (with where it started) go all the way round its middle, at
+  // four or five places (a triangle gone round twice has three).
+  final points = [pts.first, for (final i in tips) if (turnAt(i).sign == sign) pts[i]];
+  final places = <Offset>[];
+  for (final p in points) {
+    if (places.every((q) => (q - p).distance > 0.25 * diag)) places.add(p);
+  }
+  if (places.length < 4) return false;
   final mid = Offset(box.center.dx, box.center.dy);
   final angles = [for (final p in points) math.atan2(p.dy - mid.dy, p.dx - mid.dx) * 180 / math.pi]..sort();
   var gap = 360 - (angles.last - angles.first);
   for (var i = 1; i < angles.length; i++) {
     gap = math.max(gap, angles[i] - angles[i - 1]);
   }
-  if (gap > 135) return false;
+  if (gap > 140) return false;
   final reach = [for (final p in points) (p - mid).distance];
   final mean = reach.reduce((a, b) => a + b) / reach.length;
   return reach.every((r) => r > 0.55 * mean);

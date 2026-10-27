@@ -150,12 +150,13 @@ Future<List<Override>> testOverrides(
   InkRecognizer recognizer = const NoInkRecognizer(),
   Duration? recognitionIdle,
   ReminderService reminders = const NoReminders(),
+  DateTime Function()? clock,
 }) async {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   final db = index ?? IndexDb.memory();
   if (index == null) addTearDown(db.close);
   return [
-    ...await bootstrap(store, index: db, clock: () => testNow),
+    ...await bootstrap(store, index: db, clock: clock ?? () => testNow),
     lockCryptoProvider.overrideWithValue(testCrypto),
     biometricProvider.overrideWithValue(biometric ?? FakeBiometric()),
     // Office files are read on the test's own isolate (fake time can't

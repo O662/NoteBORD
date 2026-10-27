@@ -271,21 +271,28 @@ class ReminderSync {
     if (!service.available) return;
     final library = ref.read(libraryProvider);
     final titles = {for (final n in library.notebooks) n.id: n.title};
-    final wanted = {for (final r in remindersFor(things, titles, ref.read(clockProvider)().toUtc())) r.id: r};
+    final now = ref.read(clockProvider)().toUtc();
+    final wanted = {for (final r in remindersFor(things, titles, now)) r.id: r};
+    // Reminders whose time has come: Android's inexact alarms may still be
+    // on their way (a few minutes late), so they're never cancelled.
+    final due = {
+      for (final t in things)
+        if (t.hasReminder && !t.remindAt!.isAfter(now)) reminderId(t.notebookId, t.id),
+    };
     // Left over from before (a thing unstarred while the app was closed);
     // only once the index has every notebook, or every reminder would look
     // left over just after an update.
     if (_first && ref.read(handwritingIndexProvider).caughtUp) {
       _first = false;
       for (final id in await service.scheduled()) {
-        if (!wanted.containsKey(id)) await service.cancel(id);
+        if (!wanted.containsKey(id) && !due.contains(id)) await service.cancel(id);
       }
     }
     for (final id in [..._set.keys]) {
-      if (!wanted.containsKey(id)) {
-        await service.cancel(id);
-        _set.remove(id);
-      }
+      if (wanted.containsKey(id) || due.contains(id)) continue;
+      // Forgotten, unstarred, or no reminder any more.
+      _set.remove(id);
+      await service.cancel(id);
     }
     for (final r in wanted.values) {
       if (_set[r.id] == r.signature) continue;

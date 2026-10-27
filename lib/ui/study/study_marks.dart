@@ -13,8 +13,8 @@ import '../icons.dart';
 /// Room around what's remembered for its yellow wash, in page px.
 const washPad = 10.0;
 
-/// The yellow wash under each thing remembered with Remember (one marked
-/// with a drawn star has the star instead). Drawn under the ink.
+/// The yellow wash under each thing remembered (with Remember, or a drawn
+/// star), drawn under the ink.
 class RememberWashPainter extends CustomPainter {
   RememberWashPainter(this.vp, this.groups, this.colors) : super(repaint: vp);
 
@@ -26,7 +26,6 @@ class RememberWashPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = colors.star.withValues(alpha: 0.16);
     for (final g in groups) {
-      if (g.mark.drawn) continue;
       final r = g.content.inflate(washPad);
       final screen = Rect.fromPoints(vp.toScreen(r.topLeft), vp.toScreen(r.bottomRight));
       canvas.drawRRect(RRect.fromRectAndRadius(screen, Radius.circular(14 * vp.scale.clamp(0.5, 2))), paint);
