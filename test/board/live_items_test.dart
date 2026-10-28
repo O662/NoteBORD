@@ -120,6 +120,12 @@ void main() {
       list = list.withInk(strokeFrom([slot + const Offset(70, 0), slot + const Offset(90, 2)]));
       expect(list.entries.length, 2);
       expect(list.entries.last.ink.length, 2);
+      // Written from the slot's left edge: moved clear of the new box (the
+      // tablet, 2026-10-28).
+      final edge = list.toPage(list.slot.centerLeft + const Offset(4, 0));
+      final fromEdge = list.withInk(strokeFrom([edge, edge + const Offset(80, 0)]));
+      expect(fromEdge.entries.last.ink.single.bounds.left, greaterThanOrEqualTo(0));
+      expect(fromEdge.pageInk.last.bounds.left, greaterThan(fromEdge.toPage(fromEdge.boxRect(fromEdge.entries.length - 1).centerRight).dx));
       // Not on the box or the title.
       expect(list.takesInkAt(list.toPage(list.boxRect(0).center)), isFalse);
       expect(list.takesInkAt(list.toPage(const Offset(200, 20))), isFalse);

@@ -596,9 +596,23 @@ The owner's request (2026-10-26): Make flashcards (FlashMake.png), Study (Study.
 - Remember.png's cards are 224 tall; ours are 250 so the notebook link keeps a 44 dp target. The selection toolbar can cover the "Remembered" chip while something is selected.
 - Copies are made of what was circled at the time the page was read for the index: a card whose notes changed shows the change about a third of a second later (open notebook) or when the notebook is next read (closed).
 
-## Phase 7b: charts linked to tables and Excel, and live items — built, not yet tried on the tablet
+## Phase 7b: charts linked to tables and Excel, and live items — built; checked on the tablet (2026-10-28), with fixes after
 
 The owner's request (2026-10-27): charts bound to a table on the page or an Excel range that update live and can be unlinked into a snapshot (Charts.png), and live items: the date, an analog or digital clock, time stamps and checklists (LiveItems.png), with the Insert menu's Live widgets tiles wired. The calendar and planner are Phase 7c.
+
+**Tablet check, 2026-10-28** (a release build on the Galaxy Tab S9 FE, driven over adb with real S Pen and touch events, dark mode). **Worked:**
+- **Live items:** Insert → Clock & date and its bar and hint; a clock, the date and a checklist placed clear of each other. The clock ticks every second, analog and digital, with "America/Chicago" from Android. The date chip. Stamps: the second goes under the note written beside the first; a tap switches them all to "just now", and they count up ("1 min ago" … "10 min ago") by themselves.
+- **Checklists:** items written with the S Pen on "write another item…"; ticking by a finger, a pen tap and a drawn ✓; strike-through, "3/3" and the bar; the eraser taking one item without touching the next.
+- **Charts of a table:** a table filled through Edit, then Make a chart (beside it, the green link and badge, "Momentum table · live"). The type by pen. Editing a cell moves the chart; one Undo puts both back. Unlink (snapshot) and Link again. Change data (a name, A1:B4, "kg", the live summary). Colors. Done.
+- **Charts of Excel:** a real .xlsx through Insert → Excel sheet and the system picker, then Make a chart ("Lab data.xlsx › Sheet1 › A1:C7 · live", "p before (column B)"). **Replace file** with a newer version grew it to A1:C8 with Trial 7, and Undo took both back. Deleting the card left "Snapshot of …", and Undo linked it again.
+- **Search, saving and export:** search found the table, both charts and the checklist. Everything came back after leaving the notebook and opening it again. The PDF export's text layer has the clock and date at the moment of the export, the stamps, the checklist and both charts.
+
+**Fixed afterwards (with tests):**
+- **A finger on a selected chart's buttons moved the chart** instead of pressing Line: with something selected, a finger went straight to moving it. Now a finger on a button (a chart's type or Data, a clock's style, a checklist's box, a graph's or math tool's buttons) presses it, selected or not.
+- **The digital clock's time nearly filled its card** at 44 px ("12:22:40 AM"); a wider time ("10:58:48 PM") would have spilled over. It shrinks to fit.
+- **An item written from the left edge of "write another item…" sat over its new box.** Its writing now moves clear of the box.
+
+**Not tried on the tablet:** Open in Excel and a save coming back (no Excel app on it; Replace file takes the same path), Split view, light mode, a stamp tapped with the pen, the checklist editor. The fixes above were checked in tests; the rebuilt app is installed, but the tablet locked before they could be checked there.
 
 **How it's stored (docs/BOARD_FORMAT.md):**
 - **A chart** is a `chart` item. It names its source by item id on the same page (a table, or an Excel card with a sheet and an optional range), and keeps a copy of the cells it read (`snapshot.cells`), which is what's drawn. A chart therefore draws in thumbnails, exports and other apps without its source being loaded.
@@ -636,7 +650,8 @@ The owner's request (2026-10-27): charts bound to a table on the page or an Exce
 - **Live items mode hides Share and ⋯** like math mode does (LiveItems.png keeps Share).
 
 ### Not done yet / known limits
-- **Not tried on the tablet.**
+- There's no Undo button while the Live items bar is up (the tool pill is hidden, as in math mode); a tick is undone with Ctrl+Z or after Done.
+- An Excel card doesn't grow with its file: a seventh row comes in on the chart, but the card shows the rows that fit.
 - A chart's link line is drawn only while both are on the same page and the chart is live; a chart whose source was deleted reads "Snapshot of …".
 - A tick drawn on a box isn't kept as ink, and nothing shows while it's drawn (the pen is pressing the box).
 - A checklist turned at an angle moves a little as rows are added (it turns about its middle). Rows can't be reordered by dragging.
@@ -793,7 +808,7 @@ The owner's request (2026-10-27): charts bound to a table on the page or an Exce
 - `test/tokens_sync_test.dart`: generated tokens match `design/tokens.json`.
 
 ## Next
-- **Phase 7b tablet checklist** (charts and live items). Install a release build (`flutter build apk --release`, then `adb install -r`).
+- **Phase 7b tablet checklist** (charts and live items). Checked on 2026-10-28 except where noted in Phase 7b; still worth doing by hand: the three fixes, a real Excel save coming back, and how writing feels with a clock ticking on screen. Install a release build (`flutter build apk --release`, then `adb install -r`).
   1. **A chart of a table.** Insert → Table, Select → Edit, type a week of hours (Mon–Fri across, numbers under), Save. Insert → Chart: the chart lands to its right with a dashed green link and badge. Edit the table again and change a number: the chart follows; one Undo puts both back.
   2. **A chart of an Excel sheet.** Insert → Excel sheet with a real .xlsx (columns of numbers under names). Select the card → Make a chart. Tap Bar, Line, Area and Scatter on the chart with a finger and with the S Pen. Data: try a range like A1:B7 and a unit.
   3. **Live from Excel.** Open the Excel card in Excel, add a row, save, come back to Endless: the card and the chart both show the new row (A1:C8). Undo once.

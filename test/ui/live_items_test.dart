@@ -204,6 +204,17 @@ void main() {
       final c = await pumpCanvas(tester, store: _charts({'it_labdata', 'it_momentum'}));
       await _tap(tester, _button(_item(c, 'it_momentum'), const ChartTypeHit(ChartType.line)));
       expect(_item<ChartItem>(c, 'it_momentum').chartType, ChartType.line);
+      // Selected with Select, a finger still presses it rather than moving
+      // the chart (the tablet, 2026-10-28).
+      _useTool(c, CanvasTool.select);
+      canvasPane.selection.select(['it_momentum']);
+      await tester.pump();
+      final before = _item<ChartItem>(c, 'it_momentum');
+      await _tap(tester, _button(before, const ChartTypeHit(ChartType.area)));
+      expect(_item<ChartItem>(c, 'it_momentum').chartType, ChartType.area);
+      expect(_item<ChartItem>(c, 'it_momentum').x, before.x);
+      _useTool(c, CanvasTool.pen);
+      await tester.pump();
       await _tap(tester, _button(_item(c, 'it_momentum'), const ChartTypeHit(ChartType.scatter)), pen: true);
       expect(_item<ChartItem>(c, 'it_momentum').chartType, ChartType.scatter);
       expect(shownPage(c).items.whereType<StrokeItem>(), isEmpty, reason: 'the pen pressed, it did not write');

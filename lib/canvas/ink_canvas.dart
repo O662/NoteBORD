@@ -556,6 +556,13 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _tapFinger = e.pointer;
         _tapPen = false;
         _tapDown = e.localPosition;
+      } else if (_canInk && _selection.isNotEmpty && _controlAt(topBoxAt(_page.items, page), page, select: true)) {
+        // A finger on a button of what's selected (a chart's type, a
+        // clock's style, a checklist's box) presses it; a drag still pans.
+        _touch = _Touch.navigate;
+        _tapFinger = e.pointer;
+        _tapPen = false;
+        _tapDown = e.localPosition;
       } else if (_canInk && _selection.isNotEmpty && _inSelection(page)) {
         _touch = _Touch.selection;
         _touchTransform = Similarity.identity;

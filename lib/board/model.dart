@@ -2772,7 +2772,14 @@ class ChecklistItem extends BoxItem implements InkHolder {
     final start = stroke.pagePoints.isEmpty ? Offset.zero : toLocal(stroke.pagePoints.first) / unit;
     final i = rowAt(start.dy);
     if (i == null) {
-      return copyWith(entries: [...entries, ChecklistEntry(ink: [_stored(stroke, Offset(writeLeft, _nextRow))])]);
+      // Started at the left of "write another item…": moved clear of the
+      // new entry's box.
+      final ink = _stored(stroke, Offset(writeLeft, _nextRow));
+      final over = -ink.bounds.left;
+      return copyWith(entries: [
+        ...entries,
+        ChecklistEntry(ink: [if (over > 0) ink.mapped((p) => p + Offset(over, 0)) else ink]),
+      ]);
     }
     final e = entries[i];
     return copyWith(entries: [...entries]..[i] = e.copyWith(ink: [...e.ink, _stored(stroke, _origin(i))]));

@@ -237,7 +237,14 @@ void _clock(Canvas canvas, ClockData d, DateTime now, EndlessColors c) {
     top += 190 + 10;
   }
   final big = d.analog ? 26.0 : 44.0;
-  final time = _label(clockText(now), big, c.text, family: FontFamilies.serif);
+  var time = _label(clockText(now), big, c.text, family: FontFamilies.serif);
+  // "10:58:48 PM" is wider than the card at 44: it shrinks to fit.
+  final room = size.width - 32;
+  if (time.width > room) {
+    final fitted = big * room / time.width;
+    time.dispose();
+    time = _label(clockText(now), fitted, c.text, family: FontFamilies.serif);
+  }
   _put1(canvas, time, size.width / 2, top + big / 2);
   top += big + 10;
   _put1(canvas, _label(timeZoneLabel(now), 13, c.textMuted, maxWidth: size.width - 32), size.width / 2, top + 8);
