@@ -11,12 +11,43 @@ enum RemindKind {
   none,
   tomorrow,
 
-  /// Before a calendar event. Comes with calendar sync (Phase 7c); a file
-  /// that has one keeps it.
+  /// Before a calendar event ([RememberMark.event]).
   event,
 
   /// A date and time picked.
   date,
+}
+
+/// The event a reminder comes before: its id, the day it happens on (a
+/// repeating event happens on many), its title when it was picked, and how
+/// many minutes before it. If the event moves, the reminder moves with it.
+@immutable
+class EventLink {
+  const EventLink({required this.id, required this.day, this.title = '', this.before = 30});
+
+  static EventLink? fromJson(Object? json) => json is Map && json['id'] is String
+      ? EventLink(
+          id: json['id'] as String,
+          day: json['day'] as String? ?? '',
+          title: json['title'] as String? ?? '',
+          before: (json['before'] as num?)?.toInt() ?? 30,
+        )
+      : null;
+
+  final String id;
+
+  /// "2026-09-25".
+  final String day;
+  final String title;
+  final int before;
+
+  @override
+  bool operator ==(Object other) => other is EventLink && other.id == id && other.day == day && other.before == before;
+
+  @override
+  int get hashCode => Object.hash(id, day, before);
+
+  Json toJson() => {'id': id, 'day': day, if (title.isNotEmpty) 'title': title, 'before': before};
 }
 
 /// An item's `remember` field. Items with the same [id] are one thing to
@@ -33,6 +64,7 @@ class RememberMark {
     this.drawn = false,
     this.star = false,
     this.at,
+    this.event,
   });
 
   /// Reads [json] on [item]. A mark written before marks had ids (just
@@ -53,6 +85,7 @@ class RememberMark {
       drawn: json['drawn'] == true,
       star: json['star'] == true,
       at: DateTime.tryParse(json['at'] as String? ?? '')?.toUtc(),
+      event: EventLink.fromJson(json['event']),
     );
   }
 
@@ -77,6 +110,9 @@ class RememberMark {
   /// When it was marked.
   final DateTime? at;
 
+  /// The event the reminder comes before ([RemindKind.event]).
+  final EventLink? event;
+
   bool get hasReminder => remindAt != null && remind != RemindKind.none;
 
   RememberMark copyWith({
@@ -95,6 +131,7 @@ class RememberMark {
         drawn: drawn,
         star: star ?? this.star,
         at: at,
+        event: event,
       );
 
   Json toJson() => {
@@ -106,6 +143,7 @@ class RememberMark {
         if (drawn) 'drawn': true,
         if (star) 'star': true,
         if (at != null) 'at': at!.toUtc().toIso8601String(),
+        if (event != null && remind == RemindKind.event) 'event': event!.toJson(),
       };
 }
 

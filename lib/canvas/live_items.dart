@@ -10,6 +10,7 @@ import '../theme/tokens.g.dart';
 import '../ui/icons.dart';
 import '../ui/library/format.dart' show longDate;
 import 'page_runtime.dart' show paintStroke;
+import 'widget_items.dart';
 
 // Live items (LiveItems.png, LiveItems.dc.html): a clock in the device's
 // time zone, today's date, time stamps showing clock time or how long ago,
@@ -57,6 +58,9 @@ String liveKey(Iterable<Item> items, DateTime now) {
         return '${now.day} ${now.hour}:${now.minute}:${now.second}';
       case LiveItem(data: DateData _) || LiveItem(data: StampData(ago: true)):
         minutes = true;
+      // Today moves on at midnight; what's due, as time passes.
+      case LiveItem _ when isFeedWidget(i):
+        minutes = true;
       default:
         break;
     }
@@ -69,6 +73,7 @@ String liveText(LiveItem item, DateTime now) => switch (item.data) {
       ClockData _ => '${clockText(now)} ${timeZoneLabel(now)}',
       DateData _ => longDate(now),
       final StampData s => stampLabel(s, now),
+      _ => widgetText(item, now),
     };
 
 /// Everything a checklist says that's typed, for search and exports.
@@ -122,6 +127,9 @@ LivePart? liveHitAt(LiveItem item, Offset local) {
     case StampData _:
       return (Offset.zero & item.data.size).inflate(9).contains(p) ? LivePart.stamp : null;
     case DateData _:
+      return null;
+    default:
+      // Widgets: see widgetHitAt.
       return null;
   }
 }
@@ -202,6 +210,8 @@ void paintLiveItem(Canvas canvas, LiveItem item, Brightness brightness, EndlessC
       _chip(canvas, EIcons.dateChip, longDate(now), 14, 32, 12, 6, c.accentTint, c.accentDeep);
     case final StampData s:
       _chip(canvas, EIcons.stamp, stampLabel(s, now), 12, 26, 9, 5, c.plumTint, c.plumDeep);
+    default:
+      paintWidget(canvas, item, brightness, c);
   }
   canvas.restore();
 }

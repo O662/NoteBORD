@@ -325,6 +325,40 @@ Item? _decodeKnown(Json json) {
         suffix: json['suffix'] as String? ?? '',
         snapshotRest: _unknown(snapshot, const {'cells'}),
       );
+    case 'widget' when const {'calendar', 'planner', 'flashcards', 'remember'}.contains(json['widget']):
+      final config = (json['config'] as Map?)?.cast<String, dynamic>() ?? const {};
+      return LiveItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, const {..._boxKeys, 'widget', 'unit', 'config'}),
+        unit: _num(json['unit'], 1),
+        data: switch (json['widget']) {
+          'calendar' => CalendarWidgetData(
+              agenda: config['view'] == 'agenda',
+              hidden: [for (final h in (config['hidden'] as List?) ?? const []) if (h is String) h],
+              rest: _unknown(config, const {'view', 'hidden'}),
+            ),
+          'planner' => PlannerWidgetData(
+              range: PlannerWidgetRange.values.where((r) => r.name == config['range']).firstOrNull ?? PlannerWidgetRange.today,
+              rest: _unknown(config, const {'range'}),
+            ),
+          'flashcards' => FlashcardsWidgetData(
+              deck: config['deck'] as String? ?? '',
+              deckName: config['deckName'] as String? ?? '',
+              rest: _unknown(config, const {'deck', 'deckName'}),
+            ),
+          _ => RememberWidgetData(
+              folder: [for (final f in (config['folder'] as List?) ?? const []) if (f is String) f],
+              rest: _unknown(config, const {'folder'}),
+            ),
+        },
+      );
     case 'widget' when const {'clock', 'date'}.contains(json['widget']):
       final config = (json['config'] as Map?)?.cast<String, dynamic>() ?? const {};
       return LiveItem(

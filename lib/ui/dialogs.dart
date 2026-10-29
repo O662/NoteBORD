@@ -96,13 +96,16 @@ class DialogCloseButton extends StatelessWidget {
 
 /// The dark filled button ("Lock page", "Use …", "Open").
 class PrimaryButton extends StatelessWidget {
-  const PrimaryButton({super.key, required this.label, required this.onPressed, this.icon, this.height = 48, this.expand = false});
+  const PrimaryButton({super.key, required this.label, required this.onPressed, this.icon, this.height = 48, this.expand = false, this.padding});
 
   final String label;
   final VoidCallback? onPressed;
   final EIconData? icon;
   final double height;
   final bool expand;
+
+  /// Space each side of the label (22, or 20 with an icon).
+  final double? padding;
 
   @override
   Widget build(BuildContext context) {
@@ -122,7 +125,7 @@ class PrimaryButton extends StatelessWidget {
           onTap: onPressed,
           child: Container(
             height: height,
-            padding: EdgeInsets.symmetric(horizontal: icon == null ? 22 : 20),
+            padding: EdgeInsets.symmetric(horizontal: padding ?? (icon == null ? 22 : 20)),
             child: Row(mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, spacing: 8, children: [
               if (icon != null) EIcon(icon!, size: 18, color: fg),
               Flexible(
@@ -151,6 +154,7 @@ class SecondaryButton extends StatelessWidget {
     this.height = 48,
     this.expand = false,
     this.filled = false,
+    this.padding,
   });
 
   final String label;
@@ -158,6 +162,9 @@ class SecondaryButton extends StatelessWidget {
   final EIconData? icon;
   final double height;
   final bool expand;
+
+  /// Space each side of the label (20, or 16 with an icon).
+  final double? padding;
 
   /// Surface background (the library header buttons) instead of transparent.
   final bool filled;
@@ -181,7 +188,7 @@ class SecondaryButton extends StatelessWidget {
           onTap: onPressed,
           child: Container(
             height: height,
-            padding: EdgeInsets.symmetric(horizontal: icon == null ? 20 : 16),
+            padding: EdgeInsets.symmetric(horizontal: padding ?? (icon == null ? 20 : 16)),
             child: Row(mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, spacing: 8, children: [
               if (icon != null) EIcon(icon!, size: 18, color: c.text),
               Flexible(

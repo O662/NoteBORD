@@ -19,13 +19,17 @@ import '../routes.dart';
 
 /// Opens the Templates dialog (design/screens/Templates.png). From a
 /// notebook ([pane]) a template can make a new page, a frame or a new
-/// notebook; from the library only a new notebook (in [folder]).
+/// notebook; from the library only a new notebook (in [folder]). A new
+/// notebook is called [title], and [onCreated] hears its id before it opens
+/// (the calendar links it to an event).
 Future<void> showTemplatesDialog(
   BuildContext context, {
   Pane? pane,
   TemplateTarget target = TemplateTarget.newPage,
   String? initial,
   List<String> folder = const [],
+  String? title,
+  ValueChanged<String>? onCreated,
 }) =>
     showEndlessDialog<void>(
       context,
@@ -35,6 +39,8 @@ Future<void> showTemplatesDialog(
         initial: initial ?? 'cornell',
         folder: folder,
         hostContext: context,
+        title: title,
+        onCreated: onCreated,
       ),
     );
 
@@ -63,6 +69,8 @@ class TemplatesDialog extends ConsumerStatefulWidget {
     required this.initial,
     required this.folder,
     required this.hostContext,
+    this.title,
+    this.onCreated,
   });
 
   final Pane? pane;
@@ -72,6 +80,10 @@ class TemplatesDialog extends ConsumerStatefulWidget {
 
   /// The screen that opened the dialog, for navigating after it closes.
   final BuildContext hostContext;
+
+  /// A new notebook's title, and who hears its id.
+  final String? title;
+  final ValueChanged<String>? onCreated;
 
   @override
   ConsumerState<TemplatesDialog> createState() => _TemplatesDialogState();
@@ -128,11 +140,13 @@ class _TemplatesDialogState extends ConsumerState<TemplatesDialog> {
             ? widget.folder
             : ref.read(libraryProvider).byId(widget.pane!.notebookId)?.folder ?? const <String>[];
         final id = await ref.read(libraryProvider.notifier).createNotebook(
+              title: widget.title ?? 'Untitled notebook',
               folder: folder,
               paper: paper,
               template: layout,
               items: items,
             );
+        widget.onCreated?.call(id);
         if (!mounted) return;
         Navigator.of(context).pop();
         if (!host.mounted) return;

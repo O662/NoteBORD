@@ -48,6 +48,11 @@ String reminderShort(DateTime at, DateTime now) {
   return reminderChip(at, now).replaceFirst(' · ', ', ');
 }
 
+/// A thing's reminder: "Before Physics lecture · Sep 25" for one before an
+/// event, else as [reminderChip].
+String thingReminder(DateTime at, DateTime now, {String? beforeEvent}) =>
+    beforeEvent == null || beforeEvent.isEmpty ? reminderChip(at, now) : 'Before $beforeEvent · ${monthDay(at)}';
+
 String cardsLabel(int n) => n == 1 ? '1 card' : '$n cards';
 
 String thingsLabel(int n) => n == 1 ? '1 thing' : '$n things';

@@ -1,10 +1,12 @@
 part of 'ink_canvas.dart';
 
-// Charts and live items on the canvas (Charts.png, LiveItems.png): what the
-// Live items bar adds, drawing clocks, the date and "time ago" again as
-// they change, the dashed links between charts and their tables and
-// sheets, and the buttons on them: a chart's type and Data, a clock's
-// Analog and Digital, a time stamp, and a checklist's boxes.
+// Charts, live items and widgets on the canvas (Charts.png, LiveItems.png,
+// WidgetBoard.png): what the Live items bar and the Insert menu add,
+// drawing clocks, the date, "time ago" and the widgets again as they
+// change, the dashed links between charts and their tables and sheets, and
+// the buttons on them: a chart's type and Data, a clock's Analog and
+// Digital, a time stamp, a checklist's boxes, and the widgets' days,
+// ranges, to-dos, cards and things to remember.
 
 extension _CanvasLive on InkCanvasState {
   bool _isLive(BoxItem? item) => item is ChartItem || item is LiveItem || item is ChecklistItem;
@@ -38,6 +40,10 @@ extension _CanvasLive on InkCanvasState {
       LiveKind.date => newLiveItem(const DateData(), Offset.zero, z: page.nextZ, now: now),
       LiveKind.stamp => newLiveItem(StampData(liveNow().toUtc()), Offset.zero, z: page.nextZ, now: now),
       LiveKind.checklist => newChecklist(Offset.zero, z: page.nextZ, now: now),
+      LiveKind.calendar => newLiveItem(const CalendarWidgetData(), Offset.zero, z: page.nextZ, now: now),
+      LiveKind.planner => newLiveItem(const PlannerWidgetData(), Offset.zero, z: page.nextZ, now: now),
+      LiveKind.flashcards => newLiveItem(_deckWidget(), Offset.zero, z: page.nextZ, now: now),
+      LiveKind.remember => newLiveItem(RememberWidgetData(folder: ref.read(libraryProvider).byId(pane.notebookId)?.folder.take(1).toList() ?? const []), Offset.zero, z: page.nextZ, now: now),
     };
     final size = Size(item.w, item.h);
     final corner = _vp.toPage(Offset(widget.chrome.left + 16, widget.chrome.top + 16));
@@ -52,6 +58,15 @@ extension _CanvasLive on InkCanvasState {
     } else {
       _toast(kind == LiveKind.checklist ? 'Added a checklist · write an item in it' : 'Added ${kind.noun} to the page');
     }
+  }
+
+  /// A flashcards widget for the deck used last, else the one with the most
+  /// due.
+  FlashcardsWidgetData _deckWidget() {
+    final decks = ref.read(decksProvider);
+    final last = ref.read(settingsProvider).lastDeck;
+    final deck = decks.where((d) => d.id == last).firstOrNull ?? decks.firstOrNull;
+    return FlashcardsWidgetData(deck: deck?.id ?? '', deckName: deck?.name ?? '');
   }
 
   /// Where a new time stamp goes: under the latest one on screen, below
@@ -107,6 +122,89 @@ extension _CanvasLive on InkCanvasState {
     _liveTick.value++;
   }
 
+  // Widgets follow the calendar, the planner and the study data.
+
+  void _feedChanged() {
+    if (!mounted || !_page.items.any(isFeedWidget)) return;
+    _page.refreshLive();
+    _liveTick.value++;
+  }
+
+  void _pressWidget(LiveItem live, WidgetHit hit) {
+    switch ((live.data, hit)) {
+      case (CalendarWidgetData _, CalendarDayHit(:final day)):
+        context.push(Routes.calendarOn(day));
+      case (final PlannerWidgetData d, PlannerRangeHit(:final range)):
+        // Not an undo step: how it's shown.
+        if (range != d.range) _quietly(live.copyWith(data: PlannerWidgetData(range: range, rest: d.rest)));
+      case (PlannerWidgetData _, PlannerTodoHit(:final todo)):
+        final planner = ref.read(plannerProvider.notifier);
+        planner.tick(planner.real(todo), !todo.done);
+      case (PlannerWidgetData _, PlannerWriteHit()):
+        _newTodo();
+      case (PlannerWidgetData _, OpenHit()):
+        context.push(Routes.planner);
+      case (final FlashcardsWidgetData d, OpenHit()):
+        context.push(Routes.flashcards(d.deck.isEmpty ? null : d.deck));
+      case (FlashcardsWidgetData _, FlipHit()):
+        if (!flippedCards.remove(live.id)) flippedCards.add(live.id);
+        _page.refreshLive();
+        _liveTick.value++;
+      case (FlashcardsWidgetData _, RateHit(:final item, :final rating)):
+        final now = ref.read(clockProvider)().toUtc();
+        final next = const Fsrs().review(item.state, rating, now);
+        flippedCards.remove(live.id);
+        ref.read(studyProvider.notifier).record(item, next);
+        _toast(rating == Rating.again ? 'Again · it comes back ${waitLabel(next.due.difference(now))}' : 'Got it · next ${waitLabel(next.due.difference(now))}', undo: false);
+      case (RememberWidgetData _, OpenHit()):
+        context.push(Routes.remember);
+      case (RememberWidgetData _, RememberHit(:final thing)):
+        openSpot(context, ref, thing.notebookId, thing.pageId, thing.rect);
+      default:
+        break;
+    }
+  }
+
+  /// The widget toolbar's actions.
+  Future<void> _widgetAction(SelectionAction action, LiveItem live) async {
+    final pageId = _page.id;
+    switch ((action, live.data)) {
+      case (SelectionAction.widgetMonth || SelectionAction.widgetAgenda, final CalendarWidgetData d):
+        // Not an undo step: how it's shown.
+        final agenda = action == SelectionAction.widgetAgenda;
+        if (agenda != d.agenda) _quietly(live.copyWith(data: CalendarWidgetData(agenda: agenda, hidden: d.hidden, rest: d.rest)));
+      case (SelectionAction.widgetCalendars, final CalendarWidgetData d):
+        final hidden = await showWidgetCalendars(context, ref.read(calendarProvider).calendars, d.hidden);
+        if (hidden == null || !mounted || _page.id != pageId) return;
+        _notebook.replaceItems(pageId, [live.copyWith(data: CalendarWidgetData(agenda: d.agenda, hidden: hidden, rest: d.rest))]);
+      case (SelectionAction.widgetDeck, final FlashcardsWidgetData d):
+        final deck = await showWidgetDeck(context, ref.read(decksProvider), d.deck);
+        if (deck == null || !mounted || _page.id != pageId) return;
+        _notebook.replaceItems(pageId, [live.copyWith(data: FlashcardsWidgetData(deck: deck.id, deckName: deck.name, rest: d.rest))]);
+      case (SelectionAction.widgetFolder, final RememberWidgetData d):
+        final folders = [for (final f in ref.read(libraryProvider).folders) f.path];
+        final folder = await showWidgetFolder(context, folders, d.folder);
+        if (folder == null || !mounted || _page.id != pageId) return;
+        _notebook.replaceItems(pageId, [live.copyWith(data: RememberWidgetData(folder: folder, rest: d.rest))]);
+      case (SelectionAction.widgetOpen, final data):
+        context.push(switch (data) {
+          CalendarWidgetData _ => Routes.calendar,
+          PlannerWidgetData _ => Routes.planner,
+          FlashcardsWidgetData(:final deck) => Routes.flashcards(deck.isEmpty ? null : deck),
+          _ => Routes.remember,
+        });
+      default:
+        break;
+    }
+  }
+
+  Future<void> _newTodo() async {
+    final text = await showNamePrompt(context, title: 'New to-do', label: 'To-do', action: 'Add', hint: 'Email lab partner');
+    if (text == null || !mounted) return;
+    ref.read(plannerProvider.notifier).add(text: text);
+    _toast('Added to today’s to-dos', undo: false);
+  }
+
   // Charts' links.
 
   /// The dashed lines from each live chart's table or sheet to the chart,
@@ -140,6 +238,11 @@ extension _CanvasLive on InkCanvasState {
           case null:
             return false;
         }
+        return true;
+      case final LiveItem live when isFeedWidget(live):
+        final hit = widgetHitAt(live, live.toLocal(at));
+        if (hit == null) return false;
+        _pressWidget(live, hit);
         return true;
       case final LiveItem live:
         switch ((live.data, liveHitAt(live, live.toLocal(at)))) {

@@ -15,6 +15,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../calendar_samples.dart' show calendarSample;
 import '../helpers.dart';
 import '../study/shapes.dart';
 import '../study/study_samples.dart';
@@ -79,9 +80,13 @@ void main() {
         expect(find.bySemanticsLabel(chip), findsOneWidget, reason: chip);
       }
       await tester.enterText(find.byType(TextField), 'always on the exam');
+      // Before an event: nothing on the calendar here.
       await tester.tap(find.bySemanticsLabel('Before an event'));
-      await tester.pump();
-      expect(find.text('Reminders before an event come with the calendar'), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(find.text('Remind me before'), findsOneWidget);
+      expect(find.textContaining('Nothing on your calendar'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('Cancel').last);
+      await tester.pumpAndSettle();
       await tester.tap(find.bySemanticsLabel('Tomorrow'));
       await tester.tap(find.bySemanticsLabel('Also make it a flashcard'));
       await tester.pump();
@@ -117,6 +122,36 @@ void main() {
       expect(shownPage(c).items.where((i) => i.remember != null), isEmpty);
       expect(shownPage(c).items.whereType<FlashcardItem>(), isEmpty);
       expect(find.bySemanticsLabel('Remembered. Change or forget it'), findsNothing);
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('Before an event: one coming up, an hour before; it follows the event', (tester) async {
+      final a = _word(const Offset(400, 400));
+      final store = _storeWith([a])..calendar = calendarSample().toJson();
+      final fake = FakeReminders();
+      final c = await pumpCanvas(tester, store: store, reminders: fake);
+      await _lassoToRemember(tester, const Offset(430, 400), 70, 40);
+      await tester.tap(find.bySemanticsLabel('Remember'));
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Before an event'));
+      await tester.pumpAndSettle();
+      // It's 10 AM on Friday: what's still to come.
+      expect(find.text('TODAY · FRI 25'), findsOneWidget);
+      expect(find.bySemanticsLabel('Physics lecture, Fri, Sep 25 · 10:00 – 11:15'), findsNothing);
+      await tester.tap(find.bySemanticsLabel('1 hour'));
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Study group, Fri, Sep 25 · 2:00 – 3:00'));
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel('Before Study group'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('Save'));
+      await tester.pump();
+
+      final mark = RememberMark.of(shownPage(c)[a.id]!)!;
+      expect(mark.remind, RemindKind.event);
+      expect(mark.remindAt, DateTime(2026, 9, 25, 13).toUtc());
+      expect(mark.event?.id, 'ev_study');
+      expect(mark.event?.before, 60);
+      expect(find.textContaining('Saved to Need to remember · reminder'), findsOneWidget);
       await tester.pump(const Duration(seconds: 5));
     });
 

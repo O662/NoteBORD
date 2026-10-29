@@ -207,6 +207,7 @@ class RememberedThing {
         remindAt = DateTime.tryParse(row.data['remindAt'] as String? ?? '')?.toUtc(),
         flashcard = row.data['flashcard'] as String?,
         drawn = row.data['drawn'] == true,
+        event = EventLink.fromJson(row.data['event']),
         said = row.data['said'] as String? ?? '';
 
   final String notebookId;
@@ -220,6 +221,9 @@ class RememberedThing {
   final DateTime? remindAt;
   final String? flashcard;
   final bool drawn;
+
+  /// The event its reminder comes before.
+  final EventLink? event;
 
   /// What it says (recognized handwriting and typed text), if known.
   final String said;

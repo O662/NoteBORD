@@ -44,7 +44,6 @@ Future<void> runInsert(
   Pane pane,
   InsertAction action, {
   ValueChanged<String>? hint,
-  VoidCallback? onFlashcards,
   VoidCallback? onLive,
 }) async {
   void place(CanvasTool tool) {
@@ -95,19 +94,15 @@ Future<void> runInsert(
       // Add a graph: type the function, and Insert graphs it.
       startMath(ref, pane);
       addGraph(pane);
-    case InsertAction.remember:
-      // As the rail's Need to remember: a lasso that leads with Remember.
-      pane.selection.menu = SelectionMenu.remember;
-      if (pane.selection.isEmpty || !ref.read(settingsProvider).tool.selects) {
-        ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: CanvasTool.lasso));
-      }
-      hint?.call('Circle what you need to remember');
+    // Widgets on the page (WidgetBoard.png): added where there's room.
+    case InsertAction.calendar:
+      pane.live.add(LiveKind.calendar);
+    case InsertAction.planner:
+      pane.live.add(LiveKind.planner);
     case InsertAction.flashcards:
-      if (onFlashcards == null) {
-        showComingSoon(context, 'Making flashcards here');
-      } else {
-        onFlashcards();
-      }
+      pane.live.add(LiveKind.flashcards);
+    case InsertAction.remember:
+      pane.live.add(LiveKind.remember);
     case InsertAction.chart:
       await makeChart(context, ref, pane);
     case InsertAction.clock:

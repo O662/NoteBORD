@@ -79,8 +79,8 @@ void main() {
       final clock = LiveItem(id: 'it_c', x: 0, y: 0, z: 1, createdAt: _at, data: const ClockData()).toJson()
         ..['config'] = {'style': 'analog', 'seconds': false};
       expect(((decodeItem(clock) as LiveItem).toJson()['config'] as Map)['seconds'], false);
-      // Another kind of widget is kept as it was.
-      expect(decodeItem({...clock, 'widget': 'calendar'}), isA<UnknownItem>());
+      // A kind of widget this version doesn't know is kept as it was.
+      expect(decodeItem({...clock, 'widget': 'weather'}), isA<UnknownItem>());
 
       final list = _byId(liveSample().pages.single, 'it_list') as ChecklistItem;
       final json = list.toJson();

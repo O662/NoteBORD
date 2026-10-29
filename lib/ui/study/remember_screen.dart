@@ -481,7 +481,7 @@ class _ThingCard extends ConsumerWidget {
               style: TextStyle(fontFamily: FontFamilies.handwritingSample, fontSize: 19, height: 1.1, color: c.textMuted),
             ),
           Wrap(spacing: 6, runSpacing: 6, children: [
-            if (t.hasReminder) _Tag(text: reminderChip(t.remindAt!, now), reminder: true),
+            if (t.hasReminder) _Tag(text: thingReminder(t.remindAt!, now, beforeEvent: t.event?.title), reminder: true),
             if (t.flashcard != null) const _Tag(text: 'Also a flashcard'),
             if (t.drawn) const _Tag(text: 'Drawn star'),
           ]),

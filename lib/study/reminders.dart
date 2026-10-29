@@ -7,8 +7,10 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timezone/timezone.dart' as tz;
 
+import '../calendar/calendar_state.dart';
 import '../library/library.dart';
 import '../recognition/handwriting_index.dart';
+import 'remember.dart';
 import 'study_rows.dart';
 import 'study_state.dart';
 
@@ -230,14 +232,34 @@ int reminderId(String notebookId, String rememberId) {
   return h & 0x7FFFFFFF;
 }
 
+/// When [t]'s reminder goes off: before its event as the event is now
+/// ([eventAt] says when an event starts, or null if it's gone), else when
+/// it was set for.
+DateTime? reminderAt(RememberedThing t, DateTime? Function(EventLink e)? eventAt) {
+  if (!t.hasReminder) return null;
+  final e = t.event;
+  if (t.remind == RemindKind.event && e != null && eventAt != null) {
+    final start = eventAt(e);
+    if (start != null) return start.subtract(Duration(minutes: e.before)).toUtc();
+  }
+  return t.remindAt;
+}
+
 /// The reminders [things] want, after [now]. [titles] are notebook titles.
-List<Reminder> remindersFor(Iterable<RememberedThing> things, Map<String, String> titles, DateTime now) => [
+List<Reminder> remindersFor(
+  Iterable<RememberedThing> things,
+  Map<String, String> titles,
+  DateTime now, {
+  DateTime? Function(EventLink e)? eventAt,
+}) => [
       for (final t in things)
-        if (t.hasReminder && t.remindAt!.isAfter(now))
+        if (reminderAt(t, eventAt) case final at? when at.isAfter(now))
           Reminder(
             id: reminderId(t.notebookId, t.id),
-            at: t.remindAt!,
-            title: 'Need to remember',
+            at: at,
+            title: t.remind == RemindKind.event && t.event != null && t.event!.title.isNotEmpty
+                ? 'Before ${t.event!.title}'
+                : 'Need to remember',
             body: [
               if (t.said.isNotEmpty) t.said else 'What you marked in ${titles[t.notebookId] ?? 'your notes'}',
               if (t.why.isNotEmpty) '“${t.why}”',
@@ -272,12 +294,14 @@ class ReminderSync {
     final library = ref.read(libraryProvider);
     final titles = {for (final n in library.notebooks) n.id: n.title};
     final now = ref.read(clockProvider)().toUtc();
-    final wanted = {for (final r in remindersFor(things, titles, now)) r.id: r};
+    final calendar = ref.read(calendarProvider), deadlines = ref.read(deadlinesProvider);
+    DateTime? eventAt(EventLink e) => eventStart(calendar, deadlines, e.id, e.day);
+    final wanted = {for (final r in remindersFor(things, titles, now, eventAt: eventAt)) r.id: r};
     // Reminders whose time has come: Android's inexact alarms may still be
     // on their way (a few minutes late), so they're never cancelled.
     final due = {
       for (final t in things)
-        if (t.hasReminder && !t.remindAt!.isAfter(now)) reminderId(t.notebookId, t.id),
+        if (reminderAt(t, eventAt) case final at? when !at.isAfter(now)) reminderId(t.notebookId, t.id),
     };
     // Left over from before (a thing unstarred while the app was closed);
     // only once the index has every notebook, or every reminder would look
@@ -310,6 +334,10 @@ final reminderSyncProvider = Provider<ReminderSync>((ref) {
     ref.listen(studyProvider, (_, next) {
       if (next != null) sync.sync(next.remembered);
     }, fireImmediately: true);
+    // A reminder before an event moves with the event.
+    ref.listen(calendarProvider, (_, _) {
+      if (ref.read(studyProvider) case final s?) sync.sync(s.remembered);
+    });
   }
   return sync;
 });

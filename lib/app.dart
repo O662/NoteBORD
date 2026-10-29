@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'calendar/calendar_model.dart' show parseDay;
 import 'canvas/pane.dart';
 import 'library/library.dart';
 import 'recognition/handwriting_index.dart';
 import 'state/settings.dart';
 import 'study/reminders.dart';
 import 'theme/app_theme.dart';
+import 'ui/calendar/calendar_screen.dart';
+import 'ui/calendar/planner_screen.dart';
 import 'ui/canvas/canvas_screen.dart';
 import 'ui/library/library_screen.dart';
 import 'ui/library/start_screen.dart';
@@ -49,6 +52,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: Routes.remember, builder: (context, state) => const RememberScreen()),
+      GoRoute(
+        path: Routes.calendar,
+        builder: (context, state) => CalendarScreen(
+          view: CalendarView.values.where((v) => v.name == state.uri.queryParameters['view']).firstOrNull ?? CalendarView.week,
+          day: parseDay(state.uri.queryParameters['day']),
+        ),
+      ),
+      GoRoute(path: Routes.planner, builder: (context, state) => const PlannerScreen()),
       GoRoute(
         path: '/flashcards',
         builder: (context, state) => StudyScreen(deck: state.uri.queryParameters['deck']),

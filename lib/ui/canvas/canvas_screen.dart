@@ -113,7 +113,7 @@ void handleRailItem(
     case 'Everything else':
       showInsertMenu(context).then((action) {
         if (action != null && context.mounted) {
-          runInsert(context, ref, pane, action, hint: hint, onFlashcards: onFlashcards, onLive: onLive);
+          runInsert(context, ref, pane, action, hint: hint, onLive: onLive);
         }
       });
     case 'Templates':

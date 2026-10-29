@@ -7,15 +7,17 @@ import 'icons.dart';
 /// Shows the "coming soon" snackbar for a feature that isn't built yet.
 void showComingSoon(BuildContext context, String feature) => showNote(context, '$feature is coming soon');
 
-/// Shows a short message at the bottom of the screen.
-void showNote(BuildContext context, String message) {
+/// Shows a short message at the bottom of the screen, with [onUndo] as an
+/// Undo button if given.
+void showNote(BuildContext context, String message, {VoidCallback? onUndo}) {
   final messenger = ScaffoldMessenger.of(context);
   messenger.hideCurrentSnackBar();
   messenger.showSnackBar(
     SnackBar(
-      content: Text(message, textAlign: TextAlign.center),
-      width: 360,
-      duration: const Duration(seconds: 2),
+      content: Text(message, textAlign: onUndo == null ? TextAlign.center : TextAlign.start),
+      width: onUndo == null ? 360 : 420,
+      duration: Duration(seconds: onUndo == null ? 2 : 4),
+      action: onUndo == null ? null : SnackBarAction(label: 'Undo', onPressed: onUndo),
     ),
   );
 }

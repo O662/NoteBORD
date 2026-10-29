@@ -152,11 +152,11 @@ void main() {
       {'from': r'-\infty', 'to': '0', 'openFrom': true, 'openTo': false, 'color': '#7A4E73', 'hidden': true},
     ]);
     expect((line['config'] as Map)['ticks'], 'every 1');
-    // A widget this version doesn't have yet (a calendar) stays as it was.
+    // A widget this version doesn't have yet (weather) stays as it was.
     final calendar = {
       'id': 'it_cal',
       'type': 'widget',
-      'widget': 'calendar',
+      'widget': 'weather',
       'x': 0,
       'y': 0,
       'z': 4,

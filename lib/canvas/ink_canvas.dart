@@ -14,6 +14,7 @@ import 'package:go_router/go_router.dart';
 import '../board/codec.dart' show withRemember;
 import '../board/ids.dart';
 import '../board/model.dart';
+import '../calendar/calendar_state.dart' show calendarProvider;
 import '../math/evaluate.dart' show GraphFunction, graphView;
 import '../math/ink_image.dart' show writingSize;
 import '../math/latex.dart' show isDrawable;
@@ -25,6 +26,7 @@ import '../recognition/convert.dart';
 import '../recognition/reader.dart';
 import '../recognition/segment.dart' show isHandwriting, writingIn;
 import '../library/library.dart' show clockProvider, libraryProvider;
+import '../planner/planner_state.dart' show plannerProvider;
 import '../state/links.dart';
 import '../state/notebook.dart';
 import '../state/office_docs.dart';
@@ -32,8 +34,10 @@ import '../transfer/files.dart';
 import '../state/settings.dart';
 import '../study/reminders.dart' show reminderServiceProvider;
 import '../study/remember.dart';
+import '../study/fsrs.dart' show Fsrs, Rating, waitLabel;
 import '../study/star.dart';
-import '../study/study_state.dart' show decksProvider;
+import '../study/study_state.dart' show decksProvider, studyProvider;
+import '../state/widget_feed.dart';
 import '../templates/templates.dart';
 import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
@@ -43,12 +47,13 @@ import '../ui/canvas/convert_panel.dart';
 import '../ui/canvas/ruler_menu.dart';
 import '../ui/canvas/selection_toolbar.dart';
 import '../ui/canvas/text_editor.dart';
+import '../ui/canvas/widget_menus.dart';
 import '../ui/common.dart';
 import '../ui/dialogs.dart';
 import '../ui/math/math_keyboard.dart';
 import '../ui/math/math_keys.dart' show Formula, formulaLabel;
 import '../ui/math/math_preview.dart';
-import '../ui/routes.dart' show Routes;
+import '../ui/routes.dart' show Routes, openSpot;
 import '../ui/study/item_preview.dart' show itemsBounds;
 import '../ui/study/remember_panel.dart';
 import '../ui/study/study_format.dart' show reminderShort;
@@ -76,6 +81,7 @@ import 'pens.dart';
 import 'ruler.dart';
 import 'selection.dart';
 import 'stroke_geometry.dart';
+import 'widget_items.dart';
 
 part 'ink_canvas_math.dart';
 part 'ink_canvas_study.dart';
@@ -1575,6 +1581,15 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       if (one is StickyItem && one.isStack) ...[SelectionAction.fanOut, SelectionAction.nextNote],
       if (one == null && _onlyStickies) SelectionAction.stack,
       if (one is FrameItem) SelectionAction.rename,
+      // Widgets (WidgetBoard.png): Month · Agenda · Calendars · Open full view.
+      if (one is LiveItem && one.data is CalendarWidgetData) ...[
+        SelectionAction.widgetMonth,
+        SelectionAction.widgetAgenda,
+        SelectionAction.widgetCalendars,
+      ],
+      if (one is LiveItem && one.data is FlashcardsWidgetData) SelectionAction.widgetDeck,
+      if (one is LiveItem && one.data is RememberWidgetData) SelectionAction.widgetFolder,
+      if (one is LiveItem && isFeedWidget(one)) SelectionAction.widgetOpen,
       SelectionAction.copy,
       if (items.any((i) => i is TextItem || i is StickyItem || i is ShapeItem || i is MathItem)) SelectionAction.color,
       SelectionAction.toFront,
@@ -1628,6 +1643,13 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         }
       case SelectionAction.color:
         setState(() => _colorsOpen = !_colorsOpen);
+      case SelectionAction.widgetMonth ||
+          SelectionAction.widgetAgenda ||
+          SelectionAction.widgetCalendars ||
+          SelectionAction.widgetDeck ||
+          SelectionAction.widgetFolder ||
+          SelectionAction.widgetOpen:
+        if (items.singleOrNull case final LiveItem live) _widgetAction(action, live);
       case SelectionAction.copy:
         // A copy lands just below and right of the original, selected. What's
         // written on a frame is copied with it.
@@ -2251,6 +2273,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     if (settings.tool != CanvasTool.laser && !_laser.isEmpty && _drag != _Drag.laser) _laser.clear();
     _checkGraphed(page);
     _watchLive(page);
+    // Widgets show the calendar, the planner and the study data as they are.
+    ref.listen(widgetFeedProvider, (_, _) => _feedChanged());
 
     final hoverRing = switch (settings.tool) {
       CanvasTool.eraser => (eraserRadius * 2, colors.textMuted),
@@ -2449,6 +2473,10 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
                   colorsOpen: _colorsOpen,
                   onAction: _onAction,
                   objectActions: _objectActions(),
+                  pressed: switch (_selected.singleOrNull) {
+                    LiveItem(data: CalendarWidgetData(:final agenda)) => {agenda ? SelectionAction.widgetAgenda : SelectionAction.widgetMonth},
+                    _ => const {},
+                  },
                 ),
                 if (_colorsOpen) SelectionColors(onPick: _recolor, sticky: _onlyStickies),
               ],

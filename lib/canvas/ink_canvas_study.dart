@@ -134,6 +134,7 @@ extension _CanvasStudy on InkCanvasState {
       flashcard: cardId,
       drawn: old?.drawn ?? false,
       at: old?.at ?? now,
+      event: choice.event,
     );
     _notebook.edit(page.id, replace: [
       for (final id in ids)

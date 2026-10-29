@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:endless/board/ids.dart';
 import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
-import 'package:endless/canvas/selection.dart';
 import 'package:endless/state/notebook.dart';
 import 'package:endless/state/settings.dart';
 import 'package:endless/study/fsrs.dart';
@@ -200,8 +199,8 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
     });
 
-    testWidgets('the Insert menu\'s Flashcards and Need to remember tiles start them', (tester) async {
-      await pumpCanvas(tester, store: _storeWith([_word(const Offset(150, 220))]));
+    testWidgets('the Insert menu\'s Flashcards and Need to remember tiles put their widgets on the page', (tester) async {
+      final c = await pumpCanvas(tester, store: _storeWith([_word(const Offset(150, 220))]));
       Future<void> insert(String tile) async {
         await tester.tap(byLabel('Insert'));
         await tester.pump();
@@ -213,12 +212,12 @@ void main() {
 
       await insert('Need to remember');
       expect(find.text('Coming soon'), findsNothing);
-      expect(find.text('Circle what you need to remember'), findsOneWidget);
-      expect(canvasPane.selection.menu, SelectionMenu.remember);
-
+      expect(find.text('Added Need to remember to the page'), findsOneWidget);
       await insert('Flashcards');
-      expect(find.text('Coming soon'), findsNothing);
-      expect(find.text('Making flashcards'), findsOneWidget);
+      expect(find.text('Added flashcards to the page'), findsOneWidget);
+      expect([for (final i in shownPage(c).items) if (i is LiveItem) i.data.runtimeType], [RememberWidgetData, FlashcardsWidgetData]);
+      // Making flashcards stays in Study & math.
+      expect(find.text('Making flashcards'), findsNothing);
       await tester.pump(const Duration(seconds: 5));
     });
 

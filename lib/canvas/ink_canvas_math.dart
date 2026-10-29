@@ -343,6 +343,7 @@ extension _CanvasMath on InkCanvasState {
           },
         final MathToolItem t => mathToolHitAt(t, t.toLocal(page)) != null,
         final ChartItem c => chartHitAt(c, c.toLocal(page)) != null,
+        final LiveItem l when isFeedWidget(l) => widgetHitAt(l, l.toLocal(page)) != null,
         final LiveItem l => switch (liveHitAt(l, l.toLocal(page))) {
             null => false,
             LivePart.stamp => !select,

@@ -13,7 +13,7 @@ import '../icons.dart';
 import '../routes.dart';
 import 'widgets.dart';
 
-enum SidebarItem { home, all, flashcards, remember, trash }
+enum SidebarItem { home, all, calendar, flashcards, remember, trash }
 
 /// Folders expanded in the sidebar tree (kept while moving between screens).
 final expandedFoldersProvider = NotifierProvider<ExpandedFolders, Set<String>>(ExpandedFolders.new);
@@ -108,7 +108,12 @@ class AppSidebar extends ConsumerWidget {
               count: '${lib.active.length}',
               onTap: () => context.go(Routes.all),
             ),
-            _NavRow(icon: EIcons.calendar, label: 'Calendar', onTap: () => showComingSoon(context, 'The calendar')),
+            _NavRow(
+              icon: EIcons.calendar,
+              label: 'Calendar',
+              selected: selected == SidebarItem.calendar,
+              onTap: () => context.go(Routes.calendar),
+            ),
             _NavRow(
               icon: EIcons.flashcards,
               label: 'Flashcards',

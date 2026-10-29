@@ -31,6 +31,8 @@ class LoadedNotebook {
 /// <root>/handwriting.json             the user's handwriting sample (spell check)
 /// <root>/library.json                 folders and their colors
 /// <root>/decks.json                   flashcard decks (for every notebook)
+/// <root>/calendar.json                calendars and events (on this tablet, and synced ones)
+/// <root>/planner.json                 the planner: top 3, to-dos, notes for each day
 /// <root>/templates/<id>.json          "My templates"
 /// <root>/notebooks/<id>.board/        one package per notebook
 /// ```
@@ -97,6 +99,14 @@ abstract class BoardStore {
   /// `decks.json`: the flashcard decks, for every notebook.
   Future<Json?> loadDecks();
   Future<void> saveDecks(Json decks);
+
+  /// `calendar.json`: the calendars and their events.
+  Future<Json?> loadCalendar();
+  Future<void> saveCalendar(Json calendar);
+
+  /// `planner.json`: what's planned for each day.
+  Future<Json?> loadPlanner();
+  Future<void> savePlanner(Json planner);
 }
 
 class FileBoardStore implements BoardStore {
@@ -293,6 +303,18 @@ class FileBoardStore implements BoardStore {
   @override
   Future<void> saveDecks(Json decks) => _writeJson(_decksFile, decks);
 
+  @override
+  Future<Json?> loadCalendar() => _readJson(File(p.join(root.path, 'calendar.json')));
+
+  @override
+  Future<void> saveCalendar(Json calendar) => _writeAtomic(File(p.join(root.path, 'calendar.json')), jsonEncode(calendar));
+
+  @override
+  Future<Json?> loadPlanner() => _readJson(File(p.join(root.path, 'planner.json')));
+
+  @override
+  Future<void> savePlanner(Json planner) => _writeAtomic(File(p.join(root.path, 'planner.json')), jsonEncode(planner));
+
   static Future<void> _deleteIfExists(File f) async {
     if (await f.exists()) await f.delete();
   }
@@ -470,4 +492,19 @@ class MemoryBoardStore implements BoardStore {
 
   @override
   Future<void> saveDecks(Json d) async => decks = _copy(d);
+
+  Json? calendar;
+  Json? planner;
+
+  @override
+  Future<Json?> loadCalendar() async => calendar == null ? null : _copy(calendar!);
+
+  @override
+  Future<void> saveCalendar(Json c) async => calendar = _copy(c);
+
+  @override
+  Future<Json?> loadPlanner() async => planner == null ? null : _copy(planner!);
+
+  @override
+  Future<void> savePlanner(Json p) async => planner = _copy(p);
 }

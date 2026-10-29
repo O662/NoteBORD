@@ -5,7 +5,13 @@ enum LiveKind {
   clock('a clock'),
   date('today’s date'),
   stamp('a time stamp'),
-  checklist('a checklist');
+  checklist('a checklist'),
+
+  // Widgets (WidgetBoard.png).
+  calendar('the calendar'),
+  planner('the planner'),
+  flashcards('flashcards'),
+  remember('Need to remember');
 
   const LiveKind(this.noun);
 

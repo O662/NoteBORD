@@ -30,8 +30,9 @@ enum InsertAction {
   excel,
   math,
   graph,
-  // Until their live widgets come (WidgetBoard.png), the Live widgets tiles
-  // start Need to remember and Making flashcards.
+  // Widgets on the page (WidgetBoard.png, Phase 7c).
+  calendar,
+  planner,
   remember,
   flashcards,
   // Charts and live items (Phase 7b).
@@ -155,10 +156,10 @@ final List<InsertSection> insertSections = [
     InsertEntry('Website', icon: EIcons.globe, tile: _blue, tint: _blueInk, action: InsertAction.website, keywords: 'web page link url embed'),
   ]),
   InsertSection('Live widgets', 7, [
-    InsertEntry('Calendar', icon: EIcons.calendar, tile: _blue, tint: _blueInk, keywords: 'events month week',
-        soon: 'Your calendar on the page, always up to date.'),
+    InsertEntry('Calendar', icon: EIcons.calendar, tile: _blue, tint: _blueInk, keywords: 'events month week agenda',
+        action: InsertAction.calendar),
     InsertEntry('Planner', icon: EIcons.planner, tile: _green, tint: _greenInk, keywords: 'today schedule to-do',
-        soon: 'Today’s top three, to-dos and schedule, live on the page.'),
+        action: InsertAction.planner),
     InsertEntry('Flashcards', icon: EIcons.flashcards, tile: _clay, tint: _clayInk, keywords: 'deck study cards',
         action: InsertAction.flashcards),
     InsertEntry('Need to remember', icon: EIcons.star, tile: _yellow, tint: _gold, keywords: 'star starred important',

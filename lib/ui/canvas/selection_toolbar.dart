@@ -34,6 +34,13 @@ enum SelectionAction {
   rename,
   toFront,
   toBack,
+  // Widgets on the page (WidgetBoard.png).
+  widgetMonth,
+  widgetAgenda,
+  widgetCalendars,
+  widgetDeck,
+  widgetFolder,
+  widgetOpen,
 }
 
 const _objectLabels = {
@@ -55,6 +62,12 @@ const _objectLabels = {
   SelectionAction.toFront: 'To front',
   SelectionAction.toBack: 'To back',
   SelectionAction.delete: 'Delete',
+  SelectionAction.widgetMonth: 'Month',
+  SelectionAction.widgetAgenda: 'Agenda',
+  SelectionAction.widgetCalendars: 'Calendars',
+  SelectionAction.widgetDeck: 'Deck',
+  SelectionAction.widgetFolder: 'Folder',
+  SelectionAction.widgetOpen: 'Open full view',
 };
 
 /// The dark bar over a selection (Convert.dc.html, RememberMark.dc.html and
@@ -69,6 +82,7 @@ class SelectionToolbar extends StatelessWidget {
     required this.onAction,
     this.colorsOpen = false,
     this.objectActions,
+    this.pressed = const {},
   });
 
   final SelectionMenu menu;
@@ -81,6 +95,9 @@ class SelectionToolbar extends StatelessWidget {
   /// first one is the main action when it's Edit text, Edit, Fan out or Stack.
   final List<SelectionAction>? objectActions;
 
+  /// Actions shown pressed (a calendar widget's Month or Agenda).
+  final Set<SelectionAction> pressed;
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -91,6 +108,8 @@ class SelectionToolbar extends StatelessWidget {
           label: label,
           padding: pad ?? padding,
           expanded: a == SelectionAction.color ? expanded : null,
+          selected: pressed.contains(a) ? true : null,
+          background: pressed.contains(a) ? c.inverseRaised : null,
           onTap: () => onAction(a),
           child: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: c.onInverse)),
         );
@@ -191,6 +210,7 @@ class _BarButton extends StatelessWidget {
     required this.child,
     this.background,
     this.expanded,
+    this.selected,
   });
 
   final String label;
@@ -199,12 +219,14 @@ class _BarButton extends StatelessWidget {
   final Widget child;
   final Color? background;
   final bool? expanded;
+  final bool? selected;
 
   @override
   Widget build(BuildContext context) => Semantics(
         button: true,
         label: label,
         expanded: expanded,
+        selected: selected,
         excludeSemantics: true,
         child: Material(
           color: background ?? Colors.transparent,

@@ -7,6 +7,7 @@ import '../../library/library.dart' show clockProvider;
 import '../../study/remember.dart';
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart';
+import '../calendar/event_picker.dart';
 import '../common.dart';
 import '../dialogs.dart';
 import '../icons.dart';
@@ -16,12 +17,15 @@ import 'study_format.dart';
 /// What was picked in Remember this.
 @immutable
 class RememberChoice {
-  const RememberChoice({this.why = '', this.remind = RemindKind.none, this.remindAt, this.flashcard = false});
+  const RememberChoice({this.why = '', this.remind = RemindKind.none, this.remindAt, this.flashcard = false, this.event});
 
   final String why;
   final RemindKind remind;
   final DateTime? remindAt;
   final bool flashcard;
+
+  /// The event the reminder comes before.
+  final EventLink? event;
 }
 
 /// "Remember this" (RememberMark.png): what's being remembered, why it
@@ -63,6 +67,7 @@ class _RememberPanelState extends ConsumerState<RememberPanel> {
   late final _why = TextEditingController(text: widget.initial?.why ?? '');
   late RemindKind _remind = widget.initial?.remind ?? RemindKind.none;
   late DateTime? _at = widget.initial?.remindAt;
+  late EventLink? _event = widget.initial?.event;
   late bool _card = widget.hasCard;
 
   DateTime get _now => ref.read(clockProvider)();
@@ -96,13 +101,29 @@ class _RememberPanelState extends ConsumerState<RememberPanel> {
     });
   }
 
+  Future<void> _pickEvent() async {
+    final picked = await showEventPicker(context, current: _remind == RemindKind.event ? _event : null);
+    if (picked == null || !mounted) return;
+    setState(() {
+      _remind = RemindKind.event;
+      _event = picked.$1;
+      _at = picked.$2;
+    });
+  }
+
   void _save() {
     final at = switch (_remind) {
       RemindKind.none => null,
       RemindKind.tomorrow => tomorrowMorning(_now).toUtc(),
       _ => _at,
     };
-    widget.onSave(RememberChoice(why: _why.text.trim(), remind: at == null ? RemindKind.none : _remind, remindAt: at, flashcard: _card));
+    widget.onSave(RememberChoice(
+      why: _why.text.trim(),
+      remind: at == null ? RemindKind.none : _remind,
+      remindAt: at,
+      flashcard: _card,
+      event: _remind == RemindKind.event ? _event : null,
+    ));
   }
 
   @override
@@ -208,9 +229,7 @@ class _RememberPanelState extends ConsumerState<RememberPanel> {
               child: Wrap(spacing: 8, runSpacing: 8, children: [
                 chip('No reminder', _remind == RemindKind.none, () => setState(() => _remind = RemindKind.none)),
                 chip('Tomorrow', _remind == RemindKind.tomorrow, () => setState(() => _remind = RemindKind.tomorrow)),
-                // Comes with calendar sync (Phase 7c).
-                chip('Before an event', _remind == RemindKind.event,
-                    () => showNote(context, 'Reminders before an event come with the calendar')),
+                chip(_remind == RemindKind.event && _event != null ? beforeLabel(_event!) : 'Before an event', _remind == RemindKind.event, _pickEvent),
                 chip(picked ? reminderChip(_at!, now) : 'Pick a date', picked, _pickDate),
               ]),
             ),

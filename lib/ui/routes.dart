@@ -38,6 +38,14 @@ abstract final class Routes {
 
   /// Need to remember (Remember.png).
   static const remember = '/remember';
+  static const calendar = '/calendar';
+  static const planner = '/planner';
+
+  /// The calendar's Day view on [day].
+  static String calendarOn(DateTime day) => Uri(path: calendar, queryParameters: {
+        'day': '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}',
+        'view': 'day',
+      }).toString();
 
   /// Flashcards (Study.png), on [deck] if given.
   static String flashcards([String? deck]) =>

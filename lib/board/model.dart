@@ -2529,6 +2529,84 @@ class DateData extends LiveData {
   Json toJson() => {'widget': 'date', 'config': rest};
 }
 
+/// The calendar on the page (WidgetBoard.png): the month with a dot for
+/// each event, and today's events; or what's coming up ([agenda]). It
+/// shows the calendars that are shown in the Calendar, but [hidden].
+class CalendarWidgetData extends LiveData {
+  const CalendarWidgetData({this.agenda = false, this.hidden = const [], super.rest});
+
+  final bool agenda;
+
+  /// Calendar ids this widget leaves out.
+  final List<String> hidden;
+
+  /// Six weeks, so every month fits.
+  @override
+  Size get size => const Size(370, 364);
+
+  @override
+  Json toJson() => {
+        'widget': 'calendar',
+        'config': {...rest, 'view': agenda ? 'agenda' : 'month', if (hidden.isNotEmpty) 'hidden': hidden},
+      };
+}
+
+enum PlannerWidgetRange { today, three, week }
+
+/// The planner on the page: today's schedule and to-dos, 3 days, or the
+/// week.
+class PlannerWidgetData extends LiveData {
+  const PlannerWidgetData({this.range = PlannerWidgetRange.today, super.rest});
+
+  final PlannerWidgetRange range;
+
+  @override
+  Size get size => const Size(450, 380);
+
+  @override
+  Json toJson() => {
+        'widget': 'planner',
+        'config': {...rest, 'range': range.name},
+      };
+}
+
+/// A deck on the page: the next card due, to flip and answer, and Study
+/// all. [deck] is a deck id from decks.json (the deck used last if empty).
+class FlashcardsWidgetData extends LiveData {
+  const FlashcardsWidgetData({this.deck = '', this.deckName = '', super.rest});
+
+  final String deck;
+
+  /// The deck's name when it was put here (another device may not have it).
+  final String deckName;
+
+  @override
+  Size get size => const Size(250, 260);
+
+  @override
+  Json toJson() => {
+        'widget': 'flashcards',
+        'config': {...rest, 'deck': deck, if (deckName.isNotEmpty) 'deckName': deckName},
+      };
+}
+
+/// The newest things to remember (in [folder], or everywhere).
+class RememberWidgetData extends LiveData {
+  const RememberWidgetData({this.folder = const [], super.rest});
+
+  /// A folder's path, or empty for every notebook.
+  final List<String> folder;
+
+  @override
+  Size get size => const Size(544, 160);
+
+  @override
+  Json toJson() => {
+        'widget': 'remember',
+        'config': {...rest, if (folder.isNotEmpty) 'folder': folder},
+      };
+}
+
 /// The moment it was made, shown as clock time ("8:36 PM") or how long ago
 /// ("12 min ago").
 class StampData extends LiveData {
