@@ -660,7 +660,7 @@ The owner's request (2026-10-27): charts bound to a table on the page or an Exce
 - The legend runs on one line; a chart with many series cuts it off at the right.
 - The Change data and Colors buttons and the type switch are 38–44 dp tall, as in the design.
 
-## Phase 7c: calendar, planner and widgets on the page — built, not yet tried on the tablet. Google and Outlook calendars come in Phase 7d, as calendar links (view only)
+## Phase 7c: calendar, planner and widgets on the page — built, not yet tried on the tablet. Google and Outlook calendars come in Phase 7d, as calendar links (read-only); two-way sync is deferred to Phase 9
 
 The owner's request (2026-10-28): the Calendar (Calendar.png) with two-way Google and Outlook sync; the Planner (Planner.png: Today, 3 days, Week; top 3, to-do, schedule, notes), working without any account; live widgets on the page (WidgetBoard.png: calendar, planner, flashcards, remember); and the "Before an event" reminders from 7a. Before the sync is built, the owner gets a step-by-step guide to the Google Cloud project and the Microsoft app registration, with what's free: **docs/CLOUD_SETUP.md**. **Everything here works offline, on the tablet. The sync is Phase 7d**, once the owner has the client IDs.
 
@@ -702,9 +702,9 @@ The owner's request (2026-10-28): the Calendar (Calendar.png) with two-way Googl
 - Times in the Calendar and Planner are 12-hour without AM or PM, as in the design ("10:00–11:15"); the event editor shows AM and PM.
 - A widget's text in an exported PDF's text layer is what it shows at the moment of the export; Search doesn't find widgets.
 
-## Phase 7d: Google and Outlook calendars from calendar links (view only) — built, not yet tried on the tablet
+## Phase 7d: Google and Outlook calendars from calendar links (read-only) — built, not yet tried on the tablet
 
-The owner's choice (2026-11-04): instead of two-way sync for now, view only, from calendar links (the private iCal address Google Calendar and Outlook give for each calendar), so there's no Google Cloud project, Microsoft app registration, card check or weekly sign-in. As many links as wanted: a work calendar from Outlook and a school one from Google show side by side. Two-way sync is later (docs/CLOUD_SETUP.md).
+The owner's choice (2026-11-04): instead of two-way sync for now, view only, from calendar links (the private iCal address Google Calendar and Outlook give for each calendar), so there's no Google Cloud project, Microsoft app registration, card check or weekly sign-in. As many links as wanted: a work calendar from Outlook and a school one from Google show side by side. **Calendar sync is read-only for now; two-way Google and Outlook sync is deferred to a later phase (Phase 9 in docs/SPEC.md)** (docs/CLOUD_SETUP.md).
 
 **Tablet check, 2026-11-04** (the owner's tablet, over adb, no real link yet). Connect opens its panel by finger and S Pen, and Add a calendar link opens the dialog. The owner expected a pop-up: the panel opens at the right edge, away from the chip, under the hand. Fixed afterwards (with tests): the Connect chip stays at the end of the chips (with many calendars it was pushed off screen, and a tap on what showed missed); "Add a tablet calendar" was cut off, now **Add a tablet calendar**; with the on-screen keyboard up, the dialog keeps Cancel and Add above it (the intro steps aside), and the Calendar behind it no longer squeezes its sidebar into half the screen. On the tablet the on-screen keyboard didn't show at all: Samsung Keyboard hides it while a keyboard is shared from the PC ("Samsung Virtual Keyboard", external), in every app.
 
@@ -930,7 +930,7 @@ The owner's request (2026-11-04): a third sticky option in the Insert menu, a pa
   4. **Notes.** Pick one of their events: Start notes, go back, Refresh: the notes stay. Remember → Before an event with one of their events.
   5. **Offline.** Airplane mode, restart Endless: the events are still there and the card says it couldn't reach it. Back online: Refresh.
   6. **Remove** one, and add it back. Dark mode for all of the above.
-- **Two-way sync with Google Calendar and Outlook** (later; the owner chose view-only links for now). Needs from the owner (docs/CLOUD_SETUP.md): the Google Web client ID and the Microsoft Application (client) ID. Then: sign-in (`google_sign_in` 7.2.0 on Android; Microsoft through MSAL or AppAuth, to choose), listing calendars into calendar.json, pulling events (incremental: Google's sync tokens, Graph's delta), sending `pending` changes and deletions, conflicts (the newer change wins, the other kept as a copy), the Connect panel's accounts, and moving a calendar link's notes onto the synced calendar's events.
+- **Two-way sync with Google Calendar and Outlook** (deferred to Phase 9; calendar sync is read-only until then, the owner's choice). Needs from the owner (docs/CLOUD_SETUP.md): the Google Web client ID and the Microsoft Application (client) ID. Then: sign-in (`google_sign_in` 7.2.0 on Android; Microsoft through MSAL or AppAuth, to choose), listing calendars into calendar.json, pulling events (incremental: Google's sync tokens, Graph's delta), sending `pending` changes and deletions, conflicts (the newer change wins, the other kept as a copy), the Connect panel's accounts, and moving a calendar link's notes onto the synced calendar's events.
 - **Phase 7c tablet checklist** (calendar, planner, widgets). Install a release build (`flutter build apk --release`, then `adb install -r`).
   1. **Calendar.** Sidebar → Calendar. + Event: "Physics lecture" on Mon, Wed and Fri (Every Monday… one each), 10:00–11:15. Week, Day, Month; a tap on an empty time; ‹ › and Today. Change one, make it repeat, delete one time of it, Undo.
   2. **Notes for an event.** Pick an event: Start notes (opens a new notebook named after it), go back, Open notes. Another event: Template. With flashcards due in those notes, "Review before class" shows.

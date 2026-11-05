@@ -90,8 +90,8 @@ Each feature names the screen that shows it (`design/screens/<Name>.png`, with s
 
 ## Phase 7: Widgets, planning and study
 - **Calendar:** month, week and day views. Shows **Google and Outlook** calendars, and each calendar can be toggled. Events link to notes ("Open notes", template). **[Calendar]**
-  - **For now: calendar links, view only** (the owner's choice, 2026-11-04). Paste a calendar's private iCal (.ics) address; its events show and refresh, nothing is sent back, and no account or cloud project is needed.
-  - **Later: two-way sync** with Google and Outlook sign-in (setup in docs/CLOUD_SETUP.md).
+  - **For now, calendar sync is read-only: calendar links, view only** (the owner's choice, 2026-11-04). Paste a calendar's private iCal (.ics) address; its events show and refresh, nothing is sent back, and no account or cloud project is needed.
+  - **Deferred to Phase 9: two-way sync** with Google and Outlook sign-in (setup in docs/CLOUD_SETUP.md). Nothing in Phase 7 or 8 writes to Google or Outlook.
 - **Planner:** Today, 3 days or Week. Top 3 today, a to-do list (drag onto the schedule to block time), the schedule, and notes for today. **[Planner]**
 - **Widgets on the page:** calendar, planner, flashcards and remember, all live, resizable and movable. **[WidgetBoard]**
 - **Flashcards:**
@@ -115,6 +115,7 @@ Each feature names the screen that shows it (`design/screens/<Name>.png`, with s
 - **Video:** upload and play inside notes. Notes can be pinned to moments, and you can grab a frame, trim, transcribe or replace. Large videos stay in Drive and the page keeps a link. **[Video]**
 
 ## Phase 9: Cloud, sharing and collaboration
+- **Two-way calendar sync** with Google Calendar and Outlook (deferred from Phase 7, where calendars are read-only links): sign in, edit events in Endless and send the changes back. **[Calendar]**
 - **Sync settings:**
   - Google Drive and/or OneDrive, with a chosen folder.
   - What syncs: board files, optional PDF copy, images and PDFs.
