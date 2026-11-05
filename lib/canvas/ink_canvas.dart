@@ -11,6 +11,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../audio/playback.dart';
+import '../audio/recording.dart';
+import '../audio/transcript_lines.dart' show clockOf;
+import '../audio/transcription.dart';
 import '../board/codec.dart' show withRemember;
 import '../board/ids.dart';
 import '../board/model.dart';
@@ -41,6 +45,7 @@ import '../state/widget_feed.dart';
 import '../templates/templates.dart';
 import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
+import '../ui/canvas/audio_actions.dart';
 import '../ui/canvas/card_editors.dart';
 import '../ui/canvas/chart_actions.dart';
 import '../ui/canvas/convert_panel.dart';
@@ -59,6 +64,7 @@ import '../ui/study/remember_panel.dart';
 import '../ui/study/study_format.dart' show reminderShort;
 import '../ui/icons.dart' show EIcons, paintEIcon;
 import '../ui/study/study_marks.dart';
+import 'audio_card.dart';
 import 'canvas_view.dart';
 import 'cards.dart';
 import 'connectors.dart';
@@ -86,6 +92,7 @@ import 'widget_items.dart';
 part 'ink_canvas_math.dart';
 part 'ink_canvas_study.dart';
 part 'ink_canvas_live.dart';
+part 'ink_canvas_audio.dart';
 
 /// Eraser radius in screen px.
 const eraserRadius = 10.0;
@@ -134,6 +141,8 @@ enum _Drag {
   graph,
   // Pulling a note off a sticky pad.
   pull,
+  // Moving a recording's card by its grip.
+  audioMove,
 }
 
 /// What the fingers are doing: on a selected graph's plot, they move its
@@ -285,6 +294,15 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   /// The tap in progress is the pen's (or the mouse's), not a finger's.
   bool _tapPen = false;
 
+  /// A recording's card being moved by its grip, and where it was taken
+  /// hold of (from its top-left).
+  AudioItem? _audioMoving;
+  Offset _audioGrab = Offset.zero;
+
+  /// The notebook whose recordings were last looked at (to recover and
+  /// carry on with transcripts once per notebook opened).
+  String? _audioNotebook;
+
   /// The handwriting just graphed, marked "Graphed" while it stays put.
   Set<String> _graphedIds = const {};
   Rect? _graphedArea;
@@ -381,6 +399,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     pane.math.addListener(_mathChanged);
     pane.cards.addListener(_cardsChanged);
     pane.live.addListener(_liveChanged);
+    pane.audio.addListener(_audioChanged);
     _selection.addListener(_overlay.ping);
     _selection.addListener(_selectionChanged);
     _watchDraft();
@@ -397,7 +416,9 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       oldWidget.pane.math.removeListener(_mathChanged);
       oldWidget.pane.cards.removeListener(_cardsChanged);
       oldWidget.pane.live.removeListener(_liveChanged);
+      oldWidget.pane.audio.removeListener(_audioChanged);
       widget.pane.live.addListener(_liveChanged);
+      widget.pane.audio.addListener(_audioChanged);
       widget.pane.math.addListener(_mathChanged);
       widget.pane.cards.addListener(_cardsChanged);
       widget.pane.addListener(_paneChanged);
@@ -472,6 +493,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     _hover.dispose();
     _overlay.dispose();
     pane.live.removeListener(_liveChanged);
+    pane.audio.removeListener(_audioChanged);
     _liveTimer?.cancel();
     _liveTick.dispose();
     super.dispose();
@@ -606,6 +628,16 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _touch = _Touch.selection;
         _touchTransform = Similarity.identity;
         _beginMoving();
+      } else if ((_canInk ? topBoxAt(_page.items, page) : null) case final AudioItem card
+          when audioHitAt(card, card.toLocal(page))?.part == AudioPart.grip) {
+        // A finger on a recording's grip moves its card.
+        _drawPointer = e.pointer;
+        _drawAt = e.localPosition;
+        _fingerDrawing = true;
+        _strokeStart = e.timeStamp;
+        _dismissToast();
+        _startAudioMove(e.localPosition, card);
+        return;
       } else if ((_canInk ? topBoxAt(_page.items, page) : null) case final StickyPadItem pad) {
         // A finger pulls a note off a pad too; a second finger pans instead.
         _drawPointer = e.pointer;
@@ -834,6 +866,18 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
           _startPull(e.localPosition, top);
           return;
         }
+        if (top is AudioItem && settings.tool != CanvasTool.eraser) {
+          // Nothing is written on a recording's card: the pen moves it by
+          // its grip and presses its buttons.
+          if (audioHitAt(top, top.toLocal(page))?.part == AudioPart.grip) {
+            _startAudioMove(e.localPosition, top);
+          } else {
+            _drag = _Drag.tap;
+            _tapDown = e.localPosition;
+            _tapMoved = false;
+          }
+          return;
+        }
         if ((top is OfficeItem && officeButtonAt(top, top.toLocal(page)) != null) ||
             (top is MathItem && pane.math.on && settings.tool != CanvasTool.eraser) ||
             (settings.tool != CanvasTool.eraser && _controlAt(top, page))) {
@@ -949,6 +993,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _dragGraph(page);
       case _Drag.pull:
         _pullTo(e.localPosition);
+      case _Drag.audioMove:
+        _audioMoveTo(e.localPosition);
       case _Drag.none:
         break;
     }
@@ -1019,6 +1065,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _finishConnectorEnd();
       case _Drag.pull:
         _finishPull();
+      case _Drag.audioMove:
+        _finishAudioMove();
       case _Drag.graph || _Drag.none:
         break;
     }
@@ -1041,6 +1089,9 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _moving = const {};
       case _Drag.pull when _stackArmed:
         _status(null);
+      case _Drag.audioMove:
+        _audioMoving = null;
+        _overlay.ghost = null;
       default:
         break;
     }
@@ -2164,6 +2215,10 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     final page = _page;
     final now = DateTime.now().toUtc();
     final settings = ref.read(settingsProvider);
+    // A recording's buttons; a finger on ink written while recording plays
+    // it from then.
+    if (_pressAudio(at)) return;
+    if (!_tapPen && _jumpToInk(at)) return;
     // A tap on typeset math edits it; in math mode, a tap on the paper
     // types new math there.
     if (topBoxAt(page.items, at, slop: 4 * _unit) case final MathItem m when settings.tool != CanvasTool.eraser) {
@@ -2428,6 +2483,14 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     if (settings.tool != CanvasTool.laser && !_laser.isEmpty && _drag != _Drag.laser) _laser.clear();
     _checkGraphed(page);
     _watchLive(page);
+    // A notebook opened (here it's loaded): its recordings that were cut
+    // off go back on their pages, and unfinished transcripts carry on.
+    if (_audioNotebook != pane.notebookId) {
+      _audioNotebook = pane.notebookId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_audioOpened());
+      });
+    }
     // Widgets show the calendar, the planner and the study data as they are.
     ref.listen(widgetFeedProvider, (_, _) => _feedChanged());
 
@@ -2471,6 +2534,9 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
                     hidden: _hidden, repaint: Listenable.merge([_overlay, _liveTick])),
               ),
             ),
+            // A recording playing: the ink written at that moment lit, and
+            // the cards as they are now.
+            if (!_viewOnly) _audioLayer(page, brightness, colors),
             RepaintBoundary(
               child: CustomPaint(
                 painter: GestureOverlayPainter(
@@ -2606,6 +2672,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     if (_selection.live != null || _drag == _Drag.stretch || _drag == _Drag.connectorEnd) return _moving;
     // A note held over another shows them stacked, in its place.
     if (_drag == _Drag.pull && _stackArmed && _stackOnto != null) return {_stackOnto!};
+    if (_drag == _Drag.audioMove && _audioMoving != null && _overlay.ghost != null) return {_audioMoving!.id};
     if (_edit != null) return _editHidden;
     if (_draftItem != null && pane.math.draft?.itemId != null) return {pane.math.draft!.itemId!};
     return _overlay.scribble;

@@ -760,6 +760,58 @@ The owner's request (2026-11-04): a third sticky option in the Insert menu, a pa
 - **Not tried on the tablet**: how the pull feels with the S Pen, whether 0.6 s is the right hold, and the haptic tick.
 - The pad isn't in the left rail's Insert flyout; it's in the full Insert menu.
 
+## Phase 8a: recording audio, ink linked to it, and transcripts — built, not yet tried on the tablet
+
+The owner's request (2026-11-04): Record audio from the Insert menu, as a card placed anywhere on the page (Audio.png) with play/pause, a waveform, speed, ±10 s and the time; ink written while recording time-stamped, lit up as the recording reaches it, and a tap on ink jumping there; a Transcript panel with times and speakers (tap a line to jump, Add to page as text, Copy, Export), searchable; recording that keeps going with the screen off or in another app, saved in the `.board` package.
+
+**Transcription, the owner's choice (2026-11-04):** free and offline were musts, telling speakers apart was wanted, and no code from Chinese-affiliated companies (so not sherpa-onnx, by Xiaomi's Next-gen Kaldi team). Built from: **whisper.cpp 1.9.5** (ggml.ai, Bulgaria; MIT) running OpenAI's **Whisper base** model (MIT, 99 languages) for the words; **pyannote segmentation 3.0** (CNRS, France; MIT) and **SpeechBrain's ECAPA** speaker model (Apache-2.0) on Microsoft's **ONNX Runtime** for the speakers. All on the tablet; nothing is sent anywhere. All the licences allow selling the app. tool/speech_model/README.md has the details.
+
+| Item | Status | Where |
+|---|---|---|
+| Record audio | Insert → **Audio** (Files), or the rail's Insert → **Record audio**. Asks for the microphone the first time ("Can’t record" says how to allow it). Playback pauses first. Again while recording: "Already recording · Stop is at the top" | `startRecording` (`lib/ui/canvas/audio_actions.dart`) |
+| The recording pill | Under the top bar (Audio.dc.html): red dot, **Recording · 0:42**, the last moments' loudness, **Pause** (then **Resume**, "Paused · 0:42", grey dot) and **Stop**. It shows in any notebook (and in Split view), since the recording keeps going | `RecordingPill` (`lib/ui/canvas/recording_pill.dart`) |
+| Keeps going | On Android a foreground service (type microphone) with a notification, "Recording", keeps the microphone on with the screen off or another app in front; a partial wake lock keeps the CPU going. Other apps' sounds and notifications don't stop it | `KeepGoingService`, `AudioTools.kt`; `record` 6.2.1 |
+| Safe if the app is stopped | The recording is written as it goes (AAC frames, ADTS, readable up to the last frame), with a note beside it every 5 s (notebook, page, ink moments, loudness). The next time that notebook opens, a recording that was cut off goes on its page as "… (cut off)", with "Found a recording that was cut off · it’s on page 2" | `RecordingController` (`lib/audio/recording.dart`), `recover` |
+| Stored | On Stop the frames are put in an **.m4a** (no re-encoding: 16 kHz mono AAC at 32 kbit/s, about 14 MB an hour) and stored in the notebook's `assets/` like a picture: sealed on a page with a password, and part of a board file | `AudioTools.finish`, `NotebookNotifier.storeAudio` |
+| The card | Put on a free spot of the page shown (one undo step, "Added the recording · its transcript is being made on this tablet"). Audio.dc.html's 560 × 152 card: the grip, the microphone, its name (the page's title + " recording", or "Recording", "Recording 2") and "Fri · 48:20"; **play/pause**, the **waveform** (60 bars from the recording's loudness, played part in blue, the playhead) and "12:40 / 48:20"; **1× · −10 s · +10 s**, and **Transcript** (dark while its panel is open). While its transcript is made the header says "Transcript 40% · 48:20". The pen and fingers press its buttons; nothing is written on it | `AudioItem` (`lib/board/model.dart`), `paintAudioCard`, `audioHitAt` (`lib/canvas/audio_card.dart`) |
+| Its buttons | Play/pause; a tap on the waveform plays from there; ±10 s (before playing: from 10 s in, paused); speed steps 1× → 1.25× → 1.5× → 2× → 0.75× and is kept per recording | `_pressAudio` (`lib/canvas/ink_canvas_audio.dart`), `PlaybackController` (`lib/audio/playback.dart`) |
+| Moving it | Drag the **grip** (⋮⋮) with the pen or a finger (one undo step), or Select, like any box. A tap on the grip says "Drag ⋮⋮ to move the recording" | `_startAudioMove`, `_finishAudioMove` |
+| Ink time-stamped | Every stroke written in the notebook while recording (on any page, not while paused) is kept with its time in the recording | `InkMoments` (`lib/audio/ink_moments.dart`), `AudioItem.inkTimeline` |
+| Ink lights up | While a recording plays, the page is dimmed (Audio.dc.html's 0.4) and the ink written at that moment is lit, with a blue outline around it and **written at 12:40** above. Strokes written within 4 s of each other light up together, as they're reached; a group stays lit 15 s after its last stroke | `_audioLayer`, `_AudioPainter`, `_inkLight` |
+| Tap ink to jump | **A finger** on ink written while recording plays it from 2 s before that stroke was written (from any page of the notebook). The pen still writes | `_jumpToInk` |
+| Transcript | Made after Stop, on the tablet, in the background (a notification, "Making a transcript", keeps it going): whisper.cpp hears the recording **a part (about 4 min, cut where it's quietest) at a time** and each part's lines are saved as they come, so the panel fills as it goes and a transcript that was stopped (the app closed) **carries on from where it got to**. The language is heard from the first part. Then the speakers are found, and each line gets the speaker heard most during it; a line where the speaker changes is split at the word. Saving a transcript isn't an undo step, and Undo never takes it away | `TranscriptionQueue` (`lib/audio/transcription.dart`), `WhisperSpeechToText` (`lib/audio/speech_models.dart`), `packages/endless_speech` |
+| Speakers | 10 s windows every 4 s: who speaks when (pyannote), a voice print of each voice where it speaks alone (ECAPA), prints grouped by cosine distance (0.65), a voice heard once for under 3 s (a cough, a door) joined to the nearest speaker. "Speaker 1", "Speaker 2"… in the order they first speak; **tap a speaker's name to name them** ("Professor"), one undo step, on every line of theirs | `findSpeakers`, `groupPrints` (`lib/audio/speakers.dart`), `withSpeakers` |
+| Transcript panel | Audio.dc.html's aside (420 wide, at the right; the pages rail and map step aside): **Transcript**, "Lecture 3 recording · English · made on this tablet", Search and Close; each line with its time, speaker and text; the line playing highlighted and kept in view. **Tap a line** to play from it. Search filters the lines and marks what matched. While it's made: "Making the transcript on this tablet · 40%", "Finding who speaks · 90%"; if it failed, why, and **Try again** | `TranscriptPanel` (`lib/ui/canvas/transcript_panel.dart`) |
+| Add to page as text, Copy, Export | **Add to page as text**: a text box under the card, "12:02 Professor: …" a line each (one undo step). **Copy**: the same to the clipboard. **Export**: "Lecture 3 recording transcript.txt" (name, date, length, language, then the lines) saved where you pick | `addTranscriptAsText`, `copyTranscript`, `exportTranscript` |
+| Search | Every line of every transcript is in the search index: "Said in a recording", with its time and speaker ("0:12 · Professor · …"), under All. Open at this spot shows the card | `rowsFor` (`lib/recognition/handwriting_index.dart`), `SearchKind.audio` |
+| Exports | In a PDF the card is a picture and its transcript is in the text layer. A board file carries the recording, its ink moments and transcript | `pdf_export.dart` |
+| Leaving | Leaving the notebook stops its playing; the recording keeps going until Stop (from any notebook: a recording from another notebook goes on its page when that notebook next opens). Deleting a card stops it playing and stops its transcript | `CanvasScreen.dispose`, `stopFor` |
+| The models | Bundled with the app (about 88 MB): `whisper-base-q5_1.bin` and `segmentation-3.0.onnx` are fetched by `dart run tool/speech_model/fetch.dart` from pinned Hugging Face revisions and checked against their SHA-256 (not in git: too big); `speakers-ecapa.onnx` (22 MB) is exported by `tool/speech_model/export_speakers.py` and kept in git. Copied out of the app on first use. Licences in the app's licence page (`assets/speech/NOTICE.txt`) | `tool/speech_model/`, `assets/speech/` |
+| whisper.cpp | Vendored as source (CPU only: no GPU back ends, examples, servers or downloaders; `README.endless.md`), built into `libendless_speech` with the app, behind a small C++ bridge that only reads the model file and the samples it's given. arm64 builds use ARMv8.2 dot-product and half-float instructions (every Arm tablet since about 2018). **Checked 2026-11-04:** the built Android library imports no networking functions at all (no socket, connect, DNS, send or receive); ggml's crash-time debugger launch (fork + exec gdb) and whisper.cpp's Apple accelerator loader are turned off when it starts | `packages/endless_speech` |
+| Android | Permissions: RECORD_AUDIO, FOREGROUND_SERVICE (+ _MICROPHONE, _DATA_SYNC), WAKE_LOCK; the service in the manifest. Recordings play from memory through `just_audio`'s proxy on the device, so plain HTTP is allowed to 127.0.0.1 only (`network_security_config.xml`); everything else stays HTTPS-only | `AndroidManifest.xml`, `MainActivity.kt` |
+| Tokens | `record` (#C23B2E) and `recordDeep` (#8E2A20) from Audio.dc.html, with dark versions | `design/tokens.json` |
+
+**Judgment calls:**
+- **The transcript is made after Stop, not live.** whisper.cpp reads the finished recording; lines show part by part (every 4 minutes of recording) as they're heard.
+- **A finger on ink plays; the pen writes.** A pen tap could be dotting an i. It plays from **2 s before** the stroke: you write after you hear.
+- **While playing, all ink but what's being reached is dimmed**, as Audio.dc.html does (0.4), not only what comes later.
+- **The card goes on a free spot**, not dragged from Audio.png's "Voice note · drag to place" chip: it can be moved by its grip any time.
+- **Speakers are "Speaker 1", "Speaker 2"** until named; the models can't know who's the professor.
+- **Whisper base, multilingual**, with the language heard from the first part, rather than the English-only model (a little more accurate in English). There's no language setting yet.
+- **One recording plays at a time**, and recording pauses playback (the microphone would hear it).
+- **Search hits for transcripts are under All** only: Search.png has no filter for them.
+
+### Not done yet / known limits
+- **Not tried on the tablet.** How fast transcripts are on the Tab S9 FE (estimate: a 48-minute lecture in 10–25 minutes for the words, a few more for speakers), the background service with the screen off, and the APK's size (about 90 MB larger).
+- **Speakers were tuned on synthetic voices** (Windows' voices and a speech sample); real lecture-hall audio may need the 0.65 distance changed (`speakerDistance`).
+- Playing isn't available on **Windows** (`just_audio` has no Windows player; the card says "This recording can’t be played here"). Recording and transcripts work there.
+- No language choice, no "transcribe again", and no editing of a line's text.
+- Opening a transcript search hit shows the card but doesn't play from that line.
+- Dragging along the waveform to scrub isn't built (a tap jumps).
+- While a transcript is made, the recording is unpacked (as audio samples) into the app's cache, deleted when it's done: for a page with a password that's a short-lived copy in the clear. A locked page's transcript waits until it's unlocked.
+- The notification has no Pause or Stop buttons (open Endless to stop).
+- Video (Phase 8b) isn't started.
+
 ## Storage layout
 
 ```
@@ -777,12 +829,15 @@ The owner's request (2026-11-04): a third sticky option in the Insert menu, a pa
     ├── notebook.json
     ├── lock.json                  # only when a page or the notebook has a password
     ├── pages/<pageId>.json        # or <pageId>.json.enc while locked
-    ├── assets/<sha256>.<ext>      # images, imported PDFs and their pages' pictures, Word/PowerPoint/Excel files; <name>.enc on a locked page
+    ├── assets/<sha256>.<ext>      # images, imported PDFs and their pages' pictures, Word/PowerPoint/Excel files, recordings (.m4a/.wav); <name>.enc on a locked page
     ├── study.json                 # how well each flashcard is known (FSRS)
     └── index/recognition.json     # what the handwriting says, per page (never a locked page)
 
 <app support>/dictionary/en-dictionary-v1.sqlite   # the bundled dictionary, unpacked on first use (app data, not the user's)
 <app support>/math/comer-2/encoder.onnx, decoder.onnx   # the math model, copied out of the app on first use
+<app support>/speech/speech-1/…                         # the speech models (Phase 8a), copied out of the app on first use
+<app support>/recordings/<itemId>.aac + .json           # a recording being made, and its note (gone once it's in its notebook)
+<cache>/transcribing/<itemId>.f32                       # a recording unpacked while its transcript is made (deleted after)
 ```
 
 ## Tests
@@ -920,8 +975,27 @@ The owner's request (2026-11-04): a third sticky option in the Insert menu, a pa
   - `test/ui/calendar_test.dart`: Connect has Add a calendar link, not the account buttons.
   - 1 golden: `calendar_connect` (two links, one read, one offline). `FakeFeeds` in `test/helpers.dart` stands in for the network.
 - `test/tokens_sync_test.dart`: generated tokens match `design/tokens.json`.
+- Phase 8a:
+  - `test/board/audio_item_test.dart`: the `audio` item's round trip (unknown fields kept, in its lines too), a transcript being made, scaling and copies (not linked to the ink), the card's buttons where Audio.dc.html puts them, "Fri · 48:20", WAV lengths and 16 kHz mono (stereo, 32 kHz, a file cut off), the waveform.
+  - `test/audio/speakers_test.dart`: grouping voice prints; with stand-in models, a lecture with a question (who, when, silence), three voices, one, a cough, nobody; lines split where the speaker changes; times, transcript text, language names.
+  - `test/state/audio_state_test.dart`: a transcript isn't an undo step and Undo/Redo keep it (moved while it was made, removed and brought back), naming a speaker is; ink time-stamped while recording (not while paused, not another notebook's, not after Stop) and the files gone once stored; a recording cut off found again (and not for another notebook); a transcript made a part at a time, stopped, carried on from 20 s, with speakers and the background service on and off, its working files gone, and found by search with its time and speaker; no speech model.
+  - `test/ui/audio_test.dart`: Insert flyout → Record audio, the pill (time, Pause/Resume, Already recording), ink written, paused, Stop → the card with its ink moments and transcript; the card's play/pause (pen and finger), waveform, ±10 s, speed; ink lit while playing; a finger on ink plays from 2 s before; the pen still writes; the grip moves it and Undo keeps the transcript; deleting it stops it playing; the Transcript panel (lines, times, speakers, tap to play, naming a speaker, search, Copy, Export, Add to page as text, Close); no microphone; a recording cut off put back when the notebook opens. 2 goldens (`audio_playing`, `audio_transcript`).
+  - `test/transfer/everything.dart` has a recording with its transcript, so the board file and PDF round trips cover it.
+  - `packages/endless_speech/test/whisper_native_test.dart`: whisper.cpp itself on this computer (skipped unless given the built library, the model and a WAV; tool/speech_model/README.md). Checked 2026-11-04: JFK's 11 s sample transcribed word for word in 1.7 s, words timed.
 
 ## Next
+- **Phase 8a tablet checklist** (audio). First `dart run tool/speech_model/fetch.dart`, then a release build (`flutter build apk --release`, `adb install -r`).
+  1. **Record.** In a notebook: Insert (rail) → Record audio. Allow the microphone. The pill shows "Recording · 0:0x" and moves; a "Recording" notification is up.
+  2. **Write while it records.** Write a few lines with the S Pen over a minute or two, talking. Pause, write a line, Resume, write more.
+  3. **Screen off and other apps.** Turn the screen off for a minute, talking; then open another app (YouTube, muted) for a minute. Back in Endless the time has kept counting.
+  4. **Stop.** The card appears with its waveform; "Added the recording…". The header shows "Transcript …%" and the Transcript panel fills part by part. How long did a 2-minute recording take? (Try a real lecture later: a 50-minute one.)
+  5. **Two voices.** Record a minute with someone else talking too: are there two speakers? Tap "Speaker 1" and name them.
+  6. **Play.** Play/pause, tap the waveform, ±10 s, the speed button. While it plays the page dims and the ink you wrote lights up with "written at …"; ink written while paused doesn't.
+  7. **Tap ink with a finger** to jump there; the S Pen still writes.
+  8. **Transcript panel.** Tap a line to jump; search a word; Add to page as text, Copy (paste somewhere), Export (save a .txt).
+  9. **Search** (rail) a word that was said: "Said in a recording".
+  10. **Cut off.** Start recording, swipe Endless away from recents, open it and the notebook again: the recording is back on its page, "(cut off)".
+  11. Dark mode; a PDF export (the card, and the transcript in the text); a board file round trip; a page with a password (record on it, lock, unlock, play).
 - **Sticky pad tablet check.** Insert → Everything else → Sticky pad, tap the page. Drag a few notes off with the S Pen and with a finger, and write on one. Drag one over that note and hold until it shows "2 notes" and you feel the tick, then let go. Pass quickly over a note: no stack. Select the pad: move it, recolor it, pull a note of the new color. Dark mode, a PDF export, and a board file round trip.
 - **Phase 7d tablet checklist** (calendar links). Install a release build (`flutter build apk --release`, then `adb install -r`).
   1. **Google.** In a browser (desktop site), Google Calendar → Settings → your calendar → Integrate calendar → Secret address in iCal format; copy it. In Endless: Calendar → Connect → Add a calendar link, paste, Add. Its chip and events show; check a repeating event, an all-day one and one you've moved or deleted one time of.

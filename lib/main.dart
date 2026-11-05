@@ -54,5 +54,9 @@ void _registerLicenses() {
       ['CoMER handwritten math model'],
       await rootBundle.loadString('assets/math/NOTICE.txt'),
     );
+    yield LicenseEntryWithLineBreaks(
+      ['Whisper, whisper.cpp, pyannote and SpeechBrain speech models'],
+      await rootBundle.loadString('assets/speech/NOTICE.txt'),
+    );
   });
 }

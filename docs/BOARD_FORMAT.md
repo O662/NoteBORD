@@ -84,7 +84,7 @@ Every item has these fields:
 | `chart` | `w`, `h`, `unit`, `title`, `chartType` (bar/line/area/scatter), `source?: {kind: table/xlsx, ref, sheet?, range?, name}`, `linked`, `snapshot: {cells}`, `colors?`, `suffix?` |
 | `widget` | `w`, `h`, `widget` (calendar/planner/flashcards/remember/clock/date/numberline/unitcircle/polar), `config`, `unit` |
 | `flashcard` | `deck`, `deckName`, `reverse`, `front: {ids?, text?}`, `back: {ids?, text?}` (not drawn; see below) |
-| `audio` | `asset`, `durationMs`, `inkTimeline: [{strokeId, tMs}]`, `transcript?: [{tMs, speaker, text}]` |
+| `audio` | `w`, `h`, `unit`, `asset`, `name`, `recordedAt`, `durationMs`, `wave`, `inkTimeline: [{strokeId, tMs}]`, `transcript: [{tMs, endMs, speaker?, text}]`, `speakers?`, `language?`, `transcribe?` (see below) |
 | `video` | `w`, `h`, `asset` or `remoteUrl`, `pins: [{tMs, itemId}]` |
 | `timestamp` | `w`, `h`, `unit`, `at` (ISO), `display` (clock/ago) |
 | `checklist` | `w`, `h`, `unit`, `title`, `entries: [{text, done, ink?}]` |
@@ -202,6 +202,24 @@ Every item has these fields:
 - `flashcard` is the id of the `flashcard` item made from it ("Also make it a flashcard"). `drawn: true` means it was marked by drawing a star; the star stroke itself carries the same mark with `star: true` and is not part of what's remembered. `at` is when it was marked.
 - Marking, changing and forgetting are item edits, so they are undo steps, are sealed with a page that has a password, and go along in board files. A copy of a marked item isn't marked.
 - Reminders are local notifications on the device, set from these marks (nothing leaves the device). A page or notebook with a password is never read for them, so its reminders don't go off while it has one.
+
+**Recordings, as implemented (v1, Phase 8a, Audio.png):** an `audio` item is a recording's card on the page.
+
+```json
+{ "id": "it_01J…", "type": "audio", "x": 110, "y": 520, "w": 560, "h": 152, "unit": 1, "rotation": 0, "z": 12,
+  "asset": "<sha256>.m4a", "name": "Lecture 3 recording", "recordedAt": "2026-11-06T12:10:00.000Z", "durationMs": 2900000,
+  "wave": [0, 12, 40, …], "inkTimeline": [{ "strokeId": "it_…", "tMs": 760000 }],
+  "transcript": [{ "tMs": 722000, "endMs": 744000, "speaker": "s1", "text": "Okay, so last time…" }],
+  "speakers": { "s1": "Professor" }, "language": "en" }
+```
+
+- `asset` is the recording in `assets/`: AAC in an `.m4a` (16 kHz mono, 32 kbit/s, about 14 MB an hour) from Android, a 16-bit `.wav` where AAC isn't recorded. Sealed (`.enc`) on a page with a password, like pictures, and part of a board file.
+- The card is Audio.dc.html's section: 560 × 152 at `unit: 1`. Scaling it by a corner changes `unit` (`w` and `h` follow). `name` is shown on it (the page's title + " recording", or "Recording", "Recording 2"); `recordedAt` and `durationMs` give "Fri · 48:20".
+- `wave` is how loud it was along the recording, 120 values from 0 to 100 (the loudest in each stretch), for the card's waveform.
+- `inkTimeline` lists the strokes written (on any page of the notebook) while it recorded, and when: ms into the recording, not counting pauses. Strokes that are gone are ignored. A copy of the card isn't linked to the ink (its `inkTimeline` is empty).
+- `transcript` is what was said, a line at a time, made on the device. `speaker` is a key (`s1`, `s2`, … in the order they first speak), absent when not known; `speakers` holds the names given to them (unnamed ones show as "Speaker 2"). `language` is the language heard, as a code.
+- `transcribe` is present only while the transcript isn't finished: `{"state": "waiting" | "working" | "failed", "upToMs": 240000}`. `upToMs` is how far the words have got; the transcript carries on from there. Saving the transcript as it's made isn't an undo step, and Undo keeps it.
+- In a PDF the card is a picture and its transcript is in the text layer. Search finds each line of the transcript.
 
 **Flashcards, as implemented (v1, Phase 7a, FlashMake.png):** a `flashcard` item is a card made on its page. It isn't drawn, can't be selected, and isn't exported to PDF; `x`/`y` is where its front was when it was made.
 

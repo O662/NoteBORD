@@ -13,6 +13,7 @@ class MainActivity : FlutterFragmentActivity() {
     private var ink: InkRecognition? = null
     private var speech: Speech? = null
     private var keyboard: Keyboard? = null
+    private var audio: AudioTools? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -21,6 +22,9 @@ class MainActivity : FlutterFragmentActivity() {
         // The dictionary's "Hear it" (lib/spelling/speech.dart).
         speech = Speech(this, flutterEngine.dartExecutor.binaryMessenger)
         keyboard = Keyboard(this, flutterEngine.dartExecutor.binaryMessenger)
+        // Recording audio: keeps going in the background, and finishes and
+        // reads recordings for transcripts (lib/audio/platform_audio.dart).
+        audio = AudioTools(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
         // The clocks on the page show the time zone by name (lib/state/time_zone.dart).
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "endless/time").setMethodCallHandler { call, result ->
             if (call.method == "zone") result.success(java.util.TimeZone.getDefault().id) else result.notImplemented()
@@ -66,6 +70,8 @@ class MainActivity : FlutterFragmentActivity() {
         speech = null
         keyboard?.dispose()
         keyboard = null
+        audio?.dispose()
+        audio = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
 }

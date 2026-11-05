@@ -11,6 +11,7 @@ import 'coming_soon.dart';
 /// What picking something in the Insert menu does. Everything else in the
 /// menu opens a "coming soon" card.
 enum InsertAction {
+  audio,
   sticky,
   stack,
   pad,
@@ -139,8 +140,8 @@ final List<InsertSection> insertSections = [
   InsertSection('Files', 7, [
     InsertEntry('Video', icon: EIcons.video, tile: _plum, tint: _plumInk, small: true, keywords: 'movie clip mp4',
         soon: 'Play a video inside your notes, pin notes to moments in it and grab a frame.'),
-    InsertEntry('Audio', icon: EIcons.mic, tile: _clay, tint: _clayInk, small: true, keywords: 'record recording sound voice',
-        soon: 'Record while you write. Your ink lights up as the recording plays back, and you get a transcript.'),
+    InsertEntry('Audio', icon: EIcons.mic, tile: _clay, tint: _clayInk, small: true, action: InsertAction.audio,
+        keywords: 'record recording sound voice microphone transcript lecture'),
     InsertEntry('Image or photo', icon: EIcons.image, tile: _green, tint: _greenInk, action: InsertAction.image, keywords: 'picture camera png jpg'),
     InsertEntry('PDF', badge: 'PDF', tile: _clay, tint: _clayInk, keywords: 'document file',
         soon: 'Put a PDF on the board and write on top of it.'),

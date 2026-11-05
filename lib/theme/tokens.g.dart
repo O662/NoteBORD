@@ -73,6 +73,8 @@ const paperLight = EndlessColors(
   greenLine: Color(0xFFBFD3C1),
   plumBright: Color(0xFFD7A2CE),
   onPlumBright: Color(0xFF1E1C19),
+  record: Color(0xFFC23B2E),
+  recordDeep: Color(0xFF8E2A20),
 );
 
 const paperDark = EndlessColors(
@@ -143,6 +145,8 @@ const paperDark = EndlessColors(
   greenLine: Color(0xFF3B5241),
   plumBright: Color(0xFF7A4E73),
   onPlumBright: Color(0xFFFFFDF8),
+  record: Color(0xFFE0614F),
+  recordDeep: Color(0xFFF0A398),
 );
 
 const inkDefaults = <Color>[

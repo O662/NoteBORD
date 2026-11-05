@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
+import 'audio_mode.dart';
 import 'canvas_status.dart';
 import 'canvas_view.dart';
 import 'flashcard_mode.dart';
@@ -36,6 +37,9 @@ class Pane extends ChangeNotifier {
 
   /// Live items: clocks, dates, time stamps and checklists (LiveItems.png).
   final live = LiveMode();
+
+  /// Recordings: one to put on the page, and the transcript panel (Audio.png).
+  final audio = AudioMode();
 
   /// A panel is open beside something on the page (Remember this): the
   /// pages rail and the map make room for it (RememberMark.png).
@@ -115,6 +119,7 @@ class Pane extends ChangeNotifier {
     math.dispose();
     cards.dispose();
     live.dispose();
+    audio.dispose();
     panel.dispose();
     status.dispose();
     super.dispose();

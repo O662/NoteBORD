@@ -1,0 +1,25 @@
+name: endless_speech
+description: "Endless's speech to text on the device: whisper.cpp (vendored, CPU only) behind a small FFI bridge."
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ^3.10.7
+  flutter: '>=3.38.0'
+
+dependencies:
+  ffi: ^2.2.0
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        ffiPlugin: true
+      windows:
+        ffiPlugin: true

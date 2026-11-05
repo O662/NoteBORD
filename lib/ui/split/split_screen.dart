@@ -10,7 +10,9 @@ import '../../state/notebook.dart';
 import '../../state/settings.dart';
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart';
+import '../canvas/audio_actions.dart' show stopRecording;
 import '../canvas/canvas_screen.dart' show handleMoreItem, handleRailItem, pickCanvasTool;
+import '../canvas/recording_pill.dart';
 import '../canvas/gesture_status.dart';
 import '../canvas/left_rail.dart';
 import '../canvas/pen_popover.dart';
@@ -290,6 +292,13 @@ class _SplitScreenState extends ConsumerState<SplitScreen> {
                     onShare: () => showShareDialog(context, _active),
                   ),
                 ),
+              ),
+              // Recording (Audio.png): its card goes on the side writing.
+              Positioned(
+                top: 70,
+                left: 0,
+                right: 0,
+                child: Center(child: RecordingPill(onStop: () => stopRecording(ref, _active))),
               ),
               if (blocking)
                 Positioned.fill(

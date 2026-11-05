@@ -336,6 +336,22 @@ class _NamePromptState extends State<_NamePrompt> {
       );
 }
 
+/// Says something that needs reading, with OK (the microphone isn't allowed).
+Future<void> showMessage(BuildContext context, {required String title, required String message}) =>
+    showEndlessDialog<void>(
+      context,
+      builder: (context) => DialogFrame(
+        title: title,
+        width: 460,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 18, children: [
+          Text(message, style: TextStyle(fontSize: 15, height: 1.45, color: context.colors.textMuted)),
+          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+            PrimaryButton(label: 'OK', onPressed: () => Navigator.of(context).pop()),
+          ]),
+        ]),
+      ),
+    );
+
 /// Asks to confirm something (delete forever, empty trash).
 Future<bool> showConfirm(
   BuildContext context, {

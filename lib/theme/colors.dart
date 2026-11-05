@@ -74,6 +74,8 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
     required this.greenLine,
     required this.plumBright,
     required this.onPlumBright,
+    required this.record,
+    required this.recordDeep,
   });
 
   final Color text;
@@ -199,6 +201,10 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
   final Color plumBright;
   final Color onPlumBright;
 
+  /// Recording (Audio.dc.html): the red dot and Stop, and the pill's text.
+  final Color record;
+  final Color recordDeep;
+
   /// Floating pill shadow: `0 6px 18px -12px shadow`.
   List<BoxShadow> get pillShadow => [
         BoxShadow(color: shadow, offset: const Offset(0, 6), blurRadius: 18, spreadRadius: -12),
@@ -310,6 +316,8 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
       greenLine: l(greenLine, other.greenLine),
       plumBright: l(plumBright, other.plumBright),
       onPlumBright: l(onPlumBright, other.onPlumBright),
+      record: l(record, other.record),
+      recordDeep: l(recordDeep, other.recordDeep),
     );
   }
 }

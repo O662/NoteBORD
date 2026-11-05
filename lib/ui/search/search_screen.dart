@@ -367,7 +367,7 @@ String _title(SearchHit h) {
 Color _kindColor(SearchKind k, EndlessColors c) => switch (k) {
       SearchKind.ink => c.accent,
       SearchKind.typed => c.greenDeep,
-      SearchKind.pdf || SearchKind.office => c.clayDeep,
+      SearchKind.pdf || SearchKind.office || SearchKind.audio => c.clayDeep,
     };
 
 class _ResultRow extends StatelessWidget {
@@ -637,10 +637,12 @@ class _Preview extends ConsumerWidget {
       SearchKind.typed => 'Typed text',
       SearchKind.pdf => 'Text inside PDF',
       SearchKind.office => 'Text inside file',
+      SearchKind.audio => 'Said in a recording',
     };
     final said = hit.row.kind == SearchKind.ink
         ? (hit.row.context.isEmpty ? hit.row.text : hit.row.context)
-        : _around(hit.row.text, terms, 160);
+        // A transcript line says when in the recording, and who.
+        : _around(hit.row.kind == SearchKind.audio ? hit.row.context : hit.row.text, terms, 160);
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 14, children: [
       Row(spacing: 16, children: [

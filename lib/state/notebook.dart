@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../board/codec.dart';
 import '../board/ids.dart';
 import '../board/lock.dart';
+import '../audio/ink_moments.dart';
 import '../board/model.dart';
 import '../board/store.dart';
 import '../canvas/charts.dart' show refreshedChart;
@@ -202,6 +203,11 @@ class NotebookNotifier extends Notifier<NotebookState> {
   late NotebookDocs _docs;
   late MathPictures _math;
   late HandwritingIndex _index;
+  late InkMoments _inkMoments;
+
+  /// The furthest each recording's transcript has got, by item id, so Undo
+  /// and Redo (which put back items as they were) don't lose it.
+  final _clips = <String, AudioItem>{};
 
   /// The notebook and its pages, as in [state]. Saving reads these, since
   /// the last save runs while the provider is being disposed, when [state]
@@ -224,6 +230,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
     _biometric = ref.read(biometricProvider);
     _library = ref.read(libraryProvider.notifier);
     _clock = ref.read(clockProvider);
+    _inkMoments = ref.read(inkMomentsProvider);
     final loaded = ref.watch(loadedNotebookProvider(id)).requireValue;
     _lock = loaded.lock == null ? LockFile() : LockFile.fromJson(loaded.lock!);
     _sealed
@@ -294,14 +301,94 @@ class NotebookNotifier extends Notifier<NotebookState> {
     for (final s in c.steps) {
       switch (s) {
         case InsertStep():
-          page.insert(s.item, s.at);
+          page.insert(_freshest(s.item), s.at);
         case RemoveStep():
           page.remove(s.item.id);
         case ReplaceStep():
-          page.replace(s.item);
+          page.replace(_freshest(s.item));
       }
     }
   }
+
+  /// [item], with the furthest transcript its recording has had: its
+  /// transcript is made in the background, not as an undo step, so an
+  /// older copy of the card (from Undo) gets it back.
+  Item _freshest(Item item) {
+    if (item is! AudioItem) return item;
+    final known = _clips[item.id];
+    if (known == null || !_ahead(known, item)) {
+      _clips[item.id] = item;
+      return item;
+    }
+    return item.copyWith(transcript: known.transcript, state: known.state, upToMs: known.upToMs, language: known.language);
+  }
+
+  static int _rank(AudioItem a) => switch (a.state) {
+        TranscriptState.failed => 0,
+        TranscriptState.waiting => 1,
+        TranscriptState.working => 2,
+        TranscriptState.done => 3,
+      };
+
+  static bool _ahead(AudioItem a, AudioItem b) {
+    final ra = _rank(a), rb = _rank(b);
+    if (ra != rb) return ra > rb;
+    if (a.upToMs != b.upToMs) return a.upToMs > b.upToMs;
+    return a.transcript.length > b.transcript.length;
+  }
+
+  /// Every recording in the notebook, with the page it's on.
+  Iterable<(String, AudioItem)> get audioClips sync* {
+    for (final p in state.pages) {
+      if (state.isSealed(p.id)) continue;
+      for (final i in p.items) {
+        if (i is AudioItem) yield (p.id, i);
+      }
+    }
+  }
+
+  /// The recording [itemId] and the page it's on, if it's on one.
+  (String, AudioItem)? audioClip(String itemId) {
+    for (final c in audioClips) {
+      if (c.$2.id == itemId) return c;
+    }
+    return null;
+  }
+
+  /// Updates recording [clip]'s transcript where it is now, without an undo
+  /// step. Its other fields (name, place) stay as they are on the page.
+  /// False if it isn't on a page any more (deleted, or its page locked).
+  bool setTranscript(AudioItem clip) {
+    final found = audioClip(clip.id);
+    if (found == null) return false;
+    final (pageId, now) = found;
+    final updated = now.copyWith(
+      transcript: clip.transcript,
+      state: clip.state,
+      upToMs: clip.upToMs,
+      language: clip.language,
+    );
+    _clips[clip.id] = updated;
+    setQuietly(pageId, updated);
+    return true;
+  }
+
+  /// Stores a recording in the notebook's assets (sealed on a page with a
+  /// password) and returns its asset name; null if the page can't be
+  /// written to.
+  Future<String?> storeAudio(String pageId, Uint8List bytes, String extension) async {
+    if (!_editable(pageId)) return null;
+    final key = _keyFor(pageId);
+    if (key == null && _needsKey(pageId)) return null;
+    final name = assetNameFor(bytes, ext: extension);
+    await _queue.run(() async => key == null
+        ? _store.saveAsset(id, name, bytes)
+        : _store.saveAsset(id, '$name.enc', await _crypto.sealBytes(key, bytes)));
+    return ref.mounted && _editable(pageId) ? name : null;
+  }
+
+  /// Whether [pageId] is kept sealed (it has a password).
+  bool isProtected(String pageId) => _keyFor(pageId) != null || _needsKey(pageId);
 
   void _changed(String pageId) {
     _dirtyPages.add(pageId);
@@ -327,6 +414,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
     _apply(c);
     _push(c);
     _changed(page.id);
+    _inkMoments.wrote(id, [stroke]);
   }
 
   bool _editable(String pageId) => _pageById(pageId) != null && !state.isSealed(pageId);
@@ -407,6 +495,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
     final base = insertAt == null ? left : insertAt.clamp(0, left);
     steps.addAll([for (final (i, item) in insert.indexed) InsertStep(base + i, item)]);
     _commit(page, steps);
+    _inkMoments.wrote(id, insert.whereType<StrokeItem>());
   }
 
   /// Moves items to the top or the bottom of the z-order, keeping their

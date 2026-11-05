@@ -874,7 +874,7 @@ void main() {
           if (e.action == null) e,
       ];
       expect(later.map((e) => e.label), [
-        'Video', 'Audio', 'PDF', //
+        'Video', 'PDF', //
         'Google Drive', 'OneDrive', 'Scan a document',
       ]);
       for (final e in later) {
@@ -888,17 +888,6 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
     });
 
-    testWidgets('Record audio in the flyout opens the card too', (tester) async {
-      await pumpCanvas(tester, store: _storeWith(const []));
-      await _rail(tester, 'Insert', 'Record audio');
-      await tester.pumpAndSettle();
-      expect(find.text('Coming soon'), findsOneWidget);
-      expect(find.text('Audio'), findsOneWidget);
-      expect(find.textContaining('Record while you write'), findsOneWidget);
-      await tester.tap(find.text('Got it'));
-      await tester.pumpAndSettle();
-      await tester.pump(const Duration(seconds: 5));
-    });
   });
 
   group('the whole board', () {

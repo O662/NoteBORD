@@ -8,6 +8,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 
 import '../board/model.dart';
+import '../canvas/audio_card.dart';
 import '../canvas/cards.dart';
 import '../canvas/charts.dart' show chartText, paintChart;
 import '../canvas/items.dart';
@@ -452,6 +453,11 @@ class _PdfWriter {
         text.add(TextRun(checklistText(list), list.extent));
       case OfficeItem f:
         await _office(f, text);
+      case AudioItem a:
+        // The card as a picture; its transcript in the text layer, so the
+        // PDF finds what was said.
+        await _raster(a.paintRect, (canvas) => paintAudioCard(canvas, a, c));
+        text.add(TextRun(audioText(a), a.extent));
       case ShapeItem s:
         _shapeItem(s);
       case MathItem m:

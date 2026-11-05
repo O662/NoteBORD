@@ -112,6 +112,8 @@ Each feature names the screen that shows it (`design/screens/<Name>.png`, with s
   - While recording, ink is time-stamped; during playback the ink lights up as the recording reaches it, and tapping ink jumps to that moment.
   - Controls are speed, ±10 s, and a waveform.
   - **Transcript** panel with speakers and timestamps: "Add to page as text", Copy, Export. **[Audio]**
+  - Recording keeps going with the screen off or another app in front, and the audio is kept in the `.board` package.
+  - **Transcripts are made on the device, offline and free** (the owner's choice, 2026-11-04): whisper.cpp for the words (99 languages), pyannote and SpeechBrain models on ONNX Runtime for telling speakers apart. No code from companies that must share data with a government (no sherpa-onnx). See tool/speech_model/README.md. *(Phase 8a)*
 - **Video:** upload and play inside notes. Notes can be pinned to moments, and you can grab a frame, trim, transcribe or replace. Large videos stay in Drive and the page keeps a link. **[Video]**
 
 ## Phase 9: Cloud, sharing and collaboration

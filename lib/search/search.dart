@@ -50,6 +50,7 @@ enum SearchFilter {
         SearchFilter.ink => k == SearchKind.ink,
         SearchFilter.typed => k == SearchKind.typed,
         SearchFilter.files => k == SearchKind.pdf || k == SearchKind.office,
+        // Transcripts show under All (Search.png has no filter for them).
       };
 }
 

@@ -79,7 +79,8 @@ void main() {
     expect(names, contains('pages/pg_pdf.json'));
     expect(names, isNot(contains('pages/pg_board.json')));
     expect(names, isNot(contains('lock.json')), reason: 'the page with a password stayed behind');
-    expect(names.where((n) => n.startsWith('assets/')), hasLength(2), reason: 'the PDF and its page picture, not the photo');
+    expect(names.where((n) => n.startsWith('assets/')), hasLength(3), reason: 'the PDF, its page picture and the recording, not the photo');
+    expect(names.where((n) => n.endsWith('.m4a')), hasLength(1));
     final meta = decodeNotebook(utf8.decode(ZipDecoder().decodeBytes(bytes).findFile('notebook.json')!.readBytes()!));
     expect(meta.pageIds, ['pg_pdf']);
 

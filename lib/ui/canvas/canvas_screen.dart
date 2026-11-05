@@ -33,6 +33,8 @@ import '../templates/templates_dialog.dart';
 import '../transfer/share_dialog.dart';
 import '../transfer/transfer_dialog.dart';
 import '../../canvas/selection.dart';
+import '../../audio/playback.dart';
+import 'audio_actions.dart';
 import 'chart_actions.dart';
 import 'color_tray.dart';
 import 'gesture_status.dart';
@@ -43,7 +45,9 @@ import 'live_bar.dart';
 import 'model_note.dart';
 import 'panels.dart';
 import 'pen_popover.dart';
+import 'recording_pill.dart';
 import 'top_bar.dart';
+import 'transcript_panel.dart';
 
 export '../math/math_actions.dart' show mathHint;
 
@@ -108,8 +112,7 @@ void handleRailItem(
     case 'Image':
       runInsert(context, ref, pane, InsertAction.image, hint: hint);
     case 'Record audio':
-      // Audio comes with a later phase: the same card as in the Insert menu.
-      showEntryComingSoon(context, insertSections[1].entries.firstWhere((e) => e.label == 'Audio'));
+      startRecording(context, ref, pane);
     case 'Everything else':
       showInsertMenu(context).then((action) {
         if (action != null && context.mounted) {
@@ -197,6 +200,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
   final penLink = LayerLink();
   final markerLink = LayerLink();
   late final AppLifecycleListener _lifecycle;
+  late final PlaybackController _playback;
   bool _popover = false;
   String? _hint;
   Timer? _hintTimer;
@@ -241,6 +245,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     _glide = AnimationController(vsync: this, duration: const Duration(milliseconds: 280))
       ..addListener(() => _glideStep?.call(Curves.easeInOutCubic.transform(_glide.value)));
     // Anything unsaved is written as soon as the app leaves the foreground.
+    _playback = ref.read(playbackProvider.notifier);
     _lifecycle = AppLifecycleListener(onStateChange: (state) {
       if (state == AppLifecycleState.resumed) return;
       // Text still being typed goes on the page first.
@@ -252,6 +257,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     pane.cards.addListener(_cardsChanged);
     pane.panel.addListener(_cardsChanged);
     pane.live.addListener(_cardsChanged);
+    pane.audio.addListener(_cardsChanged);
     pane.selection.addListener(_selectionChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _recordOpened();
@@ -267,9 +273,13 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     pane.cards.removeListener(_cardsChanged);
     pane.panel.removeListener(_cardsChanged);
     pane.live.removeListener(_cardsChanged);
+    pane.audio.removeListener(_cardsChanged);
     pane.selection.removeListener(_selectionChanged);
     _spell?.dispose();
     _lifecycle.dispose();
+    // Leaving the notebook stops its recording playing (recording itself
+    // keeps going until Stop).
+    _playback.stopFor(pane.notebookId);
     _hintTimer?.cancel();
     _glide.dispose();
     _spotGlow.dispose();
@@ -741,7 +751,9 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     // The dictionary drawer covers the pages rail, the map and the zoom pill;
     // math mode and making flashcards have neither (Math.png, FlashMake.png),
     // and Remember this takes their place (RememberMark.png).
-    final panel = pane.panel.value && !sealed;
+    // A recording's transcript (Audio.png) has the right side too.
+    final transcript = !sealed && !spelling && !_dict ? pane.audio.transcriptOf : null;
+    final panel = (pane.panel.value || transcript != null) && !sealed;
     final right = !spelling && !_dict && !mathOn && !cardsOn && !liveOn && !panel;
     final mapShown = tools && right && settings.mapOpen;
     final blocking = tools && (_more || (_pinned && _fly != null));
@@ -951,6 +963,26 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                         onAddDefinition: _addDefinition,
                         onFlashcard: _wordCard,
                       ),
+                    ),
+                  if (transcript != null)
+                    Positioned(
+                      right: 14,
+                      top: 84,
+                      bottom: 16,
+                      child: TranscriptPanel(
+                        key: ValueKey(transcript),
+                        pane: pane,
+                        itemId: transcript,
+                        onClose: () => pane.audio.showTranscript(null),
+                      ),
+                    ),
+                  // Recording (Audio.png): under the top bar, whatever else shows.
+                  if (!_board)
+                    Positioned(
+                      top: tools && (settings.trayOpen || settings.tool == CanvasTool.laser || settings.tool == CanvasTool.shape) ? 124 : 70,
+                      left: 0,
+                      right: 0,
+                      child: Center(child: RecordingPill(onStop: () => stopRecording(ref, pane))),
                     ),
                   // The handwriting model downloading on first use.
                   if (!sealed && chrome) const Positioned(left: 14, bottom: 16, child: ModelNoteView()),

@@ -174,6 +174,8 @@ abstract final class EIcons {
   /// "Review all" (Remember.dc.html).
   static final play = EIconData([_p('M8 5v14l11-7z')], strokeWidth: 2);
   static final mic = EIconData([_p(_rect(9, 3, 6, 11, 3)), _p('M5 11a7 7 0 0 0 14 0M12 18v3')], strokeWidth: 1.9);
+  /// The audio card's Transcript button (Audio.dc.html).
+  static final transcript = EIconData([_p('M4 6h16M4 11h16M4 16h10')], strokeWidth: 2);
   static final ruler = EIconData([_p('M3 16L16 3l5 5L8 21z'), _p('M7 12l2 2M10 9l2 2M13 6l2 2')]);
   static final laser = EIconData([
     _p(_circle(17, 7, 2.5)),

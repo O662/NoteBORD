@@ -4,6 +4,7 @@ import 'dart:ui' show PlatformDispatcher, Rect;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../audio/transcript_lines.dart' show clockOf;
 import '../board/model.dart';
 import '../board/store.dart';
 import '../library/index_db.dart';
@@ -722,6 +723,24 @@ List<SearchRow> rowsFor(String notebookId, BoardPage page, PageRecognition? read
           'name': f.name,
           if (f.page != null) 'page': f.page,
         }));
+      case AudioItem a:
+        // What was said, a line at a time, with when and who
+        // (Audio.png: "The transcript is searchable").
+        for (final l in a.transcript) {
+          if (l.text.trim().isEmpty) continue;
+          final who = a.speakerName(l.speaker);
+          rows.add(SearchRow(
+            notebookId: notebookId,
+            pageId: page.id,
+            kind: SearchKind.audio,
+            ref: '${a.id}:${l.tMs}',
+            text: l.text,
+            context: '${clockOf(l.tMs)}${who.isEmpty ? '' : ' · $who'} · ${l.text}',
+            rect: a.extent,
+            at: a.recordedAt,
+            data: {'item': a.id, 'tMs': l.tMs, 'name': a.name},
+          ));
+        }
       case FlashcardItem f:
         // Typed sides (a word's definition, a "why it matters").
         final text = [f.front.text, f.back.text].map((t) => t.trim()).where((t) => t.isNotEmpty).join('\n');

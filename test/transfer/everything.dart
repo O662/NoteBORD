@@ -23,7 +23,8 @@ final everythingAt = DateTime.utc(2026, 9, 30, 9);
 /// a stack, frames (plain and from a template), a picture, an imported PDF
 /// page, the five cards, a PowerPoint with ink on its second slide, math,
 /// graphs and math tools, a chart, a clock, the date, a time stamp, a
-/// checklist, a sticky pad, and an item type from a newer app. Page 2 has a
+/// checklist, a sticky pad, a recording with its transcript, and an item
+/// type from a newer app. Page 2 has a
 /// template and lined paper; page 3 has its own password.
 Future<(MemoryBoardStore, String password)> everythingNotebook() async {
   final store = MemoryBoardStore();
@@ -33,6 +34,8 @@ Future<(MemoryBoardStore, String password)> everythingNotebook() async {
   final image = assetNameFor(png), pdfName = assetNameFor(pdf), previewName = assetNameFor(preview);
   final slides = officeFixture('Ch 9 slides.pptx');
   final slidesName = assetNameFor(slides, ext: 'pptx');
+  final audio = Uint8List.fromList([0, 0, 0, 24, ...ascii.encode('ftypM4A '), 1, 2, 3, 4]);
+  final audioName = assetNameFor(audio, ext: 'm4a');
 
   final a = ShapeItem(id: 'it_a', x: 0, y: 900, z: 40, createdAt: everythingAt, kind: ShapeType.rect, w: 200, h: 120, stroke: const Color(0xFF2B5A8C), fill: const Color(0x332B5A8C), strokeWidth: 2.5);
   final b = ShapeItem(id: 'it_b', x: 500, y: 900, z: 41, createdAt: everythingAt, kind: ShapeType.ellipse, w: 180, h: 120, stroke: const Color(0xFFB5532A), strokeWidth: 3);
@@ -173,6 +176,27 @@ Future<(MemoryBoardStore, String password)> everythingNotebook() async {
       back: CardSide(ids: [handoutLine.id], text: 'on the exam'),
       reverse: true,
     ),
+    // Phase 8a: a recording, with the line written while it recorded and
+    // its transcript.
+    AudioItem(
+      id: 'it_audio',
+      x: 80,
+      y: 820,
+      z: 6,
+      createdAt: everythingAt,
+      asset: audioName,
+      name: 'Handout recording',
+      recordedAt: everythingAt,
+      durationMs: 95000,
+      wave: const [0, 30, 80, 100, 20],
+      inkTimeline: [InkMoment(handoutLine.id, 42000)],
+      transcript: const [
+        TranscriptLine(tMs: 40000, endMs: 52000, speaker: 's1', text: 'Impulse is the change in momentum.'),
+        TranscriptLine(tMs: 53000, endMs: 57000, speaker: 's2', text: 'Is that on the exam?'),
+      ],
+      speakers: const {'s1': 'Professor'},
+      language: 'en',
+    ),
   ], extra: {'pageFuture': 'kept'});
   final secret = BoardPage(id: 'pg_secret', title: 'Grades', items: [strokeFrom([const Offset(0, 0), const Offset(50, 50)])]);
 
@@ -198,6 +222,7 @@ Future<(MemoryBoardStore, String password)> everythingNotebook() async {
   await store.saveAsset(nb.id, pdfName, pdf);
   await store.saveAsset(nb.id, previewName, preview);
   await store.saveAsset(nb.id, slidesName, slides);
+  await store.saveAsset(nb.id, audioName, audio);
   await store.saveNotebook(notebook);
   return (store, password);
 }

@@ -3118,6 +3118,225 @@ class FlashcardItem extends Item {
       };
 }
 
+/// A line of an audio clip's transcript: when it starts and ends (ms into
+/// the recording), who said it ([speaker], a key into the clip's speakers,
+/// or null when it isn't known) and what was said.
+@immutable
+class TranscriptLine {
+  const TranscriptLine({required this.tMs, required this.endMs, this.speaker, required this.text, this.extra = const {}});
+
+  factory TranscriptLine.fromJson(Json j) => TranscriptLine(
+        tMs: (j['tMs'] as num).toInt(),
+        endMs: (j['endMs'] as num?)?.toInt() ?? (j['tMs'] as num).toInt(),
+        speaker: j['speaker'] as String?,
+        text: j['text'] as String? ?? '',
+        extra: {
+          for (final e in j.entries)
+            if (!const {'tMs', 'endMs', 'speaker', 'text'}.contains(e.key)) e.key: e.value,
+        },
+      );
+
+  final int tMs;
+  final int endMs;
+  final String? speaker;
+  final String text;
+  final Json extra;
+
+  TranscriptLine copyWith({String? speaker, String? text}) =>
+      TranscriptLine(tMs: tMs, endMs: endMs, speaker: speaker ?? this.speaker, text: text ?? this.text, extra: extra);
+
+  Json toJson() => {...extra, 'tMs': tMs, 'endMs': endMs, 'speaker': ?speaker, 'text': text};
+}
+
+/// Where an audio clip's transcript is: waiting its turn, being made (up to
+/// [AudioItem.upToMs] of the recording), made, or failed.
+enum TranscriptState { waiting, working, done, failed }
+
+/// A stroke written while the clip was recording, and when (ms into it).
+@immutable
+class InkMoment {
+  const InkMoment(this.strokeId, this.tMs);
+
+  final String strokeId;
+  final int tMs;
+
+  Json toJson() => {'strokeId': strokeId, 'tMs': tMs};
+}
+
+/// A recording on the page (Audio.png): its card with play/pause, a
+/// waveform, speed, ±10 s and the time, the ink written while it was
+/// recording ([inkTimeline]) and its [transcript].
+class AudioItem extends BoxItem {
+  AudioItem({
+    required super.id,
+    required super.x,
+    required super.y,
+    super.rotation,
+    required super.z,
+    required super.createdAt,
+    super.author,
+    super.remember,
+    super.extra,
+    required this.asset,
+    required this.name,
+    required this.recordedAt,
+    required this.durationMs,
+    this.wave = const [],
+    this.inkTimeline = const [],
+    this.transcript = const [],
+    this.speakers = const {},
+    this.language,
+    this.state = TranscriptState.waiting,
+    this.upToMs = 0,
+    this.unit = 1,
+  });
+
+  /// The card at 100% (Audio.dc.html).
+  static const size = Size(560, 152);
+
+  /// How many loudness values [wave] holds.
+  static const waveBars = 120;
+
+  /// The recording in `assets/` (an .m4a; a .wav where AAC isn't recorded).
+  final String asset;
+  final String name;
+  final DateTime recordedAt;
+  final int durationMs;
+
+  /// How loud it is along the recording: [waveBars] values, 0–100.
+  final List<int> wave;
+  final List<InkMoment> inkTimeline;
+  final List<TranscriptLine> transcript;
+
+  /// Names given to speakers (`s1` → `Professor`); unnamed ones show as
+  /// "Speaker 1".
+  final Map<String, String> speakers;
+
+  /// The language heard, as a code (`en`), once known.
+  final String? language;
+  final TranscriptState state;
+
+  /// While the transcript is being made: how far into the recording it has
+  /// got (ms), so it carries on from there.
+  final int upToMs;
+  final double unit;
+
+  @override
+  double get w => size.width * unit;
+
+  @override
+  double get h => size.height * unit;
+
+  @override
+  Rect get paintRect => (Offset.zero & Size(w, h)).inflate(24 * unit);
+
+  @override
+  String get type => 'audio';
+
+  /// The name shown for speaker [key] ("Speaker 2" until it's named).
+  String speakerName(String? key) {
+    if (key == null) return '';
+    final named = speakers[key];
+    if (named != null && named.trim().isNotEmpty) return named;
+    return 'Speaker ${key.replaceFirst('s', '')}';
+  }
+
+  /// When stroke [id] was written, ms into the recording.
+  int? momentOf(String id) {
+    for (final m in inkTimeline) {
+      if (m.strokeId == id) return m.tMs;
+    }
+    return null;
+  }
+
+  AudioItem copyWith({
+    String? name,
+    List<InkMoment>? inkTimeline,
+    List<TranscriptLine>? transcript,
+    Map<String, String>? speakers,
+    String? language,
+    TranscriptState? state,
+    int? upToMs,
+  }) =>
+      AudioItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        asset: asset,
+        name: name ?? this.name,
+        recordedAt: recordedAt,
+        durationMs: durationMs,
+        wave: wave,
+        inkTimeline: inkTimeline ?? this.inkTimeline,
+        transcript: transcript ?? this.transcript,
+        speakers: speakers ?? this.speakers,
+        language: language ?? this.language,
+        state: state ?? this.state,
+        upToMs: upToMs ?? this.upToMs,
+        unit: unit,
+      );
+
+  @override
+  AudioItem withBox({
+    String? id,
+    int? z,
+    DateTime? createdAt,
+    required double x,
+    required double y,
+    required double w,
+    required double h,
+    double? rotation,
+    double scale = 1,
+  }) =>
+      AudioItem(
+        id: id ?? this.id,
+        x: x,
+        y: y,
+        rotation: rotation ?? this.rotation,
+        z: z ?? this.z,
+        createdAt: createdAt ?? this.createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        asset: asset,
+        name: name,
+        recordedAt: recordedAt,
+        durationMs: durationMs,
+        wave: wave,
+        // A copy isn't linked to the ink: that stays with the clip it was
+        // written with.
+        inkTimeline: id == null || id == this.id ? inkTimeline : const [],
+        transcript: transcript,
+        speakers: speakers,
+        language: language,
+        state: state,
+        upToMs: upToMs,
+        unit: unit * scale,
+      );
+
+  @override
+  Json toJson() => {
+        ...boxJson(),
+        'unit': round3(unit),
+        'asset': asset,
+        'name': name,
+        'recordedAt': recordedAt.toUtc().toIso8601String(),
+        'durationMs': durationMs,
+        'wave': wave,
+        'inkTimeline': [for (final m in inkTimeline) m.toJson()],
+        'transcript': [for (final l in transcript) l.toJson()],
+        if (speakers.isNotEmpty) 'speakers': speakers,
+        'language': ?language,
+        if (state != TranscriptState.done) 'transcribe': {'state': state.name, if (upToMs > 0) 'upToMs': upToMs},
+      };
+}
+
 class UnknownItem extends Item {
   UnknownItem(this.raw)
       : super(

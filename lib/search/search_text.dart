@@ -8,7 +8,8 @@ enum SearchKind {
   ink('Handwriting'),
   typed('Typed text'),
   pdf('Text inside PDF'),
-  office('Text inside file');
+  office('Text inside file'),
+  audio('Said in a recording');
 
   const SearchKind(this.label);
 

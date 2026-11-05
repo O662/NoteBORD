@@ -49,3 +49,9 @@ app.*.map.json
 
 # Golden test diff output
 **/failures/
+
+# Speech models: fetched by tool/speech_model/fetch.dart (too big for git).
+/assets/speech/*
+!/assets/speech/README.md
+!/assets/speech/NOTICE.txt
+!/assets/speech/speakers-ecapa.onnx

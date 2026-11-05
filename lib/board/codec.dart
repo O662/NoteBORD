@@ -108,6 +108,11 @@ Item decodeItem(Json json) {
 
 const _boxKeys = {..._itemKeys, 'w', 'h'};
 
+const _audioKeys = {
+  ..._boxKeys, 'unit', 'asset', 'name', 'recordedAt', 'durationMs', 'wave', 'inkTimeline', 'transcript', //
+  'speakers', 'language', 'transcribe',
+};
+
 double _num(Object? v, [double fallback = 0]) => (v as num?)?.toDouble() ?? fallback;
 
 List<Item> _nested(Object? list) => [for (final i in (list as List? ?? const [])) decodeItem((i as Map).cast<String, dynamic>())];
@@ -435,6 +440,39 @@ Item? _decodeKnown(Json json) {
             StickyNote(color: colorFromHex((n as Map)['color'] as String), items: _nested(n['items'])),
         ],
         count: (stack?['count'] as num?)?.toInt(),
+      );
+    case 'audio':
+      final transcribe = (json['transcribe'] as Map?)?.cast<String, dynamic>();
+      return AudioItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, _audioKeys),
+        unit: _num(json['unit'], 1),
+        asset: json['asset'] as String,
+        name: json['name'] as String? ?? '',
+        recordedAt: DateTime.tryParse(json['recordedAt'] as String? ?? '') ?? createdAt,
+        durationMs: (json['durationMs'] as num?)?.toInt() ?? 0,
+        wave: [for (final v in (json['wave'] as List? ?? const [])) (v as num).toInt().clamp(0, 100)],
+        inkTimeline: [
+          for (final m in (json['inkTimeline'] as List? ?? const []).map(_map))
+            InkMoment(m['strokeId'] as String, (m['tMs'] as num).toInt()),
+        ],
+        transcript: [for (final l in (json['transcript'] as List? ?? const []).map(_map)) TranscriptLine.fromJson(l)],
+        speakers: {
+          for (final e in ((json['speakers'] as Map?) ?? const {}).entries)
+            if (e.value is String) e.key as String: e.value as String,
+        },
+        language: json['language'] as String?,
+        state: transcribe == null
+            ? TranscriptState.done
+            : TranscriptState.values.asNameMap()[transcribe['state']] ?? TranscriptState.waiting,
+        upToMs: (transcribe?['upToMs'] as num?)?.toInt() ?? 0,
       );
     case 'sticky-pad':
       return StickyPadItem(

@@ -1,3 +1,4 @@
+import 'audio_card.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'dart:ui' show Brightness;
@@ -119,6 +120,8 @@ void paintBoxItem(
       paintChecklist(canvas, list, brightness, c);
     case OfficeItem f:
       paintOfficeCard(canvas, f, brightness, c, docs);
+    case AudioItem a:
+      paintAudioCard(canvas, a, c);
     case ShapeItem s:
       final path = shapePath(s);
       if (s.fill != null) canvas.drawPath(path, Paint()..color = displayInk(s.fill!, brightness));

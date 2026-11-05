@@ -1,0 +1,32 @@
+Speech to text and speakers (Phase 8a)
+======================================
+
+Everything here runs on the device. Nothing is sent anywhere.
+
+whisper-base-q5_1.bin
+  OpenAI's Whisper "base" model (multilingual), MIT License,
+  https://github.com/openai/whisper. Converted to the ggml format and
+  quantized to 5 bits by the whisper.cpp project (Georgi Gerganov and
+  contributors, MIT License), from
+  https://huggingface.co/ggerganov/whisper.cpp at revision
+  5359861c739e955e79d9a303bcbc70fb988958b1 (SHA-256 422f1ae4…a8898).
+  Run by whisper.cpp 1.9.5 (MIT License), built from source in
+  packages/endless_speech.
+
+segmentation-3.0.onnx
+  pyannote/segmentation-3.0 by Hervé Bredin (CNRS) and the pyannote.audio
+  contributors, MIT License, https://github.com/pyannote/pyannote-audio.
+  The ONNX export published by Hugging Face at
+  https://huggingface.co/onnx-community/pyannote-segmentation-3.0, revision
+  733a93b6473d019a773298e08cefa686894b1854 (SHA-256 057ee564…1ea25).
+
+speakers-ecapa.onnx
+  The ECAPA-TDNN speaker embedding from SpeechBrain
+  (speechbrain/spkrec-ecapa-voxceleb, revision
+  0f99f2d0ebe89ac095bcc5903c4dd8f72b367286), Apache License 2.0,
+  https://speechbrain.github.io. Trained on VoxCeleb 1 and 2 (Creative
+  Commons Attribution 4.0). Exported to ONNX, with its filterbank features
+  computed without complex numbers, and its weights stored as 8-bit
+  integers, by tool/speech_model/export_speakers.py.
+
+All three licenses allow commercial use.
