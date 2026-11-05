@@ -214,7 +214,7 @@ void main() {
   // A later-phase tile's card, over the menu.
   _golden('insert_coming_soon', notebook: sampleNotebook, page: 2, setUp: (t, c) async {
     await _openInsert(t);
-    await t.tap(find.text('Video'));
+    await t.tap(find.bySemanticsLabel('PDF'));
     await t.pumpAndSettle();
   });
 

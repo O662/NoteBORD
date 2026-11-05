@@ -106,7 +106,7 @@ class _TranscriptPanelState extends ConsumerState<TranscriptPanel> {
     final c = context.colors;
     final nbId = widget.pane.notebookId;
     ref.watch(notebookProvider(nbId).select((s) => s.revision));
-    final clip = ref.read(notebookProvider(nbId).notifier).audioClip(widget.itemId)?.$2;
+    final clip = ref.read(notebookProvider(nbId).notifier).mediaClip(widget.itemId)?.$2;
     if (clip == null) {
       // The recording was deleted (or undone): the panel goes with it.
       WidgetsBinding.instance.addPostFrameCallback((_) => widget.onClose());
@@ -245,7 +245,7 @@ class _TranscriptPanelState extends ConsumerState<TranscriptPanel> {
                           current: i == current,
                           query: q,
                           onTap: () async {
-                            if (!await playClipAt(ref, nbId, clip, l.tMs)) widget.pane.toast(cantPlay);
+                            if (!await playMomentOf(ref, nbId, clip, l.tMs)) widget.pane.toast(cantPlay);
                           },
                           onSpeaker: l.speaker == null ? null : () => nameSpeaker(context, ref, widget.pane, clip, l.speaker!),
                           onEdit: () => _startEditing(at: l.tMs),
@@ -291,7 +291,7 @@ class _TranscriptPanelState extends ConsumerState<TranscriptPanel> {
   }
 
   /// How the transcript is going, when it isn't done.
-  Widget? _status(AudioItem clip, TranscriptProgress? progress, String? error, EndlessColors c) {
+  Widget? _status(Transcribed clip, TranscriptProgress? progress, String? error, EndlessColors c) {
     final String text;
     Widget? action;
     if (error != null || clip.state == TranscriptState.failed) {
@@ -327,7 +327,7 @@ class _TranscriptPanelState extends ConsumerState<TranscriptPanel> {
     );
   }
 
-  Widget _empty(AudioItem clip, String q, EndlessColors c) {
+  Widget _empty(Transcribed clip, String q, EndlessColors c) {
     final text = q.isNotEmpty
         ? 'Nothing in the transcript says “${_query.text.trim()}”.'
         : clip.state == TranscriptState.done
@@ -352,7 +352,7 @@ class _Line extends StatelessWidget {
     this.onEdit,
   });
 
-  final AudioItem clip;
+  final Transcribed clip;
   final TranscriptLine line;
   final bool current;
   final String query;
@@ -462,7 +462,7 @@ class _Line extends StatelessWidget {
 class _EditLine extends StatelessWidget {
   const _EditLine({super.key, required this.clip, required this.line, required this.controller, this.autofocus = false});
 
-  final AudioItem clip;
+  final Transcribed clip;
   final TranscriptLine line;
   final TextEditingController controller;
   final bool autofocus;

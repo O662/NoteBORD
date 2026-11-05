@@ -21,6 +21,28 @@ class PickedFile {
   String get extension => p.extension(name).toLowerCase().replaceFirst('.', '');
 }
 
+/// A video picked: its name, its size, and its bytes as a stream (it can
+/// be big; Android may hand over a content:// address, not a path).
+class PickedVideo {
+  const PickedVideo(this.name, this.length, this.read);
+
+  /// Bytes in memory (tests).
+  factory PickedVideo.bytes(String name, Uint8List bytes) =>
+      PickedVideo(name, () async => bytes.length, () => Stream.value(bytes));
+
+  final String name;
+  final Future<int?> Function() length;
+  final Stream<List<int>> Function() read;
+
+  Future<Uint8List> readAll() async {
+    final out = BytesBuilder(copy: false);
+    await for (final chunk in read()) {
+      out.add(chunk);
+    }
+    return out.takeBytes();
+  }
+}
+
 /// What can be imported, by extension.
 const importExtensions = ['pdf', 'board', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'docx', 'pptx', 'xlsx'];
 
@@ -30,6 +52,10 @@ abstract class FileTransfer {
 
   /// Asks for one file with one of [extensions]. Null when cancelled.
   Future<PickedFile?> pickOne(List<String> extensions, {required String title});
+
+  /// Asks for a video (not read into memory: it can be big). Null when
+  /// cancelled.
+  Future<PickedVideo?> pickVideo();
 
   /// Asks where to save [bytes] as [name]. False when cancelled.
   Future<bool> save(String name, Uint8List bytes, String mime);
@@ -61,6 +87,14 @@ class DeviceFileTransfer implements FileTransfer {
     final files = await FilePicker.pickFiles(dialogTitle: title, type: FileType.custom, allowedExtensions: extensions);
     final f = files.firstOrNull;
     return f == null ? null : PickedFile(f.name, await f.readAsBytes());
+  }
+
+  @override
+  Future<PickedVideo?> pickVideo() async {
+    final files = await FilePicker.pickFiles(dialogTitle: 'Choose a video', type: FileType.video);
+    final f = files.firstOrNull;
+    if (f == null) return null;
+    return PickedVideo(f.name, f.length, f.readAsByteStream);
   }
 
   @override

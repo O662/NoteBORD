@@ -161,6 +161,8 @@ abstract final class EIcons {
   ]);
   static final board = EIconData([_p(_rect(3, 5, 18, 14, 2)), _p(_rect(7, 9, 6, 4, 1))]);
   static final fullScreen = EIconData([_p('M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5')], strokeWidth: 1.9);
+  /// Video.dc.html's Pop out: a screen with a small one in its corner.
+  static final popOut = EIconData([_p(_rect(3, 5, 18, 14, 2)), const IconPart('M13 12h5a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z', fill: true)], strokeWidth: 1.9);
   static final exitFullScreen = EIconData([_p('M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5')], strokeWidth: 1.9);
   static final flashcards = EIconData([_p(_rect(3, 8, 14, 12, 2)), _p('M7 5h12a2 2 0 0 1 2 2v9')]);
   /// The "Card 2" chips on FlashMake.png.
@@ -173,6 +175,7 @@ abstract final class EIcons {
   static final bell = EIconData([_p('M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4')], strokeWidth: 2.4);
   /// "Review all" (Remember.dc.html).
   static final play = EIconData([_p('M8 5v14l11-7z')], strokeWidth: 2);
+  static final pause = EIconData([_p('M8 5v14M16 5v14')], strokeWidth: 3.2);
   static final mic = EIconData([_p(_rect(9, 3, 6, 11, 3)), _p('M5 11a7 7 0 0 0 14 0M12 18v3')], strokeWidth: 1.9);
   /// The audio card's Transcript button (Audio.dc.html).
   static final transcript = EIconData([_p('M4 6h16M4 11h16M4 16h10')], strokeWidth: 2);

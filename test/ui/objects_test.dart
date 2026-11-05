@@ -831,10 +831,10 @@ void main() {
       await tester.pump();
 
       // Later phases open a card and leave the menu open.
-      await tester.tap(find.text('Video'));
+      await tester.tap(find.bySemanticsLabel('PDF'));
       await tester.pumpAndSettle();
       expect(find.text('Coming soon'), findsOneWidget);
-      expect(find.textContaining('Play a video inside your notes'), findsOneWidget);
+      expect(find.textContaining('Put a PDF on the board'), findsOneWidget);
       await tester.tap(find.text('Got it'));
       await tester.pumpAndSettle();
       expect(find.text('Coming soon'), findsNothing);
@@ -874,7 +874,7 @@ void main() {
           if (e.action == null) e,
       ];
       expect(later.map((e) => e.label), [
-        'Video', 'PDF', //
+        'PDF', //
         'Google Drive', 'OneDrive', 'Scan a document',
       ]);
       for (final e in later) {

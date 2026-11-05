@@ -813,6 +813,44 @@ The owner's request (2026-11-04): Record audio from the Insert menu, as a card p
 - The notification has no Pause or Stop buttons (open Endless to stop).
 - Video (Phase 8b) isn't started.
 
+## Phase 8b: videos in notes — built, not yet tried on the tablet. **Phase 8 is done.**
+
+The owner's request (2026-11-05): upload and play videos on the page (Video.png), pin notes to moments (orange dots on the timeline that you tap to jump to), Grab frame (a still on the page), Trim, Replace, and Transcribe (8a's transcription); big videos kept on the tablet with a link on the page, until Phase 9 moves them to Google Drive.
+
+| Item | Status | Where |
+|---|---|---|
+| Insert → Video | Insert (Files) → **Video**: pick a video (the tablet's picker). "Adding “lab.mp4”…" while it's copied; then its card on a free spot of the page, selected ("Added the video · Note at pins a note to a moment"). Its length, shape and sound are read, and a still (at 1 s) is kept to show until it plays (in thumbnails and PDFs too) | `insertVideo` (`lib/ui/canvas/video_actions.dart`), `VideoTools` (`lib/video/video_tools.dart`, `VideoTools.kt`: Android's MediaMetadataRetriever) |
+| Where it's kept | **Up to 100 MB in the notebook** (`assets/`, like a picture; sealed on a page with a password, then played from memory). **Bigger stays on the tablet** in Endless's own videos folder, beside the notebooks, and the page keeps a **link** ("it's big, so it stays on this tablet and the page keeps a link"); Phase 9 moves these to Drive. On a page with a password a video is always sealed in the notebook, up to 200 MB ("Videos over 200 MB can’t go on a page with a password yet") | `bigVideo`, `biggestSealedVideo`, `videoSourceOf` (`lib/video/video_files.dart`) |
+| The card | Video.dc.html's 700 × 490 card, dark in both modes: the picture (letterboxed; the still, or the video once it's opened), the big play button, "0.5× slow motion" (or "2× fast"), and at the top right "Tap an orange dot to jump to a note", or "Note at 0:12" when it's at a pinned moment. Then the **timeline** (played part in blue, an **orange dot** for each pinned note, the playhead) and **play/pause, 0:18 / 1:05, speed (1× → 0.5× → 0.25× → 2×), Note at 0:18, Grab frame, Pop out, Full screen** | `VideoItem` (`lib/board/model.dart`), `paintVideoCard`, `videoHitAt` (`lib/canvas/video_card.dart`) |
+| Playing | `video_player` (the Flutter team; ExoPlayer). One video at a time (it pauses a recording, and a recording pauses it). The picture is drawn over its card, following pan, zoom and turns. A tap on the picture plays or pauses; a tap on the timeline goes there; it plays within its trim and stops at the end back at the start | `VideoPlayback` (`lib/video/video_playback.dart`), `_videoLayer` (`lib/canvas/ink_canvas_video.dart`) |
+| Sealed videos | Opened in memory with the page's key and served to the player (and to Android's frame reader) from **127.0.0.1**, at an unguessable address, with byte ranges: never written out in the clear | `MediaServer` (`lib/video/media_server.dart`) |
+| Selected | A tap on the card selects it: a 2 px outline and the **Video selected · Trim · Transcribe · Replace · Done** bar in place of the tools (Transcribe becomes **Transcript** once it has one). Done, or a tap elsewhere, puts it away | `VideoBar` (`lib/ui/canvas/live_bar.dart`), `VideoMode` |
+| Notes pinned to moments | **Note at 0:18** puts a **"▶ 0:18" chip** in a column beside the video (under the last one) and picks the pen, "Pinned a note to 0:18 · write it beside the chip". Each chip is an **orange dot** on the timeline; a tap on the dot or the chip jumps there and plays. A chip turns orange while the video is at its moment. Chips are page items: moved, copied and deleted like any other; one per second | `VideoPinItem`, `pinNote`, `paintVideoPin` |
+| Grab frame | The picture at this moment, beside the video at its bottom (under anything already there), on a white card captioned **"Grabbed frame · from video"** (one undo step). It's a picture like any other | `grabFrame`, `ImageItem.caption` |
+| Trim | A dialog: the frame at the end being moved, a strip of the video's frames with what doesn't play dimmed, two handles, "Starts 0:05 · Stops 0:58 · Plays 0:53", **Whole video**, Cancel, **Trim** (one undo step, "Plays 0:05–0:58"). The file isn't cut: the video plays only between them, the timeline is that part, and pins outside it have no dot | `showTrimDialog` (`lib/ui/canvas/trim_dialog.dart`), `trimVideo`, `VideoItem.from/to` |
+| Replace | Another video in the same card (one undo step): its notes stay pinned; its trim and transcript go with the old video. "Replaced the video · its notes stay pinned" | `replaceVideo` |
+| Transcribe | 8a's transcription, on the tablet: its sound read straight from the file (a big one where it's kept), then the **Transcript panel** as for recordings (times, speakers, tap a line to jump the video there, edit, search, Add to page as text, Copy, Export). Search finds what's said. A video without sound says so | `transcribeVideo`, `Transcribed` (`lib/board/model.dart`), `TranscriptionQueue` |
+| Full screen | The same player filling the screen: play/pause, the timeline, the time, and Leave full screen (it carries on on the page) | `VideoFullScreen` (`lib/ui/canvas/video_full_screen.dart`) |
+| Exports | In a PDF the card is a picture (its still) and its transcript is in the text layer; chips are pictures, a grabbed frame is a picture. A board file carries the video when it's in the notebook; a big one's link goes, not its file | `pdf_export.dart` |
+| Tokens | `video`, `videoScreen`, `videoTrack`, `videoPlayed`, `videoPin`, `videoText`, `videoMuted` from Video.dc.html (light and dark) | `design/tokens.json` |
+
+**Judgment calls:**
+- **Trim doesn't cut the file.** It keeps where to start and stop: instant, undoable, and Whole video brings it back. The file keeps its size.
+- **Times are the video's own** everywhere (the card, chips, the transcript), so a trimmed video's notes keep their times.
+- **A pin is a chip on the page** (`video-pin`), not a list inside the video: it's moved, deleted and undone like anything, and the note is what you write beside it.
+- **Big is over 100 MB.** A board file of a notebook with a big video has its link, not its file.
+- **Replace drops the transcript** (it was the old video's); the pins stay.
+- **Pop out** says it comes later.
+
+### Not done yet / known limits
+- **Not tried on the tablet.** Playing (ExoPlayer) inside the canvas while panning and zooming, sealed videos through 127.0.0.1, frame grabbing on real files, a 1 GB video.
+- **Pop out** (keep playing in a corner while you write elsewhere) isn't built.
+- **Windows:** no playing, still frames or Trim strip (`video_player` and the frame reader are Android's); the card shows its name and length.
+- The **"Notes pinned to moments"** heading above the chips (Video.png) isn't drawn; the chips are.
+- Scrubbing by dragging along the timeline isn't built (a tap jumps).
+- A big video's file isn't removed from the tablet when its card is deleted (Undo can bring it back); Phase 9's Drive move is when it'll be tidied.
+- Video.png's "Uploading to Google Drive · 64%" card is Phase 9.
+
 ## Storage layout
 
 ```
@@ -839,6 +877,7 @@ The owner's request (2026-11-04): Record audio from the Insert menu, as a card p
 <app support>/speech/speech-1/…                         # the speech models (Phase 8a), copied out of the app on first use
 <app support>/recordings/<itemId>.aac + .json           # a recording being made, and its note (gone once it's in its notebook)
 <cache>/transcribing/<itemId>.f32                       # a recording unpacked while its transcript is made (deleted after)
+<app support>/videos/vid_<id>.<ext>                     # big videos (over 100 MB), kept on the tablet; the page has a link (Phase 8b)
 ```
 
 ## Tests
@@ -982,9 +1021,22 @@ The owner's request (2026-11-04): Record audio from the Insert menu, as a card p
   - `test/state/audio_state_test.dart`: a transcript isn't an undo step and Undo/Redo keep it (moved while it was made, removed and brought back), naming a speaker is; ink time-stamped while recording (not while paused, not another notebook's, not after Stop) and the files gone once stored; a recording cut off found again (and not for another notebook); a transcript made a part at a time, stopped, carried on from 20 s, with speakers and the background service on and off, its working files gone, and found by search with its time and speaker; a line fixed while the transcript is being made staying fixed (and not split by the speakers), Undo and Redo of a fix and of a removed line; no speech model.
   - `test/ui/audio_test.dart`: Insert flyout → Record audio, the pill (time, Pause/Resume, Already recording), ink written, paused, Stop → the card with its ink moments and transcript; the card's play/pause (pen and finger), waveform, ±10 s, speed; ink lit while playing; a finger on ink plays from 2 s before; the pen still writes; the grip moves it and Undo keeps the transcript; deleting it stops it playing; the Transcript panel (lines, times, speakers, tap to play, naming a speaker, search, Copy, Export, Add to page as text, Close); editing the transcript (hold a line, fix it, empty one, Done as one undo step, Undo/Redo, the pencil and Cancel, closing while editing keeps the edits); no microphone; a recording cut off put back when the notebook opens. 3 goldens (`audio_playing`, `audio_transcript`, `audio_transcript_editing`).
   - `test/transfer/everything.dart` has a recording with its transcript, so the board file and PDF round trips cover it.
+  - Phase 8b: `test/board/video_item_test.dart` (the `video` and `video-pin` items' round trips, never transcribed and transcribed, a link instead of an asset, trims, the card's parts and timeline, pins' dots, a grabbed frame's caption; the media server: whole, ranges, a bad range, a wrong address, let go); `test/ui/video_test.dart` (Insert → Video: the card selected with its still; play with the pen and pause with a finger, speed, the timeline, full screen and back, Done; Note at (and not twice), the second under the first, a dot and a chip jumping there; Grab frame and its caption; Trim: the dialog, the range, playing within it and stopping at its end, Undo; Transcribe: the panel, a line jumping the video there; Replace keeping the pins, with a big video kept on the tablet with a link, and Undo) and 2 goldens (`video_playing`, `video_trim`); `test/state/audio_state_test.dart`: a big video's transcript read where it's kept, not until asked. `test/transfer/everything.dart` has a trimmed, transcribed video, a pin and a grabbed frame.
   - `packages/endless_speech/test/whisper_native_test.dart`: whisper.cpp itself on this computer (skipped unless given the built library, the model and a WAV; tool/speech_model/README.md). Checked 2026-11-04: JFK's 11 s sample transcribed word for word in 1.7 s, words timed.
 
 ## Next
+- **Phase 8b tablet checklist** (videos). A release build as for 8a.
+  1. **Insert a video.** Insert → Video, pick a short phone video (under 100 MB). The card appears selected with a still and the dark Video selected bar.
+  2. **Play.** Tap the play button; it plays inside the card. Pan and zoom the page while it plays: does the picture stay on the card? Pause, speed (0.5× shows "slow motion"), tap the timeline.
+  3. **Pin notes.** Pause at a moment, tap Note at: a "▶ 0:18" chip appears beside the video and the pen is picked; write your note beside it. Add two more at other moments. Tap an orange dot, then a chip: it jumps there. While it plays, the chip of that moment turns orange.
+  4. **Grab frame** at a good moment: the still appears beside the video with its caption.
+  5. **Trim** to the middle part: the strip and frame show; Trim. It plays only that part and stops at its end. Undo; Trim again, Whole video.
+  6. **Transcribe** a video with speech: the panel fills; tap a line to jump the video.
+  7. **Full screen** and back.
+  8. **Replace** with another video: the pins stay.
+  9. **A big video** (over 100 MB, e.g. a few minutes of 4K): "it's big, so it stays on this tablet". Plays the same.
+  10. **A page with a password**: insert a small video, lock and unlock the page, play it.
+  11. Dark mode; a PDF export (the card's still and the transcript); a board file round trip.
 - **Phase 8a tablet checklist** (audio). First `dart run tool/speech_model/fetch.dart`, then a release build (`flutter build apk --release`, `adb install -r`).
   1. **Record.** In a notebook: Insert (rail) → Record audio. Allow the microphone. The pill shows "Recording · 0:0x" and moves; a "Recording" notification is up.
   2. **Write while it records.** Write a few lines with the S Pen over a minute or two, talking. Pause, write a line, Resume, write more.

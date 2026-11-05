@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../board/model.dart';
 import '../state/notebook.dart';
+import '../video/video_files.dart' show videosDirProvider;
 import 'platform_audio.dart';
 import 'speakers.dart';
 import 'speech_models.dart';
@@ -109,7 +110,7 @@ class TranscriptionQueue extends Notifier<Map<String, TranscriptProgress>> {
   void resume(String notebookId) {
     if (!ref.read(loadedNotebookProvider(notebookId)).hasValue) return;
     final nb = ref.read(notebookProvider(notebookId).notifier);
-    for (final (_, clip) in nb.audioClips) {
+    for (final (_, clip) in nb.mediaClips) {
       if (clip.state == TranscriptState.waiting || clip.state == TranscriptState.working) add(notebookId, clip.id);
     }
   }
@@ -168,34 +169,55 @@ class TranscriptionQueue extends Notifier<Map<String, TranscriptProgress>> {
     var kept = false;
     try {
       final nb = ref.read(notebookProvider(nbId).notifier);
-      var clip = nb.audioClip(itemId)?.$2;
+      Transcribed? clip = nb.mediaClip(itemId)?.$2;
       if (clip == null || clip.state == TranscriptState.done) return;
       final engines = _engines ??= await ref.read(speechEnginesProvider)();
       if (engines == null) {
-        nb.setTranscript(clip.copyWith(state: TranscriptState.failed));
+        nb.setTranscript(clip.withTranscript(state: TranscriptState.failed));
         throw const SpeechError('This build of Endless has no speech model (see tool/speech_model/README.md).');
       }
-      final bytes = await nb.readAsset(clip.asset);
-      // A locked page: its transcript waits until it's unlocked.
-      if (bytes == null) return;
-      kept = await tools.keepGoing(true, kind: 'transcribe', title: 'Making a transcript', text: clip.name);
       final dir = await ref.read(transcriptWorkDirProvider)();
-      final source = File(p.join(dir.path, '$itemId${p.extension(clip.asset)}'));
       final pcm = File(p.join(dir.path, '$itemId.f32'));
-      files.addAll([source, pcm]);
-      await source.writeAsBytes(bytes, flush: true);
-      final samples = await tools.decode(source.path, pcm.path);
-      await source.delete();
+      files.add(pcm);
+      // The recording's (or video's) file: read where it's kept when it's
+      // there in the clear; else opened and written out to read.
+      String? source;
+      if (clip case VideoItem(link: final link?)) {
+        final f = File(p.join((await ref.read(videosDirProvider)()).path, link));
+        if (!await f.exists()) throw const SpeechError('The video isn’t on this tablet any more.');
+        source = f.path;
+      } else {
+        final asset = switch (clip) {
+          VideoItem(:final asset) => asset!,
+          AudioItem(:final asset) => asset,
+          _ => throw StateError('not a recording or video'),
+        };
+        source = await nb.assetPath(asset);
+        if (source == null) {
+          final bytes = await nb.readAsset(asset);
+          // A locked page: its transcript waits until it's unlocked.
+          if (bytes == null) return;
+          final copy = File(p.join(dir.path, '$itemId${p.extension(asset)}'));
+          files.add(copy);
+          await copy.writeAsBytes(bytes, flush: true);
+          source = copy.path;
+        }
+      }
+      kept = await tools.keepGoing(true, kind: 'transcribe', title: 'Making a transcript', text: clip.name);
+      final samples = await tools.decode(source, pcm.path);
+      for (final f in files) {
+        if (f != pcm && f.existsSync()) await f.delete();
+      }
       if (_cancelled) return;
 
       final heard = <HeardSegment>[];
       var lines = [...clip.transcript];
       // The lines on the page now: they may have been edited meanwhile.
-      List<TranscriptLine> onPage() => nb.audioClip(itemId)?.$2.transcript ?? lines;
+      List<TranscriptLine> onPage() => nb.mediaClip(itemId)?.$2.transcript ?? lines;
       final durationMs = math.max(1, samples * 1000 ~/ sampleRate);
       final wordsShare = engines.speakers == null ? 1.0 : 0.85;
       if (clip.state != TranscriptState.working || clip.upToMs < durationMs) {
-        clip = clip.copyWith(state: TranscriptState.working);
+        clip = clip.withTranscript(state: TranscriptState.working);
         nb.setTranscript(clip);
         final prompt = lines.map((l) => l.text).join(' ');
         await for (final part in engines.words.hear(
@@ -208,7 +230,7 @@ class TranscriptionQueue extends Notifier<Map<String, TranscriptProgress>> {
           if (_cancelled || !ref.mounted) return;
           heard.addAll(part.segments);
           lines = [...onPage(), ...linesHeard(part.segments)];
-          clip = clip!.copyWith(transcript: lines, upToMs: part.upToMs, language: part.language.isEmpty ? null : part.language);
+          clip = clip!.withTranscript(transcript: lines, upToMs: part.upToMs, language: part.language.isEmpty ? null : part.language);
           if (!nb.setTranscript(clip)) {
             // The recording was deleted (or its page locked): it carries on
             // from here if it comes back.
@@ -231,7 +253,7 @@ class TranscriptionQueue extends Notifier<Map<String, TranscriptProgress>> {
         if (_cancelled) return;
         lines = withSpeakers(lines, timeline, heard: heard);
       }
-      nb.setTranscript(clip!.copyWith(transcript: lines, state: TranscriptState.done, upToMs: 0));
+      nb.setTranscript(clip!.withTranscript(transcript: lines, state: TranscriptState.done, upToMs: 0));
     } finally {
       keep.close();
       for (final f in files) {

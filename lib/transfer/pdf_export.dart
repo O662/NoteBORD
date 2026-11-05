@@ -9,6 +9,7 @@ import 'package:pdf/pdf.dart';
 
 import '../board/model.dart';
 import '../canvas/audio_card.dart';
+import '../canvas/video_card.dart';
 import '../canvas/cards.dart';
 import '../canvas/charts.dart' show chartText, paintChart;
 import '../canvas/items.dart';
@@ -453,6 +454,13 @@ class _PdfWriter {
         text.add(TextRun(checklistText(list), list.extent));
       case OfficeItem f:
         await _office(f, text);
+      case VideoItem v:
+        // The card as a picture (its still); its transcript in the text layer.
+        final still = v.preview == null ? null : await _decodeAsset(v.preview!);
+        await _raster(v.paintRect, (canvas) => paintVideoCard(canvas, v, c, images: (_) => still));
+        text.add(TextRun(videoText(v), v.extent));
+      case VideoPinItem p:
+        await _raster(p.paintRect, (canvas) => paintVideoPin(canvas, p, c));
       case AudioItem a:
         // The card as a picture; its transcript in the text layer, so the
         // PDF finds what was said.
@@ -770,6 +778,20 @@ class _PdfWriter {
       return;
     }
     _place(image, rect);
+  }
+
+  /// An asset as a picture to draw on a canvas (a video's still).
+  Future<ui.Image?> _decodeAsset(String name) async {
+    final bytes = await readAsset(name);
+    if (bytes == null) return null;
+    try {
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      codec.dispose();
+      return frame.image;
+    } on Object {
+      return null;
+    }
   }
 
   Future<PdfImage?> _decode(String name) async {

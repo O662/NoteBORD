@@ -1590,6 +1590,13 @@ class ImageItem extends BoxItem {
   /// The `assets/` file that is drawn.
   String get picture => asset;
 
+  /// A caption under the picture (a frame grabbed from a video: "Grabbed
+  /// frame · from video"), drawn on a white card around it.
+  String? get caption => extra['caption'] is String ? extra['caption'] as String : null;
+
+  @override
+  Rect get paintRect => caption == null ? super.paintRect : Rect.fromLTRB(-6, -6, w + 6, h + 26);
+
   @override
   String get type => 'image';
 
@@ -3148,9 +3155,10 @@ class TranscriptLine {
   Json toJson() => {...extra, 'tMs': tMs, 'endMs': endMs, 'speaker': ?speaker, 'text': text};
 }
 
-/// Where an audio clip's transcript is: waiting its turn, being made (up to
-/// [AudioItem.upToMs] of the recording), made, or failed.
-enum TranscriptState { waiting, working, done, failed }
+/// Where a transcript is: waiting its turn, being made (up to `upToMs` of
+/// the recording), made, failed, or not asked for (a video, until
+/// Transcribe).
+enum TranscriptState { waiting, working, done, failed, none }
 
 /// A stroke written while the clip was recording, and when (ms into it).
 @immutable
@@ -3166,7 +3174,7 @@ class InkMoment {
 /// A recording on the page (Audio.png): its card with play/pause, a
 /// waveform, speed, ±10 s and the time, the ink written while it was
 /// recording ([inkTimeline]) and its [transcript].
-class AudioItem extends BoxItem {
+class AudioItem extends BoxItem implements Transcribed {
   AudioItem({
     required super.id,
     required super.x,
@@ -3199,25 +3207,33 @@ class AudioItem extends BoxItem {
 
   /// The recording in `assets/` (an .m4a; a .wav where AAC isn't recorded).
   final String asset;
+  @override
   final String name;
+  @override
   final DateTime recordedAt;
+  @override
   final int durationMs;
 
   /// How loud it is along the recording: [waveBars] values, 0–100.
   final List<int> wave;
   final List<InkMoment> inkTimeline;
+  @override
   final List<TranscriptLine> transcript;
 
   /// Names given to speakers (`s1` → `Professor`); unnamed ones show as
   /// "Speaker 1".
+  @override
   final Map<String, String> speakers;
 
   /// The language heard, as a code (`en`), once known.
+  @override
   final String? language;
+  @override
   final TranscriptState state;
 
   /// While the transcript is being made: how far into the recording it has
   /// got (ms), so it carries on from there.
+  @override
   final int upToMs;
   final double unit;
 
@@ -3233,13 +3249,18 @@ class AudioItem extends BoxItem {
   @override
   String get type => 'audio';
 
-  /// The name shown for speaker [key] ("Speaker 2" until it's named).
-  String speakerName(String? key) {
-    if (key == null) return '';
-    final named = speakers[key];
-    if (named != null && named.trim().isNotEmpty) return named;
-    return 'Speaker ${key.replaceFirst('s', '')}';
-  }
+  @override
+  String speakerName(String? key) => _speakerName(speakers, key);
+
+  @override
+  AudioItem withTranscript({
+    List<TranscriptLine>? transcript,
+    Map<String, String>? speakers,
+    String? language,
+    TranscriptState? state,
+    int? upToMs,
+  }) =>
+      copyWith(transcript: transcript, speakers: speakers, language: language, state: state, upToMs: upToMs);
 
   /// When stroke [id] was written, ms into the recording.
   int? momentOf(String id) {
@@ -3333,8 +3354,332 @@ class AudioItem extends BoxItem {
         'transcript': [for (final l in transcript) l.toJson()],
         if (speakers.isNotEmpty) 'speakers': speakers,
         'language': ?language,
-        if (state != TranscriptState.done) 'transcribe': {'state': state.name, if (upToMs > 0) 'upToMs': upToMs},
+        'transcribe': ?_transcribeJson(state, upToMs),
       };
+}
+
+/// What has a transcript (Phase 8): a recording's card, a video.
+abstract interface class Transcribed {
+  String get id;
+  String get name;
+  int get durationMs;
+
+  /// When it was recorded (a video: when it was put on the page).
+  DateTime get recordedAt;
+  List<TranscriptLine> get transcript;
+  Map<String, String> get speakers;
+  String? get language;
+  TranscriptState get state;
+  int get upToMs;
+  Rect get extent;
+
+  /// The name shown for speaker [key] ("Speaker 2" until it's named).
+  String speakerName(String? key);
+
+  Transcribed withTranscript({
+    List<TranscriptLine>? transcript,
+    Map<String, String>? speakers,
+    String? language,
+    TranscriptState? state,
+    int? upToMs,
+  });
+}
+
+String _speakerName(Map<String, String> speakers, String? key) {
+  if (key == null) return '';
+  final named = speakers[key];
+  if (named != null && named.trim().isNotEmpty) return named;
+  return 'Speaker ${key.replaceFirst('s', '')}';
+}
+
+Json? _transcribeJson(TranscriptState state, int upToMs) =>
+    state == TranscriptState.done ? null : {'state': state.name, if (upToMs > 0) 'upToMs': upToMs};
+
+/// A video on the page (Video.png): its card (700 × 490 at `unit: 1`) with
+/// the picture, the timeline with the moments notes are pinned to, and the
+/// controls. The file is in `assets/` ([asset]), or, for a big one, kept on
+/// the tablet beside the notebooks ([link]). [preview] is a still from it,
+/// drawn until it plays. [trimFrom]/[trimTo] are where it starts and stops
+/// playing (the file isn't cut). It can have a transcript, as recordings do.
+class VideoItem extends BoxItem implements Transcribed {
+  VideoItem({
+    required super.id,
+    required super.x,
+    required super.y,
+    super.rotation,
+    required super.z,
+    required super.createdAt,
+    super.author,
+    super.remember,
+    super.extra,
+    this.asset,
+    this.link,
+    required this.name,
+    required this.durationMs,
+    this.videoW = 16,
+    this.videoH = 9,
+    this.preview,
+    this.sound = true,
+    this.trimFrom,
+    this.trimTo,
+    this.transcript = const [],
+    this.speakers = const {},
+    this.language,
+    this.state = TranscriptState.none,
+    this.upToMs = 0,
+    this.unit = 1,
+  }) : assert(asset != null || link != null);
+
+  /// The card at 100% (Video.dc.html).
+  static const size = Size(700, 490);
+
+  /// The picture's part of the card.
+  static const screen = Rect.fromLTWH(0, 0, 700, 394);
+
+  /// The file in `assets/`, or null when it's kept on the tablet ([link]).
+  final String? asset;
+
+  /// A big video's file name in the tablet's own videos folder.
+  final String? link;
+  @override
+  final String name;
+  @override
+  final int durationMs;
+
+  /// The video's own size (for its shape), as shown.
+  final double videoW;
+  final double videoH;
+
+  /// A still from it in `assets/` (JPEG).
+  final String? preview;
+
+  /// False when the video has no sound (nothing to transcribe).
+  final bool sound;
+  final int? trimFrom;
+  final int? trimTo;
+  @override
+  final List<TranscriptLine> transcript;
+  @override
+  final Map<String, String> speakers;
+  @override
+  final String? language;
+  @override
+  final TranscriptState state;
+  @override
+  final int upToMs;
+  final double unit;
+
+  /// Where it starts and stops playing.
+  int get from => (trimFrom ?? 0).clamp(0, durationMs);
+  int get to => (trimTo ?? durationMs).clamp(from, durationMs);
+  bool get trimmed => from > 0 || to < durationMs;
+
+  @override
+  double get w => size.width * unit;
+
+  @override
+  double get h => size.height * unit;
+
+  @override
+  Rect get paintRect => (Offset.zero & Size(w, h)).inflate(30 * unit);
+
+  @override
+  String get type => 'video';
+
+  @override
+  DateTime get recordedAt => createdAt;
+
+  @override
+  String speakerName(String? key) => _speakerName(speakers, key);
+
+  VideoItem copyWith({
+    String? Function()? asset,
+    String? Function()? link,
+    String? name,
+    int? durationMs,
+    double? videoW,
+    double? videoH,
+    String? Function()? preview,
+    bool? sound,
+    int? Function()? trimFrom,
+    int? Function()? trimTo,
+    List<TranscriptLine>? transcript,
+    Map<String, String>? speakers,
+    String? Function()? language,
+    TranscriptState? state,
+    int? upToMs,
+  }) {
+    return VideoItem(
+      id: id,
+      x: x,
+      y: y,
+      rotation: rotation,
+      z: z,
+      createdAt: createdAt,
+      author: author,
+      remember: remember,
+      extra: extra,
+      asset: asset == null ? this.asset : asset(),
+      link: link == null ? this.link : link(),
+      name: name ?? this.name,
+      durationMs: durationMs ?? this.durationMs,
+      videoW: videoW ?? this.videoW,
+      videoH: videoH ?? this.videoH,
+      preview: preview == null ? this.preview : preview(),
+      sound: sound ?? this.sound,
+      trimFrom: trimFrom == null ? this.trimFrom : trimFrom(),
+      trimTo: trimTo == null ? this.trimTo : trimTo(),
+      transcript: transcript ?? this.transcript,
+      speakers: speakers ?? this.speakers,
+      language: language == null ? this.language : language(),
+      state: state ?? this.state,
+      upToMs: upToMs ?? this.upToMs,
+      unit: unit,
+    );
+  }
+
+  @override
+  VideoItem withTranscript({
+    List<TranscriptLine>? transcript,
+    Map<String, String>? speakers,
+    String? language,
+    TranscriptState? state,
+    int? upToMs,
+  }) =>
+      copyWith(
+        transcript: transcript,
+        speakers: speakers,
+        language: language == null ? null : () => language,
+        state: state,
+        upToMs: upToMs,
+      );
+
+  @override
+  VideoItem withBox({
+    String? id,
+    int? z,
+    DateTime? createdAt,
+    required double x,
+    required double y,
+    required double w,
+    required double h,
+    double? rotation,
+    double scale = 1,
+  }) =>
+      VideoItem(
+        id: id ?? this.id,
+        x: x,
+        y: y,
+        rotation: rotation ?? this.rotation,
+        z: z ?? this.z,
+        createdAt: createdAt ?? this.createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        asset: asset,
+        link: link,
+        name: name,
+        durationMs: durationMs,
+        videoW: videoW,
+        videoH: videoH,
+        preview: preview,
+        sound: sound,
+        trimFrom: trimFrom,
+        trimTo: trimTo,
+        transcript: transcript,
+        speakers: speakers,
+        language: language,
+        state: state,
+        upToMs: upToMs,
+        unit: unit * scale,
+      );
+
+  @override
+  Json toJson() => {
+        ...boxJson(),
+        'unit': round3(unit),
+        'asset': ?asset,
+        'link': ?link,
+        'name': name,
+        'durationMs': durationMs,
+        'videoW': round1(videoW),
+        'videoH': round1(videoH),
+        'preview': ?preview,
+        if (!sound) 'sound': false,
+        'trimFrom': ?trimFrom,
+        'trimTo': ?trimTo,
+        if (transcript.isNotEmpty) 'transcript': [for (final l in transcript) l.toJson()],
+        if (speakers.isNotEmpty) 'speakers': speakers,
+        'language': ?language,
+        // Absent: never transcribed (Transcribe hasn't been asked for).
+        if (state != TranscriptState.none) 'transcribe': {'state': state.name, if (upToMs > 0) 'upToMs': upToMs},
+      };
+}
+
+/// A note pinned to a moment of a video (Video.png's "▶ 0:12" chips): a
+/// tap jumps the video there, and it's an orange dot on the video's
+/// timeline. The note itself is what's written beside it.
+class VideoPinItem extends BoxItem {
+  VideoPinItem({
+    required super.id,
+    required super.x,
+    required super.y,
+    super.rotation,
+    required super.z,
+    required super.createdAt,
+    super.author,
+    super.remember,
+    super.extra,
+    required this.w,
+    required this.h,
+    required this.video,
+    required this.tMs,
+  });
+
+  @override
+  final double w;
+  @override
+  final double h;
+
+  /// The video's item id.
+  final String video;
+
+  /// The moment, ms into the video.
+  final int tMs;
+
+  @override
+  String get type => 'video-pin';
+
+  @override
+  VideoPinItem withBox({
+    String? id,
+    int? z,
+    DateTime? createdAt,
+    required double x,
+    required double y,
+    required double w,
+    required double h,
+    double? rotation,
+    double scale = 1,
+  }) =>
+      VideoPinItem(
+        id: id ?? this.id,
+        x: x,
+        y: y,
+        rotation: rotation ?? this.rotation,
+        z: z ?? this.z,
+        createdAt: createdAt ?? this.createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        w: w,
+        h: h,
+        video: video,
+        tMs: tMs,
+      );
+
+  @override
+  Json toJson() => {...boxJson(), 'video': video, 'tMs': tMs};
 }
 
 class UnknownItem extends Item {

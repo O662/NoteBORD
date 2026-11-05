@@ -85,7 +85,8 @@ Every item has these fields:
 | `widget` | `w`, `h`, `widget` (calendar/planner/flashcards/remember/clock/date/numberline/unitcircle/polar), `config`, `unit` |
 | `flashcard` | `deck`, `deckName`, `reverse`, `front: {ids?, text?}`, `back: {ids?, text?}` (not drawn; see below) |
 | `audio` | `w`, `h`, `unit`, `asset`, `name`, `recordedAt`, `durationMs`, `wave`, `inkTimeline: [{strokeId, tMs}]`, `transcript: [{tMs, endMs, speaker?, text}]`, `speakers?`, `language?`, `transcribe?` (see below) |
-| `video` | `w`, `h`, `asset` or `remoteUrl`, `pins: [{tMs, itemId}]` |
+| `video` | `w`, `h`, `unit`, `asset` or `link`, `name`, `durationMs`, `videoW`, `videoH`, `preview?`, `sound?`, `trimFrom?`, `trimTo?`, and a transcript as `audio` has (see below) |
+| `video-pin` | `w`, `h`, `video` (its item id), `tMs` |
 | `timestamp` | `w`, `h`, `unit`, `at` (ISO), `display` (clock/ago) |
 | `checklist` | `w`, `h`, `unit`, `title`, `entries: [{text, done, ink?}]` |
 
@@ -221,6 +222,16 @@ Every item has these fields:
 - Lines can be edited (an undo step): the text changes, `tMs`, `endMs` and `speaker` stay; a line emptied is removed.
 - `transcribe` is present only while the transcript isn't finished: `{"state": "waiting" | "working" | "failed", "upToMs": 240000}`. `upToMs` is how far the words have got; the transcript carries on from there. Saving the transcript as it's made isn't an undo step, and Undo keeps it.
 - In a PDF the card is a picture and its transcript is in the text layer. Search finds each line of the transcript.
+
+**Videos, as implemented (v1, Phase 8b, Video.png):** a `video` item is a video's card on the page (700 × 490 at `unit: 1`).
+
+- The file is `asset` (in `assets/`, up to 100 MB; sealed on a page with a password, up to 200 MB) or, for a bigger one, `link`: a file name in the device's own videos folder (`<app support>/videos/`), not in the package. A board file carries an asset, not a linked file; on another device a linked video shows its still and can't play. (Phase 9 moves big videos to Google Drive.)
+- `preview` is a still from it (a JPEG in `assets/`), drawn until it plays and in exports. `videoW` × `videoH` is its shape as shown. `sound: false` when it has no sound.
+- `trimFrom` / `trimTo` (ms) are where it starts and stops playing; absent is its start and end. The file isn't cut.
+- `transcript`, `speakers`, `language` and `transcribe` are as for `audio` (see Recordings), with one difference: a video without `transcribe` has **never been transcribed**; a transcript asked for is written with `transcribe: {"state": …}`, `done` included.
+- Times everywhere (pins, the transcript) are the video file's own, whatever the trim.
+- A `video-pin` is a "▶ 0:12" chip: a note pinned to moment `tMs` of the video `video` on the same page. It's an orange dot on that video's timeline (when within its trim). The note is what's written beside it. A pin whose video is gone is kept, and does nothing.
+- An `image` with `caption` (a string, kept in its fields) is drawn on a white card with the caption under it: a frame grabbed from a video ("Grabbed frame · from video").
 
 **Flashcards, as implemented (v1, Phase 7a, FlashMake.png):** a `flashcard` item is a card made on its page. It isn't drawn, can't be selected, and isn't exported to PDF; `x`/`y` is where its front was when it was made.
 

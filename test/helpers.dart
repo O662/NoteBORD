@@ -388,6 +388,12 @@ class FakeFileTransfer implements FileTransfer {
     return toPickOne;
   }
 
+  /// What the next video pick returns.
+  PickedVideo? toPickVideo;
+
+  @override
+  Future<PickedVideo?> pickVideo() async => toPickVideo;
+
   @override
   Future<bool> save(String name, Uint8List bytes, String mime) async {
     if (saveAnswer) saved.add(ExportFile(name, bytes, mime));

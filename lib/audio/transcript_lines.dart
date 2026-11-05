@@ -74,7 +74,7 @@ String clockOf(int ms) {
 }
 
 /// The transcript as plain text: "12:02 Professor: …", a line each.
-String transcriptText(AudioItem clip, {bool times = true}) => [
+String transcriptText(Transcribed clip, {bool times = true}) => [
       for (final l in clip.transcript)
         [
           if (times) clockOf(l.tMs),

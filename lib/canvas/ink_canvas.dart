@@ -46,6 +46,9 @@ import '../templates/templates.dart';
 import '../theme/colors.dart';
 import '../theme/tokens.g.dart';
 import '../ui/canvas/audio_actions.dart';
+import '../ui/canvas/video_actions.dart';
+import '../ui/canvas/video_full_screen.dart';
+import '../video/video_playback.dart';
 import '../ui/canvas/card_editors.dart';
 import '../ui/canvas/chart_actions.dart';
 import '../ui/canvas/convert_panel.dart';
@@ -65,6 +68,7 @@ import '../ui/study/study_format.dart' show reminderShort;
 import '../ui/icons.dart' show EIcons, paintEIcon;
 import '../ui/study/study_marks.dart';
 import 'audio_card.dart';
+import 'video_card.dart';
 import 'canvas_view.dart';
 import 'cards.dart';
 import 'connectors.dart';
@@ -93,6 +97,7 @@ part 'ink_canvas_math.dart';
 part 'ink_canvas_study.dart';
 part 'ink_canvas_live.dart';
 part 'ink_canvas_audio.dart';
+part 'ink_canvas_video.dart';
 
 /// Eraser radius in screen px.
 const eraserRadius = 10.0;
@@ -400,6 +405,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     pane.cards.addListener(_cardsChanged);
     pane.live.addListener(_liveChanged);
     pane.audio.addListener(_audioChanged);
+    pane.video.addListener(_videoChanged);
     _selection.addListener(_overlay.ping);
     _selection.addListener(_selectionChanged);
     _watchDraft();
@@ -417,8 +423,10 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       oldWidget.pane.cards.removeListener(_cardsChanged);
       oldWidget.pane.live.removeListener(_liveChanged);
       oldWidget.pane.audio.removeListener(_audioChanged);
+      oldWidget.pane.video.removeListener(_videoChanged);
       widget.pane.live.addListener(_liveChanged);
       widget.pane.audio.addListener(_audioChanged);
+      widget.pane.video.addListener(_videoChanged);
       widget.pane.math.addListener(_mathChanged);
       widget.pane.cards.addListener(_cardsChanged);
       widget.pane.addListener(_paneChanged);
@@ -494,6 +502,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     _overlay.dispose();
     pane.live.removeListener(_liveChanged);
     pane.audio.removeListener(_audioChanged);
+    pane.video.removeListener(_videoChanged);
     _liveTimer?.cancel();
     _liveTick.dispose();
     super.dispose();
@@ -864,6 +873,13 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         if (top is StickyPadItem && settings.tool != CanvasTool.eraser) {
           // Nothing is written on a pad: the pen pulls a note off it.
           _startPull(e.localPosition, top);
+          return;
+        }
+        if ((top is VideoItem || top is VideoPinItem) && settings.tool != CanvasTool.eraser) {
+          // Nothing is written on a video or a pin chip: the pen presses them.
+          _drag = _Drag.tap;
+          _tapDown = e.localPosition;
+          _tapMoved = false;
           return;
         }
         if (top is AudioItem && settings.tool != CanvasTool.eraser) {
@@ -2217,6 +2233,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     final settings = ref.read(settingsProvider);
     // A recording's buttons; a finger on ink written while recording plays
     // it from then.
+    if (_pressVideo(at)) return;
     if (_pressAudio(at)) return;
     if (!_tapPen && _jumpToInk(at)) return;
     // A tap on typeset math edits it; in math mode, a tap on the paper
@@ -2536,6 +2553,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
             ),
             // A recording playing: the ink written at that moment lit, and
             // the cards as they are now.
+            if (!_viewOnly) _videoLayer(page, colors),
             if (!_viewOnly) _audioLayer(page, brightness, colors),
             RepaintBoundary(
               child: CustomPaint(

@@ -75,6 +75,13 @@ const paperLight = EndlessColors(
   onPlumBright: Color(0xFF1E1C19),
   record: Color(0xFFC23B2E),
   recordDeep: Color(0xFF8E2A20),
+  video: Color(0xFF1E1C19),
+  videoScreen: Color(0xFF2E2B27),
+  videoTrack: Color(0xFF4A453D),
+  videoPlayed: Color(0xFF86AEDB),
+  videoPin: Color(0xFFE6946A),
+  videoText: Color(0xFFFFFDF8),
+  videoMuted: Color(0xFFBFB49E),
 );
 
 const paperDark = EndlessColors(
@@ -147,6 +154,13 @@ const paperDark = EndlessColors(
   onPlumBright: Color(0xFFFFFDF8),
   record: Color(0xFFE0614F),
   recordDeep: Color(0xFFF0A398),
+  video: Color(0xFF121110),
+  videoScreen: Color(0xFF24211D),
+  videoTrack: Color(0xFF4A453D),
+  videoPlayed: Color(0xFF86AEDB),
+  videoPin: Color(0xFFE6946A),
+  videoText: Color(0xFFFFFDF8),
+  videoMuted: Color(0xFFBFB49E),
 );
 
 const inkDefaults = <Color>[

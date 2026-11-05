@@ -75,6 +75,10 @@ abstract class BoardStore {
   /// File names in the package's `assets/` folder.
   Future<List<String>> listAssets(String notebookId);
   Future<Uint8List?> loadAsset(String notebookId, String name);
+
+  /// The file asset [name] is kept in, if this store keeps files and it's
+  /// there in the clear (to play a video without loading it).
+  String? assetPath(String notebookId, String name);
   Future<void> saveAsset(String notebookId, String name, Uint8List bytes);
   Future<void> deleteAsset(String notebookId, String name);
 
@@ -256,6 +260,12 @@ class FileBoardStore implements BoardStore {
   @override
   Future<void> saveAsset(String notebookId, String name, Uint8List bytes) =>
       _writeAtomicBytes(_assetFile(notebookId, name), bytes);
+
+  @override
+  String? assetPath(String notebookId, String name) {
+    final f = _assetFile(notebookId, name);
+    return f.existsSync() ? f.path : null;
+  }
 
   @override
   Future<void> deleteAsset(String notebookId, String name) => _deleteIfExists(_assetFile(notebookId, name));
@@ -461,6 +471,9 @@ class MemoryBoardStore implements BoardStore {
 
   @override
   Future<Uint8List?> loadAsset(String notebookId, String name) async => assets[notebookId]?[name];
+
+  @override
+  String? assetPath(String notebookId, String name) => null;
 
   @override
   Future<void> saveAsset(String notebookId, String name, Uint8List bytes) async =>

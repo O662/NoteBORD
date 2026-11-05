@@ -23,6 +23,7 @@ import '../icons.dart';
 import '../templates/templates_dialog.dart';
 import '../math/math_actions.dart';
 import 'audio_actions.dart';
+import 'video_actions.dart';
 import 'card_editors.dart';
 import 'chart_actions.dart';
 import 'insert_menu.dart';
@@ -56,6 +57,8 @@ Future<void> runInsert(
   switch (action) {
     case InsertAction.audio:
       await startRecording(context, ref, pane);
+    case InsertAction.video:
+      await insertVideo(context, ref, pane);
     case InsertAction.sticky:
       place(CanvasTool.sticky);
     case InsertAction.stack:

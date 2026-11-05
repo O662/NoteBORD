@@ -12,6 +12,7 @@ import 'coming_soon.dart';
 /// menu opens a "coming soon" card.
 enum InsertAction {
   audio,
+  video,
   sticky,
   stack,
   pad,
@@ -138,8 +139,8 @@ final List<InsertSection> insertSections = [
     InsertEntry('Shape', icon: EIcons.shapes, tile: _neutral, tint: _ink, action: InsertAction.shape, keywords: 'rectangle circle oval triangle line arrow'),
   ]),
   InsertSection('Files', 7, [
-    InsertEntry('Video', icon: EIcons.video, tile: _plum, tint: _plumInk, small: true, keywords: 'movie clip mp4',
-        soon: 'Play a video inside your notes, pin notes to moments in it and grab a frame.'),
+    InsertEntry('Video', icon: EIcons.video, tile: _plum, tint: _plumInk, small: true, action: InsertAction.video,
+        keywords: 'movie clip mp4 mov film recording lab'),
     InsertEntry('Audio', icon: EIcons.mic, tile: _clay, tint: _clayInk, small: true, action: InsertAction.audio,
         keywords: 'record recording sound voice microphone transcript lecture'),
     InsertEntry('Image or photo', icon: EIcons.image, tile: _green, tint: _greenInk, action: InsertAction.image, keywords: 'picture camera png jpg'),

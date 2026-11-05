@@ -96,6 +96,9 @@ class ManualClock extends RecordingClock {
 class FakeAudioTools implements AudioTools {
   final kept = <(bool, String)>[];
 
+  /// The files read for transcripts.
+  final decoded = <String>[];
+
   @override
   Future<bool> keepGoing(bool on, {String kind = 'record', String title = '', String text = ''}) async {
     kept.add((on, kind));
@@ -107,6 +110,7 @@ class FakeAudioTools implements AudioTools {
 
   @override
   Future<int> decode(String path, String to) async {
+    decoded.add(path);
     final pcm = wavTo16k(await File(path).readAsBytes());
     await File(to).writeAsBytes(pcm.buffer.asUint8List());
     return pcm.length;

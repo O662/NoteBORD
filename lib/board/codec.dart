@@ -108,6 +108,11 @@ Item decodeItem(Json json) {
 
 const _boxKeys = {..._itemKeys, 'w', 'h'};
 
+const _videoKeys = {
+  ..._boxKeys, 'unit', 'asset', 'link', 'name', 'durationMs', 'videoW', 'videoH', 'preview', 'sound', 'trimFrom', 'trimTo', //
+  'transcript', 'speakers', 'language', 'transcribe',
+};
+
 const _audioKeys = {
   ..._boxKeys, 'unit', 'asset', 'name', 'recordedAt', 'durationMs', 'wave', 'inkTimeline', 'transcript', //
   'speakers', 'language', 'transcribe',
@@ -473,6 +478,57 @@ Item? _decodeKnown(Json json) {
             ? TranscriptState.done
             : TranscriptState.values.asNameMap()[transcribe['state']] ?? TranscriptState.waiting,
         upToMs: (transcribe?['upToMs'] as num?)?.toInt() ?? 0,
+      );
+    case 'video':
+      final transcribe = (json['transcribe'] as Map?)?.cast<String, dynamic>();
+      return VideoItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, _videoKeys),
+        unit: _num(json['unit'], 1),
+        asset: json['asset'] as String?,
+        link: json['link'] as String?,
+        name: json['name'] as String? ?? '',
+        durationMs: (json['durationMs'] as num?)?.toInt() ?? 0,
+        videoW: _num(json['videoW'], 16),
+        videoH: _num(json['videoH'], 9),
+        preview: json['preview'] as String?,
+        sound: json['sound'] != false,
+        trimFrom: (json['trimFrom'] as num?)?.toInt(),
+        trimTo: (json['trimTo'] as num?)?.toInt(),
+        transcript: [for (final l in (json['transcript'] as List? ?? const []).map(_map)) TranscriptLine.fromJson(l)],
+        speakers: {
+          for (final e in ((json['speakers'] as Map?) ?? const {}).entries)
+            if (e.value is String) e.key as String: e.value as String,
+        },
+        language: json['language'] as String?,
+        // No "transcribe": never transcribed.
+        state: transcribe == null
+            ? TranscriptState.none
+            : TranscriptState.values.asNameMap()[transcribe['state']] ?? TranscriptState.none,
+        upToMs: (transcribe?['upToMs'] as num?)?.toInt() ?? 0,
+      );
+    case 'video-pin':
+      return VideoPinItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, const {..._boxKeys, 'video', 'tMs'}),
+        w: (json['w'] as num).toDouble(),
+        h: (json['h'] as num).toDouble(),
+        video: json['video'] as String,
+        tMs: (json['tMs'] as num).toInt(),
       );
     case 'sticky-pad':
       return StickyPadItem(

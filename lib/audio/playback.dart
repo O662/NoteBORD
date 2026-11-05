@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../video/video_playback.dart';
 import 'platform_audio.dart';
 
 // Playing a recording (Audio.png): one at a time, with its speed, ±10 s,
@@ -133,6 +134,8 @@ class PlaybackController extends Notifier<PlaybackState?> {
       await _player!.pause();
       state = state!.copyWith(playing: false);
     } else {
+      // One thing plays at a time.
+      await ref.read(videoPlaybackProvider.notifier).pause();
       await _player!.play();
       state = state!.copyWith(playing: true);
     }
@@ -148,6 +151,7 @@ class PlaybackController extends Notifier<PlaybackState?> {
     await _player!.seek(Duration(milliseconds: to));
     state = state!.copyWith(positionMs: to);
     if (play && !state!.playing) {
+      await ref.read(videoPlaybackProvider.notifier).pause();
       await _player!.play();
       state = state!.copyWith(playing: true);
     }

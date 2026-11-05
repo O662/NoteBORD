@@ -723,7 +723,7 @@ List<SearchRow> rowsFor(String notebookId, BoardPage page, PageRecognition? read
           'name': f.name,
           if (f.page != null) 'page': f.page,
         }));
-      case AudioItem a:
+      case final Transcribed a when a is AudioItem || a is VideoItem:
         // What was said, a line at a time, with when and who
         // (Audio.png: "The transcript is searchable").
         for (final l in a.transcript) {

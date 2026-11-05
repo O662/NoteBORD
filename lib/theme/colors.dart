@@ -76,6 +76,13 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
     required this.onPlumBright,
     required this.record,
     required this.recordDeep,
+    required this.video,
+    required this.videoScreen,
+    required this.videoTrack,
+    required this.videoPlayed,
+    required this.videoPin,
+    required this.videoText,
+    required this.videoMuted,
   });
 
   final Color text;
@@ -205,6 +212,16 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
   final Color record;
   final Color recordDeep;
 
+  /// Video.dc.html's card: dark in both modes, with its screen, timeline
+  /// track, the part played, the orange pin dots, and its text.
+  final Color video;
+  final Color videoScreen;
+  final Color videoTrack;
+  final Color videoPlayed;
+  final Color videoPin;
+  final Color videoText;
+  final Color videoMuted;
+
   /// Floating pill shadow: `0 6px 18px -12px shadow`.
   List<BoxShadow> get pillShadow => [
         BoxShadow(color: shadow, offset: const Offset(0, 6), blurRadius: 18, spreadRadius: -12),
@@ -318,6 +335,13 @@ class EndlessColors extends ThemeExtension<EndlessColors> {
       onPlumBright: l(onPlumBright, other.onPlumBright),
       record: l(record, other.record),
       recordDeep: l(recordDeep, other.recordDeep),
+      video: l(video, other.video),
+      videoScreen: l(videoScreen, other.videoScreen),
+      videoTrack: l(videoTrack, other.videoTrack),
+      videoPlayed: l(videoPlayed, other.videoPlayed),
+      videoPin: l(videoPin, other.videoPin),
+      videoText: l(videoText, other.videoText),
+      videoMuted: l(videoMuted, other.videoMuted),
     );
   }
 }

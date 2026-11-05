@@ -34,7 +34,11 @@ import '../transfer/share_dialog.dart';
 import '../transfer/transfer_dialog.dart';
 import '../../canvas/selection.dart';
 import '../../audio/playback.dart';
+import '../../board/model.dart' show TranscriptState, VideoItem;
+import '../../canvas/page_runtime.dart' show PageRuntime;
+import '../../video/video_playback.dart';
 import 'audio_actions.dart';
+import 'video_actions.dart';
 import 'chart_actions.dart';
 import 'color_tray.dart';
 import 'gesture_status.dart';
@@ -201,6 +205,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
   final markerLink = LayerLink();
   late final AppLifecycleListener _lifecycle;
   late final PlaybackController _playback;
+  late final VideoPlayback _videoPlayback;
   bool _popover = false;
   String? _hint;
   Timer? _hintTimer;
@@ -246,6 +251,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
       ..addListener(() => _glideStep?.call(Curves.easeInOutCubic.transform(_glide.value)));
     // Anything unsaved is written as soon as the app leaves the foreground.
     _playback = ref.read(playbackProvider.notifier);
+    _videoPlayback = ref.read(videoPlaybackProvider.notifier);
     _lifecycle = AppLifecycleListener(onStateChange: (state) {
       if (state == AppLifecycleState.resumed) return;
       // Text still being typed goes on the page first.
@@ -258,6 +264,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     pane.panel.addListener(_cardsChanged);
     pane.live.addListener(_cardsChanged);
     pane.audio.addListener(_cardsChanged);
+    pane.video.addListener(_cardsChanged);
     pane.selection.addListener(_selectionChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _recordOpened();
@@ -274,12 +281,14 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     pane.panel.removeListener(_cardsChanged);
     pane.live.removeListener(_cardsChanged);
     pane.audio.removeListener(_cardsChanged);
+    pane.video.removeListener(_cardsChanged);
     pane.selection.removeListener(_selectionChanged);
     _spell?.dispose();
     _lifecycle.dispose();
     // Leaving the notebook stops its recording playing (recording itself
     // keeps going until Stop).
     _playback.stopFor(pane.notebookId);
+    _videoPlayback.stopFor(pane.notebookId);
     _hintTimer?.cancel();
     _glide.dispose();
     _spotGlow.dispose();
@@ -645,6 +654,13 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     pane.toast('Added the definition of “${entry.word}” to the page', undoPageId: page.id);
   }
 
+  /// The video whose bar shows: selected (a tap on it), on this page.
+  VideoItem? _selectedVideo(PageRuntime page) {
+    final id = pane.video.selected;
+    final v = id == null ? null : page[id];
+    return v is VideoItem ? v : null;
+  }
+
   void _toggleMore() => setState(() {
         _more = !_more;
         _fly = null;
@@ -748,6 +764,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     final chrome = !_full && !_board;
     final tools = chrome && !sealed && !spelling && !mathOn && !cardsOn && !liveOn;
     final chart = tools ? _selectedChart() : null;
+    final video = tools ? _selectedVideo(nb.pageAt(pane.page)) : null;
     // The dictionary drawer covers the pages rail, the map and the zoom pill;
     // math mode and making flashcards have neither (Math.png, FlashMake.png),
     // and Remember this takes their place (RememberMark.png).
@@ -870,6 +887,14 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                                   )
                                 : liveOn
                                 ? LiveBar(onAdd: pane.live.add, onDone: _endLive)
+                                : video != null
+                                ? VideoBar(
+                                    transcribed: video.state != TranscriptState.none,
+                                    onTrim: () => trimVideo(context, ref, pane, video),
+                                    onTranscribe: () => transcribeVideo(ref, pane, video),
+                                    onReplace: () => replaceVideo(context, ref, pane, video),
+                                    onDone: () => pane.video.select(null),
+                                  )
                                 : chart != null
                                 ? ChartBar(
                                     linked: chart.linked,

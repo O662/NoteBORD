@@ -207,7 +207,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
 
   /// The furthest each recording's transcript has got, by item id, so Undo
   /// and Redo (which put back items as they were) don't lose it.
-  final _clips = <String, AudioItem>{};
+  final _clips = <String, Transcribed>{};
 
   /// The notebook and its pages, as in [state]. Saving reads these, since
   /// the last save runs while the provider is being disposed, when [state]
@@ -314,26 +314,28 @@ class NotebookNotifier extends Notifier<NotebookState> {
   /// transcript is made in the background, not as an undo step, so an
   /// older copy of the card (from Undo) gets it back.
   Item _freshest(Item item) {
-    if (item is! AudioItem) return item;
+    if (item is! Transcribed) return item;
+    final clip = item as Transcribed;
     final known = _clips[item.id];
-    if (known == null || !_ahead(known, item)) {
-      _clips[item.id] = item;
+    if (known == null || !_ahead(known, clip)) {
+      _clips[item.id] = clip;
       return item;
     }
     // The lines this copy has stay as they are (they may have been edited:
     // Undo puts them back as they were), with the speakers found since;
     // the lines heard after them follow.
-    final cut = item.transcript.lastOrNull?.endMs ?? -1;
+    final cut = clip.transcript.lastOrNull?.endMs ?? -1;
     final speakers = {for (final l in known.transcript) l.tMs: l.speaker};
     final transcript = [
-      for (final l in item.transcript) l.speaker == null && speakers[l.tMs] != null ? l.copyWith(speaker: speakers[l.tMs]) : l,
+      for (final l in clip.transcript) l.speaker == null && speakers[l.tMs] != null ? l.copyWith(speaker: speakers[l.tMs]) : l,
       for (final l in known.transcript)
         if (l.tMs >= cut) l,
     ];
-    return item.copyWith(transcript: transcript, state: known.state, upToMs: known.upToMs, language: known.language);
+    return clip.withTranscript(transcript: transcript, state: known.state, upToMs: known.upToMs, language: known.language) as Item;
   }
 
-  static int _rank(AudioItem a) => switch (a.state) {
+  static int _rank(Transcribed a) => switch (a.state) {
+        TranscriptState.none => -1,
         TranscriptState.failed => 0,
         TranscriptState.waiting => 1,
         TranscriptState.working => 2,
@@ -342,7 +344,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
 
   /// Whether [a]'s transcript has got further than [b]'s. Two finished
   /// ones are even: a difference between them is an edit (an undo step).
-  static bool _ahead(AudioItem a, AudioItem b) {
+  static bool _ahead(Transcribed a, Transcribed b) {
     final ra = _rank(a), rb = _rank(b);
     if (ra != rb) return ra > rb;
     if (a.state == TranscriptState.done) return false;
@@ -361,35 +363,62 @@ class NotebookNotifier extends Notifier<NotebookState> {
   }
 
   /// The recording [itemId] and the page it's on, if it's on one.
-  (String, AudioItem)? audioClip(String itemId) {
-    for (final c in audioClips) {
+  (String, AudioItem)? audioClip(String itemId) => switch (mediaClip(itemId)) {
+        (final page, final AudioItem a) => (page, a),
+        _ => null,
+      };
+
+  /// Every recording and video in the notebook, with the page it's on.
+  Iterable<(String, Transcribed)> get mediaClips sync* {
+    for (final p in state.pages) {
+      if (state.isSealed(p.id)) continue;
+      for (final i in p.items) {
+        if (i is Transcribed) yield (p.id, i as Transcribed);
+      }
+    }
+  }
+
+  /// The recording or video [itemId] and the page it's on.
+  (String, Transcribed)? mediaClip(String itemId) {
+    for (final c in mediaClips) {
       if (c.$2.id == itemId) return c;
     }
     return null;
   }
 
+  /// The video [itemId] and the page it's on.
+  (String, VideoItem)? videoClip(String itemId) => switch (mediaClip(itemId)) {
+        (final page, final VideoItem v) => (page, v),
+        _ => null,
+      };
+
   /// Updates recording [clip]'s transcript where it is now, without an undo
   /// step. Its other fields (name, place) stay as they are on the page.
   /// False if it isn't on a page any more (deleted, or its page locked).
-  bool setTranscript(AudioItem clip) {
-    final found = audioClip(clip.id);
+  bool setTranscript(Transcribed clip) {
+    final found = mediaClip(clip.id);
     if (found == null) return false;
     final (pageId, now) = found;
-    final updated = now.copyWith(
+    final updated = now.withTranscript(
       transcript: clip.transcript,
       state: clip.state,
       upToMs: clip.upToMs,
       language: clip.language,
     );
     _clips[clip.id] = updated;
-    setQuietly(pageId, updated);
+    setQuietly(pageId, updated as Item);
     return true;
   }
 
   /// Stores a recording in the notebook's assets (sealed on a page with a
   /// password) and returns its asset name; null if the page can't be
   /// written to.
-  Future<String?> storeAudio(String pageId, Uint8List bytes, String extension) async {
+  Future<String?> storeAudio(String pageId, Uint8List bytes, String extension) => storeMedia(pageId, bytes, extension);
+
+  /// Stores a recording, video or still in the notebook's assets (sealed
+  /// on a page with a password) and returns its asset name; null if the
+  /// page can't be written to.
+  Future<String?> storeMedia(String pageId, Uint8List bytes, String extension) async {
     if (!_editable(pageId)) return null;
     final key = _keyFor(pageId);
     if (key == null && _needsKey(pageId)) return null;
@@ -402,6 +431,13 @@ class NotebookNotifier extends Notifier<NotebookState> {
 
   /// Whether [pageId] is kept sealed (it has a password).
   bool isProtected(String pageId) => _keyFor(pageId) != null || _needsKey(pageId);
+
+  /// Where asset [name] is stored in the clear, as a file (to play or read
+  /// without loading it); null if it's sealed or the store keeps no files.
+  Future<String?> assetPath(String name) async {
+    await _queue.idle;
+    return _store.assetPath(id, name);
+  }
 
   void _changed(String pageId) {
     _dirtyPages.add(pageId);

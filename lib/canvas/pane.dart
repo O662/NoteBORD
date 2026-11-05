@@ -10,6 +10,7 @@ import 'live_mode.dart';
 import 'math_mode.dart';
 import 'ruler.dart';
 import 'selection.dart';
+import 'video_mode.dart';
 
 /// One view onto a notebook: which notebook, which page, and its pan/zoom.
 /// The Canvas screen has one; Split view has two, which may show two pages
@@ -40,6 +41,9 @@ class Pane extends ChangeNotifier {
 
   /// Recordings: one to put on the page, and the transcript panel (Audio.png).
   final audio = AudioMode();
+
+  /// Videos: the one selected, and one to put on the page (Video.png).
+  final video = VideoMode();
 
   /// A panel is open beside something on the page (Remember this): the
   /// pages rail and the map make room for it (RememberMark.png).
@@ -92,6 +96,7 @@ class Pane extends ChangeNotifier {
     if (page == _page) return;
     _page = page;
     selection.clear();
+    video.select(null);
     if (cards.front != null || cards.back != null) cards.clear();
     view.reset();
     notifyListeners();
@@ -120,6 +125,7 @@ class Pane extends ChangeNotifier {
     cards.dispose();
     live.dispose();
     audio.dispose();
+    video.dispose();
     panel.dispose();
     status.dispose();
     super.dispose();

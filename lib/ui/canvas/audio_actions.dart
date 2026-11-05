@@ -15,6 +15,7 @@ import '../../canvas/pane.dart';
 import '../../library/library.dart' show libraryProvider;
 import '../../state/notebook.dart';
 import '../../transfer/files.dart';
+import '../../video/video_playback.dart';
 import '../dialogs.dart';
 
 // Recording from the Insert menu and the rail (Audio.png), and what the
@@ -69,36 +70,37 @@ String recordingName(BoardPage page, int others) {
 
 /// "Add to page as text": the transcript as a text box under its card
 /// (one undo step).
-void addTranscriptAsText(WidgetRef ref, Pane pane, AudioItem clip, {required Color color}) {
+void addTranscriptAsText(WidgetRef ref, Pane pane, Transcribed clip, {required Color color}) {
   final nb = ref.read(notebookProvider(pane.notebookId).notifier);
-  final found = nb.audioClip(clip.id);
+  final found = nb.mediaClip(clip.id);
   if (found == null || clip.transcript.isEmpty) return;
-  final (pageId, card) = found;
+  final (pageId, now0) = found;
+  final card = now0.extent;
   final page = ref.read(notebookProvider(pane.notebookId)).pages.firstWhere((p) => p.id == pageId);
   final now = DateTime.now().toUtc();
   final text = TextItem(
     id: newId('it', now: now),
-    x: card.x,
-    y: card.y + card.h + 24 * card.unit,
+    x: card.left,
+    y: card.bottom + 24,
     z: page.nextZ,
     createdAt: now,
-    wrap: card.w,
+    wrap: card.width,
     text: transcriptText(clip),
     size: 18,
     color: color,
   );
   nb.insertItems(pageId, [text]);
-  pane.toast('Added the transcript to the page under the recording', undoPageId: pageId);
+  pane.toast('Added the transcript to the page under the ${clip is VideoItem ? 'video' : 'recording'}', undoPageId: pageId);
 }
 
-void copyTranscript(Pane pane, AudioItem clip) {
+void copyTranscript(Pane pane, Transcribed clip) {
   Clipboard.setData(ClipboardData(text: transcriptText(clip)));
   pane.toast('Copied the transcript');
 }
 
 /// Exports the transcript as a text file (with times and speakers), saved
 /// where the user picks.
-Future<void> exportTranscript(WidgetRef ref, Pane pane, AudioItem clip) async {
+Future<void> exportTranscript(WidgetRef ref, Pane pane, Transcribed clip) async {
   final name = '${_fileName(clip.name.isEmpty ? 'Recording' : clip.name)} transcript.txt';
   final header = [
     clip.name.isEmpty ? 'Recording' : clip.name,
@@ -113,7 +115,7 @@ String _fileName(String s) => s.replaceAll(RegExp(r'[\\/:*?"<>|]'), '-').trim();
 
 /// Names speaker [key] of [clip] (one undo step): every line of theirs
 /// shows the name.
-Future<void> nameSpeaker(BuildContext context, WidgetRef ref, Pane pane, AudioItem clip, String key) async {
+Future<void> nameSpeaker(BuildContext context, WidgetRef ref, Pane pane, Transcribed clip, String key) async {
   final name = await showNamePrompt(
     context,
     title: 'Name this speaker',
@@ -124,7 +126,7 @@ Future<void> nameSpeaker(BuildContext context, WidgetRef ref, Pane pane, AudioIt
   );
   if (name == null) return;
   final nb = ref.read(notebookProvider(pane.notebookId).notifier);
-  final found = nb.audioClip(clip.id);
+  final found = nb.mediaClip(clip.id);
   if (found == null) return;
   final (pageId, now) = found;
   final speakers = {...now.speakers};
@@ -133,7 +135,7 @@ Future<void> nameSpeaker(BuildContext context, WidgetRef ref, Pane pane, AudioIt
   } else {
     speakers[key] = name.trim();
   }
-  nb.replaceItems(pageId, [now.copyWith(speakers: speakers)]);
+  nb.replaceItems(pageId, [now.withTranscript(speakers: speakers) as Item]);
 }
 
 /// Applies edits to [clip]'s transcript (the line starting at each key's
@@ -141,7 +143,7 @@ Future<void> nameSpeaker(BuildContext context, WidgetRef ref, Pane pane, AudioIt
 /// Returns how many lines changed.
 int editTranscript(WidgetRef ref, Pane pane, String clipId, Map<int, String> edits) {
   final nb = ref.read(notebookProvider(pane.notebookId).notifier);
-  final found = nb.audioClip(clipId);
+  final found = nb.mediaClip(clipId);
   if (found == null || edits.isEmpty) return 0;
   final (pageId, now) = found;
   var changed = 0;
@@ -156,7 +158,7 @@ int editTranscript(WidgetRef ref, Pane pane, String clipId, Map<int, String> edi
     if (text.isNotEmpty) lines.add(l.copyWith(text: text));
   }
   if (changed == 0) return 0;
-  nb.replaceItems(pageId, [now.copyWith(transcript: lines)]);
+  nb.replaceItems(pageId, [now.withTranscript(transcript: lines) as Item]);
   pane.toast(changed == 1 ? 'Edited a line of the transcript' : 'Edited $changed lines of the transcript', undoPageId: pageId);
   return changed;
 }
@@ -172,6 +174,14 @@ Future<(Uint8List, String)?> Function() audioLoader(WidgetRef ref, String notebo
 Future<bool> playClipAt(WidgetRef ref, String notebookId, AudioItem clip, int ms) =>
     ref.read(playbackProvider.notifier).seek(notebookId, clip.id, clip.durationMs, ms, audioLoader(ref, notebookId, clip));
 
+/// Plays a recording or video from [ms] (a transcript line). False if it
+/// can't be played here.
+Future<bool> playMomentOf(WidgetRef ref, String notebookId, Transcribed clip, int ms) => switch (clip) {
+      AudioItem a => playClipAt(ref, notebookId, a, ms),
+      VideoItem v => ref.read(videoPlaybackProvider.notifier).seek(notebookId, v, ms),
+      _ => Future.value(false),
+    };
+
 /// Plays or pauses [clip]. False if it can't be played here.
 Future<bool> toggleClip(WidgetRef ref, String notebookId, AudioItem clip) =>
     ref.read(playbackProvider.notifier).toggle(notebookId, clip.id, clip.durationMs, audioLoader(ref, notebookId, clip));
@@ -181,7 +191,7 @@ Future<bool> toggleClip(WidgetRef ref, String notebookId, AudioItem clip) =>
 const cantPlay = 'This recording can’t be played here';
 
 /// Makes [clip]'s transcript again after it failed.
-void retryTranscript(WidgetRef ref, String notebookId, AudioItem clip) {
-  ref.read(notebookProvider(notebookId).notifier).setTranscript(clip.copyWith(state: TranscriptState.waiting));
+void retryTranscript(WidgetRef ref, String notebookId, Transcribed clip) {
+  ref.read(notebookProvider(notebookId).notifier).setTranscript(clip.withTranscript(state: TranscriptState.waiting));
   ref.read(transcriptionProvider.notifier).add(notebookId, clip.id);
 }

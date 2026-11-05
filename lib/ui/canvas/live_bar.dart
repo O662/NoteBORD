@@ -124,3 +124,38 @@ class ChartBar extends StatelessWidget {
     ]);
   }
 }
+
+/// Video.png's bar while a video is selected: Video selected, Trim,
+/// Transcribe (Transcript once it has one), Replace and Done.
+class VideoBar extends StatelessWidget {
+  const VideoBar({
+    super.key,
+    required this.transcribed,
+    required this.onTrim,
+    required this.onTranscribe,
+    required this.onReplace,
+    required this.onDone,
+  });
+
+  final bool transcribed;
+  final VoidCallback onTrim;
+  final VoidCallback onTranscribe;
+  final VoidCallback onReplace;
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return _DarkBar(label: 'Video tools', children: [
+      EIcon(EIcons.video, size: 18, color: c.onInverse),
+      Padding(
+        padding: const EdgeInsets.only(left: 2, right: 2),
+        child: Text('Video selected', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.onInverse)),
+      ),
+      MathBarButton(label: 'Trim', tight: true, onTap: onTrim),
+      MathBarButton(label: transcribed ? 'Transcript' : 'Transcribe', tight: true, onTap: onTranscribe),
+      MathBarButton(label: 'Replace', tight: true, onTap: onReplace),
+      MathBarButton(label: 'Done', done: true, onTap: onDone),
+    ]);
+  }
+}

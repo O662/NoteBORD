@@ -115,6 +115,7 @@ Each feature names the screen that shows it (`design/screens/<Name>.png`, with s
   - Recording keeps going with the screen off or another app in front, and the audio is kept in the `.board` package.
   - **Transcripts are made on the device, offline and free** (the owner's choice, 2026-11-04): whisper.cpp for the words (99 languages), pyannote and SpeechBrain models on ONNX Runtime for telling speakers apart. No code from companies that must share data with a government (no sherpa-onnx). See tool/speech_model/README.md. *(Phase 8a)*
 - **Video:** upload and play inside notes. Notes can be pinned to moments, and you can grab a frame, trim, transcribe or replace. Large videos stay in Drive and the page keeps a link. **[Video]**
+  - *(Phase 8b)* For now, large videos (over 100 MB) stay on the tablet and the page keeps a link; moving them to Google Drive comes with Phase 9. Trim keeps where to start and stop (the file isn't cut).
 
 ## Phase 9: Cloud, sharing and collaboration
 - **Two-way calendar sync** with Google Calendar and Outlook (deferred from Phase 7, where calendars are read-only links): sign in, edit events in Endless and send the changes back. **[Calendar]**

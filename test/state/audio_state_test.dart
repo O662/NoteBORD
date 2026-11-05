@@ -11,6 +11,7 @@ import 'package:endless/recognition/handwriting_index.dart' show rowsFor;
 import 'package:endless/search/search_text.dart';
 import 'package:endless/state/notebook.dart';
 import 'package:endless/state/settings.dart';
+import 'package:endless/video/video_files.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -284,6 +285,37 @@ void main() {
     expect(now().transcript, hasLength(2));
     n.redo(pageId);
     expect(now().transcript, hasLength(1));
+  });
+
+  test('a video’s transcript: a big one kept on the tablet is read where it is; the page keeps the lines', () async {
+    final store = MemoryBoardStore();
+    final id = addUntitled(store);
+    final tools = FakeAudioTools();
+    final c = await _open(store, id, [
+      ...fakes(tools: tools),
+      videosDirProvider.overrideWithValue(() async => Directory('${dir.path}/videos')..createSync(recursive: true)),
+    ]);
+    c.listen(transcriptionProvider, (_, _) {});
+    final n = c.read(notebookProvider(id).notifier);
+    final pageId = c.read(notebookProvider(id)).pages[0].id;
+    final file = File('${dir.path}/videos/vid_1.mp4')..createSync(recursive: true);
+    file.writeAsBytesSync(silentWav(30000));
+    n.insertItems(pageId, [
+      VideoItem(id: 'it_vid', x: 0, y: 0, z: 1, createdAt: DateTime.utc(2026, 11, 6), link: 'vid_1.mp4', name: 'lab.mp4', durationMs: 30000),
+    ]);
+    VideoItem now() => n.videoClip('it_vid')!.$2;
+    expect(now().state, TranscriptState.none);
+    // Not transcribed until asked.
+    c.read(transcriptionProvider.notifier).resume(id);
+    expect(c.read(transcriptionProvider), isEmpty);
+    n.setTranscript(now().withTranscript(state: TranscriptState.waiting));
+    c.read(transcriptionProvider.notifier).add(id, 'it_vid');
+    await _until(() => now().state == TranscriptState.done && c.read(transcriptionProvider).isEmpty);
+    expect(tools.decoded.map(File.new).map((f) => f.absolute.uri), [file.absolute.uri]);
+    expect(file.existsSync(), isTrue);
+    expect(now().transcript, hasLength(3));
+    final rows = rowsFor(id, c.read(notebookProvider(id)).pages[0].page, null).where((r) => r.kind == SearchKind.audio);
+    expect(rows.map((r) => r.text), contains('Write that down.'));
   });
 
   test('without a speech model it says so, and Try again works once there is one', () async {

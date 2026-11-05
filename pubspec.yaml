@@ -72,6 +72,9 @@ dependencies:
   # Opens a website card's page in the browser, and an Office file in its
   # own app on Windows (first-party; every platform).
   url_launcher: 6.3.2
+  # Plays videos on the page (Phase 8b; the Flutter team, BSD; Android
+  # ExoPlayer, iOS, macOS, web). 2.11.x: 2.12 needs Flutter 3.44.
+  video_player: 2.11.1
   # Reads the XML inside Word, PowerPoint and Excel files for their previews
   # (pure Dart, every platform; already used by `pdf`).
   xml: 6.6.1

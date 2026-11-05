@@ -23,8 +23,8 @@ final everythingAt = DateTime.utc(2026, 9, 30, 9);
 /// a stack, frames (plain and from a template), a picture, an imported PDF
 /// page, the five cards, a PowerPoint with ink on its second slide, math,
 /// graphs and math tools, a chart, a clock, the date, a time stamp, a
-/// checklist, a sticky pad, a recording with its transcript, and an item
-/// type from a newer app. Page 2 has a
+/// checklist, a sticky pad, a recording with its transcript, a video with a
+/// pinned note and a grabbed frame, and an item type from a newer app. Page 2 has a
 /// template and lined paper; page 3 has its own password.
 Future<(MemoryBoardStore, String password)> everythingNotebook() async {
   final store = MemoryBoardStore();
@@ -36,6 +36,10 @@ Future<(MemoryBoardStore, String password)> everythingNotebook() async {
   final slidesName = assetNameFor(slides, ext: 'pptx');
   final audio = Uint8List.fromList([0, 0, 0, 24, ...ascii.encode('ftypM4A '), 1, 2, 3, 4]);
   final audioName = assetNameFor(audio, ext: 'm4a');
+  final video = Uint8List.fromList([0, 0, 0, 24, ...ascii.encode('ftypmp42'), 5, 6, 7, 8]);
+  final videoName = assetNameFor(video, ext: 'mp4');
+  final still = fakePng(11);
+  final stillName = assetNameFor(still);
 
   final a = ShapeItem(id: 'it_a', x: 0, y: 900, z: 40, createdAt: everythingAt, kind: ShapeType.rect, w: 200, h: 120, stroke: const Color(0xFF2B5A8C), fill: const Color(0x332B5A8C), strokeWidth: 2.5);
   final b = ShapeItem(id: 'it_b', x: 500, y: 900, z: 41, createdAt: everythingAt, kind: ShapeType.ellipse, w: 180, h: 120, stroke: const Color(0xFFB5532A), strokeWidth: 3);
@@ -151,7 +155,31 @@ Future<(MemoryBoardStore, String password)> everythingNotebook() async {
     ),
     newStickyPad(const Offset(1200, 2800), z: 58, now: everythingAt).withBox(id: 'it_pad', x: 1100, y: 2700, w: 242, h: 220, rotation: 6),
   ];
-  final page1 = BoardPage(id: board.pages.single.id, title: 'Board', items: [...board.pages.single.items, ...extra]);
+  // Phase 8b: a video, trimmed and transcribed, a note pinned to it, and a
+  // frame grabbed from it.
+  final videoItems = [
+    VideoItem(
+      id: 'it_video',
+      x: 0,
+      y: 1400,
+      z: 60,
+      createdAt: everythingAt,
+      asset: videoName,
+      name: 'cart-collision.mp4',
+      durationMs: 65000,
+      videoW: 1920,
+      videoH: 1080,
+      preview: stillName,
+      trimFrom: 2000,
+      trimTo: 60000,
+      transcript: const [TranscriptLine(tMs: 12000, endMs: 15000, speaker: 's1', text: 'The carts touch here.')],
+      language: 'en',
+      state: TranscriptState.done,
+    ),
+    VideoPinItem(id: 'it_pin', x: 740, y: 1424, z: 61, createdAt: everythingAt, w: 70, h: 36, video: 'it_video', tMs: 12000),
+    ImageItem(id: 'it_frame', x: 740, y: 1700, z: 62, createdAt: everythingAt, w: 200, h: 112.5, asset: stillName, extra: const {'caption': 'Grabbed frame · from video'}),
+  ];
+  final page1 = BoardPage(id: board.pages.single.id, title: 'Board', items: [...board.pages.single.items, ...extra, ...videoItems]);
   // Phase 7a: ink marked to remember (with a reminder), and a flashcard
   // made from it and a line of the handout.
   final remembered = withRemember(strokeFrom([const Offset(80, 140), const Offset(300, 150)], z: 4), {
@@ -223,6 +251,8 @@ Future<(MemoryBoardStore, String password)> everythingNotebook() async {
   await store.saveAsset(nb.id, previewName, preview);
   await store.saveAsset(nb.id, slidesName, slides);
   await store.saveAsset(nb.id, audioName, audio);
+  await store.saveAsset(nb.id, videoName, video);
+  await store.saveAsset(nb.id, stillName, still);
   await store.saveNotebook(notebook);
   return (store, password);
 }

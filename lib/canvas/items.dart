@@ -1,4 +1,5 @@
 import 'audio_card.dart';
+import 'video_card.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'dart:ui' show Brightness;
@@ -122,6 +123,10 @@ void paintBoxItem(
       paintOfficeCard(canvas, f, brightness, c, docs);
     case AudioItem a:
       paintAudioCard(canvas, a, c);
+    case VideoItem v:
+      paintVideoCard(canvas, v, c, images: images);
+    case VideoPinItem p:
+      paintVideoPin(canvas, p, c);
     case ShapeItem s:
       final path = shapePath(s);
       if (s.fill != null) canvas.drawPath(path, Paint()..color = displayInk(s.fill!, brightness));
@@ -426,6 +431,27 @@ void _rules(Canvas canvas, Rect rect, Paper paper, double step, EndlessColors c,
 
 void _paintImage(Canvas canvas, ImageItem i, EndlessColors c, ImageLookup? images) {
   final rect = Offset.zero & Size(i.w, i.h);
+  if (i.caption case final caption?) {
+    // A grabbed frame (Video.dc.html): a white card, the caption under it.
+    final card = RRect.fromRectAndRadius(i.paintRect, const Radius.circular(10));
+    canvas
+      ..drawRRect(card.shift(const Offset(0, 6)), Paint()
+        ..color = c.shadow.withValues(alpha: c.shadow.a * 0.4)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8))
+      ..drawRRect(card, Paint()..color = c.surface)
+      ..drawRRect(card.deflate(0.5), Paint()
+        ..style = PaintingStyle.stroke
+        ..color = c.line);
+    final text = TextPainter(
+      text: TextSpan(text: caption, style: TextStyle(fontFamily: FontFamilies.ui, fontSize: 11, color: c.textMuted)),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: i.w);
+    text
+      ..paint(canvas, Offset(2, i.h + 6))
+      ..dispose();
+  }
   final image = i.picture.isEmpty ? null : images?.call(i.picture);
   if (image == null) {
     // Still loading, or the file is missing: show where it goes.
