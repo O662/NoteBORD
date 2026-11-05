@@ -182,6 +182,59 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
   });
 
+  testWidgets('dragging along the timeline moves the video, not the page; it plays on if it was playing', (tester) async {
+    final (c, _, transfer, handles, _) = await open(tester);
+    final v = await insert(tester, c, transfer);
+    await _on(tester, v, VideoPart.play);
+    await settleReal(tester, () => c.read(videoPlaybackProvider)?.playing ?? false);
+    final h = handles.single;
+    final view = canvasPane.view.translation;
+    double x(int ms) => v.x + 12 + 676 * ms / 65000;
+    final y = v.y + 405;
+
+    // A finger from 0:10 to 0:50: the playhead follows, paused while dragging.
+    final f = await tester.createGesture(kind: PointerDeviceKind.touch, pointer: 72);
+    await f.down(Offset(x(10000), y), timeStamp: const Duration(minutes: 5));
+    await tester.pump();
+    for (var i = 1; i <= 8; i++) {
+      await f.moveTo(Offset(x(10000 + 5000 * i), y), timeStamp: Duration(minutes: 5, milliseconds: 16 * i));
+      await tester.pump();
+    }
+    expect(h.isPlaying, isFalse);
+    expect(h.seeks.last, closeTo(50000, 200));
+    expect(c.read(videoPlaybackProvider)!.positionMs, closeTo(50000, 200));
+    await f.up(timeStamp: const Duration(minutes: 5, seconds: 1));
+    await tester.pump();
+    await tester.pump();
+    expect(canvasPane.view.translation, view);
+    expect(h.isPlaying, isTrue);
+    expect(h.seeks.where((ms) => ms > 10000 && ms < 50000), isNotEmpty);
+
+    // The pen too, paused: it stays paused where it's let go.
+    await _on(tester, v, VideoPart.playSmall);
+    expect(h.isPlaying, isFalse);
+    await _pen(tester, [for (var i = 0; i <= 6; i++) Offset(x(40000 - 5000 * i), y)]);
+    await tester.pump();
+    expect(h.seeks.last, closeTo(10000, 200));
+    expect(h.isPlaying, isFalse);
+    expect(canvasPane.view.translation, view);
+    // No ink on the card.
+    expect(_items(c).whereType<StrokeItem>(), isEmpty);
+
+    // A second finger still pans the page.
+    final a = await tester.createGesture(kind: PointerDeviceKind.touch, pointer: 73);
+    final b = await tester.createGesture(kind: PointerDeviceKind.touch, pointer: 74);
+    await a.down(Offset(x(20000), y), timeStamp: const Duration(minutes: 6));
+    await b.down(Offset(x(20000), y - 300), timeStamp: const Duration(minutes: 6));
+    await a.moveTo(Offset(x(20000), y + 60), timeStamp: const Duration(minutes: 6, milliseconds: 16));
+    await b.moveTo(Offset(x(20000), y - 240), timeStamp: const Duration(minutes: 6, milliseconds: 16));
+    await a.up(timeStamp: const Duration(minutes: 6, milliseconds: 32));
+    await b.up(timeStamp: const Duration(minutes: 6, milliseconds: 32));
+    await tester.pump();
+    expect(canvasPane.view.translation, isNot(view));
+    await tester.pump(const Duration(seconds: 5));
+  });
+
   testWidgets('Note at pins a note to the moment; dots and chips jump there; Grab frame; Trim (one undo step)', (tester) async {
     final (c, _, transfer, handles, _) = await open(tester);
     final v = await insert(tester, c, transfer);

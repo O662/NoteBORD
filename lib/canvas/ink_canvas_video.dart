@@ -85,6 +85,119 @@ extension _CanvasVideo on InkCanvasState {
     }
   }
 
+  // Dragging along a timeline (a video's, or a recording's waveform).
+
+  /// Whether [page] on [box] is on its timeline.
+  bool _scrubbable(BoxItem box, Offset page) => switch (box) {
+        final VideoItem v => switch (videoHitAt(v, v.toLocal(page), pins: _pinsOf(v.id))?.part) {
+            VideoPart.timeline || VideoPart.pin => true,
+            _ => false,
+          },
+        final AudioItem a => audioHitAt(a, a.toLocal(page))?.part == AudioPart.wave,
+        _ => false,
+      };
+
+  /// Where on [box]'s timeline [screen] is (ms), snapping to a pin's dot.
+  (int, bool) _scrubMoment(BoxItem box, Offset screen) {
+    final local = box.toLocal(_vp.toPage(screen));
+    switch (box) {
+      case final VideoItem v:
+        final hit = videoHitAt(v, Offset(local.dx, videoPartRect(VideoPart.timeline).center.dy * v.unit), pins: _pinsOf(v.id));
+        if (hit?.pinMs case final ms?) return (ms, true);
+        final share = ((local.dx / v.unit - 12) / 676).clamp(0.0, 1.0);
+        return (v.from + ((v.to - v.from) * share).round(), false);
+      case final AudioItem a:
+        final wave = audioPartRect(AudioPart.wave);
+        final share = ((local.dx / a.unit - wave.left) / wave.width).clamp(0.0, 1.0);
+        return ((a.durationMs * share).round(), false);
+      default:
+        return (0, false);
+    }
+  }
+
+  void _startScrub(Offset screen, BoxItem box) {
+    _drag = _Drag.scrub;
+    _scrubId = box.id;
+    _tapDown = screen;
+    _tapMoved = false;
+    final nbId = pane.notebookId;
+    if (box is VideoItem) {
+      pane.video.select(box.id);
+      final s = ref.read(videoPlaybackProvider);
+      _scrubWasPlaying = s != null && s.isOf(nbId, box.id) && s.playing;
+    } else {
+      final s = ref.read(playbackProvider);
+      _scrubWasPlaying = s != null && s.isOf(nbId, box.id) && s.playing;
+    }
+    final (ms, onPin) = _scrubMoment(box, screen);
+    _scrubOnPin = onPin;
+    _sendScrub(box, ms, play: false);
+  }
+
+  void _scrubTo(Offset screen) {
+    final box = _scrubId == null ? null : _page[_scrubId!];
+    if (box is! BoxItem) return;
+    if (!_tapMoved && (screen - _tapDown).distance > 4) _tapMoved = true;
+    if (!_tapMoved) return;
+    _sendScrub(box, _scrubMoment(box, screen).$1, play: false);
+  }
+
+  /// Let go: it stays where it was dragged to, playing if it was (a tap on
+  /// a pin's dot, or on a recording's waveform, plays from there).
+  void _finishScrub() {
+    final id = _scrubId;
+    _scrubId = null;
+    final box = id == null ? null : _page[id];
+    if (box is! BoxItem) return;
+    final play = _scrubWasPlaying || (!_tapMoved && (_scrubOnPin || box is AudioItem));
+    // Where it was dragged to (or tapped).
+    _sendScrub(box, _scrubAt, play: play);
+  }
+
+  /// Seeks [box] to [ms], one seek at a time (the latest wanted wins).
+  /// The first one pauses it, so the picture follows the finger.
+  void _sendScrub(BoxItem box, int ms, {required bool play}) {
+    _scrubWant = (ms, play);
+    _scrubAt = ms;
+    if (_scrubBusy) return;
+    _scrubBusy = true;
+    final nbId = pane.notebookId;
+    unawaited(() async {
+      try {
+        var paused = false;
+        while (_scrubWant != null && mounted) {
+          final (to, go) = _scrubWant!;
+          _scrubWant = null;
+          bool ok;
+          switch (box) {
+            case final VideoItem v:
+              final video = ref.read(videoPlaybackProvider.notifier);
+              if (!paused) {
+                await video.pause();
+                paused = true;
+              }
+              ok = await video.seek(nbId, _page[v.id] is VideoItem ? _page[v.id]! as VideoItem : v, to, play: go);
+            case final AudioItem a:
+              final audio = ref.read(playbackProvider.notifier);
+              if (!paused) {
+                await audio.pause();
+                paused = true;
+              }
+              ok = await audio.seek(nbId, a.id, a.durationMs, to, audioLoader(ref, nbId, a), play: go);
+            default:
+              ok = true;
+          }
+          if (!ok && mounted) {
+            _scrubWant = null;
+            _toast(box is VideoItem ? 'This video can’t be played here' : cantPlay, undo: false);
+          }
+        }
+      } finally {
+        _scrubBusy = false;
+      }
+    }());
+  }
+
   /// The video loaded (over its card), and every video's timeline and
   /// chips as they are now.
   Widget _videoLayer(PageRuntime page, EndlessColors colors) => Consumer(

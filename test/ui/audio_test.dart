@@ -242,6 +242,23 @@ void main() {
     expect(player.speeds, [1.25, 1.5]);
     expect(c.read(playbackProvider)!.speed, 1.5);
 
+    // A finger dragged along the waveform moves the recording, not the page.
+    final view = canvasPane.view.translation;
+    final wave = audioPartRect(AudioPart.wave);
+    Offset onWave(double share) => Offset(clip.x + wave.left + wave.width * share, clip.y + wave.center.dy);
+    final f = await tester.createGesture(kind: PointerDeviceKind.touch, pointer: 62);
+    await f.down(onWave(0.1), timeStamp: const Duration(minutes: 7));
+    for (var i = 1; i <= 5; i++) {
+      await f.moveTo(onWave(0.1 + 0.1 * i), timeStamp: Duration(minutes: 7, milliseconds: 16 * i));
+      await tester.pump();
+    }
+    await f.up(timeStamp: const Duration(minutes: 7, seconds: 1));
+    await tester.pump();
+    await tester.pump();
+    expect(canvasPane.view.translation, view);
+    expect(player.seeks.last, closeTo(18000, 100));
+    expect(player.isPlaying, isTrue); // it was playing
+
     // Playing at 12.5 s: the ink written at 12 s is lit, "written at 0:12".
     player.reach(12500);
     await tester.pump();

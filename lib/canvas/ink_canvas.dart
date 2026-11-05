@@ -148,6 +148,8 @@ enum _Drag {
   pull,
   // Moving a recording's card by its grip.
   audioMove,
+  // Dragging along a video's timeline or a recording's waveform.
+  scrub,
 }
 
 /// What the fingers are doing: on a selected graph's plot, they move its
@@ -302,6 +304,15 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   /// A recording's card being moved by its grip, and where it was taken
   /// hold of (from its top-left).
   AudioItem? _audioMoving;
+
+  /// The video or recording whose timeline is being dragged along: where
+  /// to, whether it was playing, and whether a seek is on its way.
+  String? _scrubId;
+  bool _scrubWasPlaying = false;
+  bool _scrubOnPin = false;
+  (int, bool)? _scrubWant;
+  int _scrubAt = 0;
+  bool _scrubBusy = false;
   Offset _audioGrab = Offset.zero;
 
   /// The notebook whose recordings were last looked at (to recover and
@@ -637,6 +648,16 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _touch = _Touch.selection;
         _touchTransform = Similarity.identity;
         _beginMoving();
+      } else if ((_canInk ? topBoxAt(_page.items, page) : null) case final BoxItem box when _scrubbable(box, page)) {
+        // A finger on a video's timeline or a recording's waveform drags
+        // along it; the page stays where it is (a second finger pans).
+        _drawPointer = e.pointer;
+        _drawAt = e.localPosition;
+        _fingerDrawing = true;
+        _strokeStart = e.timeStamp;
+        _dismissToast();
+        _startScrub(e.localPosition, box);
+        return;
       } else if ((_canInk ? topBoxAt(_page.items, page) : null) case final AudioItem card
           when audioHitAt(card, card.toLocal(page))?.part == AudioPart.grip) {
         // A finger on a recording's grip moves its card.
@@ -875,6 +896,11 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
           _startPull(e.localPosition, top);
           return;
         }
+        if (top != null && settings.tool != CanvasTool.eraser && _scrubbable(top, page)) {
+          // The pen drags along a video's timeline or a recording's waveform.
+          _startScrub(e.localPosition, top);
+          return;
+        }
         if ((top is VideoItem || top is VideoPinItem) && settings.tool != CanvasTool.eraser) {
           // Nothing is written on a video or a pin chip: the pen presses them.
           _drag = _Drag.tap;
@@ -1011,6 +1037,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _pullTo(e.localPosition);
       case _Drag.audioMove:
         _audioMoveTo(e.localPosition);
+      case _Drag.scrub:
+        _scrubTo(e.localPosition);
       case _Drag.none:
         break;
     }
@@ -1083,6 +1111,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _finishPull();
       case _Drag.audioMove:
         _finishAudioMove();
+      case _Drag.scrub:
+        _finishScrub();
       case _Drag.graph || _Drag.none:
         break;
     }
@@ -1108,6 +1138,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       case _Drag.audioMove:
         _audioMoving = null;
         _overlay.ghost = null;
+      case _Drag.scrub:
+        _finishScrub();
       default:
         break;
     }
