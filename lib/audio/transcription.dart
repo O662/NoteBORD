@@ -190,6 +190,8 @@ class TranscriptionQueue extends Notifier<Map<String, TranscriptProgress>> {
 
       final heard = <HeardSegment>[];
       var lines = [...clip.transcript];
+      // The lines on the page now: they may have been edited meanwhile.
+      List<TranscriptLine> onPage() => nb.audioClip(itemId)?.$2.transcript ?? lines;
       final durationMs = math.max(1, samples * 1000 ~/ sampleRate);
       final wordsShare = engines.speakers == null ? 1.0 : 0.85;
       if (clip.state != TranscriptState.working || clip.upToMs < durationMs) {
@@ -205,7 +207,7 @@ class TranscriptionQueue extends Notifier<Map<String, TranscriptProgress>> {
         )) {
           if (_cancelled || !ref.mounted) return;
           heard.addAll(part.segments);
-          lines = [...lines, ...linesHeard(part.segments)];
+          lines = [...onPage(), ...linesHeard(part.segments)];
           clip = clip!.copyWith(transcript: lines, upToMs: part.upToMs, language: part.language.isEmpty ? null : part.language);
           if (!nb.setTranscript(clip)) {
             // The recording was deleted (or its page locked): it carries on
@@ -216,6 +218,7 @@ class TranscriptionQueue extends Notifier<Map<String, TranscriptProgress>> {
         }
         if (_cancelled) return;
       }
+      lines = onPage();
       if (engines.speakers case final models? when lines.isNotEmpty) {
         _progress(itemId, wordsShare, speakers: true);
         final timeline = await findSpeakers(

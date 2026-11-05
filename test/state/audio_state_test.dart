@@ -236,6 +236,56 @@ void main() {
     expect(transcriptText(now()).split('\n').last, '0:22 Speaker 1: Write that down.');
   });
 
+  test('lines edited while the transcript is being made stay edited; Undo and Redo of an edit work', () async {
+    final store = MemoryBoardStore();
+    final id = addUntitled(store);
+    final words = FakeSpeechToText([
+      [
+        const HeardSegment(1000, 9000, ' So I momentum is conserved', [
+          (1000, 1500, ' So'),
+          (1600, 1700, ' I'),
+          (1800, 3000, ' momentum'),
+          (3100, 4000, ' is'),
+          (4100, 8000, ' conserved'),
+        ]),
+      ],
+      _said[1],
+    ])..stopAfter = 1;
+    final c = await _open(store, id, fakes(words: words));
+    c.listen(transcriptionProvider, (_, _) {});
+    c.listen(transcriptErrorsProvider, (_, _) {});
+    final n = c.read(notebookProvider(id).notifier);
+    final pageId = c.read(notebookProvider(id)).pages[0].id;
+    final asset = await n.storeAudio(pageId, silentWav(30000), 'wav');
+    n.insertItems(pageId, [_clip(asset: asset!)]);
+    AudioItem now() => n.audioClip('it_rec')!.$2;
+    c.read(transcriptionProvider.notifier).add(id, 'it_rec');
+    await _until(() => c.read(transcriptErrorsProvider).isNotEmpty);
+    expect(now().transcript.single.text, 'So I momentum is conserved');
+
+    // Fixed while the rest is still to come (an undo step of its own).
+    n.replaceItems(pageId, [now().copyWith(transcript: [now().transcript.single.copyWith(text: 'So, momentum is conserved.')])]);
+    words.stopAfter = null;
+    c.read(transcriptionProvider.notifier).resume(id);
+    await _until(() => now().state == TranscriptState.done && c.read(transcriptionProvider).isEmpty);
+    expect(now().transcript.map((l) => l.text), ['So, momentum is conserved.', 'Write that down.']);
+    // The edited line keeps its text when the speakers are found.
+    expect(now().transcript.first.speaker, 's1');
+
+    // Undo the fix: the line as it was heard, and the rest of the transcript kept.
+    n.undo(pageId);
+    expect(now().transcript.map((l) => l.text), ['So I momentum is conserved', 'Write that down.']);
+    n.redo(pageId);
+    expect(now().transcript.first.text, 'So, momentum is conserved.');
+
+    // Once it's done, removing a line, Undo and Redo do just that.
+    n.replaceItems(pageId, [now().copyWith(transcript: [now().transcript.first])]);
+    n.undo(pageId);
+    expect(now().transcript, hasLength(2));
+    n.redo(pageId);
+    expect(now().transcript, hasLength(1));
+  });
+
   test('without a speech model it says so, and Try again works once there is one', () async {
     final store = MemoryBoardStore();
     final id = addUntitled(store);

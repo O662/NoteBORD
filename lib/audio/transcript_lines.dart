@@ -27,7 +27,9 @@ List<TranscriptLine> withSpeakers(List<TranscriptLine> lines, SpeakerTimeline sp
   final words = {for (final s in heard) s.t0: s.words};
   final out = <TranscriptLine>[];
   for (final line in lines) {
-    final ws = words[line.tMs];
+    var ws = words[line.tMs];
+    // A line that was edited keeps its words: it gets one speaker.
+    if (ws != null && _clean(ws.map((w) => w.$3).join()) != line.text) ws = null;
     if (ws == null || ws.length < 2 || speakers.count < 2) {
       out.add(TranscriptLine(tMs: line.tMs, endMs: line.endMs, speaker: speakers.at(line.tMs, line.endMs), text: line.text, extra: line.extra));
       continue;

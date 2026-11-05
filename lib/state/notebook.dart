@@ -320,7 +320,17 @@ class NotebookNotifier extends Notifier<NotebookState> {
       _clips[item.id] = item;
       return item;
     }
-    return item.copyWith(transcript: known.transcript, state: known.state, upToMs: known.upToMs, language: known.language);
+    // The lines this copy has stay as they are (they may have been edited:
+    // Undo puts them back as they were), with the speakers found since;
+    // the lines heard after them follow.
+    final cut = item.transcript.lastOrNull?.endMs ?? -1;
+    final speakers = {for (final l in known.transcript) l.tMs: l.speaker};
+    final transcript = [
+      for (final l in item.transcript) l.speaker == null && speakers[l.tMs] != null ? l.copyWith(speaker: speakers[l.tMs]) : l,
+      for (final l in known.transcript)
+        if (l.tMs >= cut) l,
+    ];
+    return item.copyWith(transcript: transcript, state: known.state, upToMs: known.upToMs, language: known.language);
   }
 
   static int _rank(AudioItem a) => switch (a.state) {
@@ -330,9 +340,12 @@ class NotebookNotifier extends Notifier<NotebookState> {
         TranscriptState.done => 3,
       };
 
+  /// Whether [a]'s transcript has got further than [b]'s. Two finished
+  /// ones are even: a difference between them is an edit (an undo step).
   static bool _ahead(AudioItem a, AudioItem b) {
     final ra = _rank(a), rb = _rank(b);
     if (ra != rb) return ra > rb;
+    if (a.state == TranscriptState.done) return false;
     if (a.upToMs != b.upToMs) return a.upToMs > b.upToMs;
     return a.transcript.length > b.transcript.length;
   }

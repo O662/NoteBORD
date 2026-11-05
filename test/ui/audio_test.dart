@@ -377,6 +377,78 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
   });
 
+  testWidgets('editing the transcript: hold a line or the pencil, fix it, Done (one undo step); Cancel; an empty line goes',
+      (tester) async {
+    final clock = ManualClock();
+    final c = await pumpCanvas(tester, store: _store(), extra: audioOverrides(
+      dir: dir,
+      recorder: () => FakeRecorder(() => clock.now),
+      clock: clock,
+      tools: FakeAudioTools(),
+      player: FakePlayer(),
+      words: FakeSpeechToText(_said),
+      speakers: FakeSpeakerModels(),
+    ));
+    await _rail(tester, 'Insert', 'Record audio');
+    await settleReal(tester, () => c.read(recordingProvider) != null);
+    clock.now = 30000;
+    await tester.tap(byLabel('Stop recording'));
+    await settleReal(tester, () => _clip(c)?.state == TranscriptState.done && c.read(transcriptionProvider).isEmpty);
+    await tester.pump(const Duration(seconds: 5));
+    await _onCard(tester, _clip(c)!, _part(AudioPart.transcript));
+    await tester.pump();
+    final fields = find.descendant(of: find.byType(TranscriptPanel), matching: find.byType(TextField));
+
+    // Hold a line: every line becomes a field, that one first.
+    await tester.longPress(find.text('In a closed system it is conserved.'));
+    await tester.pump();
+    expect(find.text('Editing · fix any line, then Done'), findsOneWidget);
+    expect(fields, findsNWidgets(3));
+    expect(find.text('Add to page as text'), findsNothing);
+    await expectLater(find.byType(ProviderScope), matchesGoldenFile('../golden/audio_transcript_editing.png'));
+    await tester.enterText(fields.at(1), 'In a closed system, it is conserved.');
+    // A line left empty is removed.
+    await tester.enterText(fields.at(2), '   ');
+    await tester.tap(find.text('Done'));
+    await tester.pump();
+    expect(_clip(c)!.transcript.map((l) => l.text), ['Okay, so momentum is mass times velocity.', 'In a closed system, it is conserved.']);
+    expect(_clip(c)!.transcript[1].speaker, 's1');
+    expect(_clip(c)!.transcript[1].tMs, 12000);
+    expect(find.text('Edited 2 lines of the transcript'), findsOneWidget);
+    expect(find.text('In a closed system, it is conserved.'), findsOneWidget);
+    expect(fields, findsNothing);
+
+    // One undo step: both edits come back; Redo, both go again.
+    final nb = c.read(notebookProvider(canvasPane.notebookId).notifier);
+    nb.undo(shownPage(c).id);
+    await tester.pump();
+    expect(_clip(c)!.transcript.map((l) => l.text), [
+      'Okay, so momentum is mass times velocity.',
+      'In a closed system it is conserved.',
+      'Write that down.',
+    ]);
+    nb.redo(shownPage(c).id);
+    await tester.pump();
+    expect(_clip(c)!.transcript, hasLength(2));
+
+    // The pencil, a change, Cancel: nothing changes.
+    await tester.tap(byLabel('Edit transcript'));
+    await tester.pump();
+    await tester.enterText(fields.first, 'Okay so momentum is mass times velocity');
+    await tester.tap(find.text('Cancel'));
+    await tester.pump();
+    expect(_clip(c)!.transcript.first.text, 'Okay, so momentum is mass times velocity.');
+
+    // Closing while editing keeps what was edited.
+    await tester.tap(byLabel('Edit transcript'));
+    await tester.pump();
+    await tester.enterText(fields.first, 'Okay, so momentum is mass × velocity.');
+    await tester.tap(byLabel('Close transcript'));
+    await tester.pump();
+    expect(_clip(c)!.transcript.first.text, 'Okay, so momentum is mass × velocity.');
+    await tester.pump(const Duration(seconds: 5));
+  });
+
   testWidgets('no microphone: it says so, and nothing records', (tester) async {
     final c = await pumpCanvas(tester, store: _store(), extra: audioOverrides(
       dir: dir,

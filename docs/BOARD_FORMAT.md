@@ -218,6 +218,7 @@ Every item has these fields:
 - `wave` is how loud it was along the recording, 120 values from 0 to 100 (the loudest in each stretch), for the card's waveform.
 - `inkTimeline` lists the strokes written (on any page of the notebook) while it recorded, and when: ms into the recording, not counting pauses. Strokes that are gone are ignored. A copy of the card isn't linked to the ink (its `inkTimeline` is empty).
 - `transcript` is what was said, a line at a time, made on the device. `speaker` is a key (`s1`, `s2`, … in the order they first speak), absent when not known; `speakers` holds the names given to them (unnamed ones show as "Speaker 2"). `language` is the language heard, as a code.
+- Lines can be edited (an undo step): the text changes, `tMs`, `endMs` and `speaker` stay; a line emptied is removed.
 - `transcribe` is present only while the transcript isn't finished: `{"state": "waiting" | "working" | "failed", "upToMs": 240000}`. `upToMs` is how far the words have got; the transcript carries on from there. Saving the transcript as it's made isn't an undo step, and Undo keeps it.
 - In a PDF the card is a picture and its transcript is in the text layer. Search finds each line of the transcript.
 

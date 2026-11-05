@@ -136,6 +136,31 @@ Future<void> nameSpeaker(BuildContext context, WidgetRef ref, Pane pane, AudioIt
   nb.replaceItems(pageId, [now.copyWith(speakers: speakers)]);
 }
 
+/// Applies edits to [clip]'s transcript (the line starting at each key's
+/// time gets the new text; an empty one is removed), as one undo step.
+/// Returns how many lines changed.
+int editTranscript(WidgetRef ref, Pane pane, String clipId, Map<int, String> edits) {
+  final nb = ref.read(notebookProvider(pane.notebookId).notifier);
+  final found = nb.audioClip(clipId);
+  if (found == null || edits.isEmpty) return 0;
+  final (pageId, now) = found;
+  var changed = 0;
+  final lines = <TranscriptLine>[];
+  for (final l in now.transcript) {
+    final text = edits[l.tMs]?.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (text == null || text == l.text) {
+      lines.add(l);
+      continue;
+    }
+    changed++;
+    if (text.isNotEmpty) lines.add(l.copyWith(text: text));
+  }
+  if (changed == 0) return 0;
+  nb.replaceItems(pageId, [now.copyWith(transcript: lines)]);
+  pane.toast(changed == 1 ? 'Edited a line of the transcript' : 'Edited $changed lines of the transcript', undoPageId: pageId);
+  return changed;
+}
+
 /// Reads [clip]'s recording from its notebook (opened with the key held,
 /// on a page with a password), for playing.
 Future<(Uint8List, String)?> Function() audioLoader(WidgetRef ref, String notebookId, AudioItem clip) => () async {
