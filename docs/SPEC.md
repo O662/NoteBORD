@@ -49,11 +49,12 @@ Each feature names the screen that shows it (`design/screens/<Name>.png`, with s
   - An arrow or straight line that starts or ends on a shape, sticky note, frame, card or other item snaps to its edge (with a small dot) and stays attached when the item moves or is resized. Dragging the end away lets go.
 - **Scribble to erase:** scribbling over ink erases only the strokes under the scribble. Sensitivity is Light, Normal or Firm. **[Scribble]**
 - **Text boxes, sticky notes and sticky stacks** (fanned, with a count). **[Board]**
+- **Sticky pads:** a pad of notes on the page. Drag a note off it with the pen or a finger, as many as you like; each is an ordinary sticky note. Held over another note for a moment, the new note stacks onto it when let go. *(Added at the owner's request, 2026-11-04; no design screen.)*
 - **Frames and lined sheets:** paper frames (lined A4 and others) you can write inside on the endless page. **[Board]**
 - **Ruler:** rotate it with two fingers; the pen snaps to the edge and the angle is shown. **[Tools]**
 - **Laser pointer:** the trail fades after 1 s and is never saved. Red, green or blue. **[Tools]**
 - **Insert menu** with search: **[Insert]**
-  - On the page: sticky, sticky stack, text box, paper frame, shape.
+  - On the page: sticky, sticky stack, sticky pad, text box, paper frame, shape.
   - Files: video, audio, image/photo, PDF, Word, PowerPoint, Excel. Files show a live preview and can be written on. (Word, PowerPoint and Excel previews were built in Phase 4b, after PDF import.)
   - Build on the board: math, graph, table, diagram, timeline, Kanban, website embed.
   - Live widgets: calendar, planner, flashcards, need to remember, chart, clock and date, checklist.

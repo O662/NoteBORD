@@ -35,6 +35,48 @@ StickyItem newStickyStack(Offset center, {required int z, required DateTime now}
       under: [StickyNote(color: tokens.stickyColors[2]), StickyNote(color: tokens.stickyColors[3])],
     );
 
+/// A yellow pad of sticky notes centered on [center], square to the page.
+StickyPadItem newStickyPad(Offset center, {required int z, required DateTime now, Color? color}) => StickyPadItem(
+      id: newId('it'),
+      x: center.dx - StickyItem.defaultSize.width / 2,
+      y: center.dy - StickyItem.defaultSize.height / 2,
+      z: z,
+      createdAt: now,
+      w: StickyItem.defaultSize.width,
+      h: StickyItem.defaultSize.height,
+      color: color ?? tokens.stickyColors[0],
+    );
+
+/// A blank note pulled off [pad], with the point [grab] (relative to the
+/// pad's top-left corner) under [page]: the pad's size, color and turn.
+StickyItem noteOffPad(StickyPadItem pad, Offset grab, Offset page, {required String id, required int z, required DateTime now}) {
+  final half = Offset(pad.w / 2, pad.h / 2);
+  final d = grab - half;
+  final c = math.cos(pad.angle), s = math.sin(pad.angle);
+  final center = page - Offset(d.dx * c - d.dy * s, d.dx * s + d.dy * c);
+  return StickyItem(
+    id: id,
+    x: center.dx - half.dx,
+    y: center.dy - half.dy,
+    rotation: pad.rotation,
+    z: z,
+    createdAt: now,
+    w: pad.w,
+    h: pad.h,
+    color: pad.color,
+  );
+}
+
+/// [note] put on top of [onto] (a note or a stack), where [onto] is.
+StickyItem stackedOnto(StickyItem onto, StickyItem note) {
+  final fitted = note.withBox(x: 0, y: 0, w: onto.w, h: onto.h, scale: onto.w / note.w);
+  return onto.copyWith(
+    color: fitted.color,
+    items: fitted.items,
+    under: [StickyNote(color: onto.color, items: onto.items), ...onto.notesUnder],
+  );
+}
+
 /// A sheet of paper with the middle of its top edge at [top]: lined A4, or
 /// a template (its paper, or its layout scaled to the sheet's width).
 FrameItem newFrame(Offset top, {required int z, required DateTime now, TemplateDef? template}) {

@@ -106,6 +106,10 @@ const holdSnap = Duration(milliseconds: 500);
 /// Handles on the selection outline are this easy to hit (screen px).
 const handleReach = 22.0;
 
+/// A note pulled off a pad and held this long over another note stacks
+/// with it when let go.
+const holdToStack = Duration(milliseconds: 600);
+
 /// What the drawing pointer (pen, mouse, or a drawing finger) is doing.
 enum _Drag {
   none,
@@ -128,6 +132,8 @@ enum _Drag {
   connectorEnd,
   // Tracing a graph's curve, or turning its 3D view.
   graph,
+  // Pulling a note off a sticky pad.
+  pull,
 }
 
 /// What the fingers are doing: on a selected graph's plot, they move its
@@ -258,6 +264,18 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   /// The sticky note the stroke being drawn started on: it's written on the
   /// note and moves with it.
   String? _inkTarget;
+
+  /// A note being pulled off a sticky pad (by the pen, or a finger): the
+  /// pad, where on it the pointer took hold, and the note as it is now.
+  StickyPadItem? _pad;
+  Offset _padGrab = Offset.zero;
+  StickyItem? _pulled;
+
+  /// The note the pulled one is over, and whether it's been held there long
+  /// enough to stack with it ([holdToStack]).
+  String? _stackOnto;
+  bool _stackArmed = false;
+  Timer? _stackTimer;
 
   /// The graph being traced or turned (by the pen, or fingers), and where
   /// the pointer was, relative to it.
@@ -419,8 +437,22 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     if (pane.status.value == null) _overlay.glow = null;
   }
 
+  /// The template's layout as this canvas draws it: its own recording, not
+  /// shared with thumbnails (see [paintLayout]).
+  ({Object? id, EndlessColors colors, ui.Picture picture})? _layout;
+
+  ui.Picture? _layoutPicture(Object? id, EndlessColors colors) {
+    final had = _layout;
+    if (had != null && had.id == id && had.colors == colors) return had.picture;
+    had?.picture.dispose();
+    final picture = layoutPicture(id, colors);
+    _layout = picture == null ? null : (id: id, colors: colors, picture: picture);
+    return picture;
+  }
+
   @override
   void dispose() {
+    _layout?.picture.dispose();
     pane.removeListener(_paneChanged);
     pane.status.removeListener(_statusChanged);
     pane.math.removeListener(_mathChanged);
@@ -432,6 +464,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     _edit?.dispose();
     _hoverTimer?.cancel();
     _holdTimer?.cancel();
+    _stackTimer?.cancel();
     _hold.dispose();
     _laserTicker.dispose();
     _laser.dispose();
@@ -573,6 +606,15 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _touch = _Touch.selection;
         _touchTransform = Similarity.identity;
         _beginMoving();
+      } else if ((_canInk ? topBoxAt(_page.items, page) : null) case final StickyPadItem pad) {
+        // A finger pulls a note off a pad too; a second finger pans instead.
+        _drawPointer = e.pointer;
+        _drawAt = e.localPosition;
+        _fingerDrawing = true;
+        _strokeStart = e.timeStamp;
+        _dismissToast();
+        _startPull(e.localPosition, pad);
+        return;
       } else if (settings.fingerDraws && _canInk) {
         _fingerDrawing = true;
         _startInput(e, erase: settings.tool == CanvasTool.eraser);
@@ -773,7 +815,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _laser.start(page);
       case CanvasTool.select || CanvasTool.lasso:
         _startSelectionDrag(e.localPosition, page, lasso: settings.tool == CanvasTool.lasso);
-      case CanvasTool.text || CanvasTool.sticky || CanvasTool.stack || CanvasTool.frame:
+      case CanvasTool.text || CanvasTool.sticky || CanvasTool.stack || CanvasTool.pad || CanvasTool.frame:
         _selection.clear();
         _drag = _Drag.tap;
         _tapDown = e.localPosition;
@@ -787,6 +829,11 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _selection.clear();
         _mathIdle?.cancel();
         final top = topBoxAt(_page.items, page);
+        if (top is StickyPadItem && settings.tool != CanvasTool.eraser) {
+          // Nothing is written on a pad: the pen pulls a note off it.
+          _startPull(e.localPosition, top);
+          return;
+        }
         if ((top is OfficeItem && officeButtonAt(top, top.toLocal(page)) != null) ||
             (top is MathItem && pane.math.on && settings.tool != CanvasTool.eraser) ||
             (settings.tool != CanvasTool.eraser && _controlAt(top, page))) {
@@ -900,6 +947,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         pane.ruler.dragEnd(e.localPosition);
       case _Drag.graph:
         _dragGraph(page);
+      case _Drag.pull:
+        _pullTo(e.localPosition);
       case _Drag.none:
         break;
     }
@@ -968,6 +1017,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _finishStretch();
       case _Drag.connectorEnd:
         _finishConnectorEnd();
+      case _Drag.pull:
+        _finishPull();
       case _Drag.graph || _Drag.none:
         break;
     }
@@ -988,6 +1039,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       case _Drag.move || _Drag.resize || _Drag.rotate:
         _selection.live = null;
         _moving = const {};
+      case _Drag.pull when _stackArmed:
+        _status(null);
       default:
         break;
     }
@@ -1007,6 +1060,12 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     _inkTarget = null;
     _stretching = null;
     _connector = null;
+    _pad = null;
+    _pulled = null;
+    _stackOnto = null;
+    _stackArmed = false;
+    _stackTimer?.cancel();
+    _stackTimer = null;
     if (_touch != _Touch.graph) _graphId = null;
     if (_selection.live == null) _moving = const {};
     _scribbleIds = const {};
@@ -1273,6 +1332,12 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   bool get _onlyStickies {
     final items = _selected;
     return items.isNotEmpty && items.every((i) => i is StickyItem);
+  }
+
+  /// Only sticky notes and pads: the color swatches are papers.
+  bool get _onlyPaper {
+    final items = _selected;
+    return items.isNotEmpty && items.every((i) => i is StickyItem || i is StickyPadItem);
   }
 
   /// What's written on the selected frames, pictures and cards (above
@@ -1591,7 +1656,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       if (one is LiveItem && one.data is RememberWidgetData) SelectionAction.widgetFolder,
       if (one is LiveItem && isFeedWidget(one)) SelectionAction.widgetOpen,
       SelectionAction.copy,
-      if (items.any((i) => i is TextItem || i is StickyItem || i is ShapeItem || i is MathItem)) SelectionAction.color,
+      if (items.any((i) => i is TextItem || i is StickyItem || i is StickyPadItem || i is ShapeItem || i is MathItem))
+        SelectionAction.color,
       SelectionAction.toFront,
       SelectionAction.toBack,
       SelectionAction.delete,
@@ -1759,13 +1825,14 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
   void _recolor(Color color) {
     final loop = _selection.outlineAt(_nb.revision);
-    // The swatches are paper colors when only sticky notes are selected,
-    // and ink colors otherwise.
-    final paper = _onlyStickies;
+    // The swatches are paper colors when only sticky notes and pads are
+    // selected, and ink colors otherwise.
+    final paper = _onlyPaper;
     _notebook.replaceItems(_page.id, [
       for (final item in _selected)
         ?switch (item) {
           StickyItem s when paper => s.copyWith(color: color),
+          StickyPadItem p when paper => p.copyWith(color: color),
           StrokeItem s when !paper => s.copyWith(color: color),
           TextItem t when !paper => t.copyWith(color: color),
           MathItem m when !paper => m.copyWith(color: color),
@@ -1921,6 +1988,92 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     return false;
   }
 
+  // Sticky pads.
+
+  /// Starts pulling a note off [pad] with the pointer at [screen]. It comes
+  /// off once the pointer has moved a little; until then it's a tap.
+  void _startPull(Offset screen, StickyPadItem pad) {
+    _drag = _Drag.pull;
+    _pad = pad;
+    _padGrab = pad.toLocal(_vp.toPage(screen));
+    _pulled = null;
+    _tapDown = screen;
+    _tapMoved = false;
+  }
+
+  /// The pulled note follows the pointer, and stacks with a note it's held over.
+  void _pullTo(Offset screen) {
+    final pad = _pad;
+    if (pad == null) return;
+    if (!_tapMoved) {
+      if ((screen - _tapDown).distance <= 12) return;
+      _tapMoved = true;
+    }
+    final page = _vp.toPage(screen);
+    final note = noteOffPad(
+      pad,
+      _padGrab,
+      page,
+      id: _pulled?.id ?? newId('it'),
+      z: _page.nextZ,
+      now: _pulled?.createdAt ?? DateTime.now().toUtc(),
+    );
+    _pulled = note;
+    final under = topBoxAt(_page.items, page);
+    final onto = under is StickyItem ? under.id : null;
+    if (onto != _stackOnto) {
+      _stackTimer?.cancel();
+      _stackTimer = onto == null ? null : Timer(holdToStack, _armStack);
+      if (_stackArmed) _status(null);
+      _stackOnto = onto;
+      _stackArmed = false;
+    }
+    _overlay.ghost = _stackArmed ? _stackPreview() : note;
+  }
+
+  /// The pulled note on top of the note it's over, or null.
+  StickyItem? _stackPreview() {
+    final onto = _stackOnto == null ? null : _page[_stackOnto!];
+    final note = _pulled;
+    return onto is StickyItem && note != null ? stackedOnto(onto, note) : null;
+  }
+
+  /// The pulled note has been held over another long enough: they show
+  /// stacked, and letting go stacks them.
+  void _armStack() {
+    _stackTimer = null;
+    if (!mounted || _drag != _Drag.pull) return;
+    final preview = _stackPreview();
+    if (preview == null) return;
+    _stackArmed = true;
+    HapticFeedback.selectionClick();
+    _overlay.ghost = preview;
+    _status('Let go to stack them');
+  }
+
+  /// Puts the pulled note down: on the page, or on top of the note it was
+  /// held over (one undo step). A tap only says how the pad works.
+  void _finishPull() {
+    final note = _pulled;
+    final pad = _pad;
+    if (pad == null) return;
+    if (!_tapMoved || note == null) {
+      _toast('Drag a note off the pad · Select moves the pad', undo: false);
+      return;
+    }
+    if (_stackArmed) {
+      if (_stackPreview() case final stacked?) {
+        _notebook.replaceItems(_page.id, [stacked]);
+        _toast('Stacked ${stackLabel(stacked.count)}');
+        return;
+      }
+    }
+    // Let go still on the pad: the note goes back.
+    if (_page[pad.id] case final StickyPadItem now when now.contains(note.center)) return;
+    _notebook.insertItems(_page.id, [note]);
+    _toast('Added a sticky note to the page');
+  }
+
   // Sticky stacks.
 
   /// The notes under a stack's top one. A stack from another app may only
@@ -2045,6 +2198,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
         _drop(newSticky(at, z: page.nextZ, now: now), 'Added a sticky note to the page');
       case CanvasTool.stack:
         _drop(newStickyStack(at, z: page.nextZ, now: now), 'Added a stack of notes to the page');
+      case CanvasTool.pad:
+        _drop(newStickyPad(at, z: page.nextZ, now: now), 'Added a sticky pad · drag notes off it');
       case CanvasTool.frame:
         // Paper goes under what's already written there.
         final z = page.isEmpty ? 1 : page.items.first.z - 1;
@@ -2253,7 +2408,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     final colors = context.colors;
     final brightness = Theme.of(context).brightness;
     final page = notebook.pageAt(pane.page);
-    final layout = layoutPicture(page.page.template, colors);
+    final layout = _layoutPicture(page.page.template, colors);
 
     // Leaving select and lasso (or an undo removing items) updates the selection.
     if (_selection.isNotEmpty) {
@@ -2449,6 +2604,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   /// scribble is about to erase.
   Set<String> _hidden() {
     if (_selection.live != null || _drag == _Drag.stretch || _drag == _Drag.connectorEnd) return _moving;
+    // A note held over another shows them stacked, in its place.
+    if (_drag == _Drag.pull && _stackArmed && _stackOnto != null) return {_stackOnto!};
     if (_edit != null) return _editHidden;
     if (_draftItem != null && pane.math.draft?.itemId != null) return {pane.math.draft!.itemId!};
     return _overlay.scribble;
@@ -2478,7 +2635,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
                     _ => const {},
                   },
                 ),
-                if (_colorsOpen) SelectionColors(onPick: _recolor, sticky: _onlyStickies),
+                if (_colorsOpen) SelectionColors(onPick: _recolor, sticky: _onlyPaper),
               ],
             ),
           );

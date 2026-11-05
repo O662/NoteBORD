@@ -5,6 +5,7 @@ import 'package:endless/board/codec.dart';
 import 'package:endless/board/ids.dart';
 import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
+import 'package:endless/canvas/ink_canvas.dart' show holdToStack;
 import 'package:endless/canvas/new_items.dart';
 import 'package:endless/state/photos.dart';
 import 'package:endless/state/settings.dart';
@@ -284,6 +285,152 @@ void main() {
       final s = _only<StickyItem>(c);
       await _pen(tester, [s.toPage(Offset(s.w + 4, -4))]);
       expect(_items(c), hasLength(3));
+      await tester.pump(const Duration(seconds: 5));
+    });
+  });
+
+  group('sticky pads', () {
+    /// Drags from [from] to [to] with the S Pen, then holds still for [hold]
+    /// before lifting.
+    Future<void> drag(WidgetTester tester, Offset from, Offset to, {Duration hold = Duration.zero}) async {
+      final g = await tester.createGesture(kind: PointerDeviceKind.stylus);
+      var t = const Duration(seconds: 20);
+      await g.down(from, timeStamp: t);
+      for (var i = 1; i <= 20; i++) {
+        t += const Duration(milliseconds: 8);
+        await g.moveTo(Offset.lerp(from, to, i / 20)!, timeStamp: t);
+      }
+      await tester.pump(hold);
+      await g.up(timeStamp: t + hold);
+      await tester.pump();
+    }
+
+    testWidgets('the Insert menu puts one down; the pen drags notes off it, as many as you like', (tester) async {
+      final c = await pumpCanvas(tester, store: _storeWith(const []));
+      await _rail(tester, 'Insert', 'Everything else');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sticky pad'));
+      await tester.pumpAndSettle();
+      expect(c.read(settingsProvider).tool, CanvasTool.pad);
+      expect(find.text('Tap the page to put down a pad of sticky notes'), findsOneWidget);
+
+      await _pen(tester, const [Offset(300, 400)]);
+      final pad = _only<StickyPadItem>(c);
+      expect(pad.color, tokens.stickyColors[0]);
+      expect(c.read(settingsProvider).tool, CanvasTool.pen); // back to the pen
+      expect(find.text('Added a sticky pad · drag notes off it'), findsOneWidget);
+
+      // A tap says how it works, and writes nothing on it.
+      await _pen(tester, const [Offset(300, 400)]);
+      expect(_items(c), [pad]);
+      expect(find.text('Drag a note off the pad · Select moves the pad'), findsOneWidget);
+
+      // Dragged off, a note lands where the pen lets go; the pad stays.
+      await drag(tester, const Offset(300, 400), const Offset(700, 300));
+      var notes = _items(c).whereType<StickyItem>().toList();
+      expect(notes, hasLength(1));
+      expect((notes.single.center - const Offset(700, 300)).distance, lessThan(1));
+      expect((notes.single.w, notes.single.h, notes.single.color), (pad.w, pad.h, pad.color));
+      expect(find.text('Added a sticky note to the page'), findsOneWidget);
+      expect(_only<StickyPadItem>(c), pad);
+
+      // And another, which the pen can write on like any note.
+      await drag(tester, const Offset(300, 400), const Offset(1000, 600));
+      notes = _items(c).whereType<StickyItem>().toList();
+      expect(notes, hasLength(2));
+      expect(notes.map((n) => n.id).toSet(), hasLength(2));
+      await _pen(tester, _line(const Offset(950, 600), const Offset(1050, 610)));
+      expect(_items(c).whereType<StickyItem>().last.ink, hasLength(1));
+      expect(_items(c).whereType<StrokeItem>(), isEmpty);
+
+      // Let go still on the pad, the note goes back.
+      await drag(tester, const Offset(300, 400), const Offset(330, 420));
+      expect(_items(c).whereType<StickyItem>(), hasLength(2));
+
+      await _pick(tester, 'Undo'); // the writing
+      await _pick(tester, 'Undo'); // the second note
+      expect(_items(c).whereType<StickyItem>(), hasLength(1));
+
+      // Recolored, it gives notes of the new paper.
+      await _pick(tester, 'Select');
+      await _pen(tester, const [Offset(250, 350)]);
+      await _action(tester, 'Color');
+      await _pick(tester, 'Change note to pink');
+      expect(_only<StickyPadItem>(c).color, tokens.stickyColors[1]);
+      await _pick(tester, 'Pen');
+      await drag(tester, const Offset(300, 400), const Offset(700, 650));
+      expect(_items(c).whereType<StickyItem>().last.color, tokens.stickyColors[1]);
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('held over a note, the new one stacks onto it; passing over doesn’t', (tester) async {
+      final pad = newStickyPad(const Offset(300, 400), z: 1, now: _at, color: tokens.stickyColors[2]);
+      final note = newSticky(const Offset(800, 400), z: 2, now: _at)
+          .copyWith(rotation: 0)
+          .withInk(strokeFrom([const Offset(760, 380), const Offset(840, 390)]));
+      final c = await pumpCanvas(tester, store: _storeWith([pad, note]));
+
+      // Let go over it without holding: a note of its own, on top.
+      await drag(tester, const Offset(300, 400), const Offset(820, 420));
+      expect(_items(c).whereType<StickyItem>(), hasLength(2));
+      await _pick(tester, 'Undo');
+
+      // Held there: "let go" shows, and letting go stacks them.
+      await drag(tester, const Offset(300, 400), const Offset(800, 400), hold: const Duration(milliseconds: 300));
+      expect(_items(c).whereType<StickyItem>(), hasLength(2)); // not held long enough
+      await _pick(tester, 'Undo');
+
+      final g = await tester.createGesture(kind: PointerDeviceKind.stylus);
+      await g.down(const Offset(300, 400));
+      for (var i = 1; i <= 20; i++) {
+        await g.moveTo(Offset.lerp(const Offset(300, 400), const Offset(800, 400), i / 20)!);
+      }
+      await tester.pump(holdToStack + const Duration(milliseconds: 50));
+      expect(find.text('Let go to stack them'), findsOneWidget);
+      await g.up();
+      await tester.pump();
+      final stack = _only<StickyItem>(c);
+      expect(stack.id, note.id);
+      expect((stack.x, stack.y), (note.x, note.y));
+      expect(stack.count, 2);
+      expect(stack.color, tokens.stickyColors[2]); // the new note is on top
+      expect(stack.ink, isEmpty);
+      expect(stack.under.single.items, hasLength(1)); // the written one is under it
+      expect(find.text('Stacked 2 notes'), findsOneWidget);
+
+      await _pick(tester, 'Undo');
+      expect(_only<StickyItem>(c).count, 1);
+      expect(_only<StickyItem>(c).ink, hasLength(1));
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('a finger pulls a note off too; a second finger pans instead', (tester) async {
+      final pad = newStickyPad(const Offset(300, 400), z: 1, now: _at);
+      final c = await pumpCanvas(tester, store: _storeWith([pad]));
+      const later = Duration(minutes: 5);
+      final f = await tester.createGesture(kind: PointerDeviceKind.touch, pointer: 61);
+      await f.down(const Offset(300, 400), timeStamp: later);
+      for (var i = 1; i <= 10; i++) {
+        await f.moveTo(Offset.lerp(const Offset(300, 400), const Offset(800, 300), i / 10)!, timeStamp: later);
+      }
+      await f.up(timeStamp: later);
+      await tester.pump();
+      expect((_only<StickyItem>(c).center - const Offset(800, 300)).distance, lessThan(1));
+
+      final view = canvasPane.view;
+      final before = view.translation;
+      final a = await tester.createGesture(kind: PointerDeviceKind.touch, pointer: 62);
+      final b = await tester.createGesture(kind: PointerDeviceKind.touch, pointer: 63);
+      await a.down(const Offset(300, 400), timeStamp: later);
+      await a.moveTo(const Offset(320, 400), timeStamp: later);
+      await b.down(const Offset(400, 500), timeStamp: later);
+      await a.moveTo(const Offset(380, 400), timeStamp: later);
+      await b.moveTo(const Offset(460, 500), timeStamp: later);
+      await a.up(timeStamp: later);
+      await b.up(timeStamp: later);
+      await tester.pump();
+      expect(_items(c).whereType<StickyItem>(), hasLength(1)); // no second note
+      expect(view.translation, isNot(before));
       await tester.pump(const Duration(seconds: 5));
     });
   });
@@ -660,7 +807,7 @@ void main() {
           expect(find.bySemanticsLabel(e.label), findsOneWidget, reason: e.label);
         }
       }
-      expect(insertSections.expand((s) => s.entries), hasLength(26));
+      expect(insertSections.expand((s) => s.entries), hasLength(27));
       for (final chip in ['This tablet', 'Google Drive', 'OneDrive', 'Camera', 'Scan a document']) {
         expect(find.text(chip), findsOneWidget, reason: chip);
       }

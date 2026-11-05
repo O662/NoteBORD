@@ -20,6 +20,7 @@ enum CanvasTool {
   text,
   sticky,
   stack,
+  pad,
   frame,
   shape;
 
@@ -30,8 +31,9 @@ enum CanvasTool {
   bool get selects => this == select || this == lasso;
 
   /// Tools that put something on the page where you tap: a text box, a
-  /// sticky note, a stack of notes, a paper frame or a shape.
-  bool get places => this == text || this == sticky || this == stack || this == frame || this == shape;
+  /// sticky note, a stack of notes, a pad of notes, a paper frame or a shape.
+  bool get places =>
+      this == text || this == sticky || this == stack || this == pad || this == frame || this == shape;
 
   /// Tools for a moment (the laser, and the ones that drop something): the
   /// app reopens on the pen instead.

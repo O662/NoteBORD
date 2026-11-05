@@ -23,7 +23,7 @@ final everythingAt = DateTime.utc(2026, 9, 30, 9);
 /// a stack, frames (plain and from a template), a picture, an imported PDF
 /// page, the five cards, a PowerPoint with ink on its second slide, math,
 /// graphs and math tools, a chart, a clock, the date, a time stamp, a
-/// checklist, and an item type from a newer app. Page 2 has a
+/// checklist, a sticky pad, and an item type from a newer app. Page 2 has a
 /// template and lined paper; page 3 has its own password.
 Future<(MemoryBoardStore, String password)> everythingNotebook() async {
   final store = MemoryBoardStore();
@@ -146,6 +146,7 @@ Future<(MemoryBoardStore, String password)> everythingNotebook() async {
         const ChecklistEntry(text: 'print data table'),
       ],
     ),
+    newStickyPad(const Offset(1200, 2800), z: 58, now: everythingAt).withBox(id: 'it_pad', x: 1100, y: 2700, w: 242, h: 220, rotation: 6),
   ];
   final page1 = BoardPage(id: board.pages.single.id, title: 'Board', items: [...board.pages.single.items, ...extra]);
   // Phase 7a: ink marked to remember (with a reminder), and a flashcard

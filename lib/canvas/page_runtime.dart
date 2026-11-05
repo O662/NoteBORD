@@ -125,7 +125,7 @@ class PageRuntime {
   ui.Picture fullPicture(Brightness brightness, EndlessColors colors) {
     if (_full == null || _fullBrightness != brightness) {
       _full?.dispose();
-      _full = _record(page.items, brightness, colors, layout: layoutPicture(page.template, colors));
+      _full = _record(page.items, brightness, colors, template: page.template);
       _fullBrightness = brightness;
     }
     return _full!;
@@ -161,10 +161,10 @@ class PageRuntime {
     return fresh.picture;
   }
 
-  ui.Picture _record(List<Item> items, Brightness brightness, EndlessColors colors, {ui.Picture? layout}) {
+  ui.Picture _record(List<Item> items, Brightness brightness, EndlessColors colors, {Object? template}) {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    if (layout != null) canvas.drawPicture(layout);
+    paintLayout(canvas, template, colors);
     for (final item in items) {
       paintItem(canvas, item, brightness, colors, images: images, docs: docs, math: math);
     }

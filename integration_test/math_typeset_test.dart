@@ -26,7 +26,9 @@ void main() {
         final m = await typesetOffscreen(latex);
         expect(m, isNotNull, reason: latex);
         debugPrint('$latex: ${m!.size} in ${watch.elapsedMilliseconds} ms');
-        final image = await m.picture.toImage(m.size.width.ceil(), m.size.height.ceil());
+        final recorder = ui.PictureRecorder();
+        m.paint(ui.Canvas(recorder));
+        final image = await recorder.endRecording().toImage(m.size.width.ceil(), m.size.height.ceil());
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
         final dir = Platform.environment['MATH_PNG_DIR'];
         if (dir != null) File('$dir/typeset_$i.png').writeAsBytesSync(bytes!.buffer.asUint8List());

@@ -761,8 +761,9 @@ void _paintMath(Canvas canvas, MathSource? math, String latex, Rect box, double 
     ..save()
     ..translate(box.left, box.center.dy - tall / 2)
     ..scale(k)
-    ..saveLayer(Offset.zero & typeset.size, Paint()..colorFilter = ColorFilter.mode(color, BlendMode.srcIn))
-    ..drawPicture(typeset.picture)
+    ..saveLayer(Offset.zero & typeset.size, Paint()..colorFilter = ColorFilter.mode(color, BlendMode.srcIn));
+  typeset.paint(canvas);
+  canvas
     ..restore()
     ..restore();
 }

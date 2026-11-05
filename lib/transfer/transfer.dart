@@ -207,7 +207,6 @@ class Transfers {
             // Office files are read, with the pictures their pages show.
             if (item is OfficeItem && item.kind != null) {
               final file = await notifier.loadOffice(item.asset, item.kind!);
-              file?.picture(item.page);
               await file?.ready(item.page);
             }
             if (item is MathItem) await notifier.mathPictures.load(item.latex);

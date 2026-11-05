@@ -1377,6 +1377,90 @@ class StickyItem extends BoxItem implements InkHolder {
       };
 }
 
+/// A pad of sticky notes. Nothing is written on it: the pen (or a finger)
+/// drags a new note off its top, one at a time, as many as you like. The
+/// notes are the pad's size and color.
+class StickyPadItem extends BoxItem {
+  StickyPadItem({
+    required super.id,
+    required super.x,
+    required super.y,
+    super.rotation,
+    required super.z,
+    required super.createdAt,
+    super.author,
+    super.remember,
+    super.extra,
+    required this.w,
+    required this.h,
+    required this.color,
+  });
+
+  /// The top sheet; the pad's edge shows under it.
+  @override
+  final double w;
+  @override
+  final double h;
+
+  /// The paper of the notes it gives.
+  final Color color;
+
+  /// How thick the pad looks below and to the right of its top sheet, at
+  /// the design note's width (176).
+  static const depth = 9.0;
+
+  @override
+  Rect get paintRect => (Offset.zero & Size(w, h)).inflate(28 * w / 176);
+
+  @override
+  String get type => 'sticky-pad';
+
+  StickyPadItem copyWith({Color? color}) => StickyPadItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        w: w,
+        h: h,
+        color: color ?? this.color,
+      );
+
+  @override
+  StickyPadItem withBox({
+    String? id,
+    int? z,
+    DateTime? createdAt,
+    required double x,
+    required double y,
+    required double w,
+    required double h,
+    double? rotation,
+    double scale = 1,
+  }) =>
+      StickyPadItem(
+        id: id ?? this.id,
+        x: x,
+        y: y,
+        rotation: rotation ?? this.rotation,
+        z: z ?? this.z,
+        createdAt: createdAt ?? this.createdAt,
+        author: author,
+        remember: remember,
+        extra: extra,
+        w: w,
+        h: h,
+        color: color,
+      );
+
+  @override
+  Json toJson() => {...boxJson(), 'color': colorToHex(color)};
+}
+
 /// A sheet of paper on the endless page (`lined-a4`, `grid-a4`, `dots-a4`
 /// or `blank-a4`), or a template's layout. Ink on it is ordinary page ink.
 class FrameItem extends BoxItem {

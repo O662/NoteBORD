@@ -70,6 +70,7 @@ Every item has these fields:
 | `shape` | `kind` (line/rect/ellipse/triangle/arrow), `w`, `h`, `stroke`, `fill`, `strokeWidth` |
 | `text` | `w`, `text`, `font`, `size`, `color`, `autoWidth?` |
 | `sticky` | `w`, `h`, `color`, `items` (nested ink/text), `stack?: {count, notes?}` |
+| `sticky-pad` | `w`, `h`, `color` |
 | `frame` | `w`, `h`, `paper` (lined-a4, grid-a4, dots-a4, blank-a4), `title`, `template?`, `unit?` |
 | `image` | `w`, `h`, `asset`, `crop?` |
 | `file` | `w`, `h`, `asset`, `mime` (pdf/docx/pptx/xlsx), `page?`, `preview?`, `name?`, `text?`; Office files also `pages`, `pageSize?`, `unit`, `ink?` |
@@ -147,6 +148,7 @@ Every item has these fields:
 - `text`: `w` is where the text wraps. `font` is `ui` (Figtree), `serif` (Newsreader) or `hand` (Caveat); `size` is in page px with a line height of 1.3. With `autoWidth: true` (a new box, until it is stretched to a width) the box hugs the text and `w` is only the most it may grow to. The height is not stored; it follows from the text.
 - `sticky`: `color` is the paper (`#F6DE7A` yellow, `#F3CBD6` pink, `#F4C9A8` peach, `#C9DFC2` green). `items` holds the ink written on the note and at most one `text` item for typed text, with `x`/`y` relative to the note's top-left corner (before its rotation), so they move, turn and scale with it. What's on a note is clipped to it, and keeps its own colors in dark mode.
 - A stack is a sticky with `stack: {"count": 5, "notes": [{"color": "#F4C9A8", "items": []}, …]}`. The sticky itself is the top note; `notes` are the ones under it, from just under the top down. `count` is the top note plus `notes`; if `count` is larger (a file that only says how many), the missing notes are blank.
+- `sticky-pad`: a pad of sticky notes. Nothing is written on it and it holds nothing: each note dragged off it becomes a new `sticky` of the pad's `w`, `h`, `color` and `rotation`, and the pad stays as it was. It is drawn as its top sheet with the pad's edge showing under it (about 9 px at 176 px wide, scaling with it).
 - `frame`: a sheet of paper drawn under the ink. A lined A4 sheet is 560 × 792 px at 100%, ruled every 40 px from y = 96, with a margin at x = 80. `title` is the name shown above it ("Frame · Lab 4"); empty shows the paper's name ("Frame · Lined A4"). `template` is a built-in template id (`cornell`, `weekly`…) whose layout is drawn on the sheet, scaled to its width. `unit` (default 1) is how much the sheet has been scaled: its rules are 40 × `unit` apart. Ink written on a frame is ordinary page ink above it in `items`; it is not nested.
 - `image`: `asset` is the file's name in `assets/`, `<sha256 of the file>.<png|jpg|gif|webp|bmp>`. The same picture added twice is stored once. `crop` is kept but not used yet.
 - `shape`: `stroke` and `fill` are colors (`fill` null for none); `strokeWidth` is in page px. A `line` or `arrow` has `h: 0` and runs along the middle of its box from the left edge to the right, so its direction is `rotation`; the arrowhead is at the right end.

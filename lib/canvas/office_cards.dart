@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui show Picture;
 import 'dart:ui' show Brightness;
 
 import 'package:flutter/painting.dart';
@@ -164,28 +163,26 @@ void paintOfficeCard(Canvas canvas, OfficeItem f, Brightness brightness, Endless
     case OfficeKind.docx:
       canvas.drawRect(area, Paint()..color = c.menuTile);
       final page = f.pageRect;
-      final picture = preview?.picture(f.page);
       canvas.drawRect(
         page.shift(Offset(0, 2 * u)),
         Paint()
           ..color = c.shadow.withValues(alpha: c.shadow.a * 0.5)
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, 3 * u),
       );
-      if (picture != null) {
-        _drawPage(canvas, picture, f);
+      if (preview != null && preview.paintsPages) {
+        _drawPage(canvas, preview, f);
       } else {
         canvas.drawRect(page, Paint()..color = const Color(0xFFFFFFFF));
         _waiting(canvas, page, c, unreadable, u, onPaper: true);
       }
     case OfficeKind.pptx:
       final page = f.pageRect;
-      final picture = preview?.picture(f.page);
       final round = RRect.fromRectAndRadius(page, Radius.circular(4 * u));
       canvas
         ..save()
         ..clipRRect(round);
-      if (picture != null) {
-        _drawPage(canvas, picture, f);
+      if (preview != null && preview.paintsPages) {
+        _drawPage(canvas, preview, f);
       } else {
         canvas.drawRect(page, Paint()..color = c.previewBg);
         _waiting(canvas, page, c, unreadable, u);
@@ -262,15 +259,15 @@ void paintOfficeCard(Canvas canvas, OfficeItem f, Brightness brightness, Endless
     );
 }
 
-void _drawPage(Canvas canvas, ui.Picture picture, OfficeItem f) {
+void _drawPage(Canvas canvas, OfficePreview preview, OfficeItem f) {
   final fit = f.contentFit;
   canvas
     ..save()
     ..clipRect(f.pageRect)
     ..translate(fit.origin.dx, fit.origin.dy)
-    ..scale(fit.scale)
-    ..drawPicture(picture)
-    ..restore();
+    ..scale(fit.scale);
+  preview.paintPage(canvas, f.page);
+  canvas.restore();
 }
 
 /// While the file is read, or when it can't be.

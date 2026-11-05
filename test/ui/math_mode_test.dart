@@ -45,7 +45,7 @@ Future<MathPicture?> fakeTypeset(String latex) async {
   final size = Size(latex.length * 10.0, 40);
   final recorder = ui.PictureRecorder();
   ui.Canvas(recorder).drawRect(Offset.zero & size, Paint());
-  return MathPicture(recorder.endRecording(), size);
+  return MathPicture.recorded(recorder.endRecording(), size);
 }
 
 List<Override> mathOverrides(FakeMathReader reader) => [

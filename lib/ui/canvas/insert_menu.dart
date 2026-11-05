@@ -13,6 +13,7 @@ import 'coming_soon.dart';
 enum InsertAction {
   sticky,
   stack,
+  pad,
   text,
   frame,
   shape,
@@ -127,9 +128,10 @@ class InsertSection {
 
 /// The Insert menu's four groups, in design order.
 final List<InsertSection> insertSections = [
-  InsertSection('On the page', 5, [
+  InsertSection('On the page', 6, [
     InsertEntry('Sticky note', icon: EIcons.sticky, tile: _yellow, tint: _stickyInk, action: InsertAction.sticky, keywords: 'post-it note'),
     InsertEntry('Sticky stack', icon: EIcons.stickyStack, tile: _yellow, tint: _stickyInk, action: InsertAction.stack, keywords: 'post-it notes pile'),
+    InsertEntry('Sticky pad', icon: EIcons.stickyPad, tile: _yellow, tint: _stickyInk, action: InsertAction.pad, keywords: 'post-it notes block dispenser pull'),
     InsertEntry('Text box', icon: EIcons.text, tile: _neutral, tint: _ink, action: InsertAction.text, keywords: 'type typed keyboard label'),
     InsertEntry('Paper frame', icon: EIcons.frame, tile: _neutral, tint: _ink, action: InsertAction.frame, keywords: 'lined sheet a4 page'),
     InsertEntry('Shape', icon: EIcons.shapes, tile: _neutral, tint: _ink, action: InsertAction.shape, keywords: 'rectangle circle oval triangle line arrow'),
@@ -327,7 +329,8 @@ class _InsertMenuState extends State<InsertMenu> {
 
   Widget _section(EndlessColors c, InsertSection s, String query) {
     final shown = [for (final e in s.entries) if (e.matches(query)) e];
-    final gap = s.columns == 5 ? 10.0 : 8.0;
+    // The first row's six tiles are spaced like the design's five.
+    final gap = s.columns == 7 ? 8.0 : 10.0;
     return Semantics(
       container: true,
       label: s.title,

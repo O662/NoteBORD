@@ -123,6 +123,24 @@ LoadedNotebook _board() {
   return LoadedNotebook(nb, [page]);
 }
 
+/// A pad of green notes, and a pink note with writing on it to stack onto.
+LoadedNotebook _padBoard() {
+  final pad = newStickyPad(const Offset(260, 420), z: 1, now: _at, color: tokens.stickyColors[3]);
+  var note = newSticky(const Offset(980, 520), z: 2, now: _at, color: tokens.stickyColors[1]);
+  for (final (i, len) in [150.0, 120.0].indexed) {
+    note = note.withInk(strokeFrom(_scrawl(Offset(900, 470 + i * 42.0), len, size: 11), pressure: _wobble, z: 3 + i));
+  }
+  final page = BoardPage(id: 'pg_pad', items: [pad, note]);
+  final nb = Notebook(
+    id: 'nb_pad',
+    title: 'Sticky pad',
+    createdAt: DateTime.utc(2026, 9, 25, 9),
+    updatedAt: DateTime.utc(2026, 9, 25, 10),
+    pageIds: [page.id],
+  );
+  return LoadedNotebook(nb, [page]);
+}
+
 late ui.Image _picture;
 
 Future<TestGesture> _pen(WidgetTester t, List<Offset> pts) async {
@@ -230,6 +248,22 @@ void main() {
     await t.pump();
     await t.pump(const Duration(seconds: 5));
   });
+
+  // A sticky pad (green), a note pulled off it, and a second held over the
+  // first: the two show stacked, with "Let go to stack them".
+  for (final mode in [ThemeMode.light, ThemeMode.dark]) {
+    _golden(mode == ThemeMode.light ? 'sticky_pad' : 'sticky_pad_dark', notebook: _padBoard, mode: mode, setUp: (t, c) async {
+      await _pen(t, [for (var i = 0; i <= 20; i++) Offset.lerp(const Offset(260, 420), const Offset(640, 300), i / 20)!]);
+      await t.pump(const Duration(seconds: 5));
+      final g = await t.createGesture(kind: PointerDeviceKind.stylus);
+      await g.down(const Offset(260, 420));
+      for (var i = 1; i <= 20; i++) {
+        await g.moveTo(Offset.lerp(const Offset(260, 420), const Offset(980, 520), i / 20)!);
+      }
+      await t.pump(const Duration(milliseconds: 700));
+      addTearDown(g.up);
+    });
+  }
 
   // The Shapes tool: its strip under the tool pill, and a shape just drawn.
   _golden('shapes', setUp: (t, c) async {

@@ -11,8 +11,11 @@ import '../theme/tokens.g.dart' show FontFamilies;
 // Math on the page is drawn like everything else on it: by the canvas's
 // painter, in z-order with the ink, in thumbnails, the map and exported
 // PDFs. flutter_math_fork typesets with widgets, so each formula is laid out
-// once off screen, at [mathReferenceSize] in black, and kept as a vector
-// picture (crisp at any zoom) that the painter scales and colors.
+// once off screen, at [mathReferenceSize] in black, and kept laid out; the
+// painter scales and colors it. It's painted afresh for every drawing,
+// never shared as one recorded picture: Impeller sizes a recorded run of
+// glyphs once per frame, so the same picture drawn on the page and in a
+// thumbnail in one frame comes out as the thumbnail's glyphs, blown up.
 
 /// Fonts for math symbols in ordinary text (keys, the keyboard's line, the
 /// formula library): Newsreader and Figtree have no Greek, ∑ or ∫, and the
@@ -29,11 +32,20 @@ const mathReferenceSize = 40.0;
 
 /// A formula, typeset.
 class MathPicture {
-  MathPicture(this.picture, this.size);
+  MathPicture(this._paint, this.size, {VoidCallback? onDispose}) : _onDispose = onDispose;
 
-  /// Black on transparent, [size] at [mathReferenceSize].
-  final ui.Picture picture;
+  /// A formula already recorded (a stand-in in tests).
+  MathPicture.recorded(ui.Picture picture, Size size)
+      : this((canvas) => canvas.drawPicture(picture), size, onDispose: picture.dispose);
+
+  final void Function(ui.Canvas canvas) _paint;
+  final VoidCallback? _onDispose;
   final Size size;
+
+  /// Draws it black on transparent, [size] at [mathReferenceSize].
+  void paint(ui.Canvas canvas) => _paint(canvas);
+
+  void dispose() => _onDispose?.call();
 }
 
 /// Typeset math for the painter.
@@ -86,7 +98,7 @@ class MathPictures extends ChangeNotifier implements MathSource {
   void dispose() {
     _disposed = true;
     for (final p in _done.values) {
-      p?.picture.dispose();
+      p?.dispose();
     }
     super.dispose();
   }
@@ -107,8 +119,8 @@ Widget mathWidget(String latex, {double size = mathReferenceSize, Color color = 
     );
 
 /// Typesets [latex] in a private widget tree, waits for its drawn pieces
-/// (√ signs and stretchy brackets are SVG, read asynchronously), and
-/// records what it paints.
+/// (√ signs and stretchy brackets are SVG, read asynchronously), and keeps
+/// the tree to paint from.
 Future<MathPicture?> typesetOffscreen(String latex) async {
   final root = _Root();
   final pipeline = PipelineOwner()..rootNode = root;
@@ -121,6 +133,12 @@ Future<MathPicture?> typesetOffscreen(String latex) async {
       child: Directionality(textDirection: TextDirection.ltr, child: mathWidget(latex)),
     ),
   ).attachToRenderTree(build);
+  void dispose() {
+    element.update(RenderObjectToWidgetAdapter<RenderBox>(container: root));
+    build.finalizeTree();
+    root.dispose();
+  }
+
   try {
     // Up to 3 s for the pieces to arrive.
     for (var round = 0; round < 150; round++) {
@@ -131,23 +149,25 @@ Future<MathPicture?> typesetOffscreen(String latex) async {
       if (!_waiting(element)) break;
       await Future<void>.delayed(const Duration(milliseconds: 20));
     }
-    if (_waiting(element)) return null;
     final size = root.size;
-    if (size.isEmpty) return null;
+    if (_waiting(element) || size.isEmpty) {
+      dispose();
+      return null;
+    }
     pipeline.flushCompositingBits();
-    final layer = OffsetLayer();
-    final context = _Recorder(layer, Offset.zero & size);
-    root.paint(context, Offset.zero);
-    context.finish();
-    final recorder = ui.PictureRecorder();
-    _draw(ui.Canvas(recorder), layer);
-    final picture = recorder.endRecording();
-    layer.dispose();
-    return MathPicture(picture, size);
-  } finally {
-    element.update(RenderObjectToWidgetAdapter<RenderBox>(container: root));
-    build.finalizeTree();
-    root.dispose();
+    void paint(ui.Canvas canvas) {
+      final layer = OffsetLayer();
+      final context = _Recorder(layer, Offset.zero & size);
+      root.paint(context, Offset.zero);
+      context.finish();
+      _draw(canvas, layer);
+      layer.dispose();
+    }
+
+    return MathPicture(paint, size, onDispose: dispose);
+  } on Object {
+    dispose();
+    rethrow;
   }
 }
 

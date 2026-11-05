@@ -32,11 +32,7 @@ class OfficePreview {
   final _images = <String, ui.Image>{};
   final _loading = <String>{};
   final _failed = <String>{};
-  final _pictures = <int, ui.Picture>{};
   bool _disposed = false;
-
-  /// Pictures of this many pages are kept.
-  static const keepPictures = 6;
 
   int get pageCount => switch (doc) {
         Deck d => d.slides.length,
@@ -67,24 +63,22 @@ class OfficePreview {
     };
   }
 
-  /// A picture of page [page] (from 1) in its own points, or null for a
-  /// workbook (drawn as cells, in the app's colors). Pictures inside the
-  /// file that aren't decoded yet are boxes until they are.
-  ui.Picture? picture(int page) {
-    if (_disposed || doc is Workbook) return null;
+  /// Whether [paintPage] draws: false for a workbook (drawn as cells, in the
+  /// app's colors).
+  bool get paintsPages => !_disposed && doc is! Workbook;
+
+  /// Draws page [page] (from 1) in its own points. Pictures inside the file
+  /// that aren't decoded yet are boxes until they are. Painted afresh for
+  /// every drawing, never kept as one recorded picture: Impeller sizes a
+  /// recorded run of glyphs once per frame, so a picture drawn on the page
+  /// and in its thumbnail in one frame comes out with the thumbnail's text,
+  /// blown up.
+  void paintPage(Canvas canvas, int page) {
+    if (!paintsPages) return;
     final i = (page - 1).clamp(0, pageCount - 1);
-    final kept = _pictures.remove(i);
-    if (kept != null) {
-      _pictures[i] = kept; // most recent last
-      return kept;
-    }
-    final media = _mediaOn(i);
-    final waiting = media.where((m) => !_images.containsKey(m) && !_failed.contains(m)).toList();
-    for (final m in waiting) {
+    for (final m in _mediaOn(i)) {
       _load(m);
     }
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
     switch (doc) {
       case Deck d:
         paintSlide(canvas, d, d.slides[i], _images);
@@ -93,14 +87,6 @@ class OfficePreview {
       case Workbook _:
         break;
     }
-    final picture = recorder.endRecording();
-    if (waiting.isNotEmpty) return picture;
-    _pictures[i] = picture;
-    while (_pictures.length > keepPictures) {
-      final oldest = _pictures.keys.first;
-      _pictures.remove(oldest)!.dispose();
-    }
-    return picture;
   }
 
   /// Waits until the pictures page [page] needs are decoded (or failed).
@@ -157,10 +143,6 @@ class OfficePreview {
 
   void dispose() {
     _disposed = true;
-    for (final p in _pictures.values) {
-      p.dispose();
-    }
-    _pictures.clear();
     for (final i in _images.values) {
       i.dispose();
     }

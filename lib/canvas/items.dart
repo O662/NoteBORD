@@ -103,6 +103,8 @@ void paintBoxItem(
       paintMathTool(canvas, t, brightness, c);
     case StickyItem s:
       _paintSticky(canvas, s, c);
+    case StickyPadItem p:
+      paintStickyPad(canvas, p, c);
     case FrameItem f:
       _paintFrame(canvas, f, c);
     case ImageItem i:
@@ -180,8 +182,9 @@ void paintMathCard(Canvas canvas, MathItem m, Brightness brightness, EndlessColo
     ..translate(inner.center.dx - drawn.width / 2, inner.center.dy - drawn.height / 2)
     ..scale(scale)
     // Typeset in black: painted in the ink's color.
-    ..saveLayer(Offset.zero & typeset.size, Paint()..colorFilter = ColorFilter.mode(ink, BlendMode.srcIn))
-    ..drawPicture(typeset.picture)
+    ..saveLayer(Offset.zero & typeset.size, Paint()..colorFilter = ColorFilter.mode(ink, BlendMode.srcIn));
+  typeset.paint(canvas);
+  canvas
     ..restore()
     ..restore();
 }
@@ -256,6 +259,79 @@ void _paintSticky(Canvas canvas, StickyItem s, EndlessColors c) {
   }
 }
 
+/// [color] with its lightness scaled by [factor] (paper edges, folds).
+Color _shade(Color color, double factor) {
+  final hsl = HSLColor.fromColor(color);
+  return hsl.withLightness((hsl.lightness * factor).clamp(0.0, 1.0)).toColor();
+}
+
+/// The words on a pad's top sheet.
+const stickyPadHint = 'Drag a note off';
+
+/// A pad of sticky notes: the top sheet, the pad's edge under it, a corner
+/// lifting to be pulled, and a hint. Paper stays paper in dark mode.
+void paintStickyPad(Canvas canvas, StickyPadItem p, EndlessColors c) {
+  final k = p.w / 176;
+  final depth = StickyPadItem.depth * k;
+  final block = Rect.fromLTWH(0, 0, p.w, p.h + depth);
+
+  _shadow(canvas, block, c.shadow, dy: 10 * k, blur: 18 * k, spread: -10 * k);
+  // The edge: sheets packed under the top one.
+  canvas.drawRect(block, Paint()..color = _shade(p.color, 0.86));
+  final sheet = Paint()
+    ..color = _shade(p.color, 0.74)
+    ..strokeWidth = 0.7 * k;
+  for (var y = p.h + 1.6 * k; y < p.h + depth; y += 1.8 * k) {
+    canvas.drawLine(Offset(0, y), Offset(p.w, y), sheet);
+  }
+
+  // The top sheet, its bottom-right corner lifting.
+  final lift = 30 * k;
+  final sheetPath = Path()
+    ..moveTo(0, 0)
+    ..lineTo(p.w, 0)
+    ..lineTo(p.w, p.h - lift)
+    ..lineTo(p.w - lift, p.h)
+    ..lineTo(0, p.h)
+    ..close();
+  canvas.drawPath(sheetPath, Paint()..color = p.color);
+  // Where the glue is, a shade darker.
+  canvas.drawRect(Rect.fromLTWH(0, 0, p.w, 26 * k), Paint()..color = _shade(p.color, 0.97));
+  // The sheet under the lifted corner, and the corner folded up over it.
+  canvas.drawPath(
+    Path()
+      ..moveTo(p.w, p.h - lift)
+      ..lineTo(p.w, p.h)
+      ..lineTo(p.w - lift, p.h)
+      ..close(),
+    Paint()..color = _shade(p.color, 0.93),
+  );
+  final fold = Path()
+    ..moveTo(p.w, p.h - lift)
+    ..lineTo(p.w - lift * 0.82, p.h - lift * 0.82)
+    ..lineTo(p.w - lift, p.h)
+    ..close();
+  _shadow(canvas, Rect.fromLTWH(p.w - lift * 0.9, p.h - lift * 0.9, lift * 0.7, lift * 0.7), c.shadow,
+      dy: 2 * k, blur: 6 * k, spread: -2 * k);
+  canvas.drawPath(fold, Paint()..color = _shade(p.color, 1.06));
+
+  final hint = TextPainter(
+    text: TextSpan(
+      text: stickyPadHint,
+      style: TextStyle(
+        fontFamily: FontFamilies.ui,
+        fontSize: 12 * k,
+        fontWeight: FontWeight.w600,
+        color: _shade(p.color, 0.5).withValues(alpha: 0.7),
+      ),
+    ),
+    textDirection: TextDirection.ltr,
+    maxLines: 1,
+  )..layout(maxWidth: math.max(p.w - 2 * lift, 1));
+  hint.paint(canvas, Offset((p.w - hint.width) / 2, p.h - 14 * k - hint.height));
+  hint.dispose();
+}
+
 void _paintFrame(Canvas canvas, FrameItem f, EndlessColors c) {
   final rect = Offset.zero & Size(f.w, f.h);
   final label = TextPainter(
@@ -285,12 +361,11 @@ void _paintFrame(Canvas canvas, FrameItem f, EndlessColors c) {
     final pad = 24 * u;
     final scale = layout == null ? u : (f.w - 2 * pad) / layout.width;
     _rules(canvas, rect, template.paper, 32 * scale, c, offset: pad);
-    final picture = layoutPicture(template.id, c);
-    if (picture != null && layout != null) {
+    if (layout != null) {
       canvas
         ..translate(pad - layout.left * scale, pad - layout.top * scale)
-        ..scale(scale)
-        ..drawPicture(picture);
+        ..scale(scale);
+      paintLayout(canvas, template.id, c);
     }
   } else {
     switch (f.paper) {

@@ -77,6 +77,9 @@ abstract final class EIcons {
 
   // The Insert menu (Insert.dc.html).
   static final stickyStack = EIconData([_p('M8 3h13v13'), _p('M5.5 5.5H18.5V18.5'), _p(_rect(3, 8, 13, 13, 1))]);
+
+  /// A pad: the top sheet with its corner lifting, the pad's edge under it.
+  static final stickyPad = EIconData([_p('M4 4h16v9l-4 4H4z'), _p('M16 17v-4h4'), _p('M4 20h16M20 13v7')]);
   static final video = EIconData([_p(_rect(3, 5, 18, 14, 2)), const IconPart('M10 9l5 3-5 3z', fill: true)]);
   static final graph = EIconData([_p('M4 3v17h17'), _p('M6 17c3-9 6-11 8-6s3 4 6-4')]);
   static final table = EIconData([_p(_rect(3, 4, 18, 16, 1.5)), _p('M3 9h18M3 14h18M9 4v16M15 4v16')]);

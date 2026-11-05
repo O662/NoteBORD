@@ -340,8 +340,7 @@ class _PdfWriter {
     if (options.background) _paper(page.paper, clip);
     final layout = layoutBounds(page.template);
     if (layout != null && layout.overlaps(clip)) {
-      final picture = layoutPicture(page.template, c);
-      if (picture != null) await _raster(layout, (canvas) => canvas.drawPicture(picture));
+      await _raster(layout, (canvas) => paintLayout(canvas, page.template, c));
     }
 
     final text = <TextRun>[...runs];
@@ -420,6 +419,8 @@ class _PdfWriter {
         await _text(t, t.color);
       case StickyItem s:
         await _sticky(s);
+      case StickyPadItem p:
+        await _raster(p.paintRect, (canvas) => paintStickyPad(canvas, p, c));
       case FrameItem f:
         await _frame(f);
       case ImageItem i:
@@ -478,7 +479,6 @@ class _PdfWriter {
     final kind = f.kind;
     final file = kind == null || loadOffice == null ? null : await loadOffice!(f.asset, kind);
     // Pictures inside the file are decoded before the page is drawn.
-    file?.picture(f.page);
     await file?.ready(f.page);
     final source = SingleOffice(file);
     await _raster(f.paintRect, (canvas) => paintOfficeCard(canvas, f, ui.Brightness.light, c, source, ink: false));

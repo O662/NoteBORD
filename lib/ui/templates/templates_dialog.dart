@@ -485,15 +485,12 @@ class _UserPreviewPainter extends CustomPainter {
     if (layout != null && ink != null) bounds = bounds.expandToInclude(ink.bounds);
     final scale = math.min(area.width / bounds.width, area.height / bounds.height);
     if (layout != null) {
-      final picture = layoutPicture(template.layout, colors);
-      if (picture != null) {
-        canvas
-          ..save()
-          ..translate(area.left - bounds.left * scale, area.top - bounds.top * scale)
-          ..scale(scale)
-          ..drawPicture(picture)
-          ..restore();
-      }
+      canvas
+        ..save()
+        ..translate(area.left - bounds.left * scale, area.top - bounds.top * scale)
+        ..scale(scale);
+      paintLayout(canvas, template.layout, colors);
+      canvas.restore();
     }
     if (ink != null) {
       final inkArea = Rect.fromLTWH(

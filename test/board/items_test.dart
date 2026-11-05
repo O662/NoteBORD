@@ -119,6 +119,32 @@ void main() {
       expect(stackBack.color, tokens.stickyColors[1]);
     });
 
+    test('a sticky pad keeps its paper, and gives notes of its size and color', () {
+      final pad = newStickyPad(const Offset(500, 400), z: 3, now: _at, color: tokens.stickyColors[3]);
+      final json = _json(pad);
+      expect(json['type'], 'sticky-pad');
+      expect(json['w'], 242.0);
+      expect(json['h'], 220.0);
+      expect(json['color'], '#C9DFC2');
+      final back = _roundTrip([pad]).single as StickyPadItem;
+      expect(back.color, tokens.stickyColors[3]);
+      expect(back.toJson(), pad.toJson());
+
+      // Pulled by the point 20, 30 on the pad, that point stays under the pen.
+      final turned = pad.withBox(x: pad.x, y: pad.y, w: pad.w, h: pad.h, rotation: 30);
+      final note = noteOffPad(turned, const Offset(20, 30), const Offset(900, 100), id: 'it_n', z: 9, now: _at);
+      expect((note.toPage(const Offset(20, 30)) - const Offset(900, 100)).distance, lessThan(1e-9));
+      expect((note.w, note.h, note.rotation, note.color, note.z), (pad.w, pad.h, 30.0, tokens.stickyColors[3], 9));
+      expect(note.items, isEmpty);
+
+      // Put on a stack, it goes on top and the stack stays where it was.
+      final stack = newStickyStack(const Offset(100, 100), z: 1, now: _at);
+      final onTop = stackedOnto(stack, note);
+      expect((onTop.id, onTop.x, onTop.y, onTop.count), (stack.id, stack.x, stack.y, 4));
+      expect(onTop.color, tokens.stickyColors[3]);
+      expect(onTop.under.map((n) => n.color), [tokens.stickyColors[1], tokens.stickyColors[2], tokens.stickyColors[3]]);
+    });
+
     test('a stack that only says how many notes it has keeps its count', () {
       const source = '{"id":"it_s","type":"sticky","x":10,"y":20,"rotation":0,"z":1,'
           '"createdAt":"2026-09-01T00:00:00.000Z","author":"user_x","remember":null,'

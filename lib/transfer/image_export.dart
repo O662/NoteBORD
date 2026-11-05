@@ -35,8 +35,7 @@ Future<Uint8List> renderPagePng(
     ..translate(-area.left, -area.top)
     ..drawRect(area, Paint()..color = c.bg);
   _paper(canvas, page.paper, area);
-  final layout = layoutPicture(page.template, c);
-  if (layout != null) canvas.drawPicture(layout);
+  paintLayout(canvas, page.template, c);
   for (final item in page.items) {
     paintItem(canvas, item, ui.Brightness.light, c, images: (name) => images[name], docs: docs, math: typeset);
   }

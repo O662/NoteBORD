@@ -65,18 +65,28 @@ Rect? layoutBounds(Object? id) {
   return size == null ? null : layoutOrigin & size;
 }
 
-final _pictures = <(String, EndlessColors), ui.Picture>{};
+/// Draws the layout for [id] in page coordinates (nothing if it has none).
+/// Painted afresh for every drawing, never shared as one recorded picture:
+/// Impeller sizes a recorded run of glyphs once per frame, so a picture
+/// drawn on the page and in its thumbnail in one frame comes out with the
+/// thumbnail's labels, blown up.
+void paintLayout(Canvas canvas, Object? id, EndlessColors colors) {
+  if (id is! String || layoutBounds(id) == null) return;
+  canvas
+    ..save()
+    ..translate(layoutOrigin.dx, layoutOrigin.dy);
+  _LayoutPainter(canvas, colors).paint(id);
+  canvas.restore();
+}
 
-/// The layout for [id] as a cached picture in page coordinates, or null.
+/// The layout for [id] recorded in page coordinates, or null, for a painter
+/// that replays it every frame. The caller owns it, and keeps it to itself
+/// (see [paintLayout]).
 ui.Picture? layoutPicture(Object? id, EndlessColors colors) {
   if (id is! String || layoutBounds(id) == null) return null;
-  return _pictures[(id, colors)] ??= () {
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    canvas.translate(layoutOrigin.dx, layoutOrigin.dy);
-    _LayoutPainter(canvas, colors).paint(id);
-    return recorder.endRecording();
-  }();
+  final recorder = ui.PictureRecorder();
+  paintLayout(Canvas(recorder), id, colors);
+  return recorder.endRecording();
 }
 
 class _LayoutPainter {

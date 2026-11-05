@@ -436,6 +436,21 @@ Item? _decodeKnown(Json json) {
         ],
         count: (stack?['count'] as num?)?.toInt(),
       );
+    case 'sticky-pad':
+      return StickyPadItem(
+        id: id,
+        x: x,
+        y: y,
+        rotation: rotation,
+        z: z,
+        createdAt: createdAt,
+        author: author,
+        remember: remember,
+        extra: _unknown(json, const {..._boxKeys, 'color'}),
+        w: (json['w'] as num).toDouble(),
+        h: (json['h'] as num).toDouble(),
+        color: colorFromHex(json['color'] as String),
+      );
     case 'frame':
       return FrameItem(
         id: id,

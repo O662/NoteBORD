@@ -31,6 +31,7 @@ const placeHints = {
   CanvasTool.text: 'Tap the page to type · tap a text box or sticky note to edit it',
   CanvasTool.sticky: 'Tap the page to drop a sticky note',
   CanvasTool.stack: 'Tap the page to drop a stack of sticky notes',
+  CanvasTool.pad: 'Tap the page to put down a pad of sticky notes',
   CanvasTool.frame: 'Tap the page to place a lined sheet',
   CanvasTool.shape: 'Drag to draw the shape · tap to drop one',
 };
@@ -56,6 +57,8 @@ Future<void> runInsert(
       place(CanvasTool.sticky);
     case InsertAction.stack:
       place(CanvasTool.stack);
+    case InsertAction.pad:
+      place(CanvasTool.pad);
     case InsertAction.text:
       place(CanvasTool.text);
     case InsertAction.frame:
