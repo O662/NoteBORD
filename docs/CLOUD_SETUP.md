@@ -6,6 +6,11 @@ Everything below is for **Endless on Android** (package `com.endless.endless`). 
 
 The planner and a calendar kept on the tablet work without any of this.
 
+**Not needed yet.** For now Endless shows Google and Outlook calendars from their calendar links, view only (Phase 7d, the owner's choice on 2026-11-04): Calendar → Connect → **Add a calendar link**, and paste the calendar's private iCal (.ics) address. That needs no Google Cloud project, no Microsoft app registration and no card, and costs nothing. This guide is for two-way sync, later.
+
+- **Google Calendar** (on the web; the phone app doesn't show it): Settings → pick the calendar under "Settings for my calendars" → **Integrate calendar** → **Secret address in iCal format** → copy. If the link is ever shared by mistake, **Reset** there makes a new one; add the new one in Endless.
+- **Outlook.com / Outlook on the web:** Settings → Calendar → **Shared calendars** → **Publish a calendar** → pick the calendar and **Can view all details** → **Publish** → copy the **ICS** link. A work or school Microsoft 365 account may have publishing turned off by its admin.
+
 ## What it costs
 
 | | Cost | What isn't free |

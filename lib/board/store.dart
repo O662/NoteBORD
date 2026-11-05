@@ -107,6 +107,12 @@ abstract class BoardStore {
   /// `planner.json`: what's planned for each day.
   Future<Json?> loadPlanner();
   Future<void> savePlanner(Json planner);
+
+  /// `calendars/<id>.ics`: the last copy of a calendar link's file, read
+  /// at start so its events show before (or without) the network.
+  Future<String?> loadFeed(String calendarId);
+  Future<void> saveFeed(String calendarId, String ics);
+  Future<void> deleteFeed(String calendarId);
 }
 
 class FileBoardStore implements BoardStore {
@@ -315,6 +321,20 @@ class FileBoardStore implements BoardStore {
   @override
   Future<void> savePlanner(Json planner) => _writeAtomic(File(p.join(root.path, 'planner.json')), jsonEncode(planner));
 
+  File _feedFile(String calendarId) => File(p.join(root.path, 'calendars', '${p.basename(calendarId)}.ics'));
+
+  @override
+  Future<String?> loadFeed(String calendarId) async {
+    final f = _feedFile(calendarId);
+    return await f.exists() ? f.readAsString() : null;
+  }
+
+  @override
+  Future<void> saveFeed(String calendarId, String ics) => _writeAtomic(_feedFile(calendarId), ics);
+
+  @override
+  Future<void> deleteFeed(String calendarId) => _deleteIfExists(_feedFile(calendarId));
+
   static Future<void> _deleteIfExists(File f) async {
     if (await f.exists()) await f.delete();
   }
@@ -507,4 +527,15 @@ class MemoryBoardStore implements BoardStore {
 
   @override
   Future<void> savePlanner(Json p) async => planner = _copy(p);
+
+  final feeds = <String, String>{};
+
+  @override
+  Future<String?> loadFeed(String calendarId) async => feeds[calendarId];
+
+  @override
+  Future<void> saveFeed(String calendarId, String ics) async => feeds[calendarId] = ics;
+
+  @override
+  Future<void> deleteFeed(String calendarId) async => feeds.remove(calendarId);
 }

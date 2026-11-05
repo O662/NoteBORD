@@ -5,6 +5,7 @@ import 'package:endless/board/codec.dart';
 import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
 import 'package:endless/calendar/calendar_model.dart';
+import 'package:endless/calendar/feed_sync.dart' show FeedLinks;
 import 'package:endless/canvas/live_items.dart' show liveNow;
 import 'package:endless/planner/planner_model.dart';
 import 'package:endless/state/settings.dart';
@@ -175,7 +176,14 @@ PlannerData plannerSample() {
 
 /// The app on [location] with Calendar.png's data, at 1:30 PM on Friday
 /// Sep 25, with every notebook read into the index.
-Future<ProviderContainer> pumpCalendar(WidgetTester tester, String location, {MemoryBoardStore? store, bool dark = false}) async {
+Future<ProviderContainer> pumpCalendar(
+  WidgetTester tester,
+  String location, {
+  MemoryBoardStore? store,
+  bool dark = false,
+  FakeFeeds? feeds,
+  FeedLinks? feedLinks,
+}) async {
   tester.view.physicalSize = tokens.Sizes.tabletFrame;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -183,7 +191,7 @@ Future<ProviderContainer> pumpCalendar(WidgetTester tester, String location, {Me
   addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
   liveNow = () => calendarNow;
   addTearDown(() => liveNow = DateTime.now);
-  final overrides = await testOverrides(store ?? calendarStore(), location: location, clock: () => calendarNow);
+  final overrides = await testOverrides(store ?? calendarStore(), location: location, clock: () => calendarNow, feeds: feeds, feedLinks: feedLinks);
   await tester.pumpWidget(ProviderScope(overrides: overrides, child: const EndlessApp()));
   await tester.pump();
   final c = ProviderScope.containerOf(tester.element(find.byType(EndlessApp)));

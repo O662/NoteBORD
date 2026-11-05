@@ -54,9 +54,24 @@ class Calendars extends Notifier<CalendarData> {
   );
 
   bool _synced(String calendarId) => state.calendar(calendarId)?.synced ?? false;
+  bool _viewOnly(String calendarId) => state.calendar(calendarId)?.viewOnly ?? false;
 
-  /// Adds [e], or changes the event with its id.
+  /// Adds [e], or changes the event with its id. For an event from a
+  /// calendar link, only its notes change (Start notes): it's read again
+  /// from the link, so its notes are kept apart, in [CalendarData.links].
   void put(CalEvent e) {
+    if (_viewOnly(e.calendarId)) {
+      final i = state.events.indexWhere((x) => x.id == e.id);
+      if (i < 0) return;
+      final links = {...state.links};
+      if (e.notes case final n?) {
+        links[e.id] = n;
+      } else {
+        links.remove(e.id);
+      }
+      _set(state.copyWith(events: [...state.events]..[i] = state.events[i].copyWith(notes: () => e.notes), links: links));
+      return;
+    }
     final stamped = e.copyWith(updatedAt: _now, pending: _synced(e.calendarId) || e.pending);
     final i = state.events.indexWhere((x) => x.id == e.id);
     _set(state.copyWith(events: i < 0 ? [...state.events, stamped] : ([...state.events]..[i] = stamped)));
@@ -66,7 +81,7 @@ class Calendars extends Notifier<CalendarData> {
   /// deleted until sync has told Google or Microsoft.
   void delete(String id) {
     final e = state.event(id);
-    if (e == null) return;
+    if (e == null || _viewOnly(e.calendarId)) return;
     _set(
       state.copyWith(
         events: [
@@ -94,12 +109,19 @@ class Calendars extends Notifier<CalendarData> {
       _set(state.copyWith(calendars: [for (final c in state.calendars) c.id == calendarId ? c.copyWith(shown: !c.shown) : c]));
 
   /// A new calendar on this tablet.
-  CalendarInfo addCalendar(String name, CalendarHue hue) {
-    final c = CalendarInfo(
-      id: newId('cal', now: _now),
-      name: name.trim(),
-      hue: hue,
-    );
+  CalendarInfo addCalendar(String name, CalendarHue hue) => _add(CalendarInfo(id: newId('cal', now: _now), name: name.trim(), hue: hue));
+
+  /// The next color no calendar has yet (they repeat once all are used).
+  CalendarHue get nextHue {
+    final used = {for (final cal in state.calendars) cal.hue};
+    return CalendarHue.values.where((h) => !used.contains(h)).firstOrNull ?? CalendarHue.values[used.length % CalendarHue.values.length];
+  }
+
+  /// A calendar read from a link (feed_sync.dart adds it, then its events).
+  CalendarInfo addFeed({required String id, required String name, required FeedFrom from, required DateTime fetchedAt}) =>
+      _add(CalendarInfo(id: id, name: name.trim(), kind: CalendarKind.feed, hue: nextHue, from: from, fetchedAt: fetchedAt.toUtc()));
+
+  CalendarInfo _add(CalendarInfo c) {
     _set(
       state.copyWith(
         calendars: [
@@ -110,6 +132,47 @@ class Calendars extends Notifier<CalendarData> {
       ),
     );
     return c;
+  }
+
+  /// A calendar link's events as read from its file ([events]), when it
+  /// was last read, and why it couldn't be read again ([error]). Notes
+  /// given to its events before stay with them.
+  void setFeed(String calendarId, {List<CalEvent>? events, DateTime? fetchedAt, String? Function()? error}) {
+    final cal = state.calendar(calendarId);
+    if (cal == null || !cal.viewOnly) return;
+    _set(
+      state.copyWith(
+        calendars: [for (final c in state.calendars) c.id == calendarId ? c.copyWith(fetchedAt: fetchedAt?.toUtc(), error: error) : c],
+        events: events == null
+            ? null
+            : [
+                for (final e in state.events)
+                  if (e.calendarId != calendarId) e,
+                for (final e in events)
+                  if (state.links[e.id] case final link?) e.copyWith(notes: () => link) else e,
+              ],
+      ),
+    );
+  }
+
+  /// Takes calendar [id] off this tablet with its events (and their notes'
+  /// links; the notebooks stay).
+  void removeCalendar(String id) {
+    final cal = state.calendar(id);
+    if (cal == null || cal.kind == CalendarKind.deadlines) return;
+    final gone = {
+      for (final e in state.events)
+        if (e.calendarId == id) e.id,
+    };
+    _set(
+      withDefaults(
+        state.copyWith(
+          calendars: [for (final c in state.calendars) if (c.id != id) c],
+          events: [for (final e in state.events) if (e.calendarId != id) e],
+          links: {for (final l in state.links.entries) if (!gone.contains(l.key) && !l.key.startsWith('${id}_')) l.key: l.value},
+        ),
+      ),
+    );
   }
 
   void _set(CalendarData data) {
@@ -187,7 +250,7 @@ DateTime? eventStart(CalendarData data, List<CalEvent> deadlines, String id, Str
   if (e == null) return null;
   DateTime? start;
   final d = parseDay(day);
-  if (e.repeat != null && d != null) {
+  if ((e.repeat != null || e.times != null) && d != null) {
     start = e.occurrences(d, addDays(d, 1)).where((o) => dayOf(o.start) == d).firstOrNull?.start;
   } else {
     start = e.localStart;

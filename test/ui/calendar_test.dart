@@ -177,8 +177,8 @@ void main() {
       expect(find.text('Calendars'), findsOneWidget);
       expect(find.text('Google · connected'), findsOneWidget);
       expect(find.text('School, Personal'), findsOneWidget);
-      await _tapLabel(tester, 'Add a Google account');
-      expect(find.textContaining('Connecting accounts comes in the next update'), findsOneWidget);
+      expect(find.bySemanticsLabel('Add a calendar link'), findsOneWidget);
+      expect(find.bySemanticsLabel('Add a Google account'), findsNothing);
       await _tapLabel(tester, 'New calendar on this tablet');
       await tester.enterText(find.byType(TextField), 'Club');
       await tester.pump();

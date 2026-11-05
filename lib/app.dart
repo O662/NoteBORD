@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'calendar/calendar_model.dart' show parseDay;
+import 'calendar/feed_sync.dart';
 import 'canvas/pane.dart';
 import 'library/library.dart';
 import 'recognition/handwriting_index.dart';
@@ -142,9 +143,11 @@ class _EndlessAppState extends ConsumerState<EndlessApp> {
       _catchUp = Timer(EndlessApp.catchUpAfter, () => ref.read(handwritingIndexProvider).catchUp());
     }
     // Reminders from Need to remember follow what's remembered; a tapped
-    // one opens the notebook where it is.
+    // one opens the notebook where it is. Calendar links show their last
+    // copy, then are read again.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      unawaited(ref.read(feedSyncProvider.notifier).start());
       final service = ref.read(reminderServiceProvider);
       if (!service.available) return;
       service.start(_openReminder);

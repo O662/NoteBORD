@@ -273,16 +273,18 @@ List<Occurrence> _shown(WidgetFeed feed, CalendarWidgetData d, DateTime from, Da
         if (!d.hidden.contains(o.event.calendarId)) o,
     ];
 
-/// "Google + Outlook · live", from the calendars it shows.
+/// "Google + Outlook · live", from the calendars it shows (accounts and
+/// calendar links alike).
 String _sources(WidgetFeed feed, CalendarWidgetData d) {
-  final kinds = {
+  final sources = {
     for (final cal in feed.calendar.calendars)
-      if (cal.shown && !d.hidden.contains(cal.id) && cal.kind != CalendarKind.deadlines) cal.kind,
+      if (cal.shown && !d.hidden.contains(cal.id) && cal.kind != CalendarKind.deadlines) cal.source,
   };
   final names = [
-    if (kinds.contains(CalendarKind.google)) 'Google',
-    if (kinds.contains(CalendarKind.outlook)) 'Outlook',
-    if (kinds.contains(CalendarKind.local)) kinds.length == 1 ? 'This tablet' : 'this tablet',
+    if (sources.contains('Google')) 'Google',
+    if (sources.contains('Outlook')) 'Outlook',
+    if (sources.contains('Link')) 'Link',
+    if (sources.contains('This tablet')) sources.length == 1 ? 'This tablet' : 'this tablet',
   ];
   return names.isEmpty ? 'live' : '${names.join(' + ')} · live';
 }

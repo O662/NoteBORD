@@ -660,7 +660,7 @@ The owner's request (2026-10-27): charts bound to a table on the page or an Exce
 - The legend runs on one line; a chart with many series cuts it off at the right.
 - The Change data and Colors buttons and the type switch are 38–44 dp tall, as in the design.
 
-## Phase 7c: calendar, planner and widgets on the page — built, not yet tried on the tablet. Google and Outlook sync is Phase 7d
+## Phase 7c: calendar, planner and widgets on the page — built, not yet tried on the tablet. Google and Outlook calendars come in Phase 7d, as calendar links (view only)
 
 The owner's request (2026-10-28): the Calendar (Calendar.png) with two-way Google and Outlook sync; the Planner (Planner.png: Today, 3 days, Week; top 3, to-do, schedule, notes), working without any account; live widgets on the page (WidgetBoard.png: calendar, planner, flashcards, remember); and the "Before an event" reminders from 7a. Before the sync is built, the owner gets a step-by-step guide to the Google Cloud project and the Microsoft app registration, with what's free: **docs/CLOUD_SETUP.md**. **Everything here works offline, on the tablet. The sync is Phase 7d**, once the owner has the client IDs.
 
@@ -693,7 +693,7 @@ The owner's request (2026-10-28): the Calendar (Calendar.png) with two-way Googl
 - **The Insert menu's Flashcards and Need to remember now add their widgets**, as 7a planned. Making flashcards and the Need to remember lasso stay in Study & math.
 
 ### Not done yet / known limits
-- **Sync with Google and Outlook isn't built (Phase 7d).** Connect says it comes in the next update. The data model is ready for it (`remoteId`, `etag`, `pending`, `deleted`). docs/CLOUD_SETUP.md says what's needed from the owner.
+- **Two-way sync with Google and Outlook isn't built.** Phase 7d shows their calendars from calendar links, view only, instead (the owner's choice, 2026-11-04). The data model is ready for sync (`remoteId`, `etag`, `pending`, `deleted`), and docs/CLOUD_SETUP.md says what's needed from the owner for it.
 - **Not tried on the tablet**, in particular writing in the planner's pads, dragging to-dos, and the widgets' buttons with the S Pen.
 - The planner's handwriting (top 3, notes, goals) isn't searchable, and isn't in board files or exports: planner.json is the tablet's.
 - To-dos come from the planner and from decks with cards due. Checklists and Kanban "To do" cards in notebooks (Planner.png's "Study tasks board", "Lab journal, page 2") aren't pulled in yet.
@@ -701,6 +701,41 @@ The owner's request (2026-10-28): the Calendar (Calendar.png) with two-way Googl
 - A to-do written with the pen is read once, as one line.
 - Times in the Calendar and Planner are 12-hour without AM or PM, as in the design ("10:00–11:15"); the event editor shows AM and PM.
 - A widget's text in an exported PDF's text layer is what it shows at the moment of the export; Search doesn't find widgets.
+
+## Phase 7d: Google and Outlook calendars from calendar links (view only) — built, not yet tried on the tablet
+
+The owner's choice (2026-11-04): instead of two-way sync for now, view only, from calendar links (the private iCal address Google Calendar and Outlook give for each calendar), so there's no Google Cloud project, Microsoft app registration, card check or weekly sign-in. As many links as wanted: a work calendar from Outlook and a school one from Google show side by side. Two-way sync is later (docs/CLOUD_SETUP.md).
+
+**How it's stored (docs/BOARD_FORMAT.md):**
+- A calendar link is a calendar in calendar.json with `kind: "feed"`, `from` (`google`, `outlook`, `web`, by the link's address), `fetchedAt` and `error`.
+- **The link** is kept in the platform's secure storage (Android Keystore, Windows Credential Manager), never in a file: anyone with it can read the calendar.
+- **Its events aren't stored.** The last copy of the link's file is kept, `calendars/<id>.ics`, and read again at start, so they show offline. Their ids come from the calendar and the event's UID, so they're the same each time it's read.
+- **Notes for its events** (Start notes, Template) are kept in calendar.json's `links`, by event id, and put back on the event each time it's read.
+
+| Item | Status | Where |
+|---|---|---|
+| Connect | The panel lists each link as a card: its color and name, "Google Calendar · view only", "Updated 3 min ago", "Reading…" or why it couldn't be read (in clay), with **Refresh** and **Remove** (asked first: its events leave the tablet and lose their notes' links; notebooks stay). Then the accounts (none yet), "On this tablet", **Add a calendar link** and **New calendar on this tablet**. It scrolls when long. "Add a Google account" and "Add Outlook / Microsoft 365" are gone, and so is "Syncs both ways" | `_ConnectPanel` (`lib/ui/calendar/calendar_screen.dart`) |
+| Add a calendar link | A dialog: **Calendar link**, **Name (optional)**, where to find the link in Google Calendar and Outlook, and that it's kept like a password. **Add** reads the link at once ("Reading…"), so a wrong one says why there: not a web address, not a calendar (a sign-in page), can't reach it, doesn't open any more (401/403/404/410), too big (20 MB), or already here. `webcal://` links work. Named as the calendar names itself (X-WR-CALNAME) unless a name is given; the next free color. "Added “School” · view only" | `lib/ui/calendar/feed_dialog.dart`, `FeedSync.add` |
+| Reading a link | `firstfloor_calendar` 1.0.14 (RFC 5545, MIT) reads the file event by event, so one broken event is skipped, not the whole calendar. Repeats (RRULE, RDATE) are worked out for 6 months back and 18 ahead. Times taken off (EXDATE, by instant or day, so one in UTC takes off one in its zone), moved (RECURRENCE-ID) and cancelled are applied; a moved time with a new title becomes an event of its own. All-day events, events without an end (half an hour), "(No title)". Time zones by the database (`timezone` 0.11.1, all zones); Outlook's Windows names ("Central Standard Time") are mapped to the database's first (139 zones from CLDR's world list). In a background isolate | `lib/calendar/feeds.dart`, `windows_zones.dart` |
+| Refreshing | At start (the copies kept, then every link), every 15 minutes while Endless is open, and when the Calendar or Planner opens if a link is over 5 minutes old; Refresh on its card any time. If it can't be read, the events it had stay and the card says why | `FeedSync` (`lib/calendar/feed_sync.dart`), `lib/app.dart` |
+| On the calendar | Its chip ("Classes · Google", or "Link" for other sites) shows and hides it, like any calendar. Its events show in Week, Day, Month, the Planner's schedule, the calendar widget and Before an event. The event panel says "Classes · Google Calendar", has no pencil, and "View only. Change it in Google Calendar; Endless shows the change when it next refreshes." **Start notes** and **Template** work, and the notes stay with the event when it's read again. New events go to a calendar on this tablet | `_EventPanel`, `CalendarInfo.viewOnly`, `linkable` |
+| Before an event | A reminder before a link's event follows it when the event moves in Google or Outlook (once Endless has read it again) | `eventStart` (`lib/calendar/calendar_state.dart`) |
+| Android | The INTERNET permission is now stated in the manifest (release builds need it to read a link) | `android/app/src/main/AndroidManifest.xml` |
+
+**Judgment calls:**
+- **The link is in secure storage, the copy of the file isn't.** The copy is the calendar's events, in the app's own folder like calendar.json; the link would let anyone read it from anywhere.
+- **Notes for an event are per event, not per time it happens**, as for events made here: a weekly lecture's notes are one notebook.
+- **A moved time keeps its event's notes** unless it was renamed (then it's an event of its own).
+- **The widget says "Link"** for calendars from other sites, beside Google, Outlook and "this tablet".
+
+### Not done yet / known limits
+- **Not tried on the tablet** with real links: how fresh Google's and Outlook's files are (neither says; Outlook's published calendars are known to lag), and a big work calendar's reading time.
+- Events more than 6 months back or 18 months ahead of the last read aren't shown.
+- A time zone that's neither in the database nor a Windows name (some Outlook files define their own, "Customized Time Zone") is read as the tablet's own.
+- Locations, descriptions, attendees and reminders in the file aren't shown or used.
+- There's no rename or recolor for a link (Remove and add it again with a name), and links aren't read in the background while Endless is closed.
+- The link can't be seen again in Endless (it's only kept to read the calendar); copy it again from Google or Outlook if needed.
+- A tablet restored from a backup may lose the links (secure storage isn't backed up): its cards say "The link isn’t on this tablet any more."
 
 ## Storage layout
 
@@ -710,7 +745,8 @@ The owner's request (2026-10-28): the Calendar (Calendar.png) with two-way Googl
 ├── handwriting.json               # the handwriting sample for spelling fixes (this device only)
 ├── library.json                   # folders and their colors, in the order they were made
 ├── decks.json                     # flashcard decks
-├── calendar.json                  # calendars and events (this tablet's; synced ones from Phase 7d)
+├── calendar.json                  # calendars and events (this tablet's), calendar links and their events' notes
+├── calendars/<calendarId>.ics     # the last copy of each calendar link's file (Phase 7d)
 ├── planner.json                   # to-dos, each day's top 3 and notes, each week's goals
 ├── index.sqlite                   # the library index and search index (caches; rebuilt from the .board files)
 ├── templates/<templateId>.json    # My templates
@@ -855,10 +891,22 @@ The owner's request (2026-10-28): the Calendar (Calendar.png) with two-way Googl
   - `test/ui/calendar_test.dart`: the week, the event panel (notes, Review before class, Open notes at page 3); a new event in a Google calendar marked to send, made repeating, deleted every time and undone; a tap on an empty half hour; chips hiding a calendar, Month, a day opening Day, Start notes making a linked notebook; Connect and a new calendar on this tablet; the planner's to-dos (tick, type one, drag one onto the schedule), the pen writing notes and the top 3 (fingers don't; the S Pen's button rubs out), 3 days and Week (drag onto a day); Insert → Calendar and Planner; the widgets' buttons (a to-do, the range by pen and not an undo step, flip and Got it, See all), a day on the calendar widget, the calendar widget's Agenda and Calendars.
   - `test/ui/remember_test.dart`: Before an event, an hour before Study group.
   - 8 goldens: `calendar`, `calendar_dark`, `calendar_month`, `planner`, `planner_three`, `planner_week`, `widget_board`, `widget_board_dark`. `test/calendar_samples.dart` is Calendar.png's, Planner.png's and WidgetBoard.png's sample data; the planner's handwriting is the owner's, from the tablet fixture.
+- Phase 7d:
+  - `test/calendar/feeds_test.dart`: pasted links, `webcal://`, what isn't one, where a link is from; Google Calendar's file (`test/fixtures/calendar/google_school.ics`): its name, a weekly lecture with Labor Day taken off, a time moved, one renamed (an event of its own) and one cancelled, daylight saving ending, an all-day break, a time in UTC, an escaped comma, the event with no UID skipped, local times in a week, ids the same each read and different per calendar, Windows line ends; Outlook's (`outlook_work.ics`): Windows time zone names, one folded over two lines, a long UID, times taken off, an all-day holiday; every Windows name in the time zone database; a web page refused; repeats only around now; no end and no title; calendar.json keeping a link's calendar and notes but not its events.
+  - `test/ui/calendar_links_test.dart`: Connect → Add a calendar link with a `webcal://` link, named by the calendar, the link in (fake) secure storage and not in calendar.json, the file kept; its events in the week (a day taken off, all-day), Before an event's time; the event panel view only, Start notes, the notes kept when it's read again with a new event; offline keeping what it had; wrong links (not a link, a sign-in page, offline), the same link twice, Refresh (and offline on its card), Remove; at start the copy shown offline, then read again.
+  - `test/ui/calendar_test.dart`: Connect has Add a calendar link, not the account buttons.
+  - 1 golden: `calendar_connect` (two links, one read, one offline). `FakeFeeds` in `test/helpers.dart` stands in for the network.
 - `test/tokens_sync_test.dart`: generated tokens match `design/tokens.json`.
 
 ## Next
-- **Phase 7d: Google Calendar and Outlook sync**, both ways. Needs from the owner (docs/CLOUD_SETUP.md): the Google Web client ID and the Microsoft Application (client) ID. Then: sign-in (`google_sign_in` 7.2.0 on Android; Microsoft through MSAL or AppAuth, to choose), listing calendars into calendar.json, pulling events (incremental: Google's sync tokens, Graph's delta), sending `pending` changes and deletions, conflicts (the newer change wins, the other kept as a copy), and the Connect panel's accounts.
+- **Phase 7d tablet checklist** (calendar links). Install a release build (`flutter build apk --release`, then `adb install -r`).
+  1. **Google.** In a browser (desktop site), Google Calendar → Settings → your calendar → Integrate calendar → Secret address in iCal format; copy it. In Endless: Calendar → Connect → Add a calendar link, paste, Add. Its chip and events show; check a repeating event, an all-day one and one you've moved or deleted one time of.
+  2. **Outlook.** Outlook on the web → Settings → Calendar → Shared calendars → Publish a calendar → Can view all details → Publish; copy the ICS link and add it too. Both calendars show side by side. Are the times right (Outlook names zones the Windows way)?
+  3. **Changes.** Add an event in Google Calendar, then Refresh its card (or wait 15 minutes): how long until it shows? The same in Outlook.
+  4. **Notes.** Pick one of their events: Start notes, go back, Refresh: the notes stay. Remember → Before an event with one of their events.
+  5. **Offline.** Airplane mode, restart Endless: the events are still there and the card says it couldn't reach it. Back online: Refresh.
+  6. **Remove** one, and add it back. Dark mode for all of the above.
+- **Two-way sync with Google Calendar and Outlook** (later; the owner chose view-only links for now). Needs from the owner (docs/CLOUD_SETUP.md): the Google Web client ID and the Microsoft Application (client) ID. Then: sign-in (`google_sign_in` 7.2.0 on Android; Microsoft through MSAL or AppAuth, to choose), listing calendars into calendar.json, pulling events (incremental: Google's sync tokens, Graph's delta), sending `pending` changes and deletions, conflicts (the newer change wins, the other kept as a copy), the Connect panel's accounts, and moving a calendar link's notes onto the synced calendar's events.
 - **Phase 7c tablet checklist** (calendar, planner, widgets). Install a release build (`flutter build apk --release`, then `adb install -r`).
   1. **Calendar.** Sidebar → Calendar. + Event: "Physics lecture" on Mon, Wed and Fri (Every Monday… one each), 10:00–11:15. Week, Day, Month; a tap on an empty time; ‹ › and Today. Change one, make it repeat, delete one time of it, Undo.
   2. **Notes for an event.** Pick an event: Start notes (opens a new notebook named after it), go back, Open notes. Another event: Template. With flashcards due in those notes, "Review before class" shows.

@@ -88,7 +88,9 @@ Each feature names the screen that shows it (`design/screens/<Name>.png`, with s
   - Inserting anything shows an "Added … to the page" toast with Undo.
 
 ## Phase 7: Widgets, planning and study
-- **Calendar:** month, week and day views. Syncs **Google and Outlook** calendars two ways, and each calendar can be toggled. Events link to notes ("Open notes", template). **[Calendar]**
+- **Calendar:** month, week and day views. Shows **Google and Outlook** calendars, and each calendar can be toggled. Events link to notes ("Open notes", template). **[Calendar]**
+  - **For now: calendar links, view only** (the owner's choice, 2026-11-04). Paste a calendar's private iCal (.ics) address; its events show and refresh, nothing is sent back, and no account or cloud project is needed.
+  - **Later: two-way sync** with Google and Outlook sign-in (setup in docs/CLOUD_SETUP.md).
 - **Planner:** Today, 3 days or Week. Top 3 today, a to-do list (drag onto the schedule to block time), the schedule, and notes for today. **[Planner]**
 - **Widgets on the page:** calendar, planner, flashcards and remember, all live, resizable and movable. **[WidgetBoard]**
 - **Flashcards:**

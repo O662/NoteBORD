@@ -273,6 +273,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.9.3+6"
+  firstfloor_calendar:
+    dependency: "direct main"
+    description:
+      name: firstfloor_calendar
+      sha256: "920b9e1dda6433d68750dd1d5fd7123370e46651959f00c8b94b3be90fbae0d0"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.14"
   fixnum:
     dependency: transitive
     description:

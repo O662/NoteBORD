@@ -21,6 +21,9 @@ dependencies:
   # Opens PDFs, images and .board files, and saves exports where the user
   # picks (Android's Save dialog; every platform).
   file_picker: 13.1.0
+  # Reads calendar links (.ics, RFC 5545): events, repeats (RRULE, EXDATE,
+  # RDATE) and time zones (pure Dart, every platform; MIT).
+  firstfloor_calendar: 1.0.14
   flutter:
     sdk: flutter
   # Typesets math (a KaTeX subset) for math on the page, its preview and

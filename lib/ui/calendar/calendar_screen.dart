@@ -8,6 +8,8 @@ import 'package:go_router/go_router.dart';
 import '../../calendar/calendar_format.dart';
 import '../../calendar/calendar_model.dart';
 import '../../calendar/calendar_state.dart';
+import '../../calendar/feed_sync.dart';
+import '../../canvas/live_items.dart' show agoText;
 import '../../library/library.dart';
 import '../../study/study_state.dart';
 import '../../theme/colors.dart';
@@ -23,6 +25,7 @@ import '../templates/templates_dialog.dart';
 import 'calendar_grid.dart';
 import 'calendar_widgets.dart';
 import 'event_editor.dart';
+import 'feed_dialog.dart';
 
 // The calendar (Calendar.png): Day, Week and Month; a chip per calendar to
 // show or hide it, and Connect; the event picked, with its notes ("Open
@@ -61,6 +64,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     // The red line moves with the time.
     _minute = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
+    });
+    // Calendar links read more than a few minutes ago are read again.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(ref.read(feedSyncProvider.notifier).refreshAll());
     });
   }
 
@@ -412,6 +419,7 @@ class _EventPanel extends ConsumerWidget {
     final nb = link == null ? null : lib.byId(link.notebookId);
     final hasNotes = nb != null && !nb.trashed;
     final editable = cal?.editable ?? false;
+    final linkable = cal?.linkable ?? false;
     final now = ref.read(clockProvider)();
 
     // Flashcards due from these notes, in the deck with the most.
@@ -543,10 +551,10 @@ class _EventPanel extends ConsumerWidget {
                 height: 44,
                 expand: true,
                 padding: 12,
-                onPressed: hasNotes ? open : (editable ? () => _startNotes(context, ref) : null),
+                onPressed: hasNotes ? open : (linkable ? () => _startNotes(context, ref) : null),
               ),
             ),
-            if (!hasNotes && editable) SecondaryButton(label: 'Template', height: 44, padding: 12, onPressed: () => _fromTemplate(context, ref)),
+            if (!hasNotes && linkable) SecondaryButton(label: 'Template', height: 44, padding: 12, onPressed: () => _fromTemplate(context, ref)),
           ],
         ),
         if (deck != null)
@@ -587,6 +595,7 @@ class _EventPanel extends ConsumerWidget {
         const Spacer(),
         Text(switch (cal?.kind) {
           CalendarKind.google || CalendarKind.outlook => 'Changes here also update ${cal!.updates}.',
+          CalendarKind.feed => 'View only. Change it in ${cal!.app ?? 'its calendar'}; Endless shows the change when it next refreshes.',
           CalendarKind.deadlines => 'From your notes. Change the date there to move it.',
           _ => 'Kept on this tablet.',
         }, style: TextStyle(fontSize: 12, color: c.textMuted)),
@@ -642,8 +651,9 @@ class _Dots extends CustomPainter {
   bool shouldRepaint(_Dots old) => old.color != color;
 }
 
-/// Calendars: the accounts connected, and adding one (Calendar.dc.html's
-/// connect panel).
+/// Calendars: calendar links (view only), the calendars on this tablet, and
+/// adding either (Calendar.dc.html's connect panel, with links in place of
+/// accounts until two-way sync).
 class _ConnectPanel extends ConsumerWidget {
   const _ConnectPanel({required this.onClose});
 
@@ -652,15 +662,34 @@ class _ConnectPanel extends ConsumerWidget {
   Future<void> _addLocal(BuildContext context, WidgetRef ref) async {
     final name = await showNamePrompt(context, title: 'New calendar', hint: 'School', action: 'Add');
     if (name == null) return;
-    final used = {for (final cal in ref.read(calendarProvider).calendars) cal.hue};
-    final hue = CalendarHue.values.where((h) => !used.contains(h)).firstOrNull ?? CalendarHue.values[used.length % CalendarHue.values.length];
-    ref.read(calendarProvider.notifier).addCalendar(name, hue);
+    final notifier = ref.read(calendarProvider.notifier);
+    notifier.addCalendar(name, notifier.nextHue);
+  }
+
+  Future<void> _addLink(BuildContext context) async {
+    final cal = await showAddFeed(context);
+    if (cal != null && context.mounted) showNote(context, 'Added “${cal.name}” · view only');
+  }
+
+  Future<void> _remove(BuildContext context, WidgetRef ref, CalendarInfo cal) async {
+    final ok = await showConfirm(
+      context,
+      title: 'Remove “${cal.name}”?',
+      message:
+          'Its events leave this tablet, and events here lose their links to notes. The calendar itself and your notebooks aren’t changed. You can add the link again later.',
+      action: 'Remove',
+    );
+    if (!ok) return;
+    await ref.read(feedSyncProvider.notifier).remove(cal.id);
+    if (context.mounted) showNote(context, 'Removed “${cal.name}”');
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final data = ref.watch(calendarProvider);
+    final reading = ref.watch(feedSyncProvider);
+    final now = ref.read(clockProvider)();
     final local = [
       for (final cal in data.calendars)
         if (cal.kind == CalendarKind.local) cal.name,
@@ -669,12 +698,13 @@ class _ConnectPanel extends ConsumerWidget {
     for (final cal in data.calendars) {
       if (cal.synced) (accounts['${cal.source}|${cal.account ?? ''}'] ??= []).add(cal);
     }
+    BoxDecoration box() => BoxDecoration(
+      border: Border.all(color: c.line),
+      borderRadius: BorderRadius.circular(12),
+    );
     Widget card(String title, String sub, String names) => Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: c.line),
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: box(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 4,
@@ -688,10 +718,86 @@ class _ConnectPanel extends ConsumerWidget {
         ],
       ),
     );
-    void soon() => showNote(context, 'Connecting accounts comes in the next update. Events you add now stay on this tablet.');
+    Widget feed(CalendarInfo cal) {
+      final k = hueColors(cal.hue, c);
+      final busy = reading.contains(cal.id);
+      final status = busy
+          ? 'Reading…'
+          : cal.error != null
+          ? cal.error!
+          : cal.fetchedAt == null
+          ? 'Not read yet'
+          : 'Updated ${agoText(cal.fetchedAt!, now.toUtc())}';
+      return Semantics(
+        container: true,
+        label: '${cal.name}, ${cal.source}, view only. $status',
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+          decoration: box(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 3,
+            children: [
+              ExcludeSemantics(
+                child: Row(
+                  spacing: 8,
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(color: k.dot, borderRadius: BorderRadius.circular(3)),
+                    ),
+                    Expanded(
+                      child: Text(
+                        cal.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.text),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ExcludeSemantics(
+                child: Text('${cal.app ?? 'Calendar link'} · view only', style: TextStyle(fontSize: 12, color: c.textMuted)),
+              ),
+              ExcludeSemantics(
+                child: Text(
+                  status,
+                  style: TextStyle(fontSize: 12, height: 1.35, color: cal.error != null && !busy ? c.clayDeep : c.textMuted),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                spacing: 8,
+                children: [
+                  Expanded(
+                    child: SecondaryButton(
+                      label: 'Refresh',
+                      height: 44,
+                      expand: true,
+                      padding: 8,
+                      onPressed: busy
+                          ? null
+                          : () async {
+                              final error = await ref.read(feedSyncProvider.notifier).refresh(cal.id);
+                              if (context.mounted) showNote(context, error == null ? 'Updated “${cal.name}”' : 'Couldn’t update “${cal.name}”. $error');
+                            },
+                    ),
+                  ),
+                  Expanded(
+                    child: SecondaryButton(label: 'Remove', height: 44, expand: true, padding: 8, onPressed: () => _remove(context, ref, cal)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: 10,
       children: [
         Row(
           children: [
@@ -707,15 +813,27 @@ class _ConnectPanel extends ConsumerWidget {
             ),
           ],
         ),
-        for (final e in accounts.entries)
-          card('${e.key.split('|').first} · connected', e.value.first.account ?? '', e.value.map((x) => x.name).join(', ')),
-        if (local.isNotEmpty) card('On this tablet', '', local.join(', ')),
-        SecondaryButton(label: 'Add a Google account', height: 44, expand: true, onPressed: soon),
-        SecondaryButton(label: 'Add Outlook / Microsoft 365', height: 44, expand: true, onPressed: soon),
-        SecondaryButton(label: 'New calendar on this tablet', height: 44, expand: true, onPressed: () => _addLocal(context, ref)),
-        const Spacer(),
+        const SizedBox(height: 10),
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 10,
+              children: [
+                for (final cal in data.calendars)
+                  if (cal.viewOnly) feed(cal),
+                for (final e in accounts.entries)
+                  card('${e.key.split('|').first} · connected', e.value.first.account ?? '', e.value.map((x) => x.name).join(', ')),
+                if (local.isNotEmpty) card('On this tablet', '', local.join(', ')),
+                SecondaryButton(label: 'Add a calendar link', icon: EIcons.plus, height: 44, expand: true, onPressed: () => _addLink(context)),
+                SecondaryButton(label: 'New calendar on this tablet', height: 44, expand: true, onPressed: () => _addLocal(context, ref)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
         Text(
-          'Syncs both ways. Note deadlines come from dates you write in notes and task boards.',
+          'Calendar links from Google or Outlook are view only. Note deadlines come from dates you write in notes.',
           style: TextStyle(fontSize: 12, height: 1.45, color: c.textMuted),
         ),
       ],

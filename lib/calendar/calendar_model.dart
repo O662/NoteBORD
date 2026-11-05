@@ -3,10 +3,12 @@ import 'package:flutter/foundation.dart' show immutable, setEquals;
 import '../board/model.dart' show Json;
 
 // The calendar (Calendar.png): calendars and their events, kept in the
-// app's calendar.json. A calendar is on this tablet, or one of a Google or
-// Outlook account's (Phase 7c sync); "Note deadlines" is made from dates
-// written in notes and is never stored. Times are instants in UTC; an
-// all-day event is a run of days, the same days in every time zone.
+// app's calendar.json. A calendar is on this tablet, read from a calendar
+// link (an .ics address from Google Calendar or Outlook, view only), or one
+// of a Google or Outlook account's (two-way sync, later); "Note deadlines"
+// is made from dates written in notes and is never stored. Times are
+// instants in UTC; an all-day event is a run of days, the same days in
+// every time zone.
 
 /// A day, as local midnight.
 DateTime dayOf(DateTime t) {
@@ -37,9 +39,16 @@ enum CalendarKind {
   google,
   outlook,
 
+  /// Read from a calendar link (.ics); view only. Its events aren't kept in
+  /// calendar.json but read again from the copy of the link's file.
+  feed,
+
   /// Dates written in notes ("Problem set 4 due Sun"); made, not stored.
   deadlines,
 }
+
+/// Where a calendar link comes from.
+enum FeedFrom { google, outlook, web }
 
 /// A calendar's color (Calendar.dc.html's blue, green, clay and plum).
 enum CalendarHue { blue, green, clay, plum }
@@ -54,10 +63,15 @@ class CalendarInfo {
     this.account,
     this.remoteId,
     this.shown = true,
+    this.from,
+    this.fetchedAt,
+    this.error,
     this.extra = const {},
   });
 
   static const deadlinesId = 'deadlines';
+
+  static const _known = {'id', 'name', 'kind', 'hue', 'account', 'remoteId', 'shown', 'from', 'fetchedAt', 'error'};
 
   static CalendarInfo? fromJson(Object? json) {
     if (json is! Map || json['id'] is! String) return null;
@@ -69,9 +83,12 @@ class CalendarInfo {
       account: json['account'] as String?,
       remoteId: json['remoteId'] as String?,
       shown: json['shown'] != false,
+      from: FeedFrom.values.where((f) => f.name == json['from']).firstOrNull,
+      fetchedAt: DateTime.tryParse(json['fetchedAt'] as String? ?? '')?.toUtc(),
+      error: json['error'] as String?,
       extra: {
         for (final e in json.entries)
-          if (!const {'id', 'name', 'kind', 'hue', 'account', 'remoteId', 'shown'}.contains(e.key)) e.key as String: e.value,
+          if (!_known.contains(e.key)) e.key as String: e.value,
       },
     );
   }
@@ -89,6 +106,14 @@ class CalendarInfo {
 
   /// Toggled with its chip.
   final bool shown;
+
+  /// A calendar link's: where it's from, when it was last read, and why the
+  /// last try didn't work (null when it did). The link itself is kept in
+  /// the platform's secure storage, not here: anyone with it can read the
+  /// calendar.
+  final FeedFrom? from;
+  final DateTime? fetchedAt;
+  final String? error;
   final Json extra;
 
   /// The chip's second word ("Google").
@@ -96,6 +121,11 @@ class CalendarInfo {
     CalendarKind.local => 'This tablet',
     CalendarKind.google => 'Google',
     CalendarKind.outlook => 'Outlook',
+    CalendarKind.feed => switch (from) {
+      FeedFrom.google => 'Google',
+      FeedFrom.outlook => 'Outlook',
+      _ => 'Link',
+    },
     CalendarKind.deadlines => '',
   };
 
@@ -104,7 +134,15 @@ class CalendarInfo {
     CalendarKind.local => '$name · This tablet',
     CalendarKind.google => '$name · Google Calendar',
     CalendarKind.outlook => '$name · Outlook',
+    CalendarKind.feed => '$name · ${app ?? 'Calendar link'}',
     CalendarKind.deadlines => name,
+  };
+
+  /// The app a calendar link's events are changed in ("Google Calendar").
+  String? get app => switch (from) {
+    FeedFrom.google => 'Google Calendar',
+    FeedFrom.outlook => 'Outlook',
+    _ => null,
   };
 
   /// Where its changes go ("Changes here also update Google Calendar.").
@@ -115,11 +153,17 @@ class CalendarInfo {
   };
 
   /// Events can be added and changed here.
-  bool get editable => kind != CalendarKind.deadlines;
+  bool get editable => kind != CalendarKind.deadlines && kind != CalendarKind.feed;
+
+  /// Its events can be given notes (Start notes).
+  bool get linkable => kind != CalendarKind.deadlines;
+
+  /// Read from a calendar link: shown, not changed.
+  bool get viewOnly => kind == CalendarKind.feed;
 
   bool get synced => kind == CalendarKind.google || kind == CalendarKind.outlook;
 
-  CalendarInfo copyWith({String? name, CalendarHue? hue, bool? shown}) => CalendarInfo(
+  CalendarInfo copyWith({String? name, CalendarHue? hue, bool? shown, DateTime? fetchedAt, String? Function()? error}) => CalendarInfo(
     id: id,
     name: name ?? this.name,
     kind: kind,
@@ -127,6 +171,9 @@ class CalendarInfo {
     account: account,
     remoteId: remoteId,
     shown: shown ?? this.shown,
+    from: from,
+    fetchedAt: fetchedAt ?? this.fetchedAt,
+    error: error == null ? this.error : error(),
     extra: extra,
   );
 
@@ -139,8 +186,15 @@ class CalendarInfo {
     if (account != null) 'account': account,
     if (remoteId != null) 'remoteId': remoteId,
     'shown': shown,
+    if (from != null) 'from': from!.name,
+    if (fetchedAt != null) 'fetchedAt': fetchedAt!.toUtc().toIso8601String(),
+    if (error != null) 'error': error,
   };
 }
+
+/// One time an event from a calendar link happens: instants in UTC, or for
+/// an all-day event local midnights (the end exclusive), as [CalEvent]'s.
+typedef EventTime = ({DateTime start, DateTime end});
 
 /// How an event repeats.
 enum RepeatEvery { day, weekdays, week }
@@ -229,6 +283,7 @@ class CalEvent {
     this.updatedAt,
     this.pending = false,
     this.deleted = false,
+    this.times,
     this.extra = const {},
   });
 
@@ -293,9 +348,17 @@ class CalEvent {
 
   /// Deleted here; kept until the deletion is sent (sync).
   final bool deleted;
+
+  /// For an event from a calendar link: every time it happens (repeats
+  /// worked out when the link was read, with times moved or taken off
+  /// there), oldest first. [start] and [end] are the first. Never stored.
+  final List<EventTime>? times;
   final Json extra;
 
   Duration get length => end.difference(start);
+
+  /// It happens more than once (a repeat here, or times from a link).
+  bool get repeats => repeat != null || (times?.length ?? 0) > 1;
 
   /// What [start] says as a local time (all-day events: the day).
   DateTime get localStart => allDay ? start : start.toLocal();
@@ -304,6 +367,14 @@ class CalEvent {
   /// Every time it happens that overlaps [from]–[to) (local times).
   Iterable<Occurrence> occurrences(DateTime from, DateTime to) sync* {
     if (deleted) return;
+    if (times case final list?) {
+      for (final t in list) {
+        final s = allDay ? t.start : t.start.toLocal(), e = allDay ? t.end : t.end.toLocal();
+        if (!s.isBefore(to)) break;
+        if (e.isAfter(from)) yield Occurrence(this, s, e);
+      }
+      return;
+    }
     final first = localStart, len = localEnd.difference(localStart);
     final r = repeat;
     if (r == null) {
@@ -352,6 +423,7 @@ class CalEvent {
     updatedAt: updatedAt ?? this.updatedAt,
     pending: pending ?? this.pending,
     deleted: deleted ?? this.deleted,
+    times: times,
     extra: extra,
   );
 
@@ -405,31 +477,63 @@ class Occurrence {
 /// Everything in calendar.json.
 @immutable
 class CalendarData {
-  const CalendarData({this.calendars = const [], this.events = const [], this.extra = const {}});
+  const CalendarData({this.calendars = const [], this.events = const [], this.links = const {}, this.extra = const {}});
 
-  static CalendarData fromJson(Json? json) => CalendarData(
-    calendars: [for (final c in (json?['calendars'] as List?) ?? const []) ?CalendarInfo.fromJson(c)],
-    events: [for (final e in (json?['events'] as List?) ?? const []) ?CalEvent.fromJson(e)],
-    extra: {
-      for (final e in (json ?? const {}).entries)
-        if (!const {'version', 'calendars', 'events'}.contains(e.key)) e.key: e.value,
-    },
-  );
+  static CalendarData fromJson(Json? json) {
+    final data = CalendarData(
+      calendars: [for (final c in (json?['calendars'] as List?) ?? const []) ?CalendarInfo.fromJson(c)],
+      events: [for (final e in (json?['events'] as List?) ?? const []) ?CalEvent.fromJson(e)],
+      links: {
+        for (final e in ((json?['links'] as Map?) ?? const {}).entries)
+          if (e.key is String) e.key as String: ?NoteLink.fromJson(e.value),
+      },
+      extra: {
+        for (final e in (json ?? const {}).entries)
+          if (!const {'version', 'calendars', 'events', 'links'}.contains(e.key)) e.key: e.value,
+      },
+    );
+    // A calendar link's events come from its file, not from here.
+    final feeds = data._feedIds;
+    return feeds.isEmpty ? data : data.copyWith(events: [for (final e in data.events) if (!feeds.contains(e.calendarId)) e]);
+  }
 
   final List<CalendarInfo> calendars;
+
+  /// Every event, including those read from calendar links (which aren't
+  /// stored: they're read again from the link's file at start).
   final List<CalEvent> events;
+
+  /// Notes for events from calendar links, by event id: their events are
+  /// read again from the link, so the links to their notes are kept here.
+  final Map<String, NoteLink> links;
   final Json extra;
+
+  Set<String> get _feedIds => {
+    for (final c in calendars)
+      if (c.viewOnly) c.id,
+  };
 
   CalendarInfo? calendar(String id) => calendars.where((c) => c.id == id).firstOrNull;
   CalEvent? event(String id) => events.where((e) => e.id == id && !e.deleted).firstOrNull;
 
-  CalendarData copyWith({List<CalendarInfo>? calendars, List<CalEvent>? events}) =>
-      CalendarData(calendars: calendars ?? this.calendars, events: events ?? this.events, extra: extra);
+  CalendarData copyWith({List<CalendarInfo>? calendars, List<CalEvent>? events, Map<String, NoteLink>? links}) => CalendarData(
+    calendars: calendars ?? this.calendars,
+    events: events ?? this.events,
+    links: links ?? this.links,
+    extra: extra,
+  );
 
-  Json toJson() => {
-    ...extra,
-    'version': 1,
-    'calendars': [for (final c in calendars) c.toJson()],
-    'events': [for (final e in events) e.toJson()],
-  };
+  Json toJson() {
+    final feeds = _feedIds;
+    return {
+      ...extra,
+      'version': 1,
+      'calendars': [for (final c in calendars) c.toJson()],
+      'events': [
+        for (final e in events)
+          if (!feeds.contains(e.calendarId)) e.toJson(),
+      ],
+      if (links.isNotEmpty) 'links': {for (final e in links.entries) e.key: e.value.toJson()},
+    };
+  }
 }

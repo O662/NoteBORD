@@ -7,6 +7,8 @@ import 'package:endless/board/ids.dart';
 import 'package:endless/board/lock.dart';
 import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
+import 'package:endless/calendar/feed_sync.dart';
+import 'package:endless/calendar/feeds.dart';
 import 'package:endless/canvas/page_runtime.dart';
 import 'package:endless/canvas/pane.dart';
 import 'package:endless/library/index_db.dart';
@@ -151,6 +153,8 @@ Future<List<Override>> testOverrides(
   Duration? recognitionIdle,
   ReminderService reminders = const NoReminders(),
   DateTime Function()? clock,
+  FakeFeeds? feeds,
+  FeedLinks? feedLinks,
 }) async {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   final db = index ?? IndexDb.memory();
@@ -171,8 +175,26 @@ Future<List<Override>> testOverrides(
     catchUpOnStartProvider.overrideWithValue(false),
     // No notifications in tests unless a test brings its own.
     reminderServiceProvider.overrideWithValue(reminders),
+    // Calendar links: no network or secure storage; read on this isolate.
+    feedFetcherProvider.overrideWithValue(feeds ?? FakeFeeds()),
+    feedLinksProvider.overrideWithValue(feedLinks ?? MemoryFeedLinks()),
+    feedReaderProvider.overrideWithValue((text, id, now) async => readFeed(text, id, now)),
     if (location != null) initialLocationProvider.overrideWithValue(location),
   ];
+}
+
+/// Calendar links' files by address; any other address is offline.
+class FakeFeeds implements FeedFetcher {
+  FakeFeeds([Map<String, String>? files]) : files = {...?files};
+
+  final Map<String, String> files;
+  final asked = <Uri>[];
+
+  @override
+  Future<String> fetch(Uri uri) async {
+    asked.add(uri);
+    return files[uri.toString()] ?? (throw FeedException.offline);
+  }
 }
 
 /// Pumps the whole app at the tablet size (1280×800), starting at [location].
