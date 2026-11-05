@@ -154,6 +154,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         autofocus: true,
         child: Scaffold(
           backgroundColor: c.bg,
+          // Its dialogs make room for the keyboard; the calendar behind them
+          // doesn't shrink (the sidebar can't fit in half a screen).
+          resizeToAvoidBottomInset: false,
           body: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -258,53 +261,62 @@ class _CalendarChips extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
+    // The chips scroll; Connect stays at their end, never pushed off screen.
     return SizedBox(
       height: 44,
-      child: Semantics(
-        container: true,
-        label: 'Calendars shown',
-        explicitChildNodes: true,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          children: [
-            for (final cal in data.calendars) ...[
-              Center(
-                child: _CalendarChip(cal: cal, onTap: () => ref.read(calendarProvider.notifier).toggle(cal.id)),
+      child: Row(
+        children: [
+          Flexible(
+            child: Semantics(
+              container: true,
+              label: 'Calendars shown',
+              explicitChildNodes: true,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                shrinkWrap: true,
+                children: [
+                  for (final (i, cal) in data.calendars.indexed) ...[
+                    if (i > 0) const SizedBox(width: 8),
+                    Center(
+                      child: _CalendarChip(cal: cal, onTap: () => ref.read(calendarProvider.notifier).toggle(cal.id)),
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(width: 8),
-            ],
-            Center(
-              child: Semantics(
-                button: true,
-                label: 'Connect calendars',
-                excludeSemantics: true,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(999),
-                  onTap: onConnect,
-                  child: DashedBorder(
-                    color: c.lineDashed,
-                    radius: 999,
-                    child: Container(
-                      height: 40,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        spacing: 6,
-                        children: [
-                          EIcon(EIcons.plus, size: 14, color: c.text),
-                          Text(
-                            'Connect',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.text),
-                          ),
-                        ],
-                      ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Center(
+            child: Semantics(
+              button: true,
+              label: 'Connect calendars',
+              excludeSemantics: true,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: onConnect,
+                child: DashedBorder(
+                  color: c.lineDashed,
+                  radius: 999,
+                  child: Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: 6,
+                      children: [
+                        EIcon(EIcons.plus, size: 14, color: c.text),
+                        Text(
+                          'Connect',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.text),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -826,7 +838,7 @@ class _ConnectPanel extends ConsumerWidget {
                   card('${e.key.split('|').first} · connected', e.value.first.account ?? '', e.value.map((x) => x.name).join(', ')),
                 if (local.isNotEmpty) card('On this tablet', '', local.join(', ')),
                 SecondaryButton(label: 'Add a calendar link', icon: EIcons.plus, height: 44, expand: true, onPressed: () => _addLink(context)),
-                SecondaryButton(label: 'New calendar on this tablet', height: 44, expand: true, onPressed: () => _addLocal(context, ref)),
+                SecondaryButton(label: 'Add a tablet calendar', height: 44, expand: true, onPressed: () => _addLocal(context, ref)),
               ],
             ),
           ),

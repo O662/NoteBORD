@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,10 +15,15 @@ import '../dialogs.dart';
 
 /// Asks for a calendar link and adds it. Returns the calendar added.
 Future<CalendarInfo?> showAddFeed(BuildContext context) =>
-    showEndlessDialog<CalendarInfo>(context, builder: (context) => const _AddFeed());
+    // The keyboard's height is read outside the dialog: Dialog takes it
+    // out of what its contents see.
+    showEndlessDialog<CalendarInfo>(context, builder: (context) => _AddFeed(keyboard: MediaQuery.viewInsetsOf(context).bottom));
 
 class _AddFeed extends ConsumerStatefulWidget {
-  const _AddFeed();
+  const _AddFeed({required this.keyboard});
+
+  /// How much of the screen the on-screen keyboard covers.
+  final double keyboard;
 
   @override
   ConsumerState<_AddFeed> createState() => _AddFeedState();
@@ -25,11 +32,30 @@ class _AddFeed extends ConsumerStatefulWidget {
 class _AddFeedState extends ConsumerState<_AddFeed> {
   final _link = TextEditingController();
   final _name = TextEditingController();
+  final _actions = GlobalKey();
   bool _busy = false;
+  double _inset = 0;
+  Timer? _scroll;
   String? _error;
+
+  /// While the on-screen keyboard comes up (it takes half a tablet's
+  /// height), Cancel and Add are scrolled to just above it, once it and the
+  /// dialog have stopped moving.
+  void _keepActionsShown(double inset) {
+    if (inset == _inset) return;
+    final rising = inset > _inset;
+    _inset = inset;
+    if (!rising) return;
+    _scroll?.cancel();
+    _scroll = Timer(const Duration(milliseconds: 160), () {
+      final ctx = _actions.currentContext;
+      if (mounted && ctx != null) Scrollable.ensureVisible(ctx, alignment: 1, duration: const Duration(milliseconds: 120));
+    });
+  }
 
   @override
   void dispose() {
+    _scroll?.cancel();
     _link.dispose();
     _name.dispose();
     super.dispose();
@@ -56,6 +82,9 @@ class _AddFeedState extends ConsumerState<_AddFeed> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final inset = widget.keyboard;
+    final keyboard = inset > 0;
+    _keepActionsShown(inset);
     final muted = TextStyle(fontSize: 14, height: 1.45, color: c.textMuted);
     Widget where(String app, String steps) => Text.rich(
       TextSpan(
@@ -77,10 +106,12 @@ class _AddFeedState extends ConsumerState<_AddFeed> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           spacing: 16,
           children: [
-            Text(
-              'Paste a calendar’s private iCal (.ics) address. Its events show here, view only, and refresh every 15 minutes while Endless is open.',
-              style: TextStyle(fontSize: 15, height: 1.45, color: c.textMuted),
-            ),
+            // Out of the way while the keyboard is up.
+            if (!keyboard)
+              Text(
+                'Paste a calendar’s private iCal (.ics) address. Its events show here, view only, and refresh every 15 minutes while Endless is open.',
+                style: TextStyle(fontSize: 15, height: 1.45, color: c.textMuted),
+              ),
             LabeledField(
               label: 'Calendar link',
               controller: _link,
@@ -99,6 +130,18 @@ class _AddFeedState extends ConsumerState<_AddFeed> {
                 if (!_busy && _link.text.trim().isNotEmpty) _add();
               },
             ),
+            // The buttons come before the help, so they stay above the
+            // on-screen keyboard.
+            Row(
+              key: _actions,
+              mainAxisAlignment: MainAxisAlignment.end,
+              spacing: 10,
+              children: [
+                SecondaryButton(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
+                PrimaryButton(label: _busy ? 'Reading…' : 'Add', onPressed: _busy || _link.text.trim().isEmpty ? null : _add),
+              ],
+            ),
+            Container(height: 1, color: c.lineSoft),
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               spacing: 6,
@@ -110,14 +153,6 @@ class _AddFeedState extends ConsumerState<_AddFeed> {
             Text(
               'Anyone with the link can see the calendar, so Endless keeps it like a password.',
               style: TextStyle(fontSize: 13, height: 1.4, color: c.textMuted),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              spacing: 10,
-              children: [
-                SecondaryButton(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
-                PrimaryButton(label: _busy ? 'Reading…' : 'Add', onPressed: _busy || _link.text.trim().isEmpty ? null : _add),
-              ],
             ),
           ],
         ),

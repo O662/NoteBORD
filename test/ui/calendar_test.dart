@@ -179,7 +179,7 @@ void main() {
       expect(find.text('School, Personal'), findsOneWidget);
       expect(find.bySemanticsLabel('Add a calendar link'), findsOneWidget);
       expect(find.bySemanticsLabel('Add a Google account'), findsNothing);
-      await _tapLabel(tester, 'New calendar on this tablet');
+      await _tapLabel(tester, 'Add a tablet calendar');
       await tester.enterText(find.byType(TextField), 'Club');
       await tester.pump();
       await _tapLabel(tester, 'Add');

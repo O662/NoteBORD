@@ -187,6 +187,31 @@ void main() {
     await _done(tester);
   });
 
+  testWidgets('with the on-screen keyboard up, Add stays above it; Connect stays on screen', (tester) async {
+    final c = await pumpCalendar(tester, Routes.calendar, feeds: FakeFeeds({_link: _ics()}));
+    // Connect is at the end of the chips, on screen, however many there are.
+    expect(tester.getRect(find.bySemanticsLabel('Connect calendars')).right, lessThanOrEqualTo(1280 - 24));
+    await _tapLabel(tester, 'Connect calendars');
+    await _tapLabel(tester, 'Add a calendar link');
+    bool linkFocused() => tester.widget<EditableText>(find.byType(EditableText).at(0)).focusNode.hasFocus;
+    expect(linkFocused(), isTrue);
+    // The tablet's keyboard takes about half the screen.
+    tester.view.viewInsets = const FakeViewPadding(bottom: 430);
+    addTearDown(tester.view.resetViewInsets);
+    await _settle(tester);
+    expect(linkFocused(), isTrue, reason: 'making room mustn’t rebuild the field (the keyboard would close)');
+    final add = tester.getRect(find.bySemanticsLabel('Add'));
+    expect(add.bottom, lessThanOrEqualTo(800 - 430));
+    expect(add.top, greaterThanOrEqualTo(0));
+    expect(find.textContaining('Its events show here'), findsNothing, reason: 'the intro makes room');
+    expect(tester.getRect(find.byType(TextField).at(0)).top, greaterThanOrEqualTo(0), reason: 'the link field shows too');
+    await tester.enterText(find.byType(TextField).at(0), _link);
+    await tester.pump();
+    await _tapLabel(tester, 'Add');
+    expect(_feed(c).name, 'Classes');
+    await _done(tester);
+  });
+
   testWidgets('at start: the copy kept shows offline; read again when it can be', (tester) async {
     final store = calendarStore();
     final json = store.calendar!;
