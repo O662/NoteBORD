@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sticky notes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; display: flex; background: #F6F1E7; overflow: hidden; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<nav aria-label="App" style="width: 272px; flex-shrink: 0; box-sizing: border-box; padding: 22px 16px; background: #EEE7D8; border-right: 1px solid #DDD4C2; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 6px">
+<svg width="40" height="28" viewBox="8 28 104 72" aria-hidden="true"><g transform="translate(0 4)" fill="none" stroke="#0C0C0C" stroke-linecap="round" stroke-linejoin="round"><path d="M100.84 53.92 C 102.98 57.43, 104 60, 104 64 C 104 74, 97 81, 87 81 C 77 81, 68 73, 60 60" stroke-width="10"/><path d="M60 60 C 52 47, 43 41, 33 41 C 22 41, 15 50, 15 60 C 15 70, 22 79, 33 79 C 43 79, 52 73, 60 60" stroke-width="8"/><path d="M60 60 C 67 47, 77 38, 92 34" stroke-width="9.5"/><path d="M87.7 27.5 L99.0 31.6 L92.3 41.6" stroke-width="9.5"/></g></svg>
+<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 500; letter-spacing: -0.01em; line-height: 1; position: relative; top: 3px">Endless</div>
+</div>
+<a href="Search.dc.html" style="display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; color: #5E574C; font-size: 15px">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+<span>Search notes &amp; handwriting</span>
+</a>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<a href="Start.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>
+<span>Home</span>
+</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h12"/></svg>
+<span style="flex-grow: 1">All notebooks</span><span style="font-size: 13px; color: #5E574C">24</span>
+</a>
+<a href="Calendar.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>
+<span>Calendar</span>
+</a>
+<a href="Study.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="14" height="12" rx="2"/><path d="M7 5h12a2 2 0 0 1 2 2v9"/></svg>
+<span style="flex-grow: 1">Flashcards</span><span style="font-size: 12px; font-weight: 700; color: #FFFDF8; background: #B5532A; padding: 1px 7px; border-radius: 999px">5</span>
+</a>
+<a href="Remember.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#E8B730" stroke="#8A6400" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z"/></svg>
+<span style="flex-grow: 1">Remember</span><span style="font-size: 12px; font-weight: 700; color: #5A4000; background: #FBEFC4; padding: 1px 7px; border-radius: 999px">8</span>
+</a>
+<a href="Stickies.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; background: #E0D6C2; font-size: 15px; font-weight: 600; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#F6DE7A" stroke="#8A6400" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v10l-6 6H4z"/><path d="M14 20v-6h6" fill="none"/></svg>
+<span style="flex-grow: 1">Sticky notes</span><span style="font-size: 13px; color: #5E574C">21</span>
+</a>
+<button style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border: 0; background: transparent; border-radius: 10px; font-size: 15px; color: #1E1C19; text-align: left">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg>
+<span>Trash</span>
+</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="padding: 0 12px 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C">Folders</span>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#2B5A8C" fill-opacity="0.16" stroke="#2B5A8C" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>School</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#B5532A" fill-opacity="0.16" stroke="#B5532A" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Work</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#4E7A52" fill-opacity="0.16" stroke="#4E7A52" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Personal</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#7A4E73" fill-opacity="0.16" stroke="#7A4E73" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Sketches</a>
+</div>
+<div style="flex-grow: 1"></div>
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="Sync.dc.html" style="flex-grow: 1; display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 12px; box-sizing: border-box; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3B6E47" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z"/><path d="M9.5 13.5l2 2 3.5-3.5"/></svg>
+<span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 14px; font-weight: 600">Synced · Google Drive</span><span style="font-size: 12px; color: #5E574C">2 minutes ago</span></span>
+</a>
+<a href="Settings.dc.html" aria-label="Settings" style="width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+</a>
+</div>
+</nav>
+
+<main style="position: relative; flex-grow: 1; box-sizing: border-box; padding: 28px 36px 36px; display: flex; flex-direction: column; gap: 18px; min-width: 0; overflow-y: auto">
+<div style="display: flex; align-items: flex-end; gap: 16px">
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; display: flex; align-items: center; gap: 12px; font-family: Newsreader, Georgia, serif; font-size: 40px; font-weight: 400; letter-spacing: -0.02em">
+<svg width="32" height="32" viewBox="0 0 24 24" fill="#F6DE7A" stroke="#8A6400" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v10l-6 6H4z"/><path d="M14 20v-6h6" fill="none"/></svg>Sticky notes</h1>
+<span style="font-size: 14px; color: #5E574C">{{ summary }}</span>
+</div>
+<label style="display: flex; align-items: center; gap: 8px; width: 280px; height: 46px; box-sizing: border-box; padding: 0 14px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; color: #5E574C">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search sticky notes</span>
+<input value="{{ q }}" onInput="{{ search }}" placeholder="Search what's written on them" style="flex-grow: 1; min-width: 0; height: 40px; border: 0; outline: none; background: transparent; font-family: inherit; font-size: 15px; color: #1E1C19">
+</label>
+</div>
+
+<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+<div role="radiogroup" aria-label="Show" style="display: flex; gap: 2px; padding: 3px; background: #EEE7D8; border-radius: 12px">
+<sc-for list="{{ kinds }}" as="k" hint-placeholder-count="3">
+<button role="radio" aria-checked="{{ k.on }}" onClick="{{ k.pick }}" style="display: flex; align-items: center; gap: 6px; height: 38px; padding: 0 14px; border: 0; border-radius: 9px; background: {{ k.bg }}; color: #1E1C19; font-size: 14px; font-weight: {{ k.weight }}; box-shadow: {{ k.shadow }}">{{ k.label }}<span style="font-size: 12px; color: #5E574C">{{ k.n }}</span></button>
+</sc-for>
+</div>
+<span style="width: 1px; height: 26px; margin: 0 6px; background: #DDD4C2"></span>
+<div role="group" aria-label="Filter by color" style="display: flex; gap: 2px">
+<sc-for list="{{ colors }}" as="c" hint-placeholder-count="5">
+<button aria-label="{{ c.label }}" aria-pressed="{{ c.on }}" onClick="{{ c.pick }}" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 10px; background: transparent"><span style="width: 24px; height: 24px; border-radius: 6px; background: {{ c.hex }}; box-shadow: {{ c.ring }}"></span></button>
+</sc-for>
+</div>
+<span style="width: 1px; height: 26px; margin: 0 6px; background: #DDD4C2"></span>
+<div role="radiogroup" aria-label="Notebook" style="display: flex; gap: 6px; flex-wrap: wrap">
+<sc-for list="{{ books }}" as="b" hint-placeholder-count="4">
+<button role="radio" aria-checked="{{ b.on }}" onClick="{{ b.pick }}" style="display: flex; align-items: center; gap: 6px; height: 38px; padding: 0 12px; border: 1px solid {{ b.border }}; border-radius: 999px; background: {{ b.bg }}; color: {{ b.fg }}; font-size: 13px; font-weight: 600"><span style="width: 5px; height: 14px; border-radius: 2px; background: {{ b.spine }}"></span>{{ b.label }}</button>
+</sc-for>
+</div>
+</div>
+
+<sc-if value="{{ empty }}" hint-placeholder-val="{{ false }}">
+<div style="padding: 60px 0; display: flex; flex-direction: column; align-items: center; gap: 8px; color: #5E574C"><span style="font-family: Caveat, cursive; font-size: 32px">No sticky notes match</span><button onClick="{{ clearAll }}" style="height: 40px; padding: 0 14px; border: 1px solid #CFC5B1; border-radius: 10px; background: transparent; color: #1E1C19; font-size: 14px; font-weight: 600">Clear filters</button></div>
+</sc-if>
+
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 22px; padding-top: 6px">
+<sc-for list="{{ cards }}" as="it" hint-placeholder-count="8">
+<article style="display: flex; flex-direction: column; gap: 10px; min-width: 0">
+<sc-if value="{{ it.isStack }}" hint-placeholder-val="{{ false }}">
+<button aria-label="{{ it.aria }}" onClick="{{ it.open }}" style="position: relative; display: block; height: 176px; padding: 0; border: 0; background: transparent; text-align: left; color: #1E1C19">
+<span style="position: absolute; left: 10px; top: 8px; right: -6px; bottom: -6px; background: {{ it.c3 }}; transform: rotate(4deg); box-shadow: 0 6px 12px -10px rgba(30,28,25,0.5)"></span>
+<span style="position: absolute; left: 5px; top: 4px; right: -3px; bottom: -3px; background: {{ it.c2 }}; transform: rotate(2deg); box-shadow: 0 6px 12px -10px rgba(30,28,25,0.5)"></span>
+<span style="position: absolute; inset: 0; box-sizing: border-box; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; background: {{ it.color }}; box-shadow: 0 10px 18px -12px rgba(30,28,25,0.55); overflow: hidden">
+<span style="font-family: Caveat, 'Segoe Print', cursive; font-size: 28px; font-weight: 600; line-height: 1">{{ it.title }}</span>
+<span style="font-family: Caveat, 'Segoe Print', cursive; font-size: 22px; line-height: 1.15">{{ it.text }}</span>
+</span>
+<span style="position: absolute; right: -10px; top: -12px; display: flex; align-items: center; gap: 5px; height: 30px; padding: 0 10px; border: 2px solid #F6F1E7; border-radius: 999px; background: #1E1C19; color: #FFFDF8; font-size: 12px; font-weight: 700"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h12v12H4z M8 4h12v12"/></svg>Stack · {{ it.count }}</span>
+</button>
+</sc-if>
+<sc-if value="{{ it.isNote }}" hint-placeholder-val="{{ true }}">
+<div style="height: 176px; box-sizing: border-box; padding: 16px; background: {{ it.color }}; transform: rotate({{ it.rot }}deg); box-shadow: 0 10px 18px -12px rgba(30,28,25,0.55); font-family: Caveat, 'Segoe Print', cursive; font-size: {{ it.size }}px; line-height: 1.12; color: {{ it.ink }}; overflow: hidden">{{ it.text }}</div>
+</sc-if>
+<a href="Canvas.dc.html" aria-label="Open {{ it.where }}" style="display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 2px; color: #1E1C19">
+<span style="width: 5px; height: 26px; flex-shrink: 0; border-radius: 2px; background: {{ it.spine }}"></span>
+<span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25"><span style="font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ it.book }}</span><span style="font-size: 12px; color: #5E574C">{{ it.page }}</span></span>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2B5A8C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+</a>
+</article>
+</sc-for>
+</div>
+</main>
+
+<sc-if value="{{ stackOpen }}" hint-placeholder-val="{{ false }}">
+<div role="dialog" aria-label="Stack: {{ stack.title }}" style="position: absolute; left: 272px; top: 0; right: 0; bottom: 0; box-sizing: border-box; padding: 36px 40px; display: flex; flex-direction: column; gap: 22px; background: rgba(246,241,231,0.97)">
+<div style="display: flex; align-items: center; gap: 14px">
+<button aria-label="Close stack" onClick="{{ closeStack }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: #EEE7D8; color: #1E1C19"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px">
+<span style="font-family: Newsreader, Georgia, serif; font-size: 30px">{{ stack.title }}</span>
+<span style="font-size: 14px; color: #5E574C">Stack of {{ stack.count }} · {{ stack.book }} · {{ stack.page }}</span>
+</div>
+<a href="Canvas.dc.html" style="display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 16px; border: 1px solid #CFC5B1; border-radius: 12px; color: #1E1C19; font-size: 14px; font-weight: 600">Open on the page</a>
+<button onClick="{{ closeStack }}" style="height: 46px; padding: 0 16px; border: 0; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 14px; font-weight: 600">Done</button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 22px">
+<sc-for list="{{ stack.notes }}" as="sn" hint-placeholder-count="5">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="height: 176px; box-sizing: border-box; padding: 16px; background: {{ sn.color }}; transform: rotate({{ sn.rot }}deg); box-shadow: 0 10px 18px -12px rgba(30,28,25,0.55); font-family: Caveat, 'Segoe Print', cursive; font-size: 26px; line-height: 1.12; color: #1E1C19; overflow: hidden">{{ sn.text }}</div>
+<span style="font-size: 12px; color: #5E574C">{{ sn.pos }}</span>
+</div>
+</sc-for>
+</div>
+<span style="font-size: 13px; color: #5E574C">Drag a note out of the stack to make it loose. Notes stay in sync with the page they live on.</span>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { kind: 'all', color: null, book: 'all', q: '', open: null };
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var C = { yellow: '#F6DE7A', pink: '#F3CBD6', green: '#C9DFC2', peach: '#F4C9A8', blue: '#CFE0F0' };
+    var B = { phys: ['Physics — Lecture notes', '#2B5A8C'], lab: ['Lab journal', '#3E7B4F'], calc: ['Calculus II', '#B5532A'], plan: ['Study plan', '#7A4E73'], pers: ['Garden ideas', '#4E7A52'], work: ['Team meeting', '#B5532A'] };
+    var all = [
+      { id: 1, text: 'Ask in office hours: impulse vs. force?', color: 'yellow', book: 'phys', page: 'Page 5 · whole board' },
+      { id: 2, stack: true, title: 'Exam topics', text: 'impulse, elastic vs. inelastic…', color: 'pink', c2: 'peach', c3: 'green', book: 'phys', page: 'Page 4 · Exam notes', notes: ['Exam topics: impulse, elastic vs. inelastic', 'Conservation laws — when do they apply?', 'Know the units for p (kg·m/s)', 'Practice: problem 4.7', 'Review F vs t graphs'] },
+      { id: 3, text: 'Midterm Oct 14 — start ch. 9 review Monday', color: 'yellow', book: 'plan', page: 'Page 1 · Midterm prep' },
+      { id: 4, text: 'redo trial 3 — track wasn’t level', color: 'yellow', book: 'lab', page: 'Page 2 · Lab 4' },
+      { id: 5, stack: true, title: 'Calc formulas', text: 'd/dx sin x = cos x…', color: 'blue', c2: 'yellow', c3: 'blue', book: 'calc', page: 'Page 8 · Integrals', notes: ['d/dx sin x = cos x', '∫ x dx = x²/2 + C', 'chain rule: f(g(x))′ = f′(g)·g′'] },
+      { id: 6, text: 'Sunday = rest day :)', color: 'green', book: 'plan', page: 'Page 1 · Midterm prep' },
+      { id: 7, text: 'Email Maya the trial data', color: 'pink', book: 'lab', page: 'Page 3 · Results' },
+      { id: 8, text: 'ω = Δθ / Δt', color: 'yellow', book: 'phys', page: 'Page 9 · Rotation', size: 40 },
+      { id: 9, stack: true, title: 'Lab checklist', text: 'goggles, photogate…', color: 'green', c2: 'green', c3: 'yellow', book: 'lab', page: 'Page 5 · Before the lab', notes: ['safety goggles', 'charge the photogate', 'level the track', 'print the data table'] },
+      { id: 10, text: 'Bring slides to stand-up', color: 'blue', book: 'work', page: 'Page 1 · Monday' },
+      { id: 11, text: 'tomatoes: 6 hrs sun, water at the base', color: 'green', book: 'pers', page: 'Page 2 · Plan' },
+      { id: 12, text: 'Buy graph paper + pencils', color: 'peach', book: 'plan', page: 'Page 1 · To-do' }
+    ];
+    var q = (st.q || '').toLowerCase();
+    var match = function (s) {
+      if (st.kind === 'stacks' && !s.stack) return false;
+      if (st.kind === 'loose' && s.stack) return false;
+      if (st.color && s.color !== st.color && !(s.stack && (s.c2 === st.color || s.c3 === st.color))) return false;
+      if (st.book !== 'all' && s.book !== st.book) return false;
+      if (q) { var hay = (s.text + ' ' + (s.title || '') + ' ' + (s.notes || []).join(' ')).toLowerCase(); if (hay.indexOf(q) < 0) return false; }
+      return true;
+    };
+    var shown = all.filter(match);
+    var cards = shown.map(function (s, i) {
+      var b = B[s.book];
+      var rot = [-1.5, 1, -0.5, 1.5, -1, 0.5][i % 6];
+      return { isStack: !!s.stack, isNote: !s.stack, text: s.text, title: s.title || '', count: s.notes ? s.notes.length : 0, color: C[s.color], c2: C[s.c2 || 'yellow'], c3: C[s.c3 || 'yellow'], rot: rot, size: s.size || (s.text.length > 30 ? 26 : 30), ink: '#1E1C19',
+        book: b[0], spine: b[1], page: s.page, where: b[0] + ', ' + s.page, aria: 'Stack: ' + (s.title || '') + ', ' + (s.notes ? s.notes.length : 0) + ' notes. Open the stack',
+        open: function () { self.setState({ open: s.id }); } };
+    });
+    var loose = all.filter(function (s) { return !s.stack; }).length, stacks = all.filter(function (s) { return s.stack; });
+    var inStacks = stacks.reduce(function (a, s) { return a + s.notes.length; }, 0);
+    var seg = function (id, label, n) { var on = st.kind === id; return { label: label, n: n, on: on ? 'true' : 'false', bg: on ? '#FFFDF8' : 'transparent', weight: on ? 700 : 500, shadow: on ? '0 1px 2px rgba(30,28,25,0.15)' : 'none', pick: function () { self.setState({ kind: id }); } }; };
+    var colors = Object.keys(C).map(function (k) { var on = st.color === k; return { label: (on ? 'Showing ' : 'Only ') + k + ' notes', hex: C[k], on: on ? 'true' : 'false', ring: on ? '0 0 0 2px #F6F1E7, 0 0 0 4px #1E1C19' : 'inset 0 0 0 1px rgba(30,28,25,0.15)', pick: function () { self.setState({ color: on ? null : k }); } }; });
+    var bookIds = ['all', 'phys', 'lab', 'calc', 'plan'];
+    var books = bookIds.map(function (k) { var on = st.book === k; return { label: k === 'all' ? 'All notebooks' : B[k][0], spine: k === 'all' ? 'transparent' : B[k][1], on: on ? 'true' : 'false', bg: on ? '#1E1C19' : '#FFFDF8', fg: on ? '#FFFDF8' : '#1E1C19', border: on ? '#1E1C19' : '#DDD4C2', pick: function () { self.setState({ book: k }); } }; });
+    var os = all.filter(function (s) { return s.id === st.open; })[0];
+    var stack = os ? { title: os.title, count: os.notes.length, book: B[os.book][0], page: os.page, notes: os.notes.map(function (t, i) { return { text: t, color: C[[os.color, os.c2, os.c3][i % 3]], rot: [-1, 1, -0.5, 0.8, -1.2][i % 5], pos: (i + 1) + ' of ' + os.notes.length }; }) } : { title: '', count: 0, book: '', page: '', notes: [] };
+    return {
+      summary: (loose + inStacks) + ' notes · ' + stacks.length + ' stacks · from ' + 6 + ' notebooks. Tap one to jump to where it lives.',
+      q: st.q, search: function (e) { self.setState({ q: e.target.value }); },
+      kinds: [seg('all', 'All', all.length), seg('stacks', 'Stacks', stacks.length), seg('loose', 'Loose notes', loose)],
+      colors: colors, books: books, cards: cards, empty: shown.length === 0,
+      clearAll: function () { self.setState({ kind: 'all', color: null, book: 'all', q: '' }); },
+      stackOpen: !!os, stack: stack, closeStack: function () { self.setState({ open: null }); }
+    };
+  }
+}
+</script>
+</body>
+</html>
