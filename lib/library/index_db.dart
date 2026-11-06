@@ -42,7 +42,7 @@ class IndexDb extends GeneratedDatabase {
   Iterable<TableInfo<Table, dynamic>> get allTables => const [];
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -54,6 +54,8 @@ class IndexDb extends GeneratedDatabase {
         onUpgrade: (m, from, to) async {
           if (from < 2) await _createSearch();
           if (from < 3) await _createStudy();
+          // Update 02: where each notebook is saved.
+          if (from < 4) await customStatement('ALTER TABLE notebooks ADD COLUMN save_to TEXT');
         },
       );
 
@@ -72,7 +74,8 @@ class IndexDb extends GeneratedDatabase {
             trashed_at INTEGER,
             last_page INTEGER NOT NULL DEFAULT 0,
             opened_at INTEGER,
-            thumb TEXT
+            thumb TEXT,
+            save_to TEXT
           )''');
 
   Future<void> _createSearch() async {
@@ -126,8 +129,8 @@ class IndexDb extends GeneratedDatabase {
 
   Future<void> upsert(NotebookEntry e) => customStatement(
         'INSERT OR REPLACE INTO notebooks (id, title, folder, cover, created_at, updated_at, page_count, locked, '
-        'locked_pages, pinned, trashed_at, last_page, opened_at, thumb) '
-        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'locked_pages, pinned, trashed_at, last_page, opened_at, thumb, save_to) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           e.id,
           e.title,
@@ -143,6 +146,7 @@ class IndexDb extends GeneratedDatabase {
           e.lastPage,
           e.openedAt?.millisecondsSinceEpoch,
           e.thumb?.encode(),
+          e.saveTo,
         ],
       );
 
@@ -330,6 +334,7 @@ class IndexDb extends GeneratedDatabase {
       lastPage: r.read<int>('last_page'),
       openedAt: time('opened_at'),
       thumb: InkThumb.decode(r.read<String?>('thumb')),
+      saveTo: r.read<String?>('save_to'),
     );
   }
 }

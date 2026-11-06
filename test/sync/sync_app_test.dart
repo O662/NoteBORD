@@ -93,7 +93,7 @@ void main() {
   });
 
   testWidgets('connecting without the client id in the build says what\'s missing', (tester) async {
-    await pumpApp(tester, location: Routes.settings(), extra: syncOverrides(cloud, notReady: 'Google sign-in isn’t set up in this version of Endless yet.'));
+    await pumpApp(tester, location: Routes.settings('sync'), extra: syncOverrides(cloud, notReady: 'Google sign-in isn’t set up in this version of Endless yet.'));
     await tester.tap(find.bySemanticsLabel('Connect Google Drive'));
     await tester.pumpAndSettle();
     expect(find.text('Can’t connect Google Drive'), findsOneWidget);
@@ -269,7 +269,7 @@ void main() {
     final store = MemoryBoardStore();
     syncingWithGoogle(store);
     addUntitled(store);
-    final c = await pumpApp(tester, store: store, location: Routes.settings(), extra: syncOverrides(cloud));
+    final c = await pumpApp(tester, store: store, location: Routes.settings('sync'), extra: syncOverrides(cloud));
     await syncIn(tester, c);
     await tester.tap(find.bySemanticsLabel('Change folder'));
     await tester.pumpAndSettle();

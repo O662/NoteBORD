@@ -16,6 +16,7 @@ import '../../library/library.dart';
 import '../../spelling/dictionary.dart';
 import '../../state/notebook.dart';
 import '../../state/settings.dart';
+import '../../theme/app_theme.dart' show themeFor;
 import '../../theme/colors.dart';
 import '../common.dart';
 import '../dialogs.dart';
@@ -81,7 +82,7 @@ const _moreFeatures = <String, String>{};
 void handleMoreItem(BuildContext context, Pane pane, MoreItem item, ValueChanged<String> comingSoon) {
   switch (item.label) {
     case 'Settings':
-      showQuickSettings(context);
+      context.push(Routes.settings());
     case 'Password protect':
       showLockDialog(context, pane);
     case 'Export':
@@ -167,7 +168,13 @@ void handleRailItem(
 /// Picks a tool from the tool pill. Tapping the active pen or marker again
 /// calls [onPopover] instead; Select and Lasso lead with Convert to text.
 void pickCanvasTool(WidgetRef ref, Pane pane, CanvasTool tool, {required VoidCallback onPopover}) {
-  if (ref.read(settingsProvider).tool == tool && tool.inks) {
+  final s = ref.read(settingsProvider);
+  if (s.tool == tool && tool.inks) {
+    // Settings › Pen & S Pen › "Double-tap the pen tool for": Eraser.
+    if (s.penAgainErases) {
+      ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: CanvasTool.eraser));
+      return;
+    }
     onPopover();
     return;
   }
@@ -402,6 +409,8 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
 
   // Rail menus: hover previews, tap pins.
   void _hoverGroup(String id) {
+    // Settings › Pen & S Pen › Hover menus.
+    if (!ref.read(settingsProvider).hoverMenus) return;
     if (!_pinned) setState(() => _fly = id);
     if (_more) setState(() => _more = false);
   }
@@ -831,7 +840,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                   if (_popover) setState(() => _popover = false);
                   _glide.stop(); // a touch takes over from a glide
                 },
-                child: InkCanvas(
+                child: PageTheme(child: InkCanvas(
                   pane: pane,
                   onViewTap: _board ? (at) => _leaveBoard(at: at) : (spelling ? _spellTap : null),
                   onFlashcards: _startFlashcards,
@@ -844,7 +853,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                     _dict ? _drawerReach : 60,
                     pageBar ? 16 + PageBar.height + 8 : 16,
                   ),
-                ),
+                )),
               ),
             ),
             if (_spot != null && !sealed)
@@ -1111,6 +1120,21 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
         ),
       ),
     );
+  }
+}
+
+/// The page in light colors under dark menus, when Settings › Themes & dark
+/// mode › "Keep pages light in dark mode" is on (exports always are).
+class PageTheme extends ConsumerWidget {
+  const PageTheme({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final (keep, theme, accent) = ref.watch(settingsProvider.select((s) => (s.keepPagesLight, s.theme, s.accent)));
+    if (!keep || Theme.of(context).brightness == Brightness.light) return child;
+    return Theme(data: themeFor(theme, accent, Brightness.light), child: child);
   }
 }
 

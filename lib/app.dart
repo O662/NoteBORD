@@ -34,11 +34,23 @@ import 'ui/study/study_screen.dart';
 /// Where the app opens. Tests start straight in a notebook.
 final initialLocationProvider = Provider<String>((ref) => Routes.start);
 
+/// Where the app opens: the Start page, or with Settings › General › Open
+/// to "Last note I was in", that notebook (if it's still there).
+String _openingLocation(Ref ref) {
+  final location = ref.read(initialLocationProvider);
+  final settings = ref.read(settingsProvider);
+  final last = settings.lastNotebookId;
+  if (location != Routes.start || !settings.openLastNote || last == null) return location;
+  final entry = ref.read(libraryProvider).byId(last);
+  if (entry == null || entry.trashed) return location;
+  return Routes.notebook(last, page: entry.lastPage);
+}
+
 /// Routes (see [Routes]). Library pages sit under Start, so back from the
 /// library returns to Start; notebooks and Split view are pushed on top.
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
-    initialLocation: ref.read(initialLocationProvider),
+    initialLocation: _openingLocation(ref),
     routes: [
       GoRoute(
         path: Routes.start,
@@ -218,11 +230,12 @@ class _EndlessAppState extends ConsumerState<EndlessApp> {
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(settingsProvider.select((s) => s.themeMode));
+    final (theme, accent) = ref.watch(settingsProvider.select((s) => (s.theme, s.accent)));
     return MaterialApp.router(
       title: 'Endless',
       debugShowCheckedModeBanner: false,
-      theme: lightTheme,
-      darkTheme: darkTheme,
+      theme: themeFor(theme, accent, Brightness.light),
+      darkTheme: themeFor(theme, accent, Brightness.dark),
       themeMode: themeMode,
       routerConfig: ref.watch(routerProvider),
     );

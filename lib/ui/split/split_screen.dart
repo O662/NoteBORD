@@ -13,7 +13,7 @@ import '../../state/settings.dart';
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart';
 import '../canvas/audio_actions.dart' show stopRecording;
-import '../canvas/canvas_screen.dart' show handleMoreItem, handleRailItem, pickCanvasTool;
+import '../canvas/canvas_screen.dart' show PageTheme, handleMoreItem, handleRailItem, pickCanvasTool;
 import '../canvas/recording_pill.dart';
 import '../canvas/gesture_status.dart';
 import '../canvas/left_rail.dart';
@@ -315,6 +315,7 @@ class _SplitScreenState extends ConsumerState<SplitScreen> {
                     openId: _fly,
                     pinned: _pinned,
                     onHover: (id) {
+                      if (!ref.read(settingsProvider).hoverMenus) return;
                       if (!_pinned) setState(() => _fly = id);
                     },
                     onTap: (id) => setState(() {
@@ -532,7 +533,7 @@ class _SplitPane extends ConsumerWidget {
             final nb = ref.watch(notebookProvider(pane.notebookId));
             final page = nb.pageAt(pane.page);
             return Stack(fit: StackFit.expand, children: [
-              InkCanvas(pane: pane, writable: focused, onActivate: onFocus),
+              PageTheme(child: InkCanvas(pane: pane, writable: focused, onActivate: onFocus)),
               if (nb.isSealed(page.id))
                 Positioned.fill(
                   top: 56,

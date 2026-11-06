@@ -342,6 +342,8 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Handwriting & search'));
+    await tester.pumpAndSettle();
     expect(find.text('My handwriting'), findsOneWidget);
     expect(find.bySemanticsLabel('Write it again'), findsOneWidget);
     await tester.ensureVisible(find.bySemanticsLabel('Forget it'));

@@ -177,7 +177,9 @@ class SyncEngine {
     if (only != null) {
       if (!options.boardFiles) return report;
       for (final id in only.intersection(localIds)) {
+        if (await _goesElsewhere(cloud, id, remoteDirs[id])) continue;
         await _syncNotebook(cloud, id, dirs: remoteDirs[id] ?? const [], report: report);
+        await _handedOff(cloud, id, report);
       }
       return report;
     }
@@ -202,11 +204,58 @@ class SyncEngine {
           await store.saveSyncFile(_sidecar(id), null);
           continue;
         }
-        await _syncNotebook(cloud, id, dirs: remoteDirs[id] ?? const [], tomb: tomb, report: report);
+        if (localIds.contains(id) && await _goesElsewhere(cloud, id, remoteDirs[id])) continue;
+        await _syncNotebook(cloud, id, dirs: remoteDirs[id] ?? const [], tomb: tomb, report: report, local: localIds.contains(id));
+        await _handedOff(cloud, id, report);
       }
     }
-    if (options.pdfCopy) await _sendPdfs(cloud, localIds.where((id) => !gone.containsKey(id) || report.synced.containsKey(id)), report);
+    if (options.pdfCopy) {
+      final pdfs = <String>[];
+      for (final id in localIds) {
+        if (gone.containsKey(id) && !report.synced.containsKey(id)) continue;
+        if (_goesTo((await store.loadNotebookMeta(id))?.saveTo, cloud.kind)) pdfs.add(id);
+      }
+      await _sendPdfs(cloud, pdfs, report);
+    }
     return report;
+  }
+
+  // Where each notebook is saved (Update 02): a notebook goes only to its
+  // own cloud (`saveTo`), or, from before there was a choice, to every
+  // cloud that's on. One moved elsewhere is synced to the cloud it left
+  // one last time, so that cloud's copy says where it went and other
+  // devices stop syncing it there too; it isn't sent there again.
+
+  static bool _goesTo(String? saveTo, CloudKind kind) => saveTo == null || saveTo == kind.name;
+
+  /// Whether local notebook [id] is saved somewhere other than [cloud] and
+  /// that cloud has already been told (or never had it).
+  Future<bool> _goesElsewhere(CloudDrive cloud, String id, List<String>? dirs) async {
+    final saveTo = (await store.loadNotebookMeta(id))?.saveTo;
+    if (_goesTo(saveTo, cloud.kind)) return false;
+    if (dirs == null || dirs.isEmpty) return true;
+    final side = await store.loadSyncFile(_sidecar(id)) ?? {};
+    return (side['left'] as Map?)?[cloud.kind.name] == saveTo;
+  }
+
+  /// Records that [cloud] has been told notebook [id] is saved elsewhere
+  /// now (or forgets it, if it's saved there again).
+  Future<void> _handedOff(CloudDrive cloud, String id, SyncReport report) async {
+    // Not synced this time (open and busy): it's told next time.
+    if (report.waiting.contains(id)) return;
+    final saveTo = (await store.loadNotebookMeta(id))?.saveTo;
+    final side = await store.loadSyncFile(_sidecar(id));
+    if (side == null) return;
+    final left = {...?(side['left'] as Map?)?.cast<String, dynamic>()};
+    final was = left[cloud.kind.name];
+    if (_goesTo(saveTo, cloud.kind)) {
+      if (was == null) return;
+      left.remove(cloud.kind.name);
+    } else {
+      if (was == saveTo) return;
+      left[cloud.kind.name] = saveTo;
+    }
+    await store.saveSyncFile(_sidecar(id), {...side, 'left': left});
   }
 
   // The app-wide part.
@@ -268,7 +317,8 @@ class SyncEngine {
     String id,
     {required List<String> dirs,
     String? tomb,
-    required SyncReport report}) async {
+    required SyncReport report,
+    bool local = true}) async {
     final remote = dirs.isNotEmpty;
     // Its folder: the one there (named as the notebook was then), or one
     // named now for a notebook new to the cloud.
@@ -287,6 +337,9 @@ class SyncEngine {
         debugPrint('Sync: unreadable notebook.json for $id: $e');
       }
     }
+    // A notebook this device doesn't have, saved to another cloud now (the
+    // copy left here when it moved): it isn't brought down from this one.
+    if (!local && manifest != null && !_goesTo(manifest.notebook['saveTo'] as String?, cloud.kind)) return;
     final fetched = <String, Uint8List>{};
     if (manifest != null) {
       for (final e in manifest.files.entries) {

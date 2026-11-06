@@ -15,7 +15,7 @@ import '../transfer/transfer_dialog.dart';
 import '../templates/templates_dialog.dart';
 import 'format.dart';
 import 'sidebar.dart';
-import 'start_screen.dart' show newNote;
+import 'new_note_dialog.dart' show newNote;
 import 'widgets.dart';
 
 const _sortLabels = {

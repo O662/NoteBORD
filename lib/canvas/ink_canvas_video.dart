@@ -22,7 +22,7 @@ extension _CanvasVideo on InkCanvasState {
     _dismissToast();
     _notebook.insertItems(_page.id, [v.withBox(x: at.dx, y: at.dy, w: v.w, h: v.h)]);
     pane.video.select(v.id);
-    final cloud = ref.read(syncProvider.notifier).videoCloud;
+    final cloud = ref.read(syncProvider.notifier).videoCloudFor(pane.notebookId);
     _toast(v.link == null
         ? 'Added the video · Note at pins a note to a moment'
         : cloud == null

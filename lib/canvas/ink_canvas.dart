@@ -1254,7 +1254,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       ..shape = fit.points
       ..opacity = 1;
     _status(null);
-    HapticFeedback.selectionClick();
+    if (ref.read(settingsProvider).pref<bool>('haptics')) HapticFeedback.selectionClick();
   }
 
   void _checkScribble() {
@@ -2146,7 +2146,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     final preview = _stackPreview();
     if (preview == null) return;
     _stackArmed = true;
-    HapticFeedback.selectionClick();
+    if (ref.read(settingsProvider).pref<bool>('haptics')) HapticFeedback.selectionClick();
     _overlay.ghost = preview;
     _status('Let go to stack them');
   }

@@ -195,13 +195,14 @@ void main() {
     return null;
   });
 
-  // Arrows.png and Scribble.png settings panels (in the stand-in Settings).
+  // Arrows.png and Scribble.png settings: Settings › Pen & S Pen (Settings-pen.png).
   _golden('settings', setUp: (t, c) async {
     await t.tap(byLabel('More options'));
     await t.pump();
     await t.tap(find.text('Settings'));
-    await t.pump();
-    await t.pump(const Duration(milliseconds: 400));
+    await t.pumpAndSettle();
+    await t.tap(find.bySemanticsLabel('Pen & S Pen'));
+    await t.pumpAndSettle();
     return null;
   });
 }

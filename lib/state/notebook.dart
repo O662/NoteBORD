@@ -1219,6 +1219,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
     if (nbFrom.trashedAt != nbTo.trashedAt) nb.trashedAt = nbTo.trashedAt;
     if (nbFrom.defaultPaper != nbTo.defaultPaper) nb.defaultPaper = nbTo.defaultPaper;
     if (nbFrom.theme != nbTo.theme) nb.theme = nbTo.theme;
+    if (nbFrom.saveTo != nbTo.saveTo) nb.saveTo = nbTo.saveTo;
     if (nbTo.updatedAt.isAfter(nb.updatedAt)) nb.updatedAt = nbTo.updatedAt;
 
     // Pages removed on the other device.

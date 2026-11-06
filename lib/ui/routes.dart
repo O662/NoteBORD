@@ -37,7 +37,7 @@ abstract final class Routes {
   }
 
   /// Settings, on a section (Sync.png: `sync`).
-  static String settings([String section = 'sync']) => Uri(path: '/settings', queryParameters: {'s': section}).toString();
+  static String settings([String section = 'general']) => Uri(path: '/settings', queryParameters: {'s': section}).toString();
 
   /// Need to remember (Remember.png).
   static const remember = '/remember';

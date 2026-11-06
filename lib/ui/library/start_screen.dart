@@ -14,14 +14,9 @@ import '../routes.dart';
 import '../transfer/transfer_dialog.dart';
 import '../templates/templates_dialog.dart';
 import 'format.dart';
+import 'new_note_dialog.dart';
 import 'sidebar.dart';
 import 'widgets.dart';
-
-/// Creates a notebook in [folder] and opens it on its first page.
-Future<void> newNote(BuildContext context, WidgetRef ref, {List<String> folder = const []}) async {
-  final id = await ref.read(libraryProvider.notifier).createNotebook(title: 'Untitled note', folder: folder);
-  if (context.mounted) context.push(Routes.notebook(id, page: 0));
-}
 
 /// The Start page (design/screens/Start.png).
 class StartScreen extends ConsumerWidget {

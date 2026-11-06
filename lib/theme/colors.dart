@@ -382,3 +382,18 @@ Color displayInk(Color stored, Brightness brightness) {
 extension EndlessThemeContext on BuildContext {
   EndlessColors get colors => Theme.of(this).extension<EndlessColors>()!;
 }
+
+/// How one color of a theme's palette is made (see `recipesLight` in
+/// tokens.g.dart): a blend of two of the theme's colors ([a] and [b], or
+/// black or white) at [t], plus an offset per channel, with [alpha].
+class ColorRecipe {
+  const ColorRecipe(this.a, this.b, this.t, this.dr, this.dg, this.db, {this.alpha = 255});
+
+  final String a;
+  final String b;
+  final double t;
+  final int dr;
+  final int dg;
+  final int db;
+  final int alpha;
+}

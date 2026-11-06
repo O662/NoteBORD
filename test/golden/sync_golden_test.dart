@@ -64,14 +64,14 @@ void main() {
   testWidgets('sync_settings', (tester) => _withShadows(() async {
         final lib = await sampleLibrary();
         _synced(lib.$1);
-        await _pump(tester, lib, Routes.settings());
+        await _pump(tester, lib, Routes.settings('sync'));
         await expectLater(find.byType(EndlessApp), matchesGoldenFile('sync_settings.png'));
       }));
 
   testWidgets('sync_settings_dark', (tester) => _withShadows(() async {
         final lib = await sampleLibrary();
         _synced(lib.$1);
-        await _pump(tester, lib, Routes.settings(), dark: true);
+        await _pump(tester, lib, Routes.settings('sync'), dark: true);
         await expectLater(find.byType(EndlessApp), matchesGoldenFile('sync_settings_dark.png'));
       }));
 

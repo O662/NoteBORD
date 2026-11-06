@@ -3,6 +3,7 @@ import 'package:endless/board/store.dart';
 import 'package:endless/state/settings.dart';
 import 'package:endless/theme/tokens.g.dart' as tokens;
 import 'package:endless/ui/canvas/canvas_screen.dart';
+import 'package:endless/ui/settings/settings_rows.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -324,7 +325,7 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
   });
 
-  testWidgets('⋯ holds Export and the rest; Settings opens quick settings', (tester) async {
+  testWidgets('⋯ holds Export and the rest; Settings opens the Settings screen', (tester) async {
     final c = await pumpCanvas(tester);
     await tester.tap(byLabel('More options'));
     await tester.pump();
@@ -350,13 +351,16 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Draw with finger'));
-    await tester.tap(find.text('Dark'));
+    expect(find.text('How Endless opens, looks and feels day to day.'), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('Pen & S Pen'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byWidgetPredicate((w) => w is SettingsSwitch && w.label == 'Fingers can draw'));
     await tester.pumpAndSettle();
     expect(c.read(settingsProvider).fingerDraws, isTrue);
-    expect(c.read(settingsProvider).themeMode, ThemeMode.dark);
-    await tester.tap(byLabel('Close'));
+    await tester.tap(find.byWidgetPredicate((w) => w is Semantics && w.properties.label == 'Back to library'));
     await tester.pumpAndSettle();
+    expect(find.text('How Endless opens, looks and feels day to day.'), findsNothing);
+    expect(byLabel('More options'), findsOneWidget);
     await tester.pump(const Duration(seconds: 5));
   });
 

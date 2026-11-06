@@ -18,6 +18,11 @@ Each screen is 1280×800 (Android tablet, landscape). The PNG is in `design/scre
 |---|---|
 | `Export` | Import / export |
 | `Sync` | Cloud sync settings |
+| `Settings` | Settings: every section and search (General shown) |
+| `Settings-pen` | Settings › Pen & S Pen |
+| `Settings-notebooks` | Settings › Notebooks & pages (new notes, where they're saved) |
+| `Settings-search` | Settings search ("swipe") |
+| `NewNote` | New note: name, folder, save to, paper, cover |
 
 ## Canvas tools & assets
 
@@ -95,4 +100,5 @@ Each screen is 1280×800 (Android tablet, landscape). The PNG is in `design/scre
 - Tucking the pen menus away (Update 02): `Canvas-colors-tucked` (the pull tab), `Canvas-pen-settings` (the panel's handle).
 - Insert menu: Math, Graph, Video, Audio, Charts, WidgetBoard, LiveItems.
 - Math → Formulas & tools (MathKit), and Add a graph (Graph).
-- Settings: Sync, then Themes & dark mode.
+- Settings (⋯ → Settings, or the library sidebar's gear): every section in one screen; Sync & backup (`Sync`) and Themes & dark mode (`Themes`) are in it.
+- Start or Library → New note → `NewNote` → Canvas (or straight to Canvas with "Use my defaults").

@@ -8,7 +8,9 @@ import '../board/ids.dart';
 import '../board/model.dart';
 import '../board/store.dart';
 import '../state/changes.dart';
+import '../state/save_location.dart';
 import '../state/settings.dart';
+import '../sync/sync_state.dart' show syncProvider;
 import '../theme/tokens.g.dart' as tokens;
 import 'index_db.dart';
 import 'thumbs.dart';
@@ -34,6 +36,7 @@ class NotebookEntry {
     this.lastPage = 0,
     this.openedAt,
     this.thumb,
+    this.saveTo,
   });
 
   final String id;
@@ -60,6 +63,9 @@ class NotebookEntry {
 
   /// Ink for the cover; null when empty or locked.
   final InkThumb? thumb;
+
+  /// Where it's saved (Notebook.saveTo).
+  final String? saveTo;
 
   bool get trashed => trashedAt != null;
 
@@ -92,6 +98,7 @@ class NotebookEntry {
         lastPage: lastPage ?? this.lastPage,
         openedAt: openedAt ?? this.openedAt,
         thumb: thumb == null ? this.thumb : thumb(),
+        saveTo: saveTo,
       );
 
   /// Refreshes the fields that live in notebook.json.
@@ -110,6 +117,7 @@ class NotebookEntry {
         lastPage: lastPage.clamp(0, nb.pageIds.isEmpty ? 0 : nb.pageIds.length - 1),
         openedAt: openedAt,
         thumb: nb.locked ? null : thumb,
+        saveTo: nb.saveTo,
       );
 
   /// Builds an entry from a loaded notebook, keeping this device's reading
@@ -317,7 +325,9 @@ class LibraryNotifier extends Notifier<LibraryState> {
 
   // Notebooks.
 
-  /// Creates a notebook with one page and returns its id.
+  /// Creates a notebook with one page and returns its id. [saveTo] is
+  /// where it's saved (default: Settings › Notebooks & pages › "Save new
+  /// notes to").
   Future<String> createNotebook({
     String title = 'Untitled notebook',
     List<String> folder = const [],
@@ -325,6 +335,7 @@ class LibraryNotifier extends Notifier<LibraryState> {
     String? template,
     List<Item> items = const [],
     Color? cover,
+    String? saveTo,
   }) async {
     final now = _now;
     final page = BoardPage(id: newId('pg', now: now), paper: paper, template: template, items: [...items]);
@@ -337,6 +348,7 @@ class LibraryNotifier extends Notifier<LibraryState> {
       updatedAt: now,
       pageIds: [page.id],
       defaultPaper: paper,
+      saveTo: saveTo ?? defaultSaveLocation(ref.read(settingsProvider), ref.read(syncProvider).settings).name,
     );
     await _store.savePage(nb.id, page);
     await _store.saveNotebook(nb);
@@ -370,6 +382,9 @@ class LibraryNotifier extends Notifier<LibraryState> {
   Future<void> setCover(String id, Color color) => _editMeta(id, (nb) => nb.coverColor = colorToHex(color));
 
   Future<void> setPinned(String id, bool pinned) => _editMeta(id, (nb) => nb.pinned = pinned);
+
+  /// Where notebook [id] is saved (`device`, `google` or `onedrive`).
+  Future<void> setSaveTo(String id, String saveTo) => _editMeta(id, (nb) => nb.saveTo = saveTo);
 
   Future<void> trash(String id) {
     final now = _now;

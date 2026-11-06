@@ -80,7 +80,9 @@ class AppSettings {
     List<String> recentLookups = const [],
     this.starRemember = true,
     this.lastDeck,
-  })  : myWords = List.unmodifiable(myWords),
+    Map<String, Object?> prefs = const {},
+  })  : prefs = Map.unmodifiable(prefs),
+        myWords = List.unmodifiable(myWords),
         recentLookups = List.unmodifiable(recentLookups),
         penColor = penColor ?? tokens.inkDefaults[1],
         markerColor = markerColor ?? tokens.extraInkDefaults[3],
@@ -155,6 +157,45 @@ class AppSettings {
   /// The deck new flashcards go into (its id), until another is picked.
   final String? lastDeck;
 
+  /// The Settings screen's choices (Update 02), by key; [prefDefaults] has
+  /// each one's default. Read them with [pref] or the getters below.
+  final Map<String, Object?> prefs;
+
+  /// Setting [key], or its default.
+  T pref<T>(String key) {
+    final v = prefs[key];
+    return (v is T ? v : prefDefaults[key]) as T;
+  }
+
+  /// A copy with setting [key] set to [value].
+  AppSettings withPref(String key, Object? value) => copyWith(prefs: {...prefs, key: value});
+
+  /// Themes & dark mode: the theme, the accent ([themeAccent] for the
+  /// theme's own) and whether pages stay light in dark mode.
+  String get theme => pref<String>('theme');
+  String get accent => pref<String>('accent');
+  bool get keepPagesLight => pref<bool>('keepPagesLight');
+
+  /// Notebooks & pages: ask for a name and place for each new note, or use
+  /// the defaults (folder, where it's saved, paper).
+  bool get askNewNote => pref<int>('newNoteAsk') == 0;
+  List<String> get defaultFolder => [...?(prefs['defaultFolder'] as List?)?.whereType<String>()];
+  Paper get defaultPaper => paperFromName(pref<String>('defaultPaper'));
+
+  /// Where new notes are saved (`device`, `google`, `onedrive`), or null
+  /// before it's picked (then: the cloud that's on, if any).
+  String? get saveNewTo => prefs['saveNewTo'] as String?;
+
+  /// General: open to the Start page (0) or the last note (1).
+  bool get openLastNote => pref<int>('openTo') == 1;
+
+  /// Pen & S Pen: hovering the S Pen over the left menu opens it.
+  bool get hoverMenus => pref<bool>('hoverMenus');
+
+  /// Pen & S Pen: tapping the active pen again opens its settings (0) or
+  /// switches to the eraser (1).
+  bool get penAgainErases => pref<int>('penAgain') == 1;
+
   InkTool get inkTool => tool == CanvasTool.marker ? InkTool.marker : InkTool.pen;
 
   /// Color of the pen or marker (the eraser shows the pen's).
@@ -196,6 +237,7 @@ class AppSettings {
     bool? fixInHandwriting,
     bool? starRemember,
     String? Function()? lastDeck,
+    Map<String, Object?>? prefs,
   }) =>
       AppSettings(
         tool: tool ?? this.tool,
@@ -229,6 +271,7 @@ class AppSettings {
         fixInHandwriting: fixInHandwriting ?? this.fixInHandwriting,
         starRemember: starRemember ?? this.starRemember,
         lastDeck: lastDeck == null ? this.lastDeck : lastDeck(),
+        prefs: prefs ?? this.prefs,
       );
 
   Json toJson() => {
@@ -263,6 +306,7 @@ class AppSettings {
         'fixInHandwriting': fixInHandwriting,
         'starRemember': starRemember,
         if (lastDeck != null) 'lastDeck': lastDeck,
+        if (prefs.isNotEmpty) 'prefs': prefs,
       };
 
   factory AppSettings.fromJson(Json j) {
@@ -310,9 +354,51 @@ class AppSettings {
       fixInHandwriting: j['fixInHandwriting'] as bool? ?? true,
       starRemember: j['starRemember'] as bool? ?? true,
       lastDeck: j['lastDeck'] as String?,
+      prefs: {...?(j['prefs'] as Map?)?.cast<String, Object?>()},
     );
   }
 }
+
+/// Defaults of [AppSettings.prefs]. Choices are indexes into the options
+/// the Settings screen shows.
+const prefDefaults = <String, Object?>{
+  'theme': 'paper',
+  'accent': 'theme',
+  'keepPagesLight': false,
+  // General
+  'openTo': 0,
+  'dateFormat': 0,
+  'weekStart': 0,
+  'haptics': true,
+  'sounds': false,
+  'leftHanded': false,
+  // Pen & S Pen
+  'spenButton': 0,
+  'hoverMenus': true,
+  'penAgain': 0,
+  // Handwriting & search
+  'searchable': true,
+  'convertMode': 2,
+  'spellLive': false,
+  // Notebooks & pages
+  'newNoteAsk': 0,
+  'defaultPaper': 'dots',
+  'pageNumbers': true,
+  'pageTrash': 1,
+  // Notifications
+  'reminders': true,
+  'calendarAlerts': 1,
+  'quietHours': true,
+  // Calendar
+  'declinedEvents': false,
+  'noteDeadlines': true,
+  // Storage
+  'bigVideos': 0,
+  // Privacy & security
+  'appLock': false,
+  'lockAfter': 1,
+  'usageData': false,
+};
 
 final boardStoreProvider = Provider<BoardStore>((ref) => throw UnimplementedError('Override in bootstrap'));
 

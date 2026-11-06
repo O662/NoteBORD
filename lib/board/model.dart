@@ -38,6 +38,7 @@ class Notebook {
     this.locked = false,
     this.pinned = false,
     this.trashedAt,
+    this.saveTo,
     Json? extra,
     Json? extraDefaults,
   })  : extra = extra ?? {},
@@ -61,6 +62,11 @@ class Notebook {
 
   /// In the Trash since then; null when not deleted.
   DateTime? trashedAt;
+
+  /// Where it's saved: `device` (this tablet only), `google` or `onedrive`;
+  /// null for a notebook from before there was a choice (every cloud that's
+  /// on). See SaveLocation.
+  String? saveTo;
   final Json extra;
   final Json extraDefaults;
 }

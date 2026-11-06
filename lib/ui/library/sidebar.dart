@@ -168,7 +168,7 @@ class AppSidebar extends ConsumerWidget {
               iconSize: 22,
               width: 52,
               height: 52,
-              onPressed: () => openSyncSettings(context),
+              onPressed: () => context.push(Routes.settings()),
             ),
           ]),
         ]),

@@ -74,6 +74,9 @@ String renderTokens(Map<String, dynamic> json) {
   b.writeln('/// Page colors for the page bar and the All pages strip (stored colors; dark mode brightens them like ink).');
   colorList('pageColors', colors['pageColors'] as List<dynamic>);
 
+  b.writeln('/// Cover colors offered by the New note dialog.');
+  colorList('noteCovers', colors['noteCovers'] as List<dynamic>);
+
   b.writeln('/// Sticky note papers. They look the same in light and dark mode.');
   colorList('stickyColors', colors['stickies'] as List<dynamic>);
 
@@ -100,6 +103,44 @@ String renderTokens(Map<String, dynamic> json) {
   for (final e in (colors['themes'] as Map<String, dynamic>).entries) {
     final v = e.value as Map<String, dynamic>;
     b.writeln("  '${e.key}': (${_swatch(v['light'] as Map<String, dynamic>)}, ${_swatch(v['dark'] as Map<String, dynamic>)}),");
+  }
+  b.writeln('};');
+  b.writeln();
+
+  // Full palettes for the other themes (Themes.png). tokens.json gives each
+  // theme 7 colors per mode; every other color of a palette is made from
+  // them the way Paper's own color is made from Paper's 7 (see _recipe).
+  b
+    ..writeln("/// How each color of a theme's palette is made from its 7 colors (plus")
+    ..writeln("/// black and white): a blend of two, plus what Paper's own color differs")
+    ..writeln('/// from that blend by, so Paper comes out exactly. Null: the same in')
+    ..writeln('/// every theme (colors that mean something: clay, green, record…).')
+    ..writeln('/// From design/tokens.json by tool/gen_tokens.dart.');
+  for (final (name, mode, base) in [('recipesLight', 'light', colors['base']), ('recipesDark', 'dark', colors['baseDark'])]) {
+    final paper = ((colors['themes'] as Map)['paper'] as Map)[mode] as Map<String, dynamic>;
+    b.writeln('const $name = <String, ColorRecipe?>{');
+    for (final e in (base as Map<String, dynamic>).entries) {
+      if (e.key.startsWith('_')) continue;
+      b.writeln("  '${e.key}': ${_recipe(e.key, e.value as String, paper)},");
+    }
+    b.writeln('};');
+    b.writeln();
+  }
+
+  b.writeln('/// A palette from a full map of its colors (the theme builder).');
+  b.writeln('EndlessColors colorsFromMap(Map<String, Color> m) => EndlessColors(');
+  for (final k in (colors['base'] as Map<String, dynamic>).keys) {
+    if (k.startsWith('_')) continue;
+    b.writeln("  $k: m['$k']!,");
+  }
+  b.writeln(');');
+  b.writeln();
+
+  b.writeln('/// Every color of a palette by name.');
+  b.writeln('Map<String, Color> colorsToMap(EndlessColors c) => {');
+  for (final k in (colors['base'] as Map<String, dynamic>).keys) {
+    if (k.startsWith('_')) continue;
+    b.writeln("  '$k': c.$k,");
   }
   b.writeln('};');
   b.writeln();
@@ -169,3 +210,53 @@ String _hex(String hex) {
 }
 
 String _color(Object? hex) => 'Color(${_hex(hex as String)})';
+
+/// Colors that mean the same in every theme (their names say what they're
+/// for), so they're never made from a theme's colors.
+const _fixedPrefixes = [
+  'clay', 'green', 'plum', 'gold', 'star', 'sticky', 'danger', 'spell', 'warning', 'onWarning', 'moss', //
+  'laser', 'scribble', 'remember', 'record', 'videoPin', 'searchHit', 'paperMargin', 'inverseTick', 'onStar',
+  'onPlumBright', 'shadow', 'scrim',
+];
+
+const _cores = ['bg', 'side', 'surface', 'line', 'text', 'dot', 'accent', 'black', 'white'];
+
+List<int> _rgba(String hex) {
+  var h = hex.replaceFirst('#', '');
+  if (h.length == 6) h = 'FF$h';
+  return [for (var i = 0; i < 8; i += 2) int.parse(h.substring(i, i + 2), radix: 16)];
+}
+
+/// The blend of two of Paper's colors closest to [hex], as a ColorRecipe,
+/// or null for a color that stays the same in every theme.
+String _recipe(String key, String hex, Map<String, dynamic> paper) {
+  if (_fixedPrefixes.any(key.startsWith)) return 'null';
+  final x = _rgba(hex);
+  List<int> core(String k) => switch (k) {
+        'black' => [255, 0, 0, 0],
+        'white' => [255, 255, 255, 255],
+        _ => _rgba(paper[k] as String),
+      };
+  (double, String, String, double)? best;
+  for (final a in _cores) {
+    for (final bk in _cores) {
+      final ca = core(a), cb = core(bk);
+      var num = 0.0, den = 0.0;
+      for (var i = 1; i < 4; i++) {
+        num += (x[i] - ca[i]) * (cb[i] - ca[i]);
+        den += (cb[i] - ca[i]) * (cb[i] - ca[i]);
+      }
+      final t = a == bk || den == 0 ? 0.0 : (num / den).clamp(0.0, 1.0);
+      var err = 0.0;
+      for (var i = 1; i < 4; i++) {
+        final v = ca[i] + (cb[i] - ca[i]) * t;
+        err = (v - x[i]).abs() > err ? (v - x[i]).abs() : err;
+      }
+      if (best == null || err < best.$1 - 1e-9) best = (err, a, bk, t);
+    }
+  }
+  final (_, a, bk, t) = best!;
+  final ca = core(a), cb = core(bk);
+  final d = [for (var i = 1; i < 4; i++) (x[i] - (ca[i] + (cb[i] - ca[i]) * t)).round()];
+  return "ColorRecipe('$a', '$bk', ${t.toStringAsFixed(4)}, ${d[0]}, ${d[1]}, ${d[2]}, alpha: ${x[0]})";
+}

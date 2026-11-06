@@ -16,13 +16,17 @@ import '../library/format.dart';
 // (Video.png).
 
 /// What the title pill says after "Page 2 of 5 · ".
-String saveStatusLabel(SaveStatus save, SyncState sync, String notebookId, DateTime updatedAt) => switch (save) {
-      SaveStatus.saving => 'Saving…',
-      SaveStatus.failed => 'Couldn’t save · retrying',
-      SaveStatus.saved when !sync.settings.anyOn => 'Saved on this tablet',
-      SaveStatus.saved when sync.isSynced(notebookId, updatedAt) => 'Synced to ${sync.cloudNames}',
-      SaveStatus.saved => 'Saved',
-    };
+/// [saveTo] is where the notebook is saved (null: every cloud that's on).
+String saveStatusLabel(SaveStatus save, SyncState sync, String notebookId, DateTime updatedAt, {String? saveTo}) {
+  final clouds = [for (final k in sync.settings.active) if (saveTo == null || k.name == saveTo) k];
+  return switch (save) {
+    SaveStatus.saving => 'Saving…',
+    SaveStatus.failed => 'Couldn’t save · retrying',
+    SaveStatus.saved when clouds.isEmpty => 'Saved on this tablet',
+    SaveStatus.saved when sync.isSynced(notebookId, updatedAt) => 'Synced to ${clouds.map((k) => k.label).join(' and ')}',
+    SaveStatus.saved => 'Saved',
+  };
+}
 
 /// The sidebar's card: what sync is doing, and when it last synced. A tap
 /// opens Settings › Sync & backup.
@@ -90,7 +94,9 @@ class WaitingToSyncBadge extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
-    final waiting = ref.watch(syncProvider.select((s) => s.settings.anyOn && !s.isSynced(entry.id, entry.updatedAt)));
+    // A notebook saved on this tablet only (or to a cloud that's off) isn't waiting.
+    final waiting = ref.watch(syncProvider.select((s) =>
+        s.settings.active.any((k) => entry.saveTo == null || k.name == entry.saveTo) && !s.isSynced(entry.id, entry.updatedAt)));
     if (!waiting) return const SizedBox.shrink();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

@@ -7,20 +7,13 @@ import '../settings/sync_widgets.dart' show saveStatusLabel;
 import '../../sync/sync_state.dart';
 import '../../canvas/pane.dart';
 import '../../canvas/pens.dart';
-import '../../recognition/handwriting_index.dart';
-import '../../recognition/models.dart';
-import '../../recognition/recognizer.dart';
-import '../../spelling/my_handwriting.dart';
 import '../../state/notebook.dart';
 import '../../state/settings.dart';
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart' as tokens;
 import '../../theme/tokens.g.dart' show Radii, TypeScale;
 import '../common.dart';
-import '../dialogs.dart' show SecondaryButton;
 import '../icons.dart';
-import '../spell/teach_handwriting.dart';
-import 'pen_settings.dart';
 
 /// Title · tools · Share/⋯, floating over the page (Canvas.dc.html header).
 class TopBar extends StatelessWidget {
@@ -132,7 +125,7 @@ class TitlePill extends ConsumerWidget {
     final c = context.colors;
     final nb = ref.watch(notebookProvider(pane.notebookId));
     final page = pane.page.clamp(0, nb.pages.length - 1);
-    final status = saveStatusLabel(nb.saveStatus, ref.watch(syncProvider), nb.notebook.id, nb.notebook.updatedAt);
+    final status = saveStatusLabel(nb.saveStatus, ref.watch(syncProvider), nb.notebook.id, nb.notebook.updatedAt, saveTo: nb.notebook.saveTo);
     return Pill(
       padding: const EdgeInsets.fromLTRB(4, 4, 16, 4),
       child: Row(
@@ -507,158 +500,5 @@ class MoreMenu extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-/// Stand-in for the Settings screen: mode, name, finger drawing and the
-/// pen gesture settings.
-Future<void> showQuickSettings(BuildContext context) =>
-    showDialog<void>(context: context, builder: (context) => const _QuickSettings());
-
-class _QuickSettings extends ConsumerWidget {
-  const _QuickSettings();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.colors;
-    final s = ref.watch(settingsProvider);
-    final settings = ref.read(settingsProvider.notifier);
-    return Dialog(
-      backgroundColor: c.surface,
-      surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Radii.dialog),
-        side: BorderSide(color: c.line),
-      ),
-      child: SizedBox(
-        width: 460,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            spacing: 12,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text('Settings', style: TypeScale.panelTitle.copyWith(color: c.text)),
-                  ),
-                  ChromeButton(
-                    label: 'Close',
-                    icon: EIcons.close,
-                    foreground: c.textMuted,
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              Text('MODE', style: TypeScale.sectionLabel.copyWith(color: c.textMuted)),
-              SegmentedButton<ThemeMode>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(value: ThemeMode.light, label: Text('Light')),
-                  ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
-                  ButtonSegment(value: ThemeMode.system, label: Text('Match tablet')),
-                ],
-                selected: {s.themeMode},
-                onSelectionChanged: (m) => settings.apply((st) => st.copyWith(themeMode: m.first)),
-              ),
-              TextFormField(
-                initialValue: s.userName ?? '',
-                decoration: const InputDecoration(labelText: 'Your name (for the Start page)'),
-                style: TextStyle(fontSize: 15, color: c.text),
-                onChanged: (v) => settings.apply((st) => st.copyWith(userName: () => v.trim().isEmpty ? null : v.trim())),
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text('Draw with finger', style: TextStyle(fontSize: 15, color: c.text)),
-                subtitle: Text(
-                  'Off: only the pen draws; fingers pan and zoom.',
-                  style: TextStyle(fontSize: 13, color: c.textMuted),
-                ),
-                value: s.fingerDraws,
-                onChanged: (v) => settings.apply((st) => st.copyWith(fingerDraws: v)),
-              ),
-              Text('PEN & S PEN', style: TypeScale.sectionLabel.copyWith(color: c.textMuted)),
-              const QuickArrowSettings(),
-              Divider(color: c.lineSoft, height: 8),
-              const ScribbleSettings(),
-              Text('HANDWRITING', style: TypeScale.sectionLabel.copyWith(color: c.textMuted)),
-              const _HandwritingLanguage(),
-              const _MySample(),
-              Text('The full Settings screen is coming soon.', style: TextStyle(fontSize: 13, color: c.textFaint)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The handwriting sample spelling fixes are written with: write it, write
-/// it again, or forget it.
-class _MySample extends ConsumerWidget {
-  const _MySample();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.colors;
-    final hand = ref.watch(myHandwritingProvider);
-    return Row(spacing: 8, children: [
-      Expanded(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, spacing: 2, children: [
-          Text('My handwriting', style: TextStyle(fontSize: 15, color: c.text)),
-          Text(
-            hand == null
-                ? 'Write each letter once, and spell check can fix words in your handwriting.'
-                : 'Spell check fixes words in your letters. Kept on this tablet only.',
-            style: TextStyle(fontSize: 13, color: c.textMuted),
-          ),
-        ]),
-      ),
-      if (hand != null)
-        SecondaryButton(label: 'Forget it', height: 44, onPressed: () => ref.read(myHandwritingProvider.notifier).forget()),
-      SecondaryButton(
-        label: hand == null ? 'Write it' : 'Write it again',
-        height: 44,
-        onPressed: () => showTeachHandwriting(context),
-      ),
-    ]);
-  }
-}
-
-/// The language handwriting is read in, for search and the PDF text layer.
-/// Changing it reads every notebook again (the model downloads first).
-class _HandwritingLanguage extends ConsumerWidget {
-  const _HandwritingLanguage();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.colors;
-    final current = handwritingLanguage(ref.watch(settingsProvider));
-    return Row(children: [
-      Expanded(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, spacing: 2, children: [
-          Text('Handwriting language', style: TextStyle(fontSize: 15, color: c.text)),
-          Text('For search and Convert to text. Read on this tablet, offline.',
-              style: TextStyle(fontSize: 13, color: c.textMuted)),
-        ]),
-      ),
-      DropdownButton<String>(
-        value: inkLanguages.any((l) => l.tag == current) ? current : null,
-        hint: Text(inkLanguage(current).name),
-        underline: const SizedBox.shrink(),
-        dropdownColor: c.surface,
-        style: TextStyle(fontSize: 15, color: c.text),
-        items: [
-          for (final l in inkLanguages) DropdownMenuItem(value: l.tag, child: Text(l.name)),
-        ],
-        onChanged: (tag) {
-          if (tag == null || tag == current) return;
-          ref.read(settingsProvider.notifier).apply((s) => s.copyWith(handwritingLanguage: () => tag));
-          ref.read(inkModelsProvider.notifier).ensure(tag).then((_) => ref.read(handwritingIndexProvider).catchUp());
-        },
-      ),
-    ]);
   }
 }

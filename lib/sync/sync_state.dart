@@ -651,12 +651,21 @@ class SyncController extends Notifier<SyncState> {
   /// The cloud big videos go to: Google Drive if it's on, else OneDrive.
   CloudKind? get videoCloud => state.settings.active.firstOrNull;
 
+  /// The cloud notebook [notebookId]'s big videos go to: its own (if it's
+  /// on), or for a notebook from before there was a choice, [videoCloud].
+  /// Null for one saved on this tablet only.
+  CloudKind? videoCloudFor(String notebookId) {
+    final saveTo = ref.read(libraryProvider).byId(notebookId)?.saveTo;
+    if (saveTo == null) return videoCloud;
+    return state.settings.active.where((k) => k.name == saveTo).firstOrNull;
+  }
+
   final _cancels = <String, CloudCancel>{};
 
   /// Sends video [itemId]'s file (a big one kept on this device) to the
   /// cloud; the page keeps a link. Nothing if no cloud is on.
   Future<void> moveVideo(String notebookId, String itemId) async {
-    final kind = videoCloud;
+    final kind = videoCloudFor(notebookId);
     if (kind == null || state.uploads.containsKey(itemId)) return;
     final nb = ref.read(notebookProvider(notebookId).notifier);
     final found = nb.videoClip(itemId);

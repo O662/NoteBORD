@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'colors.dart';
+import 'palettes.dart';
 import 'tokens.g.dart';
 
-/// Material theme for a palette. Only Paper exists in Phase 0; other
-/// themes and accent choices plug in here with the Themes screen.
+/// Material theme for a palette (see [themeFor] for a theme and accent).
 ThemeData buildTheme(EndlessColors c, Brightness brightness) {
   final scheme = ColorScheme(
     brightness: brightness,
@@ -64,3 +64,11 @@ ThemeData buildTheme(EndlessColors c, Brightness brightness) {
 
 final lightTheme = buildTheme(paperLight, Brightness.light);
 final darkTheme = buildTheme(paperDark, Brightness.dark);
+
+final _themes = <(String, String, Brightness), ThemeData>{};
+
+/// The Material theme for [theme] with [accent] (Themes & dark mode).
+ThemeData themeFor(String theme, String accent, Brightness brightness) {
+  if (theme == 'paper' && accent == themeAccent) return brightness == Brightness.light ? lightTheme : darkTheme;
+  return _themes[(theme, accent, brightness)] ??= buildTheme(paletteFor(theme, accent, brightness), brightness);
+}

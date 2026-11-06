@@ -12,6 +12,7 @@ import '../dialogs.dart';
 import '../icons.dart';
 import '../routes.dart';
 import 'format.dart';
+import 'new_note_dialog.dart' show showSaveTo;
 
 /// "FOLDERS", "NOTEBOOKS", "CONTINUE WRITING"…
 class SectionLabel extends StatelessWidget {
@@ -231,7 +232,7 @@ Future<T?> _showActions<T>(BuildContext context, Offset at, List<_MenuAction<T>>
   );
 }
 
-enum _NotebookAction { open, split, rename, move, color, pin, trash, restore, delete }
+enum _NotebookAction { open, split, rename, move, saveTo, color, pin, trash, restore, delete }
 
 /// The long-press menu for a notebook card.
 Future<void> showNotebookMenu(BuildContext context, WidgetRef ref, NotebookEntry n, Offset at) async {
@@ -246,6 +247,7 @@ Future<void> showNotebookMenu(BuildContext context, WidgetRef ref, NotebookEntry
           _MenuAction(_NotebookAction.split, 'Open in split view', EIcons.split),
           _MenuAction(_NotebookAction.rename, 'Rename', EIcons.edit),
           _MenuAction(_NotebookAction.move, 'Move to folder', EIcons.folder),
+          _MenuAction(_NotebookAction.saveTo, 'Save to…', EIcons.cloud),
           _MenuAction(_NotebookAction.color, 'Color', EIcons.palette),
           _MenuAction(_NotebookAction.pin, n.pinned ? 'Unpin from Start' : 'Pin to Start', EIcons.pin),
           _MenuAction(_NotebookAction.trash, 'Move to Trash', EIcons.trash),
@@ -264,6 +266,8 @@ Future<void> showNotebookMenu(BuildContext context, WidgetRef ref, NotebookEntry
     case _NotebookAction.move:
       final to = await showFolderPicker(context, ref, current: n.folder);
       if (to != null) await lib.move(n.id, to);
+    case _NotebookAction.saveTo:
+      await showSaveTo(context, ref, n);
     case _NotebookAction.color:
       final color = await showColorPicker(context, title: 'Notebook color', current: ref.read(libraryProvider).coverOf(n));
       if (color != null) await lib.setCover(n.id, color);

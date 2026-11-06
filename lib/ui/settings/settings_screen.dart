@@ -10,32 +10,22 @@ import '../../sync/doc.dart' show MergePolicy;
 import '../../sync/sync_state.dart';
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart';
-import '../canvas/top_bar.dart' show showQuickSettings;
+import '../../state/settings.dart';
+import 'settings_rows.dart';
+import 'settings_sections.dart';
+import 'themes_panel.dart';
 import '../dialogs.dart';
 import '../icons.dart';
 import '../routes.dart';
 
-// Settings (Sync.png). Sync & backup is built; the other sections open
-// what exists so far (the stand-in Settings dialog) until they're designed
-// into this screen.
+export 'settings_sections.dart' show SettingsSection;
 
-enum SettingsSection {
-  account('Account'),
-  pen('Pen & S Pen'),
-  handwriting('Handwriting & search'),
-  sync('Sync & backup'),
-  themes('Themes & dark mode'),
-  about('About');
-
-  const SettingsSection(this.label);
-
-  final String label;
-
-  static SettingsSection parse(String? s) => values.where((v) => v.name == s).firstOrNull ?? sync;
-}
+// Settings (Settings.png): one screen with every section in its side menu
+// and a search box that finds any setting. Sync & backup (Sync.png) and
+// Themes & dark mode (Themes.png) are panels of their own in it.
 
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key, this.section = SettingsSection.sync});
+  const SettingsScreen({super.key, this.section = SettingsSection.general});
 
   final SettingsSection section;
 
@@ -45,79 +35,110 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late var _section = widget.section;
+  final _search = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _go(SettingsSection s) => setState(() {
+        _section = s;
+        _query = '';
+        _search.clear();
+      });
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final searching = _query.trim().isNotEmpty;
     return Scaffold(
       backgroundColor: c.bg,
-      body: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Semantics(
-          container: true,
-          label: 'Settings',
-          explicitChildNodes: true,
-          child: Container(
-            width: 272,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 22),
-            decoration: BoxDecoration(color: c.side, border: Border(right: BorderSide(color: c.line))),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 4, children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: Row(spacing: 6, children: [
-                  Semantics(
-                    button: true,
-                    label: 'Back to library',
-                    excludeSemantics: true,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(Radii.button),
-                      onTap: () => context.canPop() ? context.pop() : context.go(Routes.start),
-                      child: SizedBox(width: 44, height: 44, child: Center(child: EIcon(EIcons.back, size: 22, color: c.text))),
-                    ),
-                  ),
-                  Flexible(
-                    child: Text('Settings',
-                        maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: FontFamilies.serif, fontSize: 26, color: c.text)),
-                  ),
-                ]),
-              ),
-              for (final s in SettingsSection.values)
-                Semantics(
-                  button: true,
-                  selected: s == _section,
-                  label: s.label,
-                  excludeSemantics: true,
-                  child: Material(
-                    color: s == _section ? c.sideSelected : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(10),
-                      onTap: () => setState(() => _section = s),
-                      child: Container(
-                        height: 46,
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          s.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 15, fontWeight: s == _section ? FontWeight.w600 : FontWeight.w400, color: c.text),
-                        ),
+      body: SafeArea(
+        child: SettingsNav(
+          go: _go,
+          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Semantics(
+              container: true,
+              label: 'Settings',
+              explicitChildNodes: true,
+              child: Container(
+                width: 284,
+                decoration: BoxDecoration(color: c.side, border: Border(right: BorderSide(color: c.line))),
+                child: ListView(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18), children: [
+                  Row(spacing: 6, children: [
+                    Semantics(
+                      button: true,
+                      label: 'Back to library',
+                      excludeSemantics: true,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(Radii.button),
+                        onTap: () => context.canPop() ? context.pop() : context.go(Routes.start),
+                        child: SizedBox(width: 44, height: 44, child: Center(child: EIcon(EIcons.back, size: 22, color: c.text))),
                       ),
                     ),
-                  ),
-                ),
-            ]),
-          ),
-        ),
-        Expanded(
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 56, vertical: 32),
-                child: _section == SettingsSection.sync ? const SyncSettingsPanel() : _OtherSection(_section),
+                    Flexible(
+                      child: Text('Settings',
+                          maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: FontFamilies.serif, fontSize: 26, color: c.text)),
+                    ),
+                  ]),
+                  const SizedBox(height: 10),
+                  _SearchBox(controller: _search, onChanged: (q) => setState(() => _query = q)),
+                  const SizedBox(height: 10),
+                  for (final s in SettingsSection.values) _NavRow(section: s, on: !searching && s == _section, onTap: () => _go(s)),
+                ]),
               ),
+            ),
+            Expanded(
+              child: searching
+                  ? _Page(title: 'Search', intro: '', child: _SearchResults(query: _query.trim()))
+                  : switch (_section) {
+                      SettingsSection.themes => const ThemesPanel(),
+                      SettingsSection.sync => Align(
+                          alignment: Alignment.topLeft,
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.symmetric(horizontal: 56, vertical: 32),
+                            child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 820), child: const SyncSettingsPanel()),
+                          ),
+                        ),
+                      final s => _Page(title: s.title, intro: s.intro, child: _SectionRows(section: s)),
+                    },
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchBox extends StatelessWidget {
+  const _SearchBox({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(color: c.surface, border: Border.all(color: c.line), borderRadius: BorderRadius.circular(Radii.button)),
+      child: Row(spacing: 8, children: [
+        EIcon(EIcons.search, size: 18, color: c.textMuted),
+        Expanded(
+          child: TextField(
+            controller: controller,
+            onChanged: onChanged,
+            style: TextStyle(fontSize: 15, color: c.text),
+            decoration: InputDecoration(
+              isDense: true,
+              border: InputBorder.none,
+              hintText: 'Search settings',
+              hintStyle: TextStyle(fontSize: 15, color: c.textMuted),
+              contentPadding: const EdgeInsets.symmetric(vertical: 10),
             ),
           ),
         ),
@@ -126,28 +147,171 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 }
 
-/// Sections not built into this screen yet.
-class _OtherSection extends StatelessWidget {
-  const _OtherSection(this.section);
+class _NavRow extends StatelessWidget {
+  const _NavRow({required this.section, required this.on, required this.onTap});
 
   final SettingsSection section;
+  final bool on;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final about = section == SettingsSection.about;
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, spacing: 16, children: [
-      Text(section.label, style: TextStyle(fontFamily: FontFamilies.serif, fontSize: 40, height: 1.2, color: c.text, letterSpacing: -0.8)),
-      Text(
-        about
-            ? 'Endless · a handwriting-first notebook. Licences for the fonts, models and packages it uses are on the licences page.'
-            : 'These settings are in the Settings window for now (also from ⋯ → Settings in a notebook).',
-        style: TextStyle(fontSize: 15, color: c.textMuted),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 1),
+      child: Semantics(
+        button: true,
+        selected: on,
+        label: section.label,
+        excludeSemantics: true,
+        child: Material(
+          color: on ? c.sideSelected : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: onTap,
+            child: Container(
+              height: 44,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(spacing: 12, children: [
+                EIcon(section.icon, size: 20, color: c.text),
+                Expanded(
+                  child: Text(
+                    section.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 15, fontWeight: on ? FontWeight.w600 : FontWeight.w400, color: c.text),
+                  ),
+                ),
+                if (section.ownScreen) EIcon(EIcons.chevronRight, size: 14, color: c.textFaint),
+              ]),
+            ),
+          ),
+        ),
       ),
-      SecondaryButton(
-        label: about ? 'Licences' : 'Open Settings',
-        onPressed: () => about ? showLicensePage(context: context, applicationName: 'Endless') : showQuickSettings(context),
+    );
+  }
+}
+
+/// A section's page: its title, intro and rows, up to 820 wide.
+class _Page extends StatelessWidget {
+  const _Page({required this.title, required this.intro, required this.child});
+
+  final String title;
+  final String intro;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Align(
+      alignment: Alignment.topLeft,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(56, 32, 56, 48),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 820),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 22, children: [
+            Column(crossAxisAlignment: CrossAxisAlignment.start, spacing: 6, children: [
+              Semantics(
+                header: true,
+                child: Text(title, style: TextStyle(fontFamily: FontFamilies.serif, fontSize: 40, height: 1.2, color: c.text, letterSpacing: -0.8)),
+              ),
+              if (intro.isNotEmpty) Text(intro, style: TextStyle(fontSize: 15, color: c.textMuted)),
+            ]),
+            child,
+          ]),
+        ),
       ),
+    );
+  }
+}
+
+class _SectionRows extends ConsumerWidget {
+  const _SectionRows({required this.section});
+
+  final SettingsSection section;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final groups = settingsGroups(section);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 22, children: [
+      if (section == SettingsSection.account) const _ProfileCard(),
+      for (final g in groups)
+        if (section == SettingsSection.calendar && g.title == 'Connected calendars')
+          SettingsGroupView(title: g.title, rows: [
+            for (final d in calendarRows(ref)) SettingRowView(d),
+            SettingsRowView(
+              label: 'Add a calendar',
+              desc: 'A Google or Outlook calendar link',
+              trailing: SettingsButton(label: 'Add', onPressed: () => context.push(Routes.calendar)),
+            ),
+          ])
+        else
+          SettingsGroupView(title: g.title, rows: [
+            for (final d in g.rows)
+              if (d.shown?.call(ref) ?? true) SettingRowView(d),
+          ]),
+    ]);
+  }
+}
+
+/// Account's card: your initial, name and the account signed in.
+class _ProfileCard extends ConsumerWidget {
+  const _ProfileCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
+    final name = ref.watch(settingsProvider.select((s) => s.userName))?.trim();
+    final sync = ref.watch(syncProvider.select((s) => s.settings));
+    final email = sync.google.account?.email ?? sync.onedrive.account?.email;
+    final shown = name == null || name.isEmpty ? 'You' : name;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(color: c.surface, border: Border.all(color: c.line), borderRadius: BorderRadius.circular(Radii.pill)),
+      child: Row(spacing: 16, children: [
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle),
+          alignment: Alignment.center,
+          child: Text(shown.characters.first.toUpperCase(), style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: c.onAccent)),
+        ),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, spacing: 2, children: [
+            Text(shown, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: c.text)),
+            Text(email ?? 'Not signed in to a cloud', style: TextStyle(fontSize: 14, color: c.textMuted)),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+/// Every setting whose name or description matches [query], under
+/// "Section › Group".
+class _SearchResults extends ConsumerWidget {
+  const _SearchResults({required this.query});
+
+  final String query;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
+    final q = query.toLowerCase();
+    final found = <(String, List<SettingDef>)>[];
+    for (final s in SettingsSection.values) {
+      for (final g in settingsGroups(s)) {
+        final rows = [
+          for (final d in (s == SettingsSection.calendar && g.title == 'Connected calendars') ? calendarRows(ref) : g.rows)
+            if (d.searchText.contains(q) && (d.shown?.call(ref) ?? true)) d,
+        ];
+        if (rows.isNotEmpty) found.add(('${s.label} › ${g.title}', rows));
+      }
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 22, children: [
+      Text(found.isEmpty ? 'No settings match “$query”.' : 'Settings that match “$query”', style: TextStyle(fontSize: 15, color: c.textMuted)),
+      for (final (title, rows) in found) SettingsGroupView(title: title, rows: [for (final d in rows) SettingRowView(d)]),
     ]);
   }
 }

@@ -285,6 +285,27 @@ abstract final class EIcons {
     _p(_rect(14, 14, 7, 7, 1.5)),
   ], strokeWidth: 1.9);
   static final tuckUp = EIconData([_p('M2 7l5-5 5 5')], strokeWidth: 2, viewBox: 14);
+  // Settings' side menu (Settings.dc.html `I`).
+  static final person = EIconData([_p('M12 4a4 4 0 1 0 0 8a4 4 0 1 0 0-8z'), _p('M4 21c1-4 4-6 8-6s7 2 8 6')]);
+  static final storage = EIconData([
+    _p('M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z'),
+    _p('M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6'),
+    _p('M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3'),
+  ]);
+  static final info = EIconData([_p(_circle(12, 12, 9)), _p('M12 11v5M12 8h.01')]);
+  static final bellThin = EIconData([_p('M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4')]);
+  // Themes' Mode (Themes.dc.html `modeIcons`).
+  static final sun = EIconData([
+    _p('M12 4V2M12 22v-2M4 12H2M22 12h-2M5.6 5.6 4.2 4.2M19.8 19.8l-1.4-1.4M5.6 18.4l-1.4 1.4M19.8 4.2l-1.4 1.4'),
+    _p(_circle(12, 12, 4)),
+  ], strokeWidth: 1.9);
+  static final moon = EIconData([_p('M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z')], strokeWidth: 1.9);
+  static final device = EIconData([_p('M4 5h16v11H4zM9 20h6M12 16v4')], strokeWidth: 1.9);
+  // New note (NewNote.dc.html).
+  static final folderFill = EIconData([
+    const IconPart('M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', stroke: false, fill: true),
+  ]);
+  static final tablet = EIconData([_p('M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z'), _p('M11 18h2')]);
   static final checkBold = EIconData([_p('M5 12l5 5 9-10')], strokeWidth: 2.6);
 }
 

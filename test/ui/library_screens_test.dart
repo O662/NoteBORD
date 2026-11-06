@@ -118,6 +118,11 @@ void main() {
     final c = await pumpApp(tester, store: store, index: db, location: Routes.library(['Work']));
     await tester.tap(find.text('New note'));
     await _pump(tester);
+    // The New note dialog, in the open folder.
+    expect(find.text('Will be saved as'), findsOneWidget);
+    expect(find.text('This tablet › Work › Untitled note'), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('Create note'));
+    await _pump(tester);
     expect(_screenTitle(tester), 'canvas');
     expect(find.text('Untitled note'), findsOneWidget);
     final created = c.read(libraryProvider).active.where((n) => n.title == 'Untitled note').single;
