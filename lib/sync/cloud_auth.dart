@@ -30,9 +30,17 @@ import 'cloud.dart';
 // your Drive; Google rates it non-sensitive); Microsoft `Files.ReadWrite`
 // and `offline_access`.
 
-/// The client ids this build was made with (empty: not set up).
+/// The client ids this build was made with (empty: not set up). Client
+/// ids aren't secrets, so Endless's own are the defaults; a build can use
+/// others with --dart-define. The Windows client secret is never in the
+/// code: it comes from config/cloud_secrets.json (git ignores it), with
+/// --dart-define-from-file=config/cloud_secrets.json.
 class CloudIds {
-  static const googleWeb = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
+  /// Google Cloud project "Endless", Web client "Endless (for Android sign-in)".
+  static const googleWeb = String.fromEnvironment(
+    'GOOGLE_WEB_CLIENT_ID',
+    defaultValue: '559291719909-ge9bkocsv6ksho8su1h1b0kt5mag87mn.apps.googleusercontent.com',
+  );
   static const googleDesktop = String.fromEnvironment('GOOGLE_DESKTOP_CLIENT_ID');
   static const googleDesktopSecret = String.fromEnvironment('GOOGLE_DESKTOP_CLIENT_SECRET');
   static const microsoft = String.fromEnvironment('MICROSOFT_CLIENT_ID');

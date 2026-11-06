@@ -18,13 +18,15 @@ Settings › Sync & backup → **Connect** signs in. Until the build has the cli
 3. *(Windows)* `http://localhost` under Mobile and desktop applications (step 2b.5).
 4. Send me the **Application (client) ID**.
 
-**Building with them.** Client ids aren't secrets; they go in at build time:
+**Set up so far (2026-11-05):** Google is done: project "Endless", Drive API on, `drive.file`, Android and Web clients, a Desktop client for Windows. The audience is still **Testing** (the Branding page isn't filled in), so test users only, and signing in again every 7 days. The Web client id is built in (`CloudIds.googleWeb`); the Desktop client's id and secret are in `config/cloud_secrets.json` on the owner's PC, which git ignores. **Microsoft isn't set up**: the owner's Outlook.com account is a guest in Texas A&M's directory (`tamucs.onmicrosoft.com`), which sends every Microsoft sign-in, the Azure sign-up included, to A&M; the owner has asked A&M's help desk to remove it.
+
+**Building with them.** Client ids aren't secrets. Google's Web client id is built in; others go in at build time:
 
 ```
 flutter build apk --release   --dart-define=GOOGLE_WEB_CLIENT_ID=1234-abc.apps.googleusercontent.com   --dart-define=MICROSOFT_CLIENT_ID=00000000-0000-0000-0000-000000000000
 ```
 
-For Windows add `--dart-define=GOOGLE_DESKTOP_CLIENT_ID=…` and `--dart-define=GOOGLE_DESKTOP_CLIENT_SECRET=…`. They're read in `lib/sync/cloud_auth.dart` (`CloudIds`).
+For Windows: `flutter build windows --dart-define-from-file=config/cloud_secrets.json` (the file holds `GOOGLE_DESKTOP_CLIENT_ID` and `GOOGLE_DESKTOP_CLIENT_SECRET`; git ignores it). They're read in `lib/sync/cloud_auth.dart` (`CloudIds`).
 
 **Who owns what, and how long it lasts.**
 - **The developer side** (the Google Cloud project and the Microsoft app registration) belongs to the account you make them with. It isn't the account people sync with: anyone can sign in to Endless with their own Google or Microsoft account. To hand it over: Google Cloud → IAM → add another Google account as **Owner** (then the first can be removed); Microsoft Entra → the app registration → **Owners** → add one (and, for the tenant itself, make another account a Global Administrator). The client ids don't change, so no new build is needed.

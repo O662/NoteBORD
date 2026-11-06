@@ -55,3 +55,6 @@ app.*.map.json
 !/assets/speech/README.md
 !/assets/speech/NOTICE.txt
 !/assets/speech/speakers-ecapa.onnx
+
+# The Windows sign-in secret (docs/CLOUD_SETUP.md): kept on this PC only.
+config/cloud_secrets.json
