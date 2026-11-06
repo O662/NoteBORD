@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:path_parsing/path_parsing.dart';
 
 import '../theme/colors.dart';
+import '../theme/tokens.g.dart' as tokens show stickyColors;
 
 /// Which palette color a part of an icon uses.
-enum IconTint { current, danger, star, gold }
+enum IconTint { current, danger, star, gold, stickyPaper }
 
 /// One SVG element of an icon: a path (rects and circles are converted).
 class IconPart {
@@ -306,6 +307,11 @@ abstract final class EIcons {
     const IconPart('M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', stroke: false, fill: true),
   ]);
   static final tablet = EIconData([_p('M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z'), _p('M11 18h2')]);
+  /// The library's Sticky notes (Start.dc.html): a yellow note.
+  static final stickyNotes = EIconData([
+    const IconPart('M4 4h16v10l-6 6H4z', fill: true, fillTint: IconTint.stickyPaper, tint: IconTint.gold),
+    const IconPart('M14 20v-6h6', tint: IconTint.gold),
+  ], strokeWidth: 1.6);
   static final checkBold = EIconData([_p('M5 12l5 5 9-10')], strokeWidth: 2.6);
 }
 
@@ -412,6 +418,7 @@ class _EIconPainter extends CustomPainter {
         IconTint.danger => colors.danger,
         IconTint.star => colors.star,
         IconTint.gold => colors.gold,
+        IconTint.stickyPaper => tokens.stickyColors.first,
       };
 
   @override

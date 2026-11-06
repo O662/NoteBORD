@@ -41,6 +41,9 @@ abstract final class Routes {
 
   /// Need to remember (Remember.png).
   static const remember = '/remember';
+
+  /// Sticky notes from every notebook (Stickies.png).
+  static const stickies = '/stickies';
   static const calendar = '/calendar';
   static const planner = '/planner';
 

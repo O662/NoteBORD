@@ -29,6 +29,7 @@ import 'ui/search/search_screen.dart';
 import 'ui/settings/settings_screen.dart';
 import 'ui/split/split_screen.dart';
 import 'ui/study/remember_screen.dart';
+import 'ui/study/stickies_screen.dart';
 import 'ui/study/study_screen.dart';
 
 /// Where the app opens. Tests start straight in a notebook.
@@ -73,6 +74,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: Routes.remember, builder: (context, state) => const RememberScreen()),
+      GoRoute(path: Routes.stickies, builder: (context, state) => const StickiesScreen()),
       GoRoute(
         path: '/settings',
         builder: (context, state) => SettingsScreen(section: SettingsSection.parse(state.uri.queryParameters['s'])),

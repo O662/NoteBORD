@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:ui' show Rect;
+import 'dart:ui' show Color, Rect;
 
 import '../board/codec.dart';
 import '../board/model.dart';
@@ -12,7 +12,9 @@ import 'remember.dart';
 // each flashcard, with a copy of the items they show. Like the search rows,
 // these are a cache: the pages are the source of truth.
 
-enum StudyKind { remember, card }
+/// What a row is: a thing to remember, a flashcard, or (Update 02) a
+/// sticky note or stack, for the library's Sticky notes.
+enum StudyKind { remember, card, sticky }
 
 class StudyRow {
   const StudyRow({
@@ -135,7 +137,86 @@ List<StudyRow> studyRowsFor(String notebookId, BoardPage page, PageRecognition? 
       },
     ));
   }
+  for (final s in page.items.whereType<StickyItem>()) {
+    rows.add(StudyRow(
+      notebookId: notebookId,
+      pageId: page.id,
+      kind: StudyKind.sticky,
+      ref: s.id,
+      rect: s.extent,
+      at: s.createdAt,
+      data: {
+        'items': [s.toJson()],
+        'said': stickyText(s, read),
+        'top': stickyText(s, read, topOnly: true),
+        'page': page.title,
+      },
+    ));
+  }
   return rows;
+}
+
+/// What sticky note (or stack) [s] says: its handwriting, read in [read],
+/// and its typed text, top note first.
+String stickyText(StickyItem s, PageRecognition? read, {bool topOnly = false}) {
+  final parts = <String>[
+    for (final line in read?.lines ?? const <RecognizedLine>[])
+      if (line.holder == s.id && line.sub == null && line.text.isNotEmpty) line.text,
+    if (s.text.trim().isNotEmpty) s.text.trim(),
+  ];
+  if (topOnly) return parts.join(' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+  parts.addAll([
+    for (final line in read?.lines ?? const <RecognizedLine>[])
+      if (line.holder == s.id && line.sub != null && line.text.isNotEmpty) line.text,
+    for (final n in s.under)
+      for (final i in n.items)
+        if (i is TextItem && i.text.trim().isNotEmpty) i.text.trim(),
+  ]);
+  return parts.join(' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+}
+
+/// A sticky note or stack, as the index has it (Stickies.png).
+class StickyEntry {
+  StickyEntry.fromRow(StudyRow row)
+      : notebookId = row.notebookId,
+        pageId = row.pageId,
+        id = row.ref,
+        rect = row.rect,
+        at = row.at,
+        note = switch ((row.data['items'] as List?)?.firstOrNull) {
+          final Map m => switch (decodeItem(m.cast<String, dynamic>())) {
+              final StickyItem s => s,
+              _ => null,
+            },
+          _ => null,
+        },
+        said = row.data['said'] as String? ?? '',
+        top = row.data['top'] as String? ?? '',
+        pageTitle = row.data['page'] as String? ?? '';
+
+  final String notebookId;
+  final String pageId;
+  final String id;
+  final Rect rect;
+  final DateTime at;
+
+  /// The note as it was when its page was last read (null if unreadable).
+  final StickyItem? note;
+
+  /// Its handwriting and typed text.
+  final String said;
+
+  /// What the top note says (a stack's title).
+  final String top;
+  final String pageTitle;
+
+  bool get isStack => note?.isStack ?? false;
+
+  /// How many notes it is (1, or a stack's count).
+  int get count => note?.count ?? 1;
+
+  /// Every paper color in it, top note first.
+  List<Color> get colors => [?note?.color, for (final n in note?.under ?? const <StickyNote>[]) n.color];
 }
 
 /// One side of a flashcard as the index has it: the items it shows (as they

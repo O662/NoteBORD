@@ -59,6 +59,8 @@ Each screen is 1280×800 (Android tablet, landscape). The PNG is in `design/scre
 |---|---|
 | `RememberMark` | Mark something to remember |
 | `Remember` | Need to remember |
+| `Stickies` | Sticky notes from every notebook |
+| `Stickies-stack` | A stack's notes, opened |
 
 ## Math, graphs, charts & arrows
 
@@ -92,6 +94,7 @@ Each screen is 1280×800 (Android tablet, landscape). The PNG is in `design/scre
 | `MathKit` | Number line, unit circle, polar, formulas & symbols |
 
 ## How the screens connect
+- Sidebar → Sticky notes (`Stickies`) → a stack (`Stickies-stack`) or a note's place → Canvas at that spot.
 - Start: New note → Canvas. Continue writing → Canvas. Sidebar → Library (Main), Calendar, Flashcards (Study), Remember.
 - Canvas top-right: Share (dialog includes Export a copy) and ⋯ (Export, Import, Print, Password protect, Page & paper, Version history, Settings).
 - Canvas left rail: Insert menu, Study & math menu (RememberMark, FlashMake, Math, MathKit), Writing help menu (Spell, Convert), Ruler/laser/view menu (Tools, Split), and Search.

@@ -111,12 +111,15 @@ class Decks extends Notifier<List<Deck>> {
 /// each card is known.
 @immutable
 class StudySnapshot {
-  const StudySnapshot({required this.remembered, required this.cards, required this.states, this.copies = const []});
+  const StudySnapshot({required this.remembered, required this.cards, required this.states, this.copies = const [], this.stickies = const []});
 
   static const empty = StudySnapshot(remembered: [], cards: [], states: {});
 
   final List<RememberedThing> remembered;
   final List<StudyCard> cards;
+
+  /// Every sticky note and stack (the library's Sticky notes), newest first.
+  final List<StickyEntry> stickies;
 
   /// Cards that are copies of ones in [cards] (from a notebook imported
   /// again, with its cards' ids), hidden from studying.
@@ -132,7 +135,7 @@ class StudySnapshot {
   int dueAt(DateTime now) => items.where((i) => i.dueAt(now)).length;
 
   StudySnapshot withState(String key, CardState s) =>
-      StudySnapshot(remembered: remembered, cards: cards, states: {...states, key: s}, copies: copies);
+      StudySnapshot(remembered: remembered, cards: cards, states: {...states, key: s}, copies: copies, stickies: stickies);
 }
 
 /// The study data, read again whenever the index or the library changes.
@@ -198,6 +201,7 @@ class StudyData extends Notifier<StudySnapshot?> {
     final library = ref.read(libraryProvider);
     final remembered = <RememberedThing>[];
     final cards = <StudyCard>[];
+    final stickies = <StickyEntry>[];
     for (final r in rows) {
       final nb = library.byId(r.notebookId);
       if (nb == null || nb.trashed || nb.locked) continue;
@@ -206,6 +210,9 @@ class StudyData extends Notifier<StudySnapshot?> {
           remembered.add(RememberedThing.fromRow(r));
         case StudyKind.card:
           cards.add(StudyCard.fromRow(r));
+        case StudyKind.sticky:
+          final e = StickyEntry.fromRow(r);
+          if (e.note != null) stickies.add(e);
       }
     }
     final store = ref.read(boardStoreProvider);
@@ -227,6 +234,7 @@ class StudyData extends Notifier<StudySnapshot?> {
       cards: kept,
       states: states,
       copies: [for (final c in cards) if (!shown.contains(c)) c],
+      stickies: oneOfEach(stickies, (s) => s.id, (s) => s.notebookId)..sort((a, b) => b.at.compareTo(a.at)),
     );
   }
 

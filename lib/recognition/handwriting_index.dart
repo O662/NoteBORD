@@ -52,8 +52,8 @@ final catchUpOnStartProvider = Provider<bool>((ref) => true);
 
 /// How search rows are made. Bumping it re-indexes every notebook (from
 /// recognition.json, so nothing is recognized twice). 3: things to
-/// remember and flashcards (Phase 7a).
-const indexVersion = 3;
+/// remember and flashcards (Phase 7a). 4: sticky notes (Update 02).
+const indexVersion = 4;
 
 /// The handwriting language in use.
 String handwritingLanguage(AppSettings s) =>
@@ -769,4 +769,4 @@ List<SearchRow> rowsFor(String notebookId, BoardPage page, PageRecognition? read
 }
 
 /// Whether [page] has anything remembered or a flashcard on it.
-bool hasStudyItems(BoardPage page) => page.items.any((i) => i.remember != null || i is FlashcardItem);
+bool hasStudyItems(BoardPage page) => page.items.any((i) => i.remember != null || i is FlashcardItem || i is StickyItem);

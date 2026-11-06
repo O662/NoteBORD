@@ -14,7 +14,7 @@ import '../icons.dart';
 import '../routes.dart';
 import 'widgets.dart';
 
-enum SidebarItem { home, all, calendar, flashcards, remember, trash }
+enum SidebarItem { home, all, calendar, flashcards, remember, stickies, trash }
 
 /// Folders expanded in the sidebar tree (kept while moving between screens).
 final expandedFoldersProvider = NotifierProvider<ExpandedFolders, Set<String>>(ExpandedFolders.new);
@@ -48,6 +48,8 @@ class AppSidebar extends ConsumerWidget {
     final now = ref.read(clockProvider)().toUtc();
     final due = ref.watch(studyProvider.select((s) => s?.dueAt(now) ?? 0));
     final remembered = ref.watch(studyProvider.select((s) => s?.remembered.length ?? 0));
+    // Every note, a stack's notes each counted.
+    final stickies = ref.watch(studyProvider.select((s) => s?.stickies.fold<int>(0, (n, e) => n + e.count) ?? 0));
     final current = folder;
     // The open folder's parents are always expanded, so it shows.
     final expanded = {
@@ -131,6 +133,13 @@ class AppSidebar extends ConsumerWidget {
               badgeLabel: '$remembered to remember',
               remember: true,
               onTap: () => context.go(Routes.remember),
+            ),
+            _NavRow(
+              icon: EIcons.stickyNotes,
+              label: 'Sticky notes',
+              selected: selected == SidebarItem.stickies,
+              count: stickies > 0 ? '$stickies' : null,
+              onTap: () => context.go(Routes.stickies),
             ),
             _NavRow(
               icon: EIcons.trash,

@@ -982,6 +982,26 @@ The owner's answers (2026-11-06): build the full Themes screen now; each noteboo
 ### Not done yet / known limits
 - Not tried on the tablet: the S Pen writing a name in the New note field, a real Google or Microsoft sign-in from New note, and each theme on the real screen (High contrast especially).
 
+## Update 02c: Sticky notes in the library — built, not yet tried on the tablet (docs/UPDATE_02.md)
+
+| Item | Status | Where |
+|---|---|---|
+| Where they come from | The index (owner's choice, 2026-11-06): `study_items` gets a row per sticky note and stack (kind `sticky`) with a copy of the note (its ink, typed text and the notes under it), what it says (handwriting recognized on it, typed text, the notes under it), what the top note says, and the page's title. Written when its page changes or is read, like things to remember. `indexVersion` 4 re-indexes every notebook once, so notes from before show up. Notebooks with a password and pages with their own are never in it | `studyRowsFor`, `stickyText`, `StickyEntry` (`lib/study/study_rows.dart`), `StudySnapshot.stickies` |
+| Sidebar | "Sticky notes" under Remember with the yellow note icon and how many notes (a stack's each counted), on every library screen | `AppSidebar`, `EIcons.stickyNotes` |
+| The screen (Stickies.png) | `/stickies`: the title, "6 notes · 1 stack · from 2 notebooks. Tap one to jump to where it lives.", the search box, All / Stacks / Loose notes with counts, the 4 paper colors (a stack matches if any of its notes is that color), All notebooks and a chip per notebook with notes, then the notes 4 across: each as on its page (ink in its own color, typed text) on its paper, slightly turned; a stack fanned with its next two papers and "Stack · 3". Under each: the notebook's color, its name, "Page 2 · Exam notes" and → | `lib/ui/study/stickies_screen.dart` |
+| Opening | A loose note, or its place under it, opens the notebook at that page with the note in the middle, highlighted. A stack opens its notes (Stickies-stack.png): the title (what its top note says), "Stack of 3 · notebook · Page 2 · page title", every note with "1 of 3", Open on the page and Done | `_StackView`, `openSpot` |
+| Search | Every word typed must be in what the note (or any note of a stack) says | `_matches` |
+| Empty and left out | "No sticky notes yet" (with how to add one), or "No sticky notes match" and Clear filters. Under the notes: "1 locked notebook isn't shown, and 1 page with a password isn't either. Remove their passwords to include their sticky notes." | `_lockedLine` |
+
+**Judgment calls:**
+- **"Remove their passwords"**, not "Unlock them": unlocking a notebook or page for a while doesn't put it in the index (by design, locked content is never indexed), so unlocking wouldn't show its notes here.
+- **Editing happens on the page.** The notes here are the page's own (from the index, refreshed as pages change), so "editing one in either place updates both" means: write on it on its page and it changes here. Writing on a note from this screen, and the design's "Drag a note out of the stack to make it loose", aren't built; the stack view says to open it on the page for that.
+- **Colors.** The design shows 5 paper colors (with a blue); the app's sticky notes come in the 4 of `tokens.stickyColors`, so the filter has those 4.
+- **Loose notes count stacks as one card** in All (the cards shown); the summary counts every note.
+
+### Not done yet / known limits
+- Not tried on the tablet: how quickly a new note shows up (it's there when its page is next written to the index, about a second after writing), and the screen with many notes (it draws every card at once).
+
 ## Storage layout
 
 ```
@@ -1167,7 +1187,19 @@ Also in `<app documents>/Endless/` since Phase 9a: `sync/` (settings.json: Sync 
 
 - Update 02b: `test/theme_palettes_test.dart` (Paper exactly Paper; the recipes on Paper's own colors give Paper's palette within a step; every theme's 7 colors and the meaningful colors; an accent changes accent colors only; High contrast readable; fallbacks), `test/ui/settings_screen_test.dart` (every section opens; Pen & S Pen rows change what the canvas uses; search, nothing found, a section ends it; saved-only settings kept and written; Themes: theme, accent, mode, paper, keep pages light, Make my own; the page light under dark menus; Account's name and the clouds; Open to the last note; prefs defaults and round trip), `test/ui/new_note_test.dart` (name, nested New folder, This tablet only, paper, cover, the path; Make these my defaults and Use my defaults; OneDrive signing in first; a cloud that can't, and the dialog staying; the library menu's Save to…), `test/sync/save_location_test.dart` (each notebook only to its place, before-a-choice to every cloud, quick syncs; moved: the old cloud told once and left alone, the other device learning it and stopping; a device that never had it not bringing it down; the round trip) and 13 goldens (`settings_general`, `settings_pen`, `settings_notebooks`, `settings_search`, `settings_account`, `settings_dark`, `themes`, `themes_dark`, `themes_sage_rose`, `themes_midnight_dark`, `library_contrast`, `new_note`, `new_note_dark`). `gestures_settings` is now Settings › Pen & S Pen; `sync_settings`/`sync_settings_dark` changed with the full side menu.
 
+- Update 02c: `test/ui/stickies_test.dart` (every note and stack with its place, the summary, what's left out and the line saying so; All / Stacks / Loose notes, a color matching a stack by any of its notes, a notebook, searching words on a note under the top one, no match and Clear filters; a stack's notes and Open on the page; a note put on a page showing up through the index; `stickyText` and `StickyEntry`) and 3 goldens (`stickies`, `stickies_dark`, `stickies_stack`). The sidebar's new row changed 16 library, calendar, planner and Remember goldens, regenerated.
+
 ## Next
+- **Update 02 tablet checklist.** Release build (`flutter build apk --release`, `adb install -r`).
+  1. **Page bar.** In a notebook with a few pages: previous / next; tap the title for the preview ("edited …"), its previous and next buttons; the grid for All pages, Add page, long-press a thumbnail and drag it to reorder; the grid again to hide it.
+  2. **Page menu.** ⋯ in the bar: Rename (write the name with the S Pen in the bar), a Page color (the dot and the strip), Edit page (Grid, then Cornell notes), Duplicate then Undo, Delete then Undo, Move to… another notebook then Undo, and check the page with a picture moved with it.
+  3. **The tool menu** sits centered on the left; hover the S Pen over it (Air view) and its menus open beside the button.
+  4. **Tuck away.** Swipe the colors tray up with the S Pen and with a finger; pull the little tab down. Open the pen settings and swipe its handle up. Settings › Pen & S Pen › Swipe up to tuck menus away off: no handles, no tab.
+  5. **Settings.** ⋯ → Settings and the library's gear. Search "swipe", "dark". Turn Fingers can draw on and draw with a finger; Double-tap the pen tool for: Eraser; Open to: Last note I was in, then close and reopen the app.
+  6. **Themes.** Each theme in light and dark (High contrast especially), an accent, Keep pages light in dark mode with a notebook open. Does every screen follow?
+  7. **New note.** From Start and from a folder in the Library: write a name with the S Pen, New folder inside a folder, Google Drive (or OneDrive: it should ask you to sign in), Grid, a cover, Make these my defaults. Then Settings › Notebooks & pages › Use my defaults and New note again.
+  8. **Where it's saved.** A note saved to This tablet only: the title pill says "Saved on this tablet" and it isn't in Drive. Library → its menu → Save to… → Google Drive: it appears in Drive. Then Save to… OneDrive: it goes to OneDrive; on a second device with only Drive it stops syncing (and keeps its copy).
+  9. **Sticky notes.** Put a few notes and a stack on two notebooks' pages and write on them. Sidebar → Sticky notes: are they all there, with their handwriting? Filter by color and notebook, search a word you wrote, open a stack, Open on the page, and tap a note's place.
 - **Phase 9b tablet checklist** (Share without a server). Release build, `adb install -r`.
   1. In a notebook with a page that has a password: Share → Notebook → **Board file**. The share sheet opens; send it to yourself in Gmail. The note says 1 page with a password was left out.
   2. Share → **PDF** to Drive, and **Image** to Messages (or any app). Share → **Folder** → Board file: a file per notebook.
