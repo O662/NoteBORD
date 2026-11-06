@@ -267,7 +267,9 @@ class KeepGoingService : Service() {
         val notification = builder
             .setContentTitle(title)
             .setContentText(text)
-            .setSmallIcon(if (kind == "record") android.R.drawable.ic_btn_speak_now else android.R.drawable.ic_popup_sync)
+            // Recording keeps the microphone (it says what's happening); syncing
+            // shows the Endless mark.
+            .setSmallIcon(if (kind == "record") android.R.drawable.ic_btn_speak_now else R.drawable.ic_notification)
             .setContentIntent(open)
             .setOngoing(true)
             .build()

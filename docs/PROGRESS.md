@@ -1018,13 +1018,32 @@ The owner's answers (2026-11-06): build the full Themes screen now; each noteboo
 
 **Judgment calls:**
 - **Above the page bar and the map**, under open menus and the pen settings: otherwise a big window disappears under the map.
-- **Undo** (the tool bar and Ctrl+Z) is the main page's; writing in the window is undone by switching to it with Swap.
+- **Undo** (the tool bar and Ctrl+Z) undoes the main page only. To undo writing done in the window, Swap it into the main view first.
 - **In Split view** Window view says it's for one notebook (Split view already shows two).
 - **Not in the notebook file.** The window's state is this tablet's, so it doesn't sync; another device opens the notebook without it.
 
 ### Not done yet / known limits
 - One window at a time (UPDATE_03: "a few windows at once would be nice later").
 - Not tried on the tablet: dragging with the S Pen and a finger, pinching inside the window, and writing in it with Pen: window.
+
+## Update 03b: the Endless logo and app icon — built; the debug APK builds; not yet seen on the tablet (docs/UPDATE_03.md)
+
+| Item | Status | Where |
+|---|---|---|
+| The mark | The infinity arrow's four strokes, exactly as in design/logo/, drawn by the app (no SVG package) | `lib/ui/logo.dart` (`logoStrokes`, `paintLogoMark`, `EndlessMark`) |
+| Its colors | New tokens `colors.logo` (ink `#0C0C0C` on paper `#F6F1E7`, night `#EEE8DC` on `#1C1A17`, promo `#F6F1E7` on `#2B5A8C`, mono white on `#0C0C0C`, from UPDATE_03) | `LogoColors` in `tokens.g.dart` |
+| Sidebar | The mark (40 dp, Start.dc.html's crop of the logo box) beside "Endless" in Newsreader, on every library screen (Start, Main, Calendar, Planner, Remember, Sticky notes, behind New note); the night ink in dark mode | `AppSidebar` |
+| Launcher icon | Adaptive (Android 8+): `mipmap-anydpi-v26/ic_launcher.xml` with the background `@color/ic_launcher_background` (#F6F1E7), the foreground `drawable/ic_launcher_foreground.xml` (endless-mark-foreground.svg as a vector drawable: the mark at 66% for the safe zone) and a **monochrome** layer for themed icons (Android 13+). Android 7 (API 24–25, the app's minimum): `mipmap-*/ic_launcher.png` at 48–192 px, rendered from endless-icon-paper.svg by `flutter test tool/app_icons/render_test.dart` | `android/app/src/main/res/` |
+| Notification icon | `drawable/ic_notification.xml` (endless-mark-notification.svg: white on transparent), for reminders and the "Syncing your notes" notification; kept when resources are shrunk (`raw/keep_icons.xml`). The recording notification keeps its microphone, which says it's recording | `lib/study/reminders.dart`, `AudioTools.kt` |
+| Splash screen | Android 12+: the mark on paper (`windowSplashScreenBackground`, `windowSplashScreenAnimatedIcon`), on the night paper with the night ink in dark mode (`values-v31`, `values-night-v31`). Before 12: the same in `launch_background.xml` | `drawable/splash_mark.xml`, `drawable-night/splash_mark.xml`, `values*/colors.xml` |
+| Tagline | Settings › About shows the mark, "Endless" and "A Notebook Built for Students, by Students" in Caveat (Logo.png's wordmark) | `_Wordmark` (`settings_screen.dart`) |
+
+**Judgment calls:**
+- **The vector drawables are written from the SVGs by hand** (the same path data; the SVG's `translate(60 60) scale(0.66) translate(-60 -60)` is a group with its pivot at the middle), so nothing new is added to the build.
+- **The store icon** (endless-icon-ink.svg) isn't made into a PNG yet: it's for the Play listing, which isn't set up.
+
+### Not done yet / known limits
+- Not seen on the tablet: the icon on the home screen (and with themed icons on), the splash in light and dark, the notification icon in the status bar. The debug APK builds (`flutter build apk --debug`).
 
 ## Storage layout
 
@@ -1215,7 +1234,16 @@ Also in `<app documents>/Endless/` since Phase 9a: `sync/` (settings.json: Sync 
 
 - Update 03a: `test/ui/window_view_test.dart` (opening it from the menu on the next page at its place; dragging, staying on screen, locking, resizing to its smallest and largest; opacity; zoom kept to 50–200%; read-only, Pen: window making it writable and the page read-only, and back; picking another page and another spot; swap, the bubble and back, saved in the settings, closed and opened again where it was; Open as split view; saving and the bounds) and 6 goldens (`canvas_view_menu`, `canvas_window`, `canvas_window_dark`, `canvas_window_faded_resized`, `canvas_window_source_picker`, `canvas_window_bubble`).
 
+- Update 03b: `test/ui/logo_test.dart` (the sidebar's mark and its size; About's wordmark and tagline; the strokes match design/logo/; the adaptive icon with its monochrome layer, the background color, the foreground, notification and splash drawables with the logo's paths, the night splash, Android 12's splash theme, and the launcher PNGs) and 1 golden (`settings_about`). The sidebar's mark changed 21 library-screen goldens, regenerated.
+
 ## Next
+- **Update 03 tablet checklist.** Release build (`flutter build apk --release`, `adb install -r`).
+  1. **Window view.** In a notebook of a few pages: Ruler, laser & view → Window view. Drag it by the title bar with a finger and with the S Pen, push it off an edge (some of it stays), lock it and try to drag, resize it from the dark corner.
+  2. **Fade and zoom.** Slide the opacity to 25%: the page shows through, the bars stay readable. Pinch inside it and use − and +.
+  3. **What it shows.** Tap its title: another spot of this page (pan there), another page, another note, and Find another note…. Close and reopen the notebook: it comes back as you left it.
+  4. **Pen.** With Pen: page, write over the window (nothing happens in it); Pen: window, write in it ("Pen writes here"); tap the page with the pen to switch back.
+  5. **Swap, split, bubble.** ⇄, then Open as split view; open it again, shrink it to a bubble and tap the bubble.
+  6. **The icon.** The home screen icon (light and dark wallpaper), Themed icons on (Settings › Wallpaper and style), the splash when Endless starts (light and dark mode), a reminder's and Syncing's status bar icon, and the sidebar's mark. Settings › About's tagline.
 - **Update 02 tablet checklist.** Release build (`flutter build apk --release`, `adb install -r`).
   1. **Page bar.** In a notebook with a few pages: previous / next; tap the title for the preview ("edited …"), its previous and next buttons; the grid for All pages, Add page, long-press a thumbnail and drag it to reorder; the grid again to hide it.
   2. **Page menu.** ⋯ in the bar: Rename (write the name with the S Pen in the bar), a Page color (the dot and the strip), Edit page (Grid, then Cornell notes), Duplicate then Undo, Delete then Undo, Move to… another notebook then Undo, and check the page with a picture moved with it.

@@ -220,6 +220,18 @@ const noteCovers = <Color>[
   Color(0xFF3D3830),
 ];
 
+/// The colors of the Endless mark (design/logo/).
+abstract final class LogoColors {
+  static const ink = Color(0xFF0C0C0C);
+  static const paper = Color(0xFFF6F1E7);
+  static const nightInk = Color(0xFFEEE8DC);
+  static const night = Color(0xFF1C1A17);
+  static const promoInk = Color(0xFFF6F1E7);
+  static const promo = Color(0xFF2B5A8C);
+  static const monoInk = Color(0xFFFFFFFF);
+  static const mono = Color(0xFF0C0C0C);
+}
+
 /// Sticky note papers. They look the same in light and dark mode.
 const stickyColors = <Color>[
   Color(0xFFF6DE7A),

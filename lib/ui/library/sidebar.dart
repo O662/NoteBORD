@@ -11,6 +11,7 @@ import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart';
 import '../common.dart';
 import '../icons.dart';
+import '../logo.dart';
 import '../routes.dart';
 import 'widgets.dart';
 
@@ -83,15 +84,20 @@ class AppSidebar extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
             child: Row(spacing: 10, children: [
-              EIcon(EIcons.logo, size: 30, color: c.text),
-              Text(
-                'Endless',
-                style: TextStyle(
-                  fontFamily: FontFamilies.serif,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: -0.26,
-                  color: c.text,
+              const EndlessMark(width: 40),
+              Flexible(
+                child: Text(
+                  'Endless',
+                  maxLines: 1,
+                  overflow: TextOverflow.fade,
+                  softWrap: false,
+                  style: TextStyle(
+                    fontFamily: FontFamilies.serif,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -0.26,
+                    color: c.text,
+                  ),
                 ),
               ),
             ]),

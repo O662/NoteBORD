@@ -77,6 +77,8 @@ void main() {
   });
   _golden('settings_account', location: Routes.settings('account'), settings: AppSettings(userName: 'Kieth'));
   _golden('settings_dark', location: Routes.settings('pen'), dark: true);
+  // Update 03: the wordmark and tagline (Logo.png).
+  _golden('settings_about', location: Routes.settings('about'));
   _golden('themes', location: Routes.settings('themes'), settings: AppSettings(themeMode: ThemeMode.light));
   _golden('themes_dark', location: Routes.settings('themes'), settings: AppSettings(themeMode: ThemeMode.dark));
   _golden('themes_sage_rose', location: Routes.settings('themes'),

@@ -207,9 +207,6 @@ abstract final class EIcons {
   static final searchCheck = EIconData([_p('M5 12l4 4 10-10')], strokeWidth: 2);
 
   // Start, Library, Templates, Lock and Split (Start.dc.html, Main.dc.html…).
-  static final logo = EIconData([
-    _p('M4 15c0-4 3-6 5.5-6S15 15 15 15s3 6 5.5 6S26 19 26 15s-3-6-5.5-6S15 15 15 15s-3 6-5.5 6S4 19 4 15z'),
-  ], strokeWidth: 2, viewBox: 30);
   static final home = EIconData([_p('M4 11l8-7 8 7v9h-5v-6H9v6H4z')]);
   static final notebook = EIconData([_p('M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z'), _p('M5 18a2 2 0 0 1 2-2h12')]);
   static final calendar = EIconData([_p(_rect(4, 5, 16, 15, 2)), _p('M4 10h16M9 3v4M15 3v4')]);

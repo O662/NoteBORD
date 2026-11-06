@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kept when resources are shrunk: reminders name the notification icon from
+     Dart (flutter_local_notifications), not from Kotlin. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_notification" />

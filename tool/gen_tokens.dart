@@ -77,6 +77,14 @@ String renderTokens(Map<String, dynamic> json) {
   b.writeln('/// Cover colors offered by the New note dialog.');
   colorList('noteCovers', colors['noteCovers'] as List<dynamic>);
 
+  b.writeln('/// The colors of the Endless mark (design/logo/).');
+  b.writeln('abstract final class LogoColors {');
+  for (final e in (colors['logo'] as Map<String, dynamic>).entries) {
+    b.writeln('  static const ${e.key} = ${_color(e.value as String)};');
+  }
+  b.writeln('}');
+  b.writeln();
+
   b.writeln('/// Sticky note papers. They look the same in light and dark mode.');
   colorList('stickyColors', colors['stickies'] as List<dynamic>);
 

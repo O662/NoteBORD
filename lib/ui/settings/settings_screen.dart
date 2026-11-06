@@ -14,6 +14,7 @@ import '../../state/settings.dart';
 import 'settings_rows.dart';
 import 'settings_sections.dart';
 import 'themes_panel.dart';
+import '../logo.dart';
 import '../dialogs.dart';
 import '../icons.dart';
 import '../routes.dart';
@@ -236,6 +237,7 @@ class _SectionRows extends ConsumerWidget {
     final groups = settingsGroups(section);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 22, children: [
       if (section == SettingsSection.account) const _ProfileCard(),
+      if (section == SettingsSection.about) const _Wordmark(),
       for (final g in groups)
         if (section == SettingsSection.calendar && g.title == 'Connected calendars')
           SettingsGroupView(title: g.title, rows: [
@@ -252,6 +254,32 @@ class _SectionRows extends ConsumerWidget {
               if (d.shown?.call(ref) ?? true) SettingRowView(d),
           ]),
     ]);
+  }
+}
+
+/// About's wordmark (Logo.png): the mark, "Endless" and the tagline.
+class _Wordmark extends StatelessWidget {
+  const _Wordmark();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Semantics(
+      label: 'Endless. A Notebook Built for Students, by Students',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
+        decoration: BoxDecoration(color: c.surface, border: Border.all(color: c.line), borderRadius: BorderRadius.circular(Radii.pill)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, spacing: 6, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.center, spacing: 14, children: [
+            const EndlessMark(width: 86),
+            Text('Endless', style: TextStyle(fontFamily: FontFamilies.serif, fontSize: 52, height: 1.1, fontWeight: FontWeight.w500, color: c.text)),
+          ]),
+          Text('A Notebook Built for Students, by Students',
+              style: TextStyle(fontFamily: FontFamilies.handwritingSample, fontSize: 24, color: c.textMuted)),
+        ]),
+      ),
+    );
   }
 }
 

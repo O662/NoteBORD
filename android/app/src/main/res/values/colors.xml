@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The logo's colors (design/tokens.json colors.logo, UPDATE_03.md). -->
+<resources>
+  <!-- The app icon is ink on paper in light and dark mode alike. -->
+  <color name="ic_launcher_background">#F6F1E7</color>
+  <color name="splash_background">#F6F1E7</color>
+</resources>

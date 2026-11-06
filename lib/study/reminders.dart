@@ -135,7 +135,8 @@ class LocalNotificationReminders implements ReminderService {
     try {
       await _plugin.initialize(
         settings: const InitializationSettings(
-          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          // The Endless mark, white (android/app/src/main/res/drawable/ic_notification.xml).
+          android: AndroidInitializationSettings('@drawable/ic_notification'),
           // Permission is asked when the first reminder is set, not at start.
           iOS: DarwinInitializationSettings(
             requestAlertPermission: false,
