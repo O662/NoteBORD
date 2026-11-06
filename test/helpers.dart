@@ -408,6 +408,10 @@ class FakeFileTransfer implements FileTransfer {
   Future<void> share(String name, Uint8List bytes, String mime) async => shared.add(ExportFile(name, bytes, mime));
 
   @override
+  Future<void> shareAll(List<({String name, Uint8List bytes, String mime})> files) async =>
+      shared.addAll([for (final f in files) ExportFile(f.name, f.bytes, f.mime)]);
+
+  @override
   Future<void> print(String name, Uint8List pdf) async => printed.add(ExportFile(name, pdf, pdfMime));
 }
 

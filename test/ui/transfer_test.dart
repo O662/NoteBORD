@@ -9,6 +9,10 @@ import 'package:endless/board/store.dart';
 import 'package:endless/library/library.dart';
 import 'package:endless/transfer/board_file.dart';
 import 'package:endless/transfer/files.dart';
+import 'package:endless/transfer/incoming.dart';
+import 'package:endless/transfer/share.dart';
+import 'package:endless/transfer/transfer.dart';
+import 'package:endless/state/notebook.dart';
 import 'package:endless/transfer/pdf_import.dart';
 import 'package:endless/ui/canvas/canvas_screen.dart';
 import 'package:endless/ui/dialogs.dart';
@@ -153,43 +157,145 @@ void main() {
   });
 
   group('Share', () {
-    testWidgets('Share sends a copy: PDF and Board file open Export ready to go', (tester) async {
-      await _canvas(tester);
-      await tester.tap(byLabel('Share'));
-      await tester.pumpAndSettle();
-      expect(find.text('Export a copy'), findsOneWidget);
-      expect(find.textContaining('Save or send it as a file', findRichText: true), findsOneWidget);
-      expect(find.textContaining('come with cloud sync'), findsOneWidget);
-      await tester.tap(find.text('Board file'));
-      await tester.pumpAndSettle();
-      expect(find.text('Export a copy'), findsNothing);
-      expect(_primary('Export board file'), findsOneWidget);
-      expect(find.text('Include images and attached PDFs'), findsOneWidget);
-      await tester.tap(find.bySemanticsLabel('Close'));
-      await tester.pumpAndSettle();
+    /// The sample with page 4 sealed under its own password.
+    Future<MemoryBoardStore> lockedStore() async {
+      final store = storeWith(sampleNotebook());
+      final (entry, key) = await testCrypto.create('secret');
+      await store.saveSealedPage('nb_sample', 'pg_04', await testCrypto.seal(key, encodePage(BoardPage(id: 'pg_04'))));
+      await store.saveLock('nb_sample', LockFile(pages: {'pg_04': entry}).toJson());
+      return store;
+    }
 
+    testWidgets('Share: invites, links and editing together are coming later; a copy goes to the share sheet', (tester) async {
+      final (_, files, _) = await _canvas(tester, store: await lockedStore());
       await tester.tap(byLabel('Share'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('PDF'));
+      expect(find.text('Coming later'), findsOneWidget);
+      expect(find.textContaining('Invite people'), findsOneWidget);
+      expect(find.textContaining('Pages with a password are never sent'), findsOneWidget);
+      for (final t in ['This page', 'Notebook', 'Folder', 'Export a copy']) {
+        expect(find.text(t), findsOneWidget);
+      }
+      // Notebook (the default) as a board file: page 4 (password) isn't in it,
+      // not even sealed.
+      await tester.tap(find.text('Board file'));
+      await settleReal(tester, () => files.shared.isNotEmpty);
+      final board = _zipNames(files.shared.single.bytes);
+      expect(board, containsAll(['pages/pg_01.json', 'pages/pg_03.json']));
+      expect(board.where((n) => n.contains('pg_04')), isEmpty);
+      expect(board, isNot(contains('lock.json')));
       await tester.pumpAndSettle();
-      expect(_primary('Export PDF'), findsOneWidget);
+      expect(find.textContaining('1 page with a password was left out'), findsOneWidget);
     });
 
-    testWidgets('Image saves this page as a picture', (tester) async {
+    testWidgets('Share a PDF of the notebook, and an image of this page', (tester) async {
       final (_, files, _) = await _canvas(tester);
       await tester.tap(byLabel('Share'));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('PDF'));
+      await settleReal(tester, () => files.shared.isNotEmpty);
+      expect(files.shared.single.name, 'Physics — Lecture notes.pdf');
+      expect(utf8.decode(files.shared.single.bytes.sublist(0, 5)), '%PDF-');
+      await tester.pumpAndSettle();
+
+      await tester.tap(byLabel('Share'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Image'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Save to this tablet'));
-      await settleReal(tester, () => files.saved.isNotEmpty);
-      final png = files.saved.single;
-      expect(png.name, 'Physics — Lecture notes — page 3.png');
-      expect(png.bytes.sublist(1, 4), 'PNG'.codeUnits);
-      await tester.pumpAndSettle();
-      expect(find.text('Export a copy'), findsNothing);
-      expect(find.text('Saved Physics — Lecture notes — page 3.png'), findsOneWidget);
+      await settleReal(tester, () => files.shared.length == 2);
+      expect(files.shared.last.name, 'Physics — Lecture notes — page 3.png');
+      expect(files.shared.last.bytes.sublist(1, 4), 'PNG'.codeUnits);
     });
+
+    testWidgets('This page, on a page with a password: nothing can be sent', (tester) async {
+      // Share isn't shown on a locked page (only its unlock card is), and the
+      // copies refuse it anyway.
+      final (c, _, _) = await _canvas(tester, store: await lockedStore());
+      final error = await tester.runAsync(() async {
+        try {
+          await c.read(transfersProvider).shareCopies('nb_sample', ShareScope.page, ExportFormat.pdf, current: 3);
+          return null;
+        } on ExportProblem catch (e) {
+          return e.message;
+        }
+      });
+      expect(error, 'This page has a password, so it can’t be shared.');
+    });
+
+    testWidgets('a page with a password stays out even while it\'s unlocked', (tester) async {
+      final (c, _, _) = await _canvas(tester, store: await lockedStore());
+      final nb = c.read(notebookProvider('nb_sample').notifier);
+      expect(await tester.runAsync(() => nb.unlock('pg_04', 'secret')), isTrue);
+      await tester.pump();
+      final state = c.read(notebookProvider('nb_sample'));
+      expect(state.isSealed('pg_04'), isFalse);
+      expect(shareablePageIds(state), {'pg_01', 'pg_02', 'pg_03'});
+    });
+
+    testWidgets('Folder: a copy of each notebook in it', (tester) async {
+      final store = storeWith(sampleNotebook());
+      final other = Notebook(
+        id: 'nb_other',
+        title: 'Lab journal',
+        folderPath: ['School', 'Physics'],
+        createdAt: DateTime.utc(2026, 9, 1),
+        updatedAt: DateTime.utc(2026, 9, 2),
+        pageIds: ['pg_x'],
+      );
+      await store.savePage('nb_other', BoardPage(id: 'pg_x'));
+      await store.saveNotebook(other);
+      final (_, files, _) = await _canvas(tester, store: store);
+      await tester.tap(byLabel('Share'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Folder'));
+      await tester.pump();
+      expect(find.textContaining('Every notebook in'), findsOneWidget);
+      await tester.tap(find.text('Board file'));
+      await settleReal(tester, () => files.shared.length >= 2);
+      expect({for (final f in files.shared) f.name}, {'Physics — Lecture notes.board', 'Lab journal.board'});
+    });
+
+    testWidgets('the Export a copy row opens Export, to save it or pick pages', (tester) async {
+      await _canvas(tester);
+      await tester.tap(byLabel('Share'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Export a copy'));
+      await tester.pumpAndSettle();
+      expect(_primary('Export PDF'), findsOneWidget);
+    });
+  });
+
+  testWidgets('a board file opened with Endless from another app is imported and opened', (tester) async {
+    final source = storeWith(sampleNotebook());
+    final bytes = await tester.runAsync(() => exportBoardFile(source, 'nb_sample'));
+    final incoming = _FakeIncoming([PickedFile('Lecture notes', bytes!)]);
+    final store = MemoryBoardStore();
+    await pumpApp(tester, store: store, extra: [incomingFilesProvider.overrideWithValue(incoming)]);
+    await tester.pumpAndSettle();
+    expect(store.notebooks, contains('nb_sample'));
+    expect(find.byType(CanvasScreen), findsOneWidget);
+    expect(find.text('Imported “Physics — Lecture notes”'), findsOneWidget);
+
+    // The same one again (sent back with changes): Replace or Keep both.
+    incoming.files.add(PickedFile('Lecture notes.board', bytes));
+    incoming.arrived!();
+    await tester.pumpAndSettle();
+    expect(find.text('Replace'), findsOneWidget);
+    await tester.tap(find.text('Keep both'));
+    await tester.pumpAndSettle();
+    expect(store.notebooks.length, 2);
+  });
+
+  testWidgets('a file that isn\'t a board file says so', (tester) async {
+    final incoming = _FakeIncoming([PickedFile('notes.txt', Uint8List.fromList(utf8.encode('hello')))]);
+    await pumpApp(tester, extra: [incomingFilesProvider.overrideWithValue(incoming)]);
+    await tester.pumpAndSettle();
+    expect(find.text('Can’t open this file'), findsOneWidget);
+  });
+
+  test('a board file whose name lost its ending is still a board file', () async {
+    final bytes = await exportBoardFile(storeWith(sampleNotebook()), 'nb_sample');
+    expect(importKindOf(PickedFile('Attachment', bytes)), ImportKind.board);
+    expect(importKindOf(PickedFile('Attachment', Uint8List.fromList([0x50, 0x4B, 3, 4, 0, 0]))), ImportKind.unknown);
   });
 
   testWidgets('⋯ → Print sends the notebook to the print dialog', (tester) async {
@@ -454,4 +560,22 @@ void main() {
       expect((await store.loadNotebook(made.id))!.pages, hasLength(2));
     });
   });
+}
+
+/// Files "opened with Endless", handed over as Android would.
+class _FakeIncoming implements IncomingFiles {
+  _FakeIncoming(List<PickedFile> files) : files = [...files];
+
+  final List<PickedFile> files;
+  void Function()? arrived;
+
+  @override
+  Future<List<PickedFile>> take() async {
+    final out = [...files];
+    files.clear();
+    return out;
+  }
+
+  @override
+  void listen(void Function() onArrived) => arrived = onArrived;
 }

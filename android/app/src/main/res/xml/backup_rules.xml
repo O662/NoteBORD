@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and older: what Android's automatic backup leaves out.
+     The secure storage (sign-ins, calendar links, fingerprint unlock keys)
+     is encrypted with keys that never leave this tablet, so a copy could
+     never be opened on another one; it isn't backed up. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="FlutterSecureStorage.xml"/>
+</full-backup-content>

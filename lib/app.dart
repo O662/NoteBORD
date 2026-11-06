@@ -11,6 +11,12 @@ import 'library/library.dart';
 import 'recognition/handwriting_index.dart';
 import 'state/settings.dart';
 import 'study/reminders.dart';
+import 'transfer/board_file.dart' show ImportProblem;
+import 'transfer/incoming.dart';
+import 'transfer/transfer.dart';
+import 'ui/common.dart' show showNote;
+import 'ui/dialogs.dart' show showMessage;
+import 'ui/transfer/transfer_dialog.dart' show showSameNotebook;
 import 'sync/sync_state.dart';
 import 'theme/app_theme.dart';
 import 'ui/calendar/calendar_screen.dart';
@@ -156,11 +162,42 @@ class _EndlessAppState extends ConsumerState<EndlessApp> {
       unawaited(ref.read(feedSyncProvider.notifier).start());
       // Cloud sync (if it's set up) starts a moment after the app does.
       ref.read(syncProvider.notifier).start();
+      // A board file opened with Endless from another app is imported.
+      final incoming = ref.read(incomingFilesProvider);
+      incoming.listen(() => unawaited(_openIncoming()));
+      unawaited(_openIncoming());
       final service = ref.read(reminderServiceProvider);
       if (!service.available) return;
       service.start(_openReminder);
       ref.read(reminderSyncProvider);
     });
+  }
+
+  /// Imports files opened with Endless from another app (a board file from
+  /// Gmail, Drive, OneDrive or Files) into All notebooks, and opens the
+  /// notebook. One already here asks Replace or Keep both, as Import does.
+  Future<void> _openIncoming() async {
+    final files = await ref.read(incomingFilesProvider).take();
+    if (files.isEmpty || !mounted) return;
+    final router = ref.read(routerProvider);
+    BuildContext? here() => router.routerDelegate.navigatorKey.currentContext;
+    try {
+      final outcome = await ref.read(transfersProvider).import(
+        files,
+        const ImportTarget.folder([]),
+        sameNotebook: (title) async {
+          final c = here();
+          return c == null || !c.mounted ? SameNotebook.keepBoth : showSameNotebook(c, title);
+        },
+      );
+      if (!mounted) return;
+      if (outcome.openNotebook case final id?) router.push(Routes.notebook(id));
+      final c = here();
+      if (c != null && c.mounted) showNote(c, outcome.message);
+    } on ImportProblem catch (e) {
+      final c = here();
+      if (c != null && c.mounted) await showMessage(c, title: 'Can’t open this file', message: e.message);
+    }
   }
 
   Future<void> _openReminder(String payload) async {

@@ -900,6 +900,32 @@ The owner's request (2026-11-05): Sync settings (Sync.png): Google Drive and/or 
 - Cloud files left behind by an interrupted sync (a page file sent, notebook.json not) stay until that notebook syncs again; old `PDF/` copies are deleted, but a notebook deleted on another device while this one was off doesn't remove its PDF here.
 - OneDrive: personal and work accounts both work by the registration; a work tenant may need its admin to approve Endless once.
 
+## Phase 9b: Share without a server, and a security check — built and tested on this PC
+
+The owner's request (2026-11-06): no backend for now ("I don't have the security experience to run one safely"), so Share sends copies through the share sheet, opening a shared board file imports it, and invites, link access, live collaboration and comments move to **Later** (docs/SPEC.md): **Needs a backend** (Supabase recommended, or a Cloudflare relay for end-to-end encryption) **and a security review before any real users' data is stored.** The owner's decision (2026-11-06): no server holds anyone's notes for now. Options compared before deciding: Supabase (recommended), a Cloudflare relay (end-to-end encryption), Firebase (no Windows or Linux database).
+
+| Item | Status | Where |
+|---|---|---|
+| Share (Share.png) | **This page · Notebook · Folder**, then **Export a copy**: **PDF**, **Board file** and **Image** go straight to the share sheet (Gmail, Drive, OneDrive, messages…); the row itself opens Export (save to the tablet, some pages, a sealed backup). Folder sends a file per notebook in the folder and its subfolders ("Every notebook in “Physics”, a file each"); Image is this page (off for Folder). "Shared Physics — Lecture notes.board · 1 page with a password was left out" | `lib/ui/transfer/share_dialog.dart`, `lib/transfer/share.dart`, `FileTransfer.shareAll` |
+| Coming later | Where Share.png has the invites and link access: "Invite people · Anyone with the link · Edit together", **Coming later**, and why (they need a server; Endless doesn't use one) | `_ComingLater` |
+| Pages with a password | **Never in anything Share sends, not even sealed, and not while unlocked.** A notebook with a password, or one whose every page has one, is left out of a folder; This page on such a page can't be sent (Share isn't shown there anyway) | `shareablePageIds` |
+| Opening a shared board file | From Gmail, Drive, OneDrive or Files: **Open with Endless**, or **Share → Endless**. Android hands it over (zip or plain binary files), it's copied into the cache, imported into All notebooks and opened ("Imported “Lecture notes”"). One already here asks **Replace** or **Keep both**, as Import does. Not a board file: "Can’t open this file". A board file whose name lost its `.board` on the way is recognised by the notebook.json inside | `Incoming.kt`, `lib/transfer/incoming.dart`, `_openIncoming` (`lib/app.dart`), `importKindOf` |
+| Android | Endless opens with `launchMode="singleTask"` (a file opened from Gmail comes to the Endless already running, not a second copy inside Gmail); VIEW and SEND filters for zip and binary files | `AndroidManifest.xml` |
+
+### Security check (2026-11-06)
+- **No secrets in the code or the git history.** Searched every commit for Google client secrets, API keys, access and refresh tokens, private keys, keystores and `.env` files: none. The Google client ids in the code aren't secrets. The Windows client secret is only in `config/cloud_secrets.json` on the owner's PC, which git ignores and which was never committed.
+- **Sign-ins are stored securely.** Refresh tokens (OneDrive; Google on Windows) are only in the platform's secure storage (Android Keystore; Windows Credential Manager); access tokens only in memory; nothing is logged. Google sign-in on Android is held by Google Play services, not Endless. Calendar links and fingerprint-unlock keys are in secure storage too.
+- **Pages with a password stay encrypted** on the tablet, in board files, in the cloud (sealed `.json.enc`, with sealed pictures), and in version history.
+- **Fixed:** "Also save a PDF copy" could put a page with a password into the PDF in Drive, unencrypted, if that page was unlocked in an open notebook when sync made the PDF. Now never.
+- **Fixed:** a big video (over 100 MB) on a page that got a password after the video was put there could still be moved to Drive. Now it stays on the tablet.
+- **Fixed:** Android's automatic backup copied the secure storage, which can't be decrypted on another tablet anyway; it's left out now (`backup_rules.xml`, `data_extraction_rules.xml`).
+- **Known, unchanged:** the Windows build carries Google's Desktop client secret inside it (Google treats desktop secrets as not secret; unavoidable for a desktop app). While a transcript is made, the recording is unpacked in the cache in the clear for a few minutes (Phase 8a). Unlocked notebooks are stored in the clear on the tablet, as before: Android's own device encryption covers them.
+
+### Not done yet / known limits
+- **Not tried on the tablet**: opening a board file from Gmail and Drive, and Share to Endless.
+- Windows doesn't open .board files from Explorer yet (needs an installer's file association).
+- Share's Folder sends separate files; there's no single zip of a folder.
+
 ## Storage layout
 
 ```
@@ -1083,6 +1109,12 @@ Also in `<app documents>/Endless/` since Phase 9a: `sync/` (settings.json: Sync 
   - 3 goldens: `sync_settings`, `sync_settings_dark` (Sync.png) and `sync_library` (the sidebar card and a Waiting to sync cover). The title pill's "Saved on this tablet" changed 71 existing goldens (canvas screens and dialogs over them), regenerated.
 
 ## Next
+- **Phase 9b tablet checklist** (Share without a server). Release build, `adb install -r`.
+  1. In a notebook with a page that has a password: Share → Notebook → **Board file**. The share sheet opens; send it to yourself in Gmail. The note says 1 page with a password was left out.
+  2. Share → **PDF** to Drive, and **Image** to Messages (or any app). Share → **Folder** → Board file: a file per notebook.
+  3. On the tablet, open that Gmail attachment: **Open with Endless**. It imports and opens. Open it again: **Replace** or **Keep both**.
+  4. In the Files app or Drive, long-press a .board file → **Share → Endless**: it imports.
+  5. The page with a password isn't in any of them (open the board file on another device, or the PDF).
 - **Phase 9a tablet checklist** (cloud sync). First the client ids (docs/CLOUD_SETUP.md, "Cloud sync": Drive API and `drive.file`; `Files.ReadWrite` and the `com.endless.endless://auth` redirect), then a release build with them: `flutter build apk --release --dart-define=GOOGLE_WEB_CLIENT_ID=… --dart-define=MICROSOFT_CLIENT_ID=…`, `adb install -r`. A second device (a phone, or Endless on Windows with the desktop ids) helps for steps 4–6.
   1. **Connect.** Sidebar → the sync card → Sync & backup. Google Drive → Connect, pick your account, allow. It says "Connected · saving to “Endless Notebooks” · synced just now"; in drive.google.com there's an "Endless Notebooks" folder with a `<id>.board` folder per notebook and `endless.json`. Same for OneDrive (onedrive.live.com).
   2. **The title pill.** Write a line: "Saving…", "Saved", then within about 10 s "Synced to Google Drive". The sidebar card: "Synced · Google Drive / Just now".

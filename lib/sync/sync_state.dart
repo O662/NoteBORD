@@ -19,6 +19,7 @@ import '../state/changes.dart';
 import '../state/notebook.dart';
 import '../state/settings.dart';
 import '../study/study_state.dart';
+import '../transfer/share.dart' show shareablePageIds;
 import '../transfer/transfer.dart';
 import '../video/video_files.dart';
 import 'cloud.dart';
@@ -663,6 +664,8 @@ class SyncController extends Notifier<SyncState> {
     final (pageId, video) = found;
     final link = video.link;
     if (link == null || video.cloud != null) return;
+    // A page with a password: its video never leaves the device.
+    if (nb.isProtected(pageId)) return;
     final file = File(p.join((await ref.read(videosDirProvider)()).path, link));
     if (!await file.exists()) return;
     final cancel = _cancels[itemId] = CloudCancel();
@@ -805,7 +808,17 @@ class _AppHost implements SyncHost {
       await ref.read(loadedNotebookProvider(id).future);
       final open = ref.listen(notebookProvider(id), (_, _) {});
       try {
-        final file = await ref.read(transfersProvider).export(id, scope: ExportScope.notebook, format: ExportFormat.pdf, current: 0);
+        // Never a page with a password, even one unlocked right now.
+        final nb = ref.read(notebookProvider(id));
+        final ok = shareablePageIds(nb);
+        if (ok.isEmpty) return null;
+        final file = await ref.read(transfersProvider).export(
+              id,
+              scope: ok.length == nb.pages.length ? ExportScope.notebook : ExportScope.pages,
+              picked: ok,
+              format: ExportFormat.pdf,
+              current: 0,
+            );
         return file.bytes;
       } finally {
         open.close();

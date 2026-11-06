@@ -97,8 +97,25 @@ ImportKind importKindOf(PickedFile f) {
   final zip = b.length > 3 && b[0] == 0x50 && b[1] == 0x4B;
   if (zip && (f.extension == 'board' || f.extension == 'zip')) return ImportKind.board;
   if (zip && officeKindOf(b) != null) return ImportKind.office;
+  // A board file whose name lost its ending on the way (some apps hand
+  // files over without one): a zip with a notebook.json in it.
+  if (zip && _hasEntry(b, 'notebook.json')) return ImportKind.board;
   if (const {'png', 'jpg', 'gif', 'webp', 'bmp'}.contains(imageExtension(b))) return ImportKind.image;
   return ImportKind.unknown;
+}
+
+/// Whether the zip [b] names an entry [name] (in its directory, at its end).
+bool _hasEntry(Uint8List b, String name) {
+  final want = name.codeUnits;
+  final from = b.length > 1 << 20 ? b.length - (1 << 20) : 0;
+  outer:
+  for (var i = b.length - want.length; i >= from; i--) {
+    for (var j = 0; j < want.length; j++) {
+      if (b[i + j] != want[j]) continue outer;
+    }
+    return true;
+  }
+  return false;
 }
 
 /// The size an imported picture gets on its own page: its own, scaled down

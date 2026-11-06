@@ -63,6 +63,9 @@ abstract class FileTransfer {
   /// Opens the share sheet with the file.
   Future<void> share(String name, Uint8List bytes, String mime);
 
+  /// Opens the share sheet with several files at once.
+  Future<void> shareAll(List<({String name, Uint8List bytes, String mime})> files);
+
   /// Opens the print dialog for a PDF.
   Future<void> print(String name, Uint8List pdf);
 }
@@ -109,6 +112,21 @@ class DeviceFileTransfer implements FileTransfer {
     final file = File(p.join(out.path, name));
     await file.writeAsBytes(bytes, flush: true);
     await SharePlus.instance.share(ShareParams(files: [XFile(file.path, mimeType: mime, name: name)], title: name));
+  }
+
+  @override
+  Future<void> shareAll(List<({String name, Uint8List bytes, String mime})> files) async {
+    if (files.length == 1) return share(files.single.name, files.single.bytes, files.single.mime);
+    final dir = await getTemporaryDirectory();
+    final out = Directory(p.join(dir.path, 'share'));
+    await out.create(recursive: true);
+    final xs = <XFile>[];
+    for (final f in files) {
+      final file = File(p.join(out.path, f.name));
+      await file.writeAsBytes(f.bytes, flush: true);
+      xs.add(XFile(file.path, mimeType: f.mime, name: f.name));
+    }
+    await SharePlus.instance.share(ShareParams(files: xs, title: '${files.length} files'));
   }
 
   @override

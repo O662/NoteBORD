@@ -127,8 +127,14 @@ Each feature names the screen that shows it (`design/screens/<Name>.png`, with s
   - The title pill shows Saving… / Saved / Saved on this tablet / Synced to Google Drive; the library sidebar shows the last sync. *(9a)*
   - Big videos move to Drive or OneDrive and the page keeps a link (Video.png's upload card). *(9a)*
   - Version history from the ⋯ menu: earlier versions of a page, restore one (the owner asked for it in 9a, ahead of Phase 10; no design, so a plain dialog). *(9a)*
-- **Share:** this page, the notebook or a folder. Invite by email as Can edit or Can comment. Link access is Off, Can view, Can comment or Can edit. Or send a copy as PDF, board file or image. Locked content can't be shared. **[Share]**
-- **Live collaboration:** presence avatars, live cursors labelled "Maya · writing", comment threads on ink, and offline edits that sync later. **[Live]**
+- **Share, without a server** *(Phase 9b, built 2026-11-06)*: this page, the notebook or a folder, sent as a PDF, board file or image through the share sheet (Gmail, Drive, OneDrive, messages…). Opening a shared board file in Endless imports it. Pages with a password are never sent, not even sealed. Invites, link access and live editing show as "Coming later". **[Share]**
+
+## Later
+**Needs a backend** (Supabase recommended, or a Cloudflare relay for end-to-end encryption) **and a security review before any real users' data is stored.** The owner's decision (2026-11-06): no server holds anyone's notes for now. Options compared in Phase 9b: Supabase (managed, open source, can be self-hosted later), our own relay on Cloudflare (can be end-to-end encrypted), Firebase (rejected: no Windows or Linux database).
+- **Invites:** by email, as Can edit or Can comment, with the people who have access and their state ("In this notebook now", "Last opened yesterday", "Invite sent · waiting"). **[Share]**
+- **Link access:** Off, Can view, Can comment or Can edit. Locked content can't be shared by link. **[Share]**
+- **Live collaboration:** presence avatars ("3 here"), live cursors labelled "Maya · writing", and offline edits that sync later (the item-level merge from Phase 9a carries over). **[Live]**
+- **Comments:** threads on ink, replies written or typed, Resolve. **[Live]**
 
 ## Phase 10: Polish and more devices
 - Dark mode check on every screen (**[CanvasDark]**), plus High contrast.

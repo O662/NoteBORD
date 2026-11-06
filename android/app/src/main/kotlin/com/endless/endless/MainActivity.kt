@@ -15,6 +15,7 @@ class MainActivity : FlutterFragmentActivity() {
     private var keyboard: Keyboard? = null
     private var audio: AudioTools? = null
     private var video: VideoTools? = null
+    private var incoming: Incoming? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -44,6 +45,8 @@ class MainActivity : FlutterFragmentActivity() {
                 ),
             )
         }
+        // Board files opened with Endless from other apps (lib/transfer/incoming.dart).
+        incoming = Incoming(this, flutterEngine.dartExecutor.binaryMessenger).also { it.take(intent, notify = false) }
         // The clocks on the page show the time zone by name (lib/state/time_zone.dart).
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "endless/time").setMethodCallHandler { call, result ->
             if (call.method == "zone") result.success(java.util.TimeZone.getDefault().id) else result.notImplemented()
@@ -80,6 +83,11 @@ class MainActivity : FlutterFragmentActivity() {
                 result.success(false)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        incoming?.take(intent, notify = true)
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
