@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' show Color, Offset, Rect, Size;
 
 import '../theme/tokens.g.dart' show extraInkDefaults, inkDefaults;
+import 'ids.dart';
 import 'model.dart';
 
 // JSON encoding for notebook.json and pages/<pageId>.json.
@@ -11,7 +12,7 @@ const _notebookKeys = {
   'format', 'version', 'id', 'title', 'folderPath', 'cover', 'createdAt', 'updatedAt', //
   'pages', 'defaults', 'locked', 'pinned', 'trashedAt',
 };
-const _pageKeys = {'id', 'title', 'paper', 'template', 'locked', 'spelling', 'items'};
+const _pageKeys = {'id', 'title', 'color', 'paper', 'template', 'locked', 'spelling', 'items'};
 const _itemKeys = {'id', 'type', 'x', 'y', 'rotation', 'z', 'createdAt', 'author', 'remember'};
 const _strokeKeys = {
   ..._itemKeys, 'tool', 'penType', 'color', 'width', 'points', 'usePressure', 'arrow', 'straightened', 'startItemId', 'endItemId', //
@@ -72,6 +73,7 @@ String encodePage(BoardPage page) {
     ...page.extra,
     'id': page.id,
     'title': page.title,
+    if (page.color != null) 'color': colorToHex(page.color!),
     'paper': page.paper.name,
     'template': page.template,
     'locked': page.locked,
@@ -86,6 +88,7 @@ BoardPage decodePage(String source) {
   return BoardPage(
     id: json['id'] as String,
     title: json['title'] as String? ?? '',
+    color: json['color'] is String ? colorFromHex(json['color'] as String) : null,
     paper: paperFromName(json['paper'] as String?),
     template: json['template'],
     locked: json['locked'] as bool? ?? false,
@@ -93,6 +96,41 @@ BoardPage decodePage(String source) {
     spellIgnore: [...?((json['spelling'] as Map?)?['ignore'] as List?)?.whereType<String>()],
     extra: _unknown(json, _pageKeys),
   );
+}
+
+/// A copy of [page] with a new page id and new ids for every item (and
+/// anything nested in one, like the ink on a sticky note). References
+/// between them (a connector's ends, a chart's table) follow the copies.
+/// Remember marks stay with the original.
+BoardPage copyPage(BoardPage page) {
+  final json = jsonDecode(encodePage(page)) as Json;
+  final ids = <String, String>{};
+  void collect(Object? v) {
+    if (v is Map) {
+      final id = v['id'];
+      if (id is String && v.containsKey('type')) ids[id] = newId(id.contains('_') ? id.substring(0, id.indexOf('_')) : 'it');
+      v.values.forEach(collect);
+    } else if (v is List) {
+      v.forEach(collect);
+    }
+  }
+
+  Object? remap(Object? v) {
+    if (v is String) return ids[v] ?? v;
+    if (v is Map) {
+      return {
+        for (final e in v.entries)
+          if (e.key != 'remember') e.key: remap(e.value),
+      };
+    }
+    if (v is List) return [for (final e in v) remap(e)];
+    return v;
+  }
+
+  final items = json['items'] as List? ?? const [];
+  collect(items);
+  final copy = decodePage(jsonEncode({...json, 'id': newId('pg'), 'items': remap(items)}));
+  return copy;
 }
 
 Item decodeItem(Json json) {

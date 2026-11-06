@@ -46,7 +46,7 @@ void main() {
       'Quick color: Ink black', 'Quick color: Deep blue', 'Quick color: Terracotta', 'More colors',
       'Color and thickness', 'Share', 'More options',
       'Insert', 'Study & math', 'Writing help', 'Ruler, laser & view', 'Search',
-      'Hide pages', 'Page 1, current', 'Page 2', 'Page 4, locked', 'Add page',
+      'Previous page', 'Next page', 'Preview this page', 'Show all pages', 'Page options',
       'Zoom out', 'Zoom level 100%, tap to reset', 'Zoom in', 'Zoom out to the whole board',
       'Full screen: hide menus', 'Hide map', 'Add a color', 'Edit colors: change or remove',
     ]) {
@@ -399,7 +399,7 @@ void main() {
     await pumpCanvas(tester);
     await tester.tap(byLabel('Full screen: hide menus'));
     await tester.pump();
-    for (final gone in ['Undo', 'Insert', 'Share', 'Hide pages', 'Hide map', 'More colors']) {
+    for (final gone in ['Undo', 'Insert', 'Share', 'Page options', 'Hide map', 'More colors']) {
       expect(byLabel(gone), findsNothing, reason: gone);
     }
     expect(byLabel('Zoom in'), findsOneWidget);
@@ -420,24 +420,8 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
   });
 
-  testWidgets('pages rail adds pages, switches, and collapses; map collapses', (tester) async {
-    final c = await pumpCanvas(tester);
-    await _stylusStroke(tester, _scribble);
-    await tester.tap(byLabel('Hide pages').hitTestable());
-    await tester.pump();
-    expect(find.bySemanticsLabel('Show pages'), findsOneWidget);
-    await tester.tap(find.bySemanticsLabel('Show pages'));
-    await tester.pump();
-
-    await tester.tap(find.bySemanticsLabel('Add page'));
-    await tester.pump();
-    expect(find.textContaining('Page 2 of 2'), findsOneWidget);
-    expect(_items(c), isEmpty);
-    await tester.tap(find.bySemanticsLabel('Page 1'));
-    await tester.pump();
-    expect(_items(c), hasLength(1));
-
-    // Hiding the map puts a map button in the zoom pill.
+  testWidgets('the map collapses into a button on the zoom pill', (tester) async {
+    await pumpCanvas(tester);
     await tester.tap(byLabel('Hide map'));
     await tester.pump();
     expect(find.text('Map'), findsNothing);

@@ -66,7 +66,7 @@ class AppSettings {
     this.shapeKind = ShapeType.rect,
     List<Color>? extraColors,
     this.trayOpen = true,
-    this.pagesOpen = true,
+    this.swipeTuck = true,
     this.mapOpen = true,
     this.fingerDraws = false,
     this.themeMode = ThemeMode.system,
@@ -117,7 +117,11 @@ class AppSettings {
   /// The "More colors" tray, up to [tokens.extraInkMax].
   final List<Color> extraColors;
   final bool trayOpen;
-  final bool pagesOpen;
+
+  /// Swipe up on the colors tray or the pen settings to tuck them away, and
+  /// pull the tab under the tool bar to bring the tray back (Settings ›
+  /// Pen & S Pen).
+  final bool swipeTuck;
   final bool mapOpen;
 
   /// Off by default: the pen draws and fingers navigate. Useful without a stylus.
@@ -178,7 +182,7 @@ class AppSettings {
     ShapeType? shapeKind,
     List<Color>? extraColors,
     bool? trayOpen,
-    bool? pagesOpen,
+    bool? swipeTuck,
     bool? mapOpen,
     bool? fingerDraws,
     ThemeMode? themeMode,
@@ -211,7 +215,7 @@ class AppSettings {
         shapeKind: shapeKind ?? this.shapeKind,
         extraColors: extraColors ?? this.extraColors,
         trayOpen: trayOpen ?? this.trayOpen,
-        pagesOpen: pagesOpen ?? this.pagesOpen,
+        swipeTuck: swipeTuck ?? this.swipeTuck,
         mapOpen: mapOpen ?? this.mapOpen,
         fingerDraws: fingerDraws ?? this.fingerDraws,
         themeMode: themeMode ?? this.themeMode,
@@ -245,7 +249,7 @@ class AppSettings {
         'shapeKind': shapeKind.name,
         'extraColors': [for (final c in extraColors) colorToHex(c)],
         'trayOpen': trayOpen,
-        'pagesOpen': pagesOpen,
+        'swipeTuck': swipeTuck,
         'mapOpen': mapOpen,
         'fingerDraws': fingerDraws,
         'themeMode': themeMode.name,
@@ -292,7 +296,7 @@ class AppSettings {
           .take(tokens.extraInkMax)
           .toList(),
       trayOpen: j['trayOpen'] as bool? ?? true,
-      pagesOpen: j['pagesOpen'] as bool? ?? true,
+      swipeTuck: j['swipeTuck'] as bool? ?? true,
       mapOpen: j['mapOpen'] as bool? ?? true,
       fingerDraws: j['fingerDraws'] as bool? ?? false,
       themeMode: pick(ThemeMode.values, j['themeMode'], ThemeMode.system),

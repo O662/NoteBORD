@@ -244,7 +244,7 @@ MemoryBoardStore widgetBoardStore() {
   store.saveNotebook(nb);
   store.savePage(nb.id, board);
   store.savePage(nb.id, things);
-  store.settings = AppSettings(pagesOpen: false, mapOpen: false, trayOpen: false).toJson();
+  store.settings = AppSettings(mapOpen: false, trayOpen: false).toJson();
   store.pageWrites = 0;
   return store;
 }

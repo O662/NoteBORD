@@ -54,7 +54,7 @@ Not yet checked there: how the pen feels, latency, and palm rejection.
 | Two-finger pan and pinch zoom | Done | One finger pans too. Mouse wheel pans, Ctrl+wheel zooms, trackpad pinch works |
 | Zoom pill | Done | −, % (tap = 100%), +, whole board (Phase 3b), full screen |
 | Palm rejection | Done | Touches are ignored while the S Pen is down or seen within 600 ms (hovering counts), and a pen touch cancels any finger gesture in progress |
-| Pages rail | Done | Live thumbnails, current page, locked indicator, add page, collapse |
+| Pages rail | Replaced by the page bar in Update 02 | |
 | Map | Done | Minimap of the page and your view; tap or drag to move; collapse |
 | Autosave in ≤ 1 s + crash safety | Done | Written ~0.4 s after the first unsaved change, flushed when the app is backgrounded. Files are written to a temp file and renamed, so a crash mid-write keeps the previous version |
 | Hover ring under the S Pen | Done | Shows pen size and color, or the eraser size |
@@ -926,6 +926,32 @@ The owner's request (2026-11-06): no backend for now ("I don't have the security
 - Windows doesn't open .board files from Explorer yet (needs an installer's file association).
 - Share's Folder sends separate files; there's no single zip of a folder.
 
+## Update 02a: the page bar, the centered tool menu, tucking the pen menus away — built, not yet tried on the tablet (docs/UPDATE_02.md)
+
+| Item | Status | Where |
+|---|---|---|
+| Page bar, bottom left (Canvas.png), replacing the pages rail | Done. Previous, the page's color dot + title + "3 of 12" (tap for the preview), next, Preview, All pages, ⋯. A page without a title shows "Untitled page". It shows everywhere but spell check, math mode and making flashcards (they have their own bottom row) | `lib/ui/canvas/page_bar.dart` (`PageBar`) |
+| Preview (Canvas-page-preview.png) | Done. The whole page on dots with its color stripe, "Page 3 of 12 · edited 2 hours ago" (when the page file was last written, or now if it has unsaved changes), previous and next page buttons. A tap outside closes it, without drawing | `_PreviewCard`, `NotebookNotifier.pageEdited`, `BoardStore.pageWritten` |
+| All pages strip | Done. Every page's thumbnail with its color and lock badge, Add page, Hide; the grid button toggles it; a long press drags a page to reorder (you stay on your page). It stays open while you write | `_AllPages`, `NotebookNotifier.movePage` |
+| ⋯ page menu (Canvas-page-menu.png) | Done. Preview; Rename (Canvas-page-rename.png: the title becomes a field in the bar with a blue ✓); Edit page (a dialog: paper Dots/Lines/Grid/Blank and the 8 layout templates or None, applied as you pick; ⋯ → Page & paper opens it too, so that's no longer "coming soon"); Duplicate (after the page, "… (copy)", new ids for every item and what it holds, links between them kept, Remember marks left on the original); Move to… (Canvas-page-move.png: this notebook first, then the others by last edited); Page color (7 colors plus none); Delete page. Duplicate, Move and Delete toast "· Undo" | `_PageMenu`, `_MoveMenu`, `showEditPage`, `copyPage` (`lib/board/codec.dart`) |
+| Moving a page | The page goes to the end of the other notebook with its items (same ids) and every file it shows (pictures, PDFs, Office files, recordings). The other notebook is opened in the background for it (`withNotebook`), so it's safe if that notebook is also open in split view. Undo brings it back to where it was | `lib/state/page_moves.dart` |
+| Page color | New optional `color` in the page file (docs/BOARD_FORMAT.md), synced as one of the page's own fields, brightened in dark mode like ink. The 7 colors are new tokens (`colors.pageColors`, from Canvas.dc.html) | `BoardPage.color`, `tokens.pageColors` |
+| Left tool menu centered vertically | Done: top 273.5 dp on 1280 × 800 (the rail is 253 dp tall here, 252 in the design); flyouts still open beside their button. Split view too | `LeftRail.height`, `CanvasScreen`, `SplitScreen` |
+| Swipe to tuck the tray away (Canvas-colors-tucked.png) | Done. The tray's handle (chevron + bar): swipe up or tap. Then the pull tab (three of the tray's colors + chevron) hangs under the tool bar: pull down or tap. The tool bar's tray button still works | `SwipeHandle`, `TrayPullTab` (`lib/ui/canvas/color_tray.dart`) |
+| Pen settings handle (Canvas-pen-settings.png) | Done: "Swipe up to tuck away" at the bottom of the panel closes it | `PenPopover` |
+| The setting | `swipeTuck` (on by default); off hides both handles and the tab. Its switch comes with the Settings screen (Update 02b) | `AppSettings.swipeTuck` |
+| Hints and toasts | Centered between the page bar and the map, as in the design; one too wide for that gap is centered on the screen just above the page bar | `_StatusLayout` |
+
+**Judgment calls:**
+- **Pages with a password.** A locked page's menu shows Preview only. A page with its own password can't be duplicated, moved or deleted until the password is removed (the copy would be stored without it), and pages of a notebook with a password stay in it. The toast says so.
+- **Rename, color and Edit page aren't undo steps.** Undo stays about what's on the page. Duplicate, Move and Delete have their toast's Undo.
+- **Swatches are 28 dp wide**, not the design's 30: eight 30 dp swatches overflow the 276 dp menu.
+- **Touch targets.** The page bar's buttons are 40 × 40, as in the design (like the zoom pill).
+
+### Not done yet / known limits
+- Not tried on the tablet: the swipe feel with the S Pen and a finger, and dragging pages in the strip.
+- Deleted pages leave their file in the package (it isn't listed in notebook.json, so nothing reads it).
+
 ## Storage layout
 
 ```
@@ -1107,6 +1133,7 @@ Also in `<app documents>/Endless/` since Phase 9a: `sync/` (settings.json: Sync 
   - `test/sync/engine_test.dart` (two installs through one cloud): a notebook made on one shows up on the other with ink and pictures; a second sync sends nothing; strokes written on the same page offline on both all kept; an erased stroke going and not coming back; version history kept before another device's changes; renamed on one and pinned on the other; pages added on both; deleted for good on one (and a third device not fetching it); folders and decks; images left off the cloud (recordings still sent); a page with a password synced sealed; **a cloud write lost to another device's at the same moment put right on the next sync**; an open notebook taking the changes and sending what it has; PDF copies, renamed with the notebook; the cloud unreachable; and **two installs on real files** (`FileBoardStore`) syncing through a folder.
   - `test/sync/sync_app_test.dart` (the app): Settings › Sync & backup (Connect, the switches kept on the device, the conflict policy, turning off); Connect without client ids; the title pill (Saved on this tablet; Saved; Synced to Google Drive; Saving… after writing); Wi-Fi only (waits, the sidebar and covers say so); offline; signed out; the sidebar card; **two running apps with the notebook open**, each writing, both seeing every stroke (and an erase) without reopening, and Undo/Redo on one taking back only its own stroke; leaving the app (nothing to send: nothing runs; a stroke not yet saved: saved and in the cloud before it finishes); Use another account (everything sent again to the new one); Version history (versions, Restore as one undo step, Undo, the page before the restore kept); a big video going to the cloud with its card, the page keeping the link and this device's copy moving to the cache.
   - 3 goldens: `sync_settings`, `sync_settings_dark` (Sync.png) and `sync_library` (the sidebar card and a Waiting to sync cover). The title pill's "Saved on this tablet" changed 71 existing goldens (canvas screens and dialogs over them), regenerated.
+- Update 02a: `test/ui/page_bar_test.dart` (the bar, previous and next, the preview card and its neighbor buttons; All pages: Add page, tap to go, reorder keeping your page, Hide and the grid toggle; Rename in the bar, Page color saved in the page file, Duplicate with new ids and Undo, Delete and Undo; Move to… another notebook with its ink, and Undo; Edit page's paper and template, and ⋯ → Page & paper; tucking the tray by swipe and tap, the pull tab (up does nothing, down brings it back), the pen settings handle, the setting off; the tool menu centered; `copyPage` and the page color round trip) and 7 goldens (`canvas_page_preview`, `canvas_page_all`, `canvas_page_all_dark`, `canvas_page_menu`, `canvas_page_move`, `canvas_page_rename`, `canvas_colors_tucked`). The page bar, the centered menu and the moved hint changed 68 existing goldens (every canvas screen), regenerated.
 
 ## Next
 - **Phase 9b tablet checklist** (Share without a server). Release build, `adb install -r`.

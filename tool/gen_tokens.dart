@@ -71,6 +71,9 @@ String renderTokens(Map<String, dynamic> json) {
   b.writeln('/// Notebook spine and folder colors (stored colors; dark mode brightens them like ink).');
   colorList('coverColors', colors['covers'] as List<dynamic>);
 
+  b.writeln('/// Page colors for the page bar and the All pages strip (stored colors; dark mode brightens them like ink).');
+  colorList('pageColors', colors['pageColors'] as List<dynamic>);
+
   b.writeln('/// Sticky note papers. They look the same in light and dark mode.');
   colorList('stickyColors', colors['stickies'] as List<dynamic>);
 

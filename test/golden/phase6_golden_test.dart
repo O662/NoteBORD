@@ -418,6 +418,6 @@ MemoryBoardStore _graphStore(ThemeMode mode, {required bool threeD, bool graphed
   final page = BoardPage(id: 'pg_graph', items: items);
   return storeWith(
     LoadedNotebook(Notebook(id: newId('nb'), title: 'Calculus II', createdAt: now, updatedAt: now, pageIds: [page.id]), [page]),
-    settings: AppSettings(tool: CanvasTool.select, themeMode: mode, trayOpen: false, pagesOpen: false, mapOpen: false),
+    settings: AppSettings(tool: CanvasTool.select, themeMode: mode, trayOpen: false, mapOpen: false),
   );
 }

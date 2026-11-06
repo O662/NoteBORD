@@ -1,3 +1,5 @@
+import 'dart:math' show max;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -307,7 +309,8 @@ class _SplitScreenState extends ConsumerState<SplitScreen> {
               if (!math.on)
                 Positioned(
                   left: 12,
-                  top: 170,
+                  // Centered on the left edge, as on the canvas (Split.png).
+                  top: max(84.0, (MediaQuery.sizeOf(context).height - LeftRail.height) / 2),
                   child: LeftRail(
                     openId: _fly,
                     pinned: _pinned,

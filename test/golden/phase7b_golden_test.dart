@@ -29,7 +29,7 @@ Future<void> _withShadows(Future<void> Function() body) async {
 
 /// Charts.png has no color tray, pages rail or map open.
 MemoryBoardStore _plain(MemoryBoardStore store, {bool dark = false}) => store
-  ..settings = AppSettings(themeMode: dark ? ThemeMode.dark : ThemeMode.light, trayOpen: false, pagesOpen: false, mapOpen: false)
+  ..settings = AppSettings(themeMode: dark ? ThemeMode.dark : ThemeMode.light, trayOpen: false, mapOpen: false)
       .toJson();
 
 /// Selects the momentum chart with Select (the Chart selected bar).

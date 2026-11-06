@@ -268,6 +268,24 @@ abstract final class EIcons {
     _p(_circle(10.5, 7, 1)),
     _p(_circle(15, 7.5, 1)),
   ]);
+
+  // The page menu (Canvas.dc.html `PI`).
+  static final eye = EIconData([_p('M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z'), _p(_circle(12, 12, 3))]);
+  static final sliders = EIconData([_p('M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0 M16 4v4M10 10v4M18 16v4')]);
+  static final duplicate = EIconData([
+    _p('M9 9h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2z'),
+    _p('M5 15H4a1 1 0 0 1-1-1V5a2 2 0 0 1 2-2h9a1 1 0 0 1 1 1v1'),
+  ]);
+  static final moveTo = EIconData([_p('M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'), _p('M10 13h6M13 10l3 3-3 3')]);
+  static final pencil = EIconData([_p('M4 20l1-4L16 5l3 3L8 19z'), _p('M14 7l3 3')]);
+  static final allPages = EIconData([
+    _p(_rect(3, 4, 7, 7, 1.5)),
+    _p(_rect(14, 4, 7, 7, 1.5)),
+    _p(_rect(3, 14, 7, 7, 1.5)),
+    _p(_rect(14, 14, 7, 7, 1.5)),
+  ], strokeWidth: 1.9);
+  static final tuckUp = EIconData([_p('M2 7l5-5 5 5')], strokeWidth: 2, viewBox: 14);
+  static final checkBold = EIconData([_p('M5 12l5 5 9-10')], strokeWidth: 2.6);
 }
 
 class _PathBuilder extends PathProxy {

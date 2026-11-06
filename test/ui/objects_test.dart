@@ -906,7 +906,7 @@ void main() {
       expect(view.scale, lessThan(0.5));
       expect(view.visiblePage.contains(near.extent.topLeft), isTrue);
       expect(view.visiblePage.contains(far.extent.bottomRight), isTrue);
-      for (final gone in ['Undo', 'Insert', 'Share', 'Hide pages', 'Hide map']) {
+      for (final gone in ['Undo', 'Insert', 'Share', 'Page options', 'Hide map']) {
         expect(byLabel(gone), findsNothing, reason: gone);
       }
       expect(byLabel('Back from the whole board'), findsOneWidget);

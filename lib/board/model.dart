@@ -69,6 +69,7 @@ class BoardPage {
   BoardPage({
     required this.id,
     this.title = '',
+    this.color,
     this.paper = Paper.dots,
     this.template,
     this.locked = false,
@@ -81,6 +82,10 @@ class BoardPage {
 
   final String id;
   String title;
+
+  /// The page's color (the page bar's dot, a stripe on its thumbnail), or
+  /// null for none. Stored as written; dark mode brightens it like ink.
+  Color? color;
   Paper paper;
 
   /// Built-in template id (e.g. `cornell`) drawn under the ink, or null.

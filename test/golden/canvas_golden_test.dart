@@ -64,4 +64,21 @@ void main() {
   _golden('more_menu', setUp: (t) => t.tap(byLabel('More options')));
   _golden('map_hidden', setUp: (t) => t.tap(byLabel('Hide map')));
   _golden('fullscreen', setUp: (t) => t.tap(byLabel('Full screen: hide menus')));
+
+  // Update 02: the page bar (Canvas-page-*.png) and tucking the tray away.
+  _golden('page_preview', setUp: (t) => t.tap(byLabel('Preview this page')));
+  _golden('page_all', setUp: (t) => t.tap(byLabel('Show all pages')));
+  _golden('page_all_dark', mode: ThemeMode.dark, setUp: (t) => t.tap(byLabel('Show all pages')));
+  _golden('page_menu', setUp: (t) => t.tap(byLabel('Page options')));
+  _golden('page_move', setUp: (t) async {
+    await t.tap(byLabel('Page options'));
+    await t.pump();
+    await t.tap(find.text('Move to…'));
+  });
+  _golden('page_rename', setUp: (t) async {
+    await t.tap(byLabel('Page options'));
+    await t.pump();
+    await t.tap(find.text('Rename'));
+  });
+  _golden('colors_tucked', setUp: (t) => t.tap(find.bySemanticsLabel('Tuck colors away (or swipe up)')));
 }

@@ -47,6 +47,7 @@ import 'insert_menu.dart';
 import 'left_rail.dart';
 import 'live_bar.dart';
 import 'model_note.dart';
+import 'page_bar.dart';
 import 'panels.dart';
 import 'pen_popover.dart';
 import 'recording_pill.dart';
@@ -74,9 +75,7 @@ const rulerHint = 'Two fingers rotate the ruler · the pen snaps to its edge';
 
 
 /// What the ⋯ menu items open, until their screens exist.
-const _moreFeatures = {
-  'Page & paper': 'Page & paper',
-};
+const _moreFeatures = <String, String>{};
 
 /// Handles a ⋯ menu choice for [pane] (shared with Split view).
 void handleMoreItem(BuildContext context, Pane pane, MoreItem item, ValueChanged<String> comingSoon) {
@@ -93,6 +92,8 @@ void handleMoreItem(BuildContext context, Pane pane, MoreItem item, ValueChanged
       printNotebook(context, pane);
     case 'Version history':
       showVersionHistory(context, pane);
+    case 'Page & paper':
+      showEditPage(context, pane);
     default:
       comingSoon(_moreFeatures[item.label] ?? item.label);
   }
@@ -218,6 +219,9 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
   String? _fly;
   bool _pinned = false;
   bool _more = false;
+
+  /// What's open above the page bar (preview, all pages, page menu).
+  PageLayer? _pageLayer;
 
   /// Full screen hides every menu except the zoom pill.
   bool _full = false;
@@ -359,6 +363,17 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
         _fly = null;
         _pinned = false;
         _more = false;
+        if (_pageLayer != PageLayer.all) _pageLayer = null;
+      });
+
+  void _setPageLayer(PageLayer? layer) => setState(() {
+        _pageLayer = layer;
+        if (layer != null) {
+          _fly = null;
+          _pinned = false;
+          _more = false;
+          _popover = false;
+        }
       });
 
   void _pickTool(CanvasTool tool) {
@@ -400,6 +415,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
           _pinned = true;
           _more = false;
           _popover = false;
+          _pageLayer = null;
         }
       });
 
@@ -670,6 +686,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
         _fly = null;
         _pinned = false;
         _popover = false;
+        _pageLayer = null;
       });
 
   void _pickMoreItem(MoreItem item) {
@@ -777,7 +794,10 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     final panel = (pane.panel.value || transcript != null) && !sealed;
     final right = !spelling && !_dict && !mathOn && !cardsOn && !liveOn && !panel;
     final mapShown = tools && right && settings.mapOpen;
-    final blocking = tools && (_more || (_pinned && _fly != null));
+    // The page bar: everywhere but the modes with their own bottom row.
+    final pageBar = chrome && !spelling && !mathOn && !cardsOn;
+    final pageMenu = pageBar && (_pageLayer == PageLayer.peek || _pageLayer == PageLayer.menu);
+    final blocking = (tools && (_more || (_pinned && _fly != null))) || pageMenu;
     // The math keyboard is where the hint would be.
     final hintShown = !sealed && _hint != null && !_popover && !blocking && pane.math.draft == null;
 
@@ -821,8 +841,8 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                     tools && (settings.trayOpen || settings.tool == CanvasTool.laser || settings.tool == CanvasTool.shape)
                         ? 128
                         : 84,
-                    _dict ? _drawerReach : (chrome && settings.pagesOpen && !mathOn && !panel ? 124 : 60),
-                    16,
+                    _dict ? _drawerReach : 60,
+                    pageBar ? 16 + PageBar.height + 8 : 16,
                   ),
                 ),
               ),
@@ -916,14 +936,9 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                   else if (tools && settings.tool == CanvasTool.shape && !_popover)
                     const Positioned(top: 74, left: 0, right: 0, child: Center(child: ShapeKinds()))
                   else if (tools && settings.trayOpen && !_popover)
-                    const Positioned(top: 70, left: 0, right: 0, child: Center(child: ColorTray())),
-                  if (chrome && right)
-                    Positioned(
-                      right: settings.pagesOpen ? 14 : 0,
-                      top: 84,
-                      // Never below zero: the on-screen keyboard can take most of the height.
-                      child: PagesRail(pane: pane, maxHeight: math.max(0, box.maxHeight - 84 - (mapShown ? 250 : 80))),
-                    ),
+                    const Positioned(top: 70, left: 0, right: 0, child: Center(child: ColorTray()))
+                  else if (tools && !settings.trayOpen && settings.swipeTuck && !_popover)
+                    Positioned(top: 63, left: 0, right: 0, child: Center(child: TrayPullTab(onOpen: _toggleTray))),
                   if (cardsOn && chrome) ...[
                     Positioned(
                       top: 84,
@@ -947,8 +962,14 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                     Positioned(
                       left: 0,
                       right: 0,
-                      bottom: 20,
-                      child: Center(
+                      bottom: 0,
+                      height: 140,
+                      child: CustomSingleChildLayout(
+                        delegate: _StatusLayout(
+                          // Between the page bar and the map (Canvas.dc.html: 520 + 440).
+                          slot: pageBar && box.maxWidth >= 1000 ? (446, box.maxWidth - 12 - cornerWidth - 14) : null,
+                          lift: 16 + PageBar.height + 8 - 20,
+                        ),
                         child: GestureStatus(pane: pane, orElse: hintShown ? HintPill(text: _hint!) : null),
                       ),
                     ),
@@ -1014,7 +1035,8 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                       child: Center(child: RecordingPill(onStop: () => stopRecording(ref, pane))),
                     ),
                   // The handwriting model downloading on first use.
-                  if (!sealed && chrome) const Positioned(left: 14, bottom: 16, child: ModelNoteView()),
+                  if (!sealed && chrome)
+                    Positioned(left: 14, bottom: pageBar ? 16 + PageBar.height + 10 : 16, child: const ModelNoteView()),
                   // A big video going to the cloud (Video.png), beside the map.
                   if (chrome)
                     Positioned(
@@ -1035,10 +1057,22 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                     Positioned.fill(
                       child: Listener(behavior: HitTestBehavior.opaque, onPointerDown: (_) => _closeMenus()),
                     ),
+                  if (pageBar)
+                    Positioned(
+                      left: 12,
+                      bottom: 16,
+                      child: PageBar(
+                        pane: pane,
+                        layer: _pageLayer,
+                        onLayer: _setPageLayer,
+                        maxWidth: box.maxWidth - 12 - (right ? 12 + cornerWidth + 14 : 12),
+                      ),
+                    ),
                   if (tools)
                     Positioned(
                       left: 12,
-                      top: 84,
+                      // Centered on the left edge (top 274 on a 1280 × 800 screen).
+                      top: math.max(84, (box.maxHeight - LeftRail.height) / 2),
                       child: LeftRail(
                         openId: _fly,
                         pinned: _pinned,
@@ -1078,6 +1112,32 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
       ),
     );
   }
+}
+
+/// Places the hint and status pill 20 dp up from the bottom: centered in
+/// [slot] (left, right) when it fits there, otherwise centered on the
+/// screen and [lift] higher, clear of the page bar.
+class _StatusLayout extends SingleChildLayoutDelegate {
+  _StatusLayout({required this.slot, required this.lift});
+
+  final (double, double)? slot;
+  final double lift;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
+      BoxConstraints(maxWidth: math.max(0, constraints.maxWidth - 32), maxHeight: constraints.maxHeight);
+
+  @override
+  Offset getPositionForChild(Size size, Size child) {
+    final y = size.height - 20 - child.height;
+    final s = slot;
+    if (s == null) return Offset((size.width - child.width) / 2, y);
+    if (child.width <= s.$2 - s.$1) return Offset((s.$1 + s.$2 - child.width) / 2, y);
+    return Offset((size.width - child.width) / 2, y - lift);
+  }
+
+  @override
+  bool shouldRelayout(_StatusLayout old) => old.slot != slot || old.lift != lift;
 }
 
 /// Highlights a search match on the page ("Open at this spot"), then fades.

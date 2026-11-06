@@ -93,6 +93,10 @@ class LeftRail extends StatelessWidget {
 
   static const _buttonPitch = 46.0; // 44 + 2 gap
 
+  /// The rail's height (without a menu open): borders, padding, five
+  /// buttons, the divider and the gaps. The canvas centers it with this.
+  static const height = 2 + 12 + 5 * 44.0 + 9 + 5 * 2;
+
   final String? openId;
   final bool pinned;
   final ValueChanged<String> onHover;

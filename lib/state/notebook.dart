@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' show Offset, Size;
+import 'dart:ui' show Color, Offset, Size;
 
 import 'package:cryptography/cryptography.dart' show SecretBoxAuthenticationError;
 import 'package:flutter/foundation.dart';
@@ -1067,6 +1067,137 @@ class NotebookNotifier extends Notifier<NotebookState> {
     return at;
   }
 
+  // Pages (the page bar, Canvas.dc.html).
+
+  /// Renames page [pageId]. Not an undo step (the page bar's Rename).
+  void renamePage(String pageId, String title) {
+    final page = _pageById(pageId);
+    if (page == null || state.isSealed(pageId) || page.page.title == title) return;
+    page.page.title = title;
+    _changed(pageId);
+  }
+
+  /// Sets page [pageId]'s color (null for none). Not an undo step.
+  void setPageColor(String pageId, Color? color) {
+    final page = _pageById(pageId);
+    if (page == null || state.isSealed(pageId) || page.page.color == color) return;
+    page.page.color = color;
+    _changed(pageId);
+  }
+
+  /// Sets page [pageId]'s paper and template (Edit page). Not an undo step.
+  void setPagePaper(String pageId, {Paper? paper, Object? Function()? template}) {
+    final page = _pageById(pageId);
+    if (page == null || state.isSealed(pageId)) return;
+    if (paper != null) page.page.paper = paper;
+    if (template != null) page.page.template = template();
+    page.invalidate();
+    _changed(pageId);
+  }
+
+  /// When page [pageId] was last changed: now if it has changes not
+  /// written yet, otherwise when its file was written.
+  Future<DateTime?> pageEdited(String pageId) async {
+    if (_dirtyPages.contains(pageId)) return _clock();
+    return _store.pageWritten(id, pageId);
+  }
+
+  /// Why page [pageId] can't be copied or moved out, or null if it can. A
+  /// page with its own password would lose it, and a page of a notebook
+  /// with a password would leave its protection.
+  String? cantCopyOut(String pageId, {bool moving = false}) {
+    if (state.isSealed(pageId)) return 'Unlock this page first.';
+    if (state.hasPageLock(pageId)) return 'Remove this page’s password first.';
+    if (moving && state.notebookLocked) return 'Pages of a notebook with a password stay in it.';
+    return null;
+  }
+
+  /// Why page [pageId] can't be deleted, or null if it can.
+  String? cantDelete(String pageId) {
+    if (state.pages.length < 2) return 'A notebook keeps at least one page.';
+    if (state.isSealed(pageId)) return 'Unlock this page to delete it.';
+    if (state.hasPageLock(pageId)) return 'Remove this page’s password first.';
+    return null;
+  }
+
+  /// Adds a copy of page [pageId] after it ("… (copy)", new item ids) and
+  /// returns its index, or null if it can't be copied ([cantCopyOut]).
+  int? duplicatePage(String pageId) {
+    final i = state.indexOf(pageId);
+    if (i < 0 || cantCopyOut(pageId) != null) return null;
+    final copy = copyPage(state.pages[i].page);
+    copy.title = state.pages[i].page.title.isEmpty ? '' : '${state.pages[i].page.title} (copy)';
+    final nb = state.notebook;
+    nb.pageIds.insert(i + 1, copy.id);
+    state.pages.insert(i + 1, _runtime(copy));
+    _metaDirty = true;
+    _changed(copy.id);
+    return i + 1;
+  }
+
+  /// Takes page [pageId] out of the notebook and returns it with its index,
+  /// to put back with [restorePage] (Undo), or null if it can't go
+  /// ([cantDelete]).
+  (BoardPage, int)? removePage(String pageId, {bool force = false}) {
+    final i = state.indexOf(pageId);
+    if (i < 0 || (!force && cantDelete(pageId) != null)) return null;
+    final runtime = state.pages.removeAt(i);
+    state.notebook.pageIds.remove(pageId);
+    _dirtyPages.remove(pageId);
+    _undo.remove(pageId);
+    _redo.remove(pageId);
+    final page = runtime.page;
+    runtime.dispose();
+    _metaDirty = true;
+    _contentChanged = true;
+    _scheduleSave();
+    _index.pageChanged(id, pageId);
+    state = state.copyWith(revision: state.revision + 1, saveStatus: SaveStatus.saving);
+    return (page, i);
+  }
+
+  /// Puts back a page taken out with [removePage] (or moved here), at [at].
+  void restorePage(BoardPage page, int at) {
+    if (state.indexOf(page.id) >= 0) return;
+    final to = at.clamp(0, state.pages.length);
+    state.notebook.pageIds.insert(to, page.id);
+    state.pages.insert(to, _runtime(page));
+    _metaDirty = true;
+    _changed(page.id);
+  }
+
+  /// Moves the page at [from] to index [to] (the All pages strip).
+  void movePage(int from, int to) {
+    final n = state.pages.length;
+    if (from < 0 || from >= n) return;
+    final dest = to.clamp(0, n - 1);
+    if (dest == from) return;
+    final page = state.pages.removeAt(from);
+    state.pages.insert(dest, page);
+    final ids = state.notebook.pageIds
+      ..remove(page.id)
+      ..insert(dest, page.id);
+    assert(ids.length == n);
+    _metaDirty = true;
+    _scheduleSave();
+    state = state.copyWith(revision: state.revision + 1, saveStatus: SaveStatus.saving);
+  }
+
+  /// The files page [pageId] shows (pictures, PDFs, Office files,
+  /// recordings), in the clear, for copying it to another notebook. Null if
+  /// one can't be read.
+  Future<Map<String, Uint8List>?> filesOf(String pageId) async {
+    final page = _pageById(pageId);
+    if (page == null) return null;
+    final out = <String, Uint8List>{};
+    for (final name in _assetsOn(page.page)) {
+      final bytes = await _readAsset(name);
+      if (bytes == null) return null;
+      out[name] = bytes;
+    }
+    return out;
+  }
+
   // Sync and version history.
 
   /// Takes changes from another device (cloud sync): the notebook was
@@ -1144,6 +1275,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
       final head = decodePage(jsonEncode({...e.value, 'items': const []}));
       final headBefore = decodePage(jsonEncode({...before, 'items': const []}));
       if (head.title != headBefore.title) page.page.title = head.title;
+      if (head.color != headBefore.color) page.page.color = head.color;
       if (head.paper != headBefore.paper) page.page.paper = head.paper;
       if (head.template != headBefore.template) page.page.template = head.template;
       if (!listEquals(head.spellIgnore, headBefore.spellIgnore)) {

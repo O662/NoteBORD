@@ -45,6 +45,7 @@ Locked notebooks and pages store `pages/<pageId>.json.enc` (AES-256-GCM) in plac
 {
   "id": "pg_03",
   "title": "Lecture 3 — Momentum",
+  "color": "#2B5A8C",
   "paper": "dots",
   "template": null,
   "locked": false,
@@ -52,7 +53,7 @@ Locked notebooks and pages store `pages/<pageId>.json.enc` (AES-256-GCM) in plac
   "items": [ /* Item[] in z-order */ ]
 }
 ```
-`template` is a built-in layout drawn under the ink (`cornell`, `meeting`, `weekly`, `todo`, `kanban`, `mind`, `story`, `lab`), or null. `paper` is `dots`, `lines`, `grid` or `blank`. `locked` means the page has its own password. `spelling.ignore` (optional) lists words spell check was told to ignore on this page; it is kept in the page file, so a page with a password keeps them sealed. Words added to "my dictionary" are the user's, for every notebook, and live in the app's settings, not in the package.
+`color` (optional) is the page's color in the page bar and the All pages strip, stored like an ink color (dark mode brightens it for display); no color leaves it out. `template` is a built-in layout drawn under the ink (`cornell`, `meeting`, `weekly`, `todo`, `kanban`, `mind`, `story`, `lab`), or null. `paper` is `dots`, `lines`, `grid` or `blank`. `locked` means the page has its own password. `spelling.ignore` (optional) lists words spell check was told to ignore on this page; it is kept in the page file, so a page with a password keeps them sealed. Words added to "my dictionary" are the user's, for every notebook, and live in the app's settings, not in the package.
 
 ## Items
 Every item has these fields:

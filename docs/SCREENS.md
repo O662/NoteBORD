@@ -90,7 +90,9 @@ Each screen is 1280×800 (Android tablet, landscape). The PNG is in `design/scre
 - Start: New note → Canvas. Continue writing → Canvas. Sidebar → Library (Main), Calendar, Flashcards (Study), Remember.
 - Canvas top-right: Share (dialog includes Export a copy) and ⋯ (Export, Import, Print, Password protect, Page & paper, Version history, Settings).
 - Canvas left rail: Insert menu, Study & math menu (RememberMark, FlashMake, Math, MathKit), Writing help menu (Spell, Convert), Ruler/laser/view menu (Tools, Split), and Search.
-- Extra Canvas states: `Canvas-rail-hover-insert`, `Canvas-rail-pinned`, `Canvas-more-menu`, `Canvas-map-hidden`, `Canvas-fullscreen`.
+- Extra Canvas states: `Canvas-rail-hover-insert`, `Canvas-rail-pinned`, `Canvas-rail-centered-flyout`, `Canvas-more-menu`, `Canvas-map-hidden`, `Canvas-fullscreen`.
+- Canvas page bar (bottom left, Update 02): `Canvas-page-preview` (Preview), `Canvas` (All pages strip), `Canvas-page-menu` (⋯ page menu), `Canvas-page-move` (Move to…), `Canvas-page-rename` (Rename in the bar).
+- Tucking the pen menus away (Update 02): `Canvas-colors-tucked` (the pull tab), `Canvas-pen-settings` (the panel's handle).
 - Insert menu: Math, Graph, Video, Audio, Charts, WidgetBoard, LiveItems.
 - Math → Formulas & tools (MathKit), and Add a graph (Graph).
 - Settings: Sync, then Themes & dark mode.

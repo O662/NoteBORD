@@ -11,6 +11,7 @@ import '../../theme/tokens.g.dart' as tokens;
 import '../../theme/tokens.g.dart' show Radii, TypeScale;
 import '../common.dart';
 import '../icons.dart';
+import 'color_tray.dart' show SwipeHandle;
 
 /// Pen / Marker settings, opened by tapping the active pen again.
 class PenPopover extends ConsumerWidget {
@@ -200,6 +201,25 @@ class PenPopover extends ConsumerWidget {
             ),
           ]),
         ),
+        if (s.swipeTuck)
+          Center(
+            child: Transform.translate(
+              offset: const Offset(0, 4),
+              child: SwipeHandle(
+                label: 'Tuck pen settings away (or swipe up)',
+                up: true,
+                onSwipe: onClose,
+                child: SizedBox(
+                  width: 120,
+                  height: 28,
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, spacing: 3, children: [
+                    Container(width: 40, height: 4, decoration: BoxDecoration(color: c.lineStrong, borderRadius: BorderRadius.circular(2))),
+                    Text('Swipe up to tuck away', style: TextStyle(fontSize: 11, color: c.textFaint)),
+                  ]),
+                ),
+              ),
+            ),
+          ),
       ],
     );
 

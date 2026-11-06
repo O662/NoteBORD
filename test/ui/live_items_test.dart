@@ -74,7 +74,7 @@ MemoryBoardStore _charts(Set<String> keep) {
   final (nb, file, bytes) = chartsSample();
   final page = BoardPage(id: 'pg_charts', items: [for (final i in nb.pages.single.items) if (keep.contains(i.id)) i]);
   // Charts.png has no pages rail or map in the way.
-  final store = storeWith(LoadedNotebook(nb.notebook, [page]), settings: AppSettings(pagesOpen: false, mapOpen: false, trayOpen: false));
+  final store = storeWith(LoadedNotebook(nb.notebook, [page]), settings: AppSettings(mapOpen: false, trayOpen: false));
   store.saveAsset(nb.notebook.id, file.asset, bytes);
   return store;
 }

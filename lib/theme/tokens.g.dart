@@ -197,6 +197,17 @@ const coverColors = <Color>[
   Color(0xFF8A6400),
 ];
 
+/// Page colors for the page bar and the All pages strip (stored colors; dark mode brightens them like ink).
+const pageColors = <Color>[
+  Color(0xFF2B5A8C),
+  Color(0xFFB5532A),
+  Color(0xFF3E7B4F),
+  Color(0xFF7A4E73),
+  Color(0xFFD9A21B),
+  Color(0xFF1F6B75),
+  Color(0xFFC4577A),
+];
+
 /// Sticky note papers. They look the same in light and dark mode.
 const stickyColors = <Color>[
   Color(0xFFF6DE7A),

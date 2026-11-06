@@ -65,6 +65,10 @@ abstract class BoardStore {
   /// Writes a page in the clear (and removes any sealed copy).
   Future<void> savePage(String notebookId, BoardPage page);
 
+  /// When page [pageId] was last written, clear or sealed (the page
+  /// preview's "edited 2 hours ago"), or null if it never was.
+  Future<DateTime?> pageWritten(String notebookId, String pageId);
+
   /// Writes a locked page's encrypted contents (and removes any clear copy).
   Future<void> saveSealedPage(String notebookId, String pageId, Uint8List sealed);
   Future<void> saveLock(String notebookId, Json? lock);
@@ -234,6 +238,18 @@ class FileBoardStore implements BoardStore {
   Future<void> savePage(String notebookId, BoardPage page) async {
     await _writeAtomic(_pageFile(notebookId, page.id), encodePage(page));
     await _deleteIfExists(_sealedFile(notebookId, page.id));
+  }
+
+  @override
+  Future<DateTime?> pageWritten(String notebookId, String pageId) async {
+    for (final f in [_pageFile(notebookId, pageId), _sealedFile(notebookId, pageId)]) {
+      try {
+        if (await f.exists()) return await f.lastModified();
+      } on FileSystemException {
+        continue;
+      }
+    }
+    return null;
   }
 
   @override
@@ -501,7 +517,14 @@ class MemoryBoardStore implements BoardStore {
     pageWrites++;
     (pages[notebookId] ??= {})[page.id] = encodePage(page);
     sealedPages[notebookId]?.remove(page.id);
+    written['$notebookId/${page.id}'] = DateTime.now();
   }
+
+  /// When each page was written (`notebookId/pageId`).
+  final written = <String, DateTime>{};
+
+  @override
+  Future<DateTime?> pageWritten(String notebookId, String pageId) async => written['$notebookId/$pageId'];
 
   @override
   Future<void> saveSealedPage(String notebookId, String pageId, Uint8List sealed) async {
