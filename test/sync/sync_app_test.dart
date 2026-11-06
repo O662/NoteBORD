@@ -286,6 +286,51 @@ void main() {
     expect(cloud.files.keys.where((k) => k.endsWith('/notebook.json')), hasLength(1));
   });
 
+  testWidgets('writing without a pause: the cloud has it within about 5 seconds, and again every 5 seconds', (tester) async {
+    final store = MemoryBoardStore();
+    syncingWithGoogle(store);
+    final id = addUntitled(store);
+    final c = ProviderContainer(overrides: [...await testOverrides(store, autoSync: true), ...syncOverrides(cloud)]);
+    addTearDown(c.dispose);
+    // Sync starts with the app (EndlessApp).
+    c.listen(syncProvider, (_, _) {});
+    c.listen(loadedNotebookProvider(id), (_, _) {});
+    await c.read(loadedNotebookProvider(id).future);
+    c.listen(notebookProvider(id), (_, _) {});
+    final nb = c.read(notebookProvider(id).notifier);
+    final pageId = c.read(notebookProvider(id)).pages.first.id;
+
+    String? cloudPage() {
+      final k = cloud.files.keys.where((k) => k.contains('/pages/$pageId.')).firstOrNull;
+      return k == null ? null : utf8.decode(cloud.files[k]!);
+    }
+
+    // A stroke a second, for 12 seconds.
+    final strokes = <String>[];
+    var sentWhileWriting = 0;
+    String? last;
+    for (var i = 0; i < 12; i++) {
+      final s = strokeFrom([Offset(10.0 + i * 20, 10), Offset(20.0 + i * 20, 30)]);
+      strokes.add(s.id);
+      nb.addStroke(pageId, s);
+      await tester.pump(const Duration(seconds: 1));
+      final now = cloudPage();
+      if (now != null && now != last) {
+        sentWhileWriting++;
+        last = now;
+      }
+      // Within about 5 s of the first stroke, it's in the cloud.
+      if (i == 6) expect(now, contains(strokes.first));
+    }
+    expect(sentWhileWriting, greaterThanOrEqualTo(2));
+    // And the rest a few seconds after the last stroke.
+    await tester.pump(const Duration(seconds: 6));
+    for (final s in strokes) {
+      expect(cloudPage(), contains(s));
+    }
+    expect(c.read(syncProvider).dirty, isEmpty);
+  });
+
   testWidgets('Version history: earlier versions of the page, a preview, Restore, Undo', (tester) async {
     final store = MemoryBoardStore();
     final id = addUntitled(store);

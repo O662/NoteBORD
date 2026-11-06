@@ -372,4 +372,36 @@ void main() {
     expect(SyncEngine.idOfFolder('nb_1.board'), 'nb_1');
     expect(SyncEngine.idOfFolder('PDF'), isNull);
   });
+
+  test('a quick sync sends only the notebooks named, in a few requests', () async {
+    final busy = await a.newNotebook(title: 'Busy');
+    final other = await a.newNotebook(title: 'Other');
+    await round();
+    await b.sync(cloud);
+    final s1 = await a.write(busy);
+    await a.write(other, x: 50);
+    cloud.reads.clear();
+    cloud.writes.clear();
+    final r = await a.engine.syncAll(cloud, only: {busy});
+    expect(r.sent, {busy});
+    // notebook.json read, the page and notebook.json written: no other
+    // notebook, no endless.json.
+    expect(cloud.reads, ['Busy · $busy.board/notebook.json']);
+    expect(cloud.writes, hasLength(2));
+    expect(cloud.writes.every((w) => w.startsWith('Busy · $busy.board/')), isTrue);
+    await b.sync(cloud);
+    expect(await b.itemIds(busy), {s1});
+    expect(await b.itemIds(other), isEmpty);
+  });
+
+  test('a quick sync never brings back a notebook deleted here', () async {
+    final id = await a.newNotebook();
+    await round();
+    await a.store.deleteNotebook(id);
+    await a.engine.syncAll(cloud, only: {id});
+    expect(await a.store.loadNotebookMeta(id), isNull);
+    // The full sync deletes it from the cloud.
+    await a.sync(cloud);
+    expect(cloud.files.keys.where((k) => k.contains(id)), isEmpty);
+  });
 }

@@ -154,7 +154,11 @@ class SyncEngine {
 
   /// Syncs everything with [cloud]. Throws [CloudException] when the cloud
   /// can't be reached (nothing here is lost: it's tried again later).
-  Future<SyncReport> syncAll(CloudDrive cloud) async {
+  ///
+  /// With [only], a quick sync while writing: just those notebooks (that
+  /// are on this device), both ways, and nothing else (no folders or decks,
+  /// no deletions, no PDF copies: the next full sync does those).
+  Future<SyncReport> syncAll(CloudDrive cloud, {Set<String>? only}) async {
     final report = SyncReport();
     final listing = await cloud.list('');
     // Notebook id → its folders (one, unless two devices named it
@@ -169,6 +173,14 @@ class SyncEngine {
     }
     final remoteIds = remoteDirs.keys.toSet();
     final localIds = (await store.listNotebookIds()).toSet();
+
+    if (only != null) {
+      if (!options.boardFiles) return report;
+      for (final id in only.intersection(localIds)) {
+        await _syncNotebook(cloud, id, dirs: remoteDirs[id] ?? const [], report: report);
+      }
+      return report;
+    }
 
     // Notebooks deleted here since they were last synced.
     final known = {

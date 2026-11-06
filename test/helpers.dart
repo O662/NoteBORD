@@ -156,6 +156,7 @@ Future<List<Override>> testOverrides(
   DateTime Function()? clock,
   FakeFeeds? feeds,
   FeedLinks? feedLinks,
+  bool autoSync = false,
 }) async {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   final db = index ?? IndexDb.memory();
@@ -181,7 +182,7 @@ Future<List<Override>> testOverrides(
     feedLinksProvider.overrideWithValue(feedLinks ?? MemoryFeedLinks()),
     feedReaderProvider.overrideWithValue((text, id, now) async => readFeed(text, id, now)),
     // Cloud sync runs when a test asks (SyncController.syncNow).
-    autoSyncProvider.overrideWithValue(false),
+    autoSyncProvider.overrideWithValue(autoSync),
     if (location != null) initialLocationProvider.overrideWithValue(location),
   ];
 }

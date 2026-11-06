@@ -308,8 +308,12 @@ final initialSyncSettingsProvider = Provider<SyncSettings>((ref) => const SyncSe
 final syncProvider = NotifierProvider<SyncController, SyncState>(SyncController.new);
 
 class SyncController extends Notifier<SyncState> {
-  /// After a change, sync waits this long for more.
+  /// After a change to folders or decks, sync waits this long for more.
   static const settle = Duration(seconds: 8);
+
+  /// A notebook changed here goes to the cloud at most this long after
+  /// the change, even while writing goes on (only the notebooks changed).
+  static const quickEvery = Duration(seconds: 5);
 
   /// And runs at least this often while the app is open.
   static const every = Duration(minutes: 5);
@@ -320,6 +324,11 @@ class SyncController extends Notifier<SyncState> {
   AppLifecycleListener? _life;
   Future<void>? _running;
   bool _again = false;
+
+  /// Notebooks changed since the last quick sync, and its timer.
+  final _quickIds = <String>{};
+  Timer? _quick;
+  final _againOnly = <String>{};
 
   @override
   SyncState build() {
@@ -336,6 +345,7 @@ class SyncController extends Notifier<SyncState> {
       changes.removeListener(onChange);
       _soon?.cancel();
       _tick?.cancel();
+      _quick?.cancel();
       _life?.dispose();
     });
     return SyncState(settings: settings);
@@ -398,14 +408,35 @@ class SyncController extends Notifier<SyncState> {
     }
   }
 
+  /// How many times each notebook has changed (so a change made while a
+  /// sync runs isn't taken as sent).
+  final _changes = <String, int>{};
+
   void _changed(String? notebookId) {
     if (!state.settings.anyOn) return;
+    if (notebookId != null) _changes[notebookId] = (_changes[notebookId] ?? 0) + 1;
     if (notebookId != null && !state.dirty.contains(notebookId)) {
       state = state.copyWith(dirty: {...state.dirty, notebookId});
     }
     if (!ref.read(autoSyncProvider)) return;
-    _soon?.cancel();
-    _soon = Timer(settle, _auto);
+    if (notebookId == null) {
+      // Folders or decks: a full sync once the changes settle.
+      _soon?.cancel();
+      _soon = Timer(settle, _auto);
+      return;
+    }
+    // A notebook: sent within a few seconds, and again every few seconds
+    // while writing goes on (the timer isn't put off by more changes).
+    _quickIds.add(notebookId);
+    _quick ??= Timer(quickEvery, () {
+      _quick = null;
+      final ids = {..._quickIds};
+      _quickIds.clear();
+      if (ids.isEmpty || !state.settings.anyOn) return;
+      // A notebook gone from here (deleted for good) is the full sync's.
+      final here = {for (final n in ref.read(libraryProvider).notebooks) n.id};
+      unawaited(ids.every(here.contains) ? syncNow(only: ids) : syncNow());
+    });
   }
 
   Future<void> _save(SyncSettings s) async {
@@ -506,22 +537,33 @@ class SyncController extends Notifier<SyncState> {
 
   /// Syncs now with every cloud that's on (Sync now, and the automatic
   /// runs). A call while one runs makes it run once more after.
-  Future<void> syncNow({bool manual = false}) {
+  ///
+  /// [only]: a quick sync of just those notebooks (while writing).
+  Future<void> syncNow({bool manual = false, Set<String>? only}) {
     if (_running != null) {
-      _again = true;
+      if (only == null) {
+        _again = true;
+      } else {
+        _againOnly.addAll(only);
+      }
       return _running!;
     }
-    final run = _running = _run(manual: manual).whenComplete(() {
+    final run = _running = _run(manual: manual, only: only).whenComplete(() {
       _running = null;
       if (_again) {
         _again = false;
+        _againOnly.clear();
         unawaited(syncNow());
+      } else if (_againOnly.isNotEmpty) {
+        final ids = {..._againOnly};
+        _againOnly.clear();
+        unawaited(syncNow(only: ids));
       }
     });
     return run;
   }
 
-  Future<void> _run({required bool manual}) async {
+  Future<void> _run({required bool manual, Set<String>? only}) async {
     final settings = state.settings;
     final clouds = settings.active;
     if (clouds.isEmpty) {
@@ -538,7 +580,7 @@ class SyncController extends Notifier<SyncState> {
       return;
     }
     state = state.copyWith(phase: SyncPhase.syncing, message: () => null);
-    final dirtyBefore = {...state.dirty};
+    final changesBefore = {..._changes};
     final engine = SyncEngine(
       store: _store,
       host: _AppHost(ref),
@@ -556,7 +598,7 @@ class SyncController extends Notifier<SyncState> {
     var s = settings;
     try {
       for (final kind in clouds) {
-        final report = await engine.syncAll(_cloud(kind));
+        final report = await engine.syncAll(_cloud(kind), only: only);
         final now = ref.read(clockProvider)().toUtc();
         s = s.withCloud(kind, s.of(kind).copyWith(lastSync: () => now));
         syncedEverywhere = syncedEverywhere == null
@@ -574,7 +616,7 @@ class SyncController extends Notifier<SyncState> {
       // A notebook changed again while syncing stays waiting.
       final stillDirty = {
         for (final id in state.dirty)
-          if (!dirtyBefore.contains(id) || !(syncedEverywhere?.containsKey(id) ?? false)) id,
+          if (_changes[id] != changesBefore[id] || !(syncedEverywhere?.containsKey(id) ?? false)) id,
       };
       state = state.copyWith(phase: SyncPhase.idle, message: () => null, dirty: stillDirty);
       await _save(state.settings.copyWith(
