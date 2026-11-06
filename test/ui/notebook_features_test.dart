@@ -254,7 +254,7 @@ void main() {
       await _pump(tester);
       expect(find.byType(SplitScreen), findsNothing);
       expect(find.byType(CanvasScreen), findsOneWidget);
-      expect(find.text('Page 3 of 12 · Saved'), findsOneWidget);
+      expect(find.text('Page 3 of 12 · Saved on this tablet'), findsOneWidget);
       await tester.pump(const Duration(seconds: 5));
     });
 

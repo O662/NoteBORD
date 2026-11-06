@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../settings/sync_widgets.dart';
 import '../../library/library.dart';
 import '../../library/thumbs.dart';
 import '../../theme/colors.dart';
@@ -146,6 +147,8 @@ class NotebookCover extends StatelessWidget {
                     ]),
             ),
           ),
+        // Changes the cloud doesn't have yet (Main.dc.html).
+        if (height >= 100) Positioned(right: 8, bottom: 8, child: WaitingToSyncBadge(entry: entry)),
       ]),
     );
   }

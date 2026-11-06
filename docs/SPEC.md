@@ -119,17 +119,20 @@ Each feature names the screen that shows it (`design/screens/<Name>.png`, with s
 
 ## Phase 9: Cloud, sharing and collaboration
 - **Two-way calendar sync** with Google Calendar and Outlook (deferred from Phase 7, where calendars are read-only links): sign in, edit events in Endless and send the changes back. **[Calendar]**
-- **Sync settings:**
+- **Sync settings:** *(Phase 9a, built 2026-11-05)*
   - Google Drive and/or OneDrive, with a chosen folder.
   - What syncs: board files, optional PDF copy, images and PDFs.
   - Wi-Fi only.
   - Conflict policy: "Merge both", where strokes never overwrite each other. **[Sync]**
+  - The title pill shows Saving… / Saved / Saved on this tablet / Synced to Google Drive; the library sidebar shows the last sync. *(9a)*
+  - Big videos move to Drive or OneDrive and the page keeps a link (Video.png's upload card). *(9a)*
+  - Version history from the ⋯ menu: earlier versions of a page, restore one (the owner asked for it in 9a, ahead of Phase 10; no design, so a plain dialog). *(9a)*
 - **Share:** this page, the notebook or a folder. Invite by email as Can edit or Can comment. Link access is Off, Can view, Can comment or Can edit. Or send a copy as PDF, board file or image. Locked content can't be shared. **[Share]**
 - **Live collaboration:** presence avatars, live cursors labelled "Maya · writing", comment threads on ink, and offline edits that sync later. **[Live]**
 
 ## Phase 10: Polish and more devices
 - Dark mode check on every screen (**[CanvasDark]**), plus High contrast.
-- Version history, sync conflict UI, and crash recovery screens. These are not designed yet; ask the owner first.
+- Sync conflict UI and crash recovery screens. These are not designed yet; ask the owner first. (Version history came in Phase 9a, as a plain dialog; it may get a design here.)
 - Phone layout, then Windows, Linux and web.
 
 ## Before release

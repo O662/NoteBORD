@@ -22,9 +22,14 @@ extension _CanvasVideo on InkCanvasState {
     _dismissToast();
     _notebook.insertItems(_page.id, [v.withBox(x: at.dx, y: at.dy, w: v.w, h: v.h)]);
     pane.video.select(v.id);
-    _toast(v.link != null
-        ? 'Added the video · it’s big, so it stays on this tablet and the page keeps a link'
-        : 'Added the video · Note at pins a note to a moment');
+    final cloud = ref.read(syncProvider.notifier).videoCloud;
+    _toast(v.link == null
+        ? 'Added the video · Note at pins a note to a moment'
+        : cloud == null
+            ? 'Added the video · it’s big, so it stays on this tablet and the page keeps a link'
+            : 'Added the video · it’s big, so it goes to ${cloud.label} and the page keeps a link');
+    // A big one moves to the cloud (if sync is on), with its progress card.
+    if (v.link != null && cloud != null) unawaited(ref.read(syncProvider.notifier).moveVideo(pane.notebookId, v.id));
   }
 
   /// The moments notes are pinned to on [v] (its chips on this page).

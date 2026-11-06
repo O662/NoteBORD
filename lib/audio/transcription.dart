@@ -9,7 +9,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../board/model.dart';
 import '../state/notebook.dart';
-import '../video/video_files.dart' show videosDirProvider;
+import '../video/video_files.dart' show videoFileOf;
 import 'platform_audio.dart';
 import 'speakers.dart';
 import 'speech_models.dart';
@@ -182,9 +182,13 @@ class TranscriptionQueue extends Notifier<Map<String, TranscriptProgress>> {
       // The recording's (or video's) file: read where it's kept when it's
       // there in the clear; else opened and written out to read.
       String? source;
-      if (clip case VideoItem(link: final link?)) {
-        final f = File(p.join((await ref.read(videosDirProvider)()).path, link));
-        if (!await f.exists()) throw const SpeechError('The video isn’t on this tablet any more.');
+      if (clip case final VideoItem v when v.link != null) {
+        final f = await videoFileOf(ref, v);
+        if (f == null) {
+          throw SpeechError(v.cloud == null
+              ? 'The video isn’t on this tablet any more.'
+              : 'The video is in the cloud. Connect to the internet to transcribe it.');
+        }
         source = f.path;
       } else {
         final asset = switch (clip) {

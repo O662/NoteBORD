@@ -9,6 +9,7 @@ import '../planner/planner_model.dart';
 import '../planner/planner_state.dart';
 import '../spelling/my_handwriting.dart';
 import '../study/study_state.dart';
+import '../sync/sync_state.dart';
 import '../templates/templates.dart';
 import 'settings.dart';
 
@@ -26,6 +27,7 @@ Future<List<Override>> bootstrap(BoardStore store, {IndexDb? index, DateTime Fun
   final decks = decksFromJson(await store.loadDecks());
   final calendar = CalendarData.fromJson(await store.loadCalendar());
   final planner = PlannerData.fromJson(await store.loadPlanner());
+  final sync = await loadSyncSettings(store);
 
   return [
     boardStoreProvider.overrideWithValue(store),
@@ -37,6 +39,7 @@ Future<List<Override>> bootstrap(BoardStore store, {IndexDb? index, DateTime Fun
     initialDecksProvider.overrideWithValue(decks),
     initialCalendarProvider.overrideWithValue(calendar),
     initialPlannerProvider.overrideWithValue(planner),
+    initialSyncSettingsProvider.overrideWithValue(sync),
     clockProvider.overrideWithValue(clock),
   ];
 }

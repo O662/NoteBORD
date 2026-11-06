@@ -40,7 +40,7 @@ void main() {
     await pumpCanvas(tester, store: storeWith(sampleNotebook()));
 
     expect(find.text('Physics — Lecture notes'), findsOneWidget);
-    expect(find.text('Page 1 of 4 · Saved'), findsOneWidget);
+    expect(find.text('Page 1 of 4 · Saved on this tablet'), findsOneWidget);
     for (final label in [
       'Back to library', 'Undo', 'Redo', 'Select', 'Lasso select', 'Pen', 'Marker', 'Eraser', 'Shapes', 'Text',
       'Quick color: Ink black', 'Quick color: Deep blue', 'Quick color: Terracotta', 'More colors',

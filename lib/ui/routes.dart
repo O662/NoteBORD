@@ -36,6 +36,9 @@ abstract final class Routes {
     return Uri(path: '/notebook/$id', queryParameters: q.isEmpty ? null : q).toString();
   }
 
+  /// Settings, on a section (Sync.png: `sync`).
+  static String settings([String section = 'sync']) => Uri(path: '/settings', queryParameters: {'s': section}).toString();
+
   /// Need to remember (Remember.png).
   static const remember = '/remember';
   static const calendar = '/calendar';

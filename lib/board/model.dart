@@ -3401,6 +3401,23 @@ Json? _transcribeJson(TranscriptState state, int upToMs) =>
 /// the tablet beside the notebooks ([link]). [preview] is a still from it,
 /// drawn until it plays. [trimFrom]/[trimTo] are where it starts and stops
 /// playing (the file isn't cut). It can have a transcript, as recordings do.
+/// Where a big video is kept in the cloud: which cloud (`google`,
+/// `onedrive`) and its path in the sync folder (`Videos/lab.mp4`).
+@immutable
+class VideoCloud {
+  const VideoCloud(this.kind, this.path, {this.size});
+
+  final String kind;
+  final String path;
+  final int? size;
+
+  Json toJson() => {'in': kind, 'path': path, 'size': ?size};
+
+  static VideoCloud? fromJson(Object? j) => j is Map && j['in'] is String && j['path'] is String
+      ? VideoCloud(j['in'] as String, j['path'] as String, size: (j['size'] as num?)?.toInt())
+      : null;
+}
+
 class VideoItem extends BoxItem implements Transcribed {
   VideoItem({
     required super.id,
@@ -3414,6 +3431,7 @@ class VideoItem extends BoxItem implements Transcribed {
     super.extra,
     this.asset,
     this.link,
+    this.cloud,
     required this.name,
     required this.durationMs,
     this.videoW = 16,
@@ -3439,8 +3457,12 @@ class VideoItem extends BoxItem implements Transcribed {
   /// The file in `assets/`, or null when it's kept on the tablet ([link]).
   final String? asset;
 
-  /// A big video's file name in the tablet's own videos folder.
+  /// A big video's file name in the tablet's own videos folder (once it's
+  /// moved to the cloud, the name it's kept under when fetched again).
   final String? link;
+
+  /// Where a big video is kept in the cloud, once moved there (Phase 9).
+  final VideoCloud? cloud;
   @override
   final String name;
   @override
@@ -3495,6 +3517,7 @@ class VideoItem extends BoxItem implements Transcribed {
   VideoItem copyWith({
     String? Function()? asset,
     String? Function()? link,
+    VideoCloud? Function()? cloud,
     String? name,
     int? durationMs,
     double? videoW,
@@ -3521,6 +3544,7 @@ class VideoItem extends BoxItem implements Transcribed {
       extra: extra,
       asset: asset == null ? this.asset : asset(),
       link: link == null ? this.link : link(),
+      cloud: cloud == null ? this.cloud : cloud(),
       name: name ?? this.name,
       durationMs: durationMs ?? this.durationMs,
       videoW: videoW ?? this.videoW,
@@ -3578,6 +3602,7 @@ class VideoItem extends BoxItem implements Transcribed {
         extra: extra,
         asset: asset,
         link: link,
+        cloud: cloud,
         name: name,
         durationMs: durationMs,
         videoW: videoW,
@@ -3600,6 +3625,7 @@ class VideoItem extends BoxItem implements Transcribed {
         'unit': round3(unit),
         'asset': ?asset,
         'link': ?link,
+        'cloud': ?cloud?.toJson(),
         'name': name,
         'durationMs': durationMs,
         'videoW': round1(videoW),

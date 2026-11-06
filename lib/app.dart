@@ -11,6 +11,7 @@ import 'library/library.dart';
 import 'recognition/handwriting_index.dart';
 import 'state/settings.dart';
 import 'study/reminders.dart';
+import 'sync/sync_state.dart';
 import 'theme/app_theme.dart';
 import 'ui/calendar/calendar_screen.dart';
 import 'ui/calendar/planner_screen.dart';
@@ -19,6 +20,7 @@ import 'ui/library/library_screen.dart';
 import 'ui/library/start_screen.dart';
 import 'ui/routes.dart';
 import 'ui/search/search_screen.dart';
+import 'ui/settings/settings_screen.dart';
 import 'ui/split/split_screen.dart';
 import 'ui/study/remember_screen.dart';
 import 'ui/study/study_screen.dart';
@@ -53,6 +55,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: Routes.remember, builder: (context, state) => const RememberScreen()),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => SettingsScreen(section: SettingsSection.parse(state.uri.queryParameters['s'])),
+      ),
       GoRoute(
         path: Routes.calendar,
         builder: (context, state) => CalendarScreen(
@@ -148,6 +154,8 @@ class _EndlessAppState extends ConsumerState<EndlessApp> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(ref.read(feedSyncProvider.notifier).start());
+      // Cloud sync (if it's set up) starts a moment after the app does.
+      ref.read(syncProvider.notifier).start();
       final service = ref.read(reminderServiceProvider);
       if (!service.available) return;
       service.start(_openReminder);

@@ -117,6 +117,19 @@ abstract class BoardStore {
   Future<String?> loadFeed(String calendarId);
   Future<void> saveFeed(String calendarId, String ics);
   Future<void> deleteFeed(String calendarId);
+
+  /// `sync/<name>.json`: what cloud sync knows (this device only; never in
+  /// a notebook or a board file). [json] null deletes it.
+  Future<Json?> loadSyncFile(String name);
+  Future<void> saveSyncFile(String name, Json? json);
+  Future<List<String>> listSyncFiles();
+
+  /// `versions/<notebookId>/<pageId>/<name>`: earlier versions of a page
+  /// (version history). Sealed on a page with a password.
+  Future<List<String>> listVersions(String notebookId, String pageId);
+  Future<Uint8List?> loadVersion(String notebookId, String pageId, String name);
+  Future<void> saveVersion(String notebookId, String pageId, String name, Uint8List bytes);
+  Future<void> deleteVersion(String notebookId, String pageId, String name);
 }
 
 class FileBoardStore implements BoardStore {
@@ -239,6 +252,9 @@ class FileBoardStore implements BoardStore {
   Future<void> deleteNotebook(String id) async {
     final dir = _notebookDir(id);
     if (await dir.exists()) await dir.delete(recursive: true);
+    // Its version history goes with it.
+    final versions = Directory(p.join(root.path, 'versions', p.basename(id)));
+    if (await versions.exists()) await versions.delete(recursive: true);
   }
 
   @override
@@ -344,6 +360,54 @@ class FileBoardStore implements BoardStore {
 
   @override
   Future<void> deleteFeed(String calendarId) => _deleteIfExists(_feedFile(calendarId));
+
+  Directory get _syncDir => Directory(p.join(root.path, 'sync'));
+  File _syncFile(String name) => File(p.join(_syncDir.path, '${p.basename(name)}.json'));
+
+  @override
+  Future<Json?> loadSyncFile(String name) => _readJson(_syncFile(name));
+
+  @override
+  Future<void> saveSyncFile(String name, Json? json) async {
+    if (json == null) return _deleteIfExists(_syncFile(name));
+    await _writeAtomic(_syncFile(name), jsonEncode(json));
+  }
+
+  @override
+  Future<List<String>> listSyncFiles() async {
+    if (!await _syncDir.exists()) return [];
+    return [
+      await for (final e in _syncDir.list())
+        if (e is File && e.path.endsWith('.json')) p.basenameWithoutExtension(e.path),
+    ];
+  }
+
+  Directory _versionDir(String nb, String page) =>
+      Directory(p.join(root.path, 'versions', p.basename(nb), p.basename(page)));
+
+  @override
+  Future<List<String>> listVersions(String notebookId, String pageId) async {
+    final dir = _versionDir(notebookId, pageId);
+    if (!await dir.exists()) return [];
+    return [
+      await for (final e in dir.list())
+        if (e is File && !e.path.endsWith('.tmp')) p.basename(e.path),
+    ];
+  }
+
+  @override
+  Future<Uint8List?> loadVersion(String notebookId, String pageId, String name) async {
+    final f = File(p.join(_versionDir(notebookId, pageId).path, p.basename(name)));
+    return await f.exists() ? f.readAsBytes() : null;
+  }
+
+  @override
+  Future<void> saveVersion(String notebookId, String pageId, String name, Uint8List bytes) =>
+      _writeAtomicBytes(File(p.join(_versionDir(notebookId, pageId).path, p.basename(name))), bytes);
+
+  @override
+  Future<void> deleteVersion(String notebookId, String pageId, String name) =>
+      _deleteIfExists(File(p.join(_versionDir(notebookId, pageId).path, p.basename(name))));
 
   static Future<void> _deleteIfExists(File f) async {
     if (await f.exists()) await f.delete();
@@ -464,6 +528,7 @@ class MemoryBoardStore implements BoardStore {
     assets.remove(id);
     recognition.remove(id);
     study.remove(id);
+    versions.remove(id);
   }
 
   @override
@@ -551,4 +616,41 @@ class MemoryBoardStore implements BoardStore {
 
   @override
   Future<void> deleteFeed(String calendarId) async => feeds.remove(calendarId);
+
+  final syncFiles = <String, String>{};
+
+  @override
+  Future<Json?> loadSyncFile(String name) async {
+    final src = syncFiles[name];
+    return src == null ? null : jsonDecode(src) as Json;
+  }
+
+  @override
+  Future<void> saveSyncFile(String name, Json? json) async {
+    if (json == null) {
+      syncFiles.remove(name);
+    } else {
+      syncFiles[name] = jsonEncode(json);
+    }
+  }
+
+  @override
+  Future<List<String>> listSyncFiles() async => syncFiles.keys.toList();
+
+  /// notebook id → page id → name → bytes.
+  final versions = <String, Map<String, Map<String, Uint8List>>>{};
+
+  @override
+  Future<List<String>> listVersions(String notebookId, String pageId) async => [...?versions[notebookId]?[pageId]?.keys];
+
+  @override
+  Future<Uint8List?> loadVersion(String notebookId, String pageId, String name) async => versions[notebookId]?[pageId]?[name];
+
+  @override
+  Future<void> saveVersion(String notebookId, String pageId, String name, Uint8List bytes) async =>
+      ((versions[notebookId] ??= {})[pageId] ??= {})[name] = bytes;
+
+  @override
+  Future<void> deleteVersion(String notebookId, String pageId, String name) async =>
+      versions[notebookId]?[pageId]?.remove(name);
 }

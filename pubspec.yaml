@@ -41,7 +41,16 @@ dependencies:
   flutter_onnxruntime: 1.9.0
   flutter_riverpod: 3.3.2
   flutter_secure_storage: 11.2.0
+  # Signs in to Microsoft (OneDrive) on Android and iOS for cloud sync,
+  # through the system browser (Michael Bui, Australia, BSD; AppAuth by the
+  # OpenID Foundation). 12.x: 13.x needs Flutter 3.44.
+  flutter_appauth: 12.1.0
+  # Signs in to Google (Drive) on Android and iOS for cloud sync (the
+  # Flutter team, BSD).
+  google_sign_in: 7.2.0
   go_router: 17.5.0
+  # Google Drive and OneDrive's REST APIs for cloud sync (the Dart team, BSD).
+  http: 1.6.0
   # Images from the tablet's photos, files or camera (first-party; Android,
   # iOS, web, Windows, Linux and macOS).
   image_picker: 1.2.3

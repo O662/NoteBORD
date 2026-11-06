@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show Offset, Size;
@@ -22,8 +23,12 @@ import '../office/office_model.dart';
 import '../office/office_reader.dart';
 import '../office/office_render.dart';
 import '../recognition/handwriting_index.dart';
+import '../sync/doc.dart';
+import '../sync/stamps.dart' show hashJson;
+import '../sync/versions.dart';
 import 'assets.dart';
 import 'biometric.dart';
+import 'changes.dart';
 import 'office_docs.dart';
 import 'settings.dart';
 
@@ -204,6 +209,8 @@ class NotebookNotifier extends Notifier<NotebookState> {
   late MathPictures _math;
   late HandwritingIndex _index;
   late InkMoments _inkMoments;
+  late LocalChanges _changes;
+  late VersionStore _versions;
 
   /// The furthest each recording's transcript has got, by item id, so Undo
   /// and Redo (which put back items as they were) don't lose it.
@@ -231,6 +238,8 @@ class NotebookNotifier extends Notifier<NotebookState> {
     _library = ref.read(libraryProvider.notifier);
     _clock = ref.read(clockProvider);
     _inkMoments = ref.read(inkMomentsProvider);
+    _changes = ref.read(localChangesProvider);
+    _versions = ref.read(versionStoreProvider);
     final loaded = ref.watch(loadedNotebookProvider(id)).requireValue;
     _lock = loaded.lock == null ? LockFile() : LockFile.fromJson(loaded.lock!);
     _sealed
@@ -1058,6 +1067,144 @@ class NotebookNotifier extends Notifier<NotebookState> {
     return at;
   }
 
+  // Sync and version history.
+
+  /// Takes changes from another device (cloud sync): the notebook was
+  /// [from] when sync read it from the disk, and is to become [to]. Only
+  /// what changed between them is applied, so anything written here since
+  /// stays. Pages changed lose their undo history (it would no longer fit
+  /// them). False if this notebook can't take them now.
+  bool applyRemote(BoardDoc from, BoardDoc to) {
+    if (!ref.mounted) return false;
+    final nb = state.notebook;
+    final nbFrom = decodeNotebook(jsonEncode(from.notebook));
+    final nbTo = decodeNotebook(jsonEncode(to.notebook));
+    if (nbFrom.title != nbTo.title) nb.title = nbTo.title;
+    if (!listEquals(nbFrom.folderPath, nbTo.folderPath)) nb.folderPath = [...nbTo.folderPath];
+    if (nbFrom.coverColor != nbTo.coverColor) nb.coverColor = nbTo.coverColor;
+    if (nbFrom.pinned != nbTo.pinned) nb.pinned = nbTo.pinned;
+    if (nbFrom.trashedAt != nbTo.trashedAt) nb.trashedAt = nbTo.trashedAt;
+    if (nbFrom.defaultPaper != nbTo.defaultPaper) nb.defaultPaper = nbTo.defaultPaper;
+    if (nbFrom.theme != nbTo.theme) nb.theme = nbTo.theme;
+    if (nbTo.updatedAt.isAfter(nb.updatedAt)) nb.updatedAt = nbTo.updatedAt;
+
+    // Pages removed on the other device.
+    for (final pid in from.pageIds.difference(to.pageIds)) {
+      final i = state.indexOf(pid);
+      if (i < 0 || state.isSealed(pid)) continue;
+      state.pages.removeAt(i).dispose();
+      _undo.remove(pid);
+      _redo.remove(pid);
+    }
+    // Pages added there.
+    for (final pid in to.pageIds.difference(from.pageIds)) {
+      final json = to.pages[pid];
+      if (json == null || state.indexOf(pid) >= 0) continue;
+      state.pages.add(_runtime(decodePage(jsonEncode(json))));
+      _dirtyPages.add(pid);
+    }
+    // The order: the other device's, with pages added here since after the
+    // one before them.
+    final here = [for (final p in state.pages) p.id];
+    final order = mergeOrder(to.pageOrder, here, here.toSet());
+    state.pages.sort((a, b) => order.indexOf(a.id).compareTo(order.indexOf(b.id)));
+    nb.pageIds
+      ..clear()
+      ..addAll(order);
+
+    // Pages changed there: item by item.
+    for (final e in to.pages.entries) {
+      final pid = e.key;
+      final before = from.pages[pid];
+      if (before == null || hashJson(before) == hashJson(e.value)) continue;
+      final page = _pageById(pid);
+      if (page == null || state.isSealed(pid)) continue;
+      final was = {for (final i in (before['items'] as List? ?? const [])) (i as Map)['id'] as String: i};
+      final now = [for (final i in (e.value['items'] as List? ?? const [])) (i as Map).cast<String, dynamic>()];
+      final nowIds = {for (final i in now) i['id'] as String};
+      for (final id in was.keys) {
+        if (!nowIds.contains(id)) page.remove(id);
+      }
+      String? prev;
+      for (final json in now) {
+        final itemId = json['id'] as String;
+        final old = was[itemId];
+        if (old == null) {
+          if (page[itemId] == null) {
+            final after = prev == null ? -1 : page.items.indexWhere((i) => i.id == prev);
+            page.insert(decodeItem(json), prev == null ? 0 : (after < 0 ? null : after + 1));
+          }
+        } else if (hashJson(old) != hashJson(json) && page[itemId] != null) {
+          page.replace(_freshest(decodeItem(json)));
+        }
+        prev = itemId;
+      }
+      final head = decodePage(jsonEncode({...e.value, 'items': const []}));
+      final headBefore = decodePage(jsonEncode({...before, 'items': const []}));
+      if (head.title != headBefore.title) page.page.title = head.title;
+      if (head.paper != headBefore.paper) page.page.paper = head.paper;
+      if (head.template != headBefore.template) page.page.template = head.template;
+      if (!listEquals(head.spellIgnore, headBefore.spellIgnore)) {
+        page.page.spellIgnore
+          ..clear()
+          ..addAll(head.spellIgnore);
+      }
+      _undo.remove(pid);
+      _redo.remove(pid);
+      _dirtyPages.add(pid);
+      _index.pageChanged(id, pid);
+    }
+    _metaDirty = true;
+    _scheduleSave();
+    state = state.copyWith(revision: state.revision + 1, saveStatus: SaveStatus.saving);
+    return true;
+  }
+
+  /// Earlier versions of page [pageId], newest first.
+  Future<List<PageVersion>> versionsOf(String pageId) => _versions.list(id, pageId);
+
+  /// Version [v] of page [pageId], or null if it can't be read (gone, or
+  /// sealed with a key that isn't open).
+  Future<BoardPage?> loadVersion(String pageId, PageVersion v) async {
+    final bytes = await _versions.load(id, pageId, v.name);
+    if (bytes == null) return null;
+    try {
+      if (!v.sealed) return decodePage(utf8.decode(bytes));
+      for (final key in [?_keyFor(pageId), ?_notebookKey, ..._pageKeys.values]) {
+        try {
+          return decodePage(await _crypto.unseal(key, bytes));
+        } on SecretBoxAuthenticationError {
+          continue;
+        }
+      }
+    } on Object catch (e) {
+      debugPrint('Version ${v.name} unreadable: $e');
+    }
+    return null;
+  }
+
+  /// Puts page [pageId] back as [version] was, as one undo step. The page
+  /// as it is now is kept in version history first.
+  Future<bool> restoreVersion(String pageId, BoardPage version) async {
+    if (!_editable(pageId)) return false;
+    final page = _pageById(pageId)!;
+    final key = _keyFor(pageId);
+    final text = encodePage(page.page);
+    await _versions.keep(id, pageId, key == null ? Uint8List.fromList(utf8.encode(text)) : await _crypto.seal(key, text),
+        reason: VersionReason.restore, sealed: key != null);
+    if (!ref.mounted || !_editable(pageId)) return false;
+    final steps = <EditStep>[
+      for (final (i, item) in page.items.indexed.toList().reversed) RemoveStep(i, item),
+      for (final (i, item) in version.items.indexed) InsertStep(i, item),
+    ];
+    page.page.title = version.title;
+    page.page.paper = version.paper;
+    page.page.template = version.template;
+    _commit(page, steps);
+    return true;
+  }
+
+
   // Saving.
 
   void _scheduleSave() {
@@ -1104,15 +1251,25 @@ class NotebookNotifier extends Notifier<NotebookState> {
   ) async {
     try {
       // Page files first: notebook.json never lists a page that isn't written.
+      final kept = <(String, Uint8List, bool)>[];
       for (final (page, key) in pages) {
         if (key == null) {
+          final text = encodePage(page);
           await _store.savePage(nb.id, page);
+          kept.add((page.id, Uint8List.fromList(utf8.encode(text)), false));
         } else {
-          await _store.saveSealedPage(nb.id, page.id, await _crypto.seal(key, encodePage(page)));
+          final bytes = await _crypto.seal(key, encodePage(page));
+          await _store.saveSealedPage(nb.id, page.id, bytes);
+          kept.add((page.id, bytes, true));
         }
       }
       await _store.saveNotebook(nb);
       _library.notebookSaved(nb, allPages, sealed);
+      _changes.changed(nb.id);
+      // Version history: the page as it is now, at most every 10 minutes.
+      for (final (pageId, bytes, isSealed) in kept) {
+        await _versions.keepWhileEditing(nb.id, pageId, () => bytes, sealed: isSealed);
+      }
       if (ref.mounted && _dirtyPages.isEmpty && !_metaDirty) {
         state = state.copyWith(saveStatus: SaveStatus.saved);
       }

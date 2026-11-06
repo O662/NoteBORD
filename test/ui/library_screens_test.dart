@@ -77,7 +77,7 @@ void main() {
     await _pump(tester);
     expect(_screenTitle(tester), 'canvas');
     expect(find.text('Lab journal'), findsOneWidget);
-    expect(find.text('Page 1 of 5 · Saved'), findsOneWidget);
+    expect(find.text('Page 1 of 5 · Saved on this tablet'), findsOneWidget);
 
     await tester.tap(byLabel('Back to library'));
     await _pump(tester);
@@ -92,7 +92,7 @@ void main() {
     expect(find.text('Page 1 of 5 · edited on Monday\nSchool'), findsOneWidget);
     await tester.tap(find.text('Open'));
     await _pump(tester);
-    expect(find.text('Page 1 of 5 · Saved'), findsOneWidget);
+    expect(find.text('Page 1 of 5 · Saved on this tablet'), findsOneWidget);
     await tester.tap(byLabel('Back to library'));
     await _pump(tester);
     expect(_screenTitle(tester), 'start');

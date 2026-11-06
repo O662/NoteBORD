@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../settings/sync_widgets.dart' show saveStatusLabel;
+import '../../sync/sync_state.dart';
 import '../../canvas/pane.dart';
 import '../../canvas/pens.dart';
 import '../../recognition/handwriting_index.dart';
@@ -130,11 +132,7 @@ class TitlePill extends ConsumerWidget {
     final c = context.colors;
     final nb = ref.watch(notebookProvider(pane.notebookId));
     final page = pane.page.clamp(0, nb.pages.length - 1);
-    final status = switch (nb.saveStatus) {
-      SaveStatus.saved => 'Saved',
-      SaveStatus.saving => 'Saving…',
-      SaveStatus.failed => 'Couldn’t save · retrying',
-    };
+    final status = saveStatusLabel(nb.saveStatus, ref.watch(syncProvider), nb.notebook.id, nb.notebook.updatedAt);
     return Pill(
       padding: const EdgeInsets.fromLTRB(4, 4, 16, 4),
       child: Row(

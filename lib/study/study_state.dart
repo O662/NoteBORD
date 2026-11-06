@@ -5,6 +5,7 @@ import '../board/ids.dart';
 import '../board/model.dart';
 import '../library/library.dart';
 import '../recognition/handwriting_index.dart';
+import '../state/changes.dart';
 import '../state/notebook.dart' show writeQueueProvider;
 import '../state/settings.dart';
 import 'fsrs.dart';
@@ -83,10 +84,24 @@ class Decks extends Notifier<List<Deck>> {
   /// New cards go into [deck] from now on.
   void use(Deck deck) => ref.read(settingsProvider.notifier).apply((s) => s.copyWith(lastDeck: () => deck.id));
 
-  void _save() {
+  /// Decks changed on another device (cloud sync): from [from] to [to]
+  /// (deck JSON by id). Decks made here since stay.
+  void applyRemote(Map<String, Object?> from, Map<String, Object?> to) {
+    final out = [
+      for (final d in state)
+        if (!from.containsKey(d.id) || to.containsKey(d.id)) Deck.fromJson(to[d.id]) ?? d,
+      for (final e in to.entries)
+        if (!state.any((d) => d.id == e.key)) ?Deck.fromJson(e.value),
+    ];
+    state = out;
+    _save(signal: false);
+  }
+
+  void _save({bool signal = true}) {
     final json = {'version': 1, 'decks': [for (final d in state) d.toJson()]};
     final store = ref.read(boardStoreProvider);
     ref.read(writeQueueProvider).run(() => store.saveDecks(json));
+    if (signal) ref.read(localChangesProvider).changed();
   }
 }
 

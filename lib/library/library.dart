@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../board/ids.dart';
 import '../board/model.dart';
 import '../board/store.dart';
+import '../state/changes.dart';
 import '../state/settings.dart';
 import '../theme/tokens.g.dart' as tokens;
 import 'index_db.dart';
@@ -307,6 +310,7 @@ class LibraryNotifier extends Notifier<LibraryState> {
       change(meta);
       await _store.saveNotebook(meta);
       nb = meta;
+      ref.read(localChangesProvider).changed(id);
     }
     _put(state.byId(id)!.withMeta(nb));
   }
@@ -338,6 +342,7 @@ class LibraryNotifier extends Notifier<LibraryState> {
     await _store.saveNotebook(nb);
     if (folder.isNotEmpty) await _ensureFolder(folder);
     _put(NotebookEntry.fromLoaded(LoadedNotebook(nb, [page])));
+    ref.read(localChangesProvider).changed(nb.id);
     return nb.id;
   }
 
@@ -347,7 +352,8 @@ class LibraryNotifier extends Notifier<LibraryState> {
     if (loaded == null) return;
     final folder = loaded.notebook.folderPath;
     if (folder.isNotEmpty) await _ensureFolder(folder);
-    _put(NotebookEntry.fromLoaded(loaded));
+    _put(NotebookEntry.fromLoaded(loaded, previous: state.byId(id)));
+    ref.read(localChangesProvider).changed(id);
   }
 
   Future<void> rename(String id, String title) {
@@ -378,6 +384,7 @@ class LibraryNotifier extends Notifier<LibraryState> {
 
   Future<void> deleteForever(String id) async {
     await _store.deleteNotebook(id);
+    ref.read(localChangesProvider).changed(id);
     await _index.remove(id);
     state = LibraryState(
       notebooks: state.notebooks.where((n) => n.id != id).toList(),
@@ -411,7 +418,7 @@ class LibraryNotifier extends Notifier<LibraryState> {
 
   // Folders.
 
-  Future<void> _saveFolders(List<FolderEntry> explicit) async {
+  Future<void> _saveFolders(List<FolderEntry> explicit, {bool signal = true}) async {
     state = LibraryState(notebooks: state.notebooks, explicitFolders: explicit);
     await _store.saveLibrary({
       'version': 1,
@@ -419,6 +426,27 @@ class LibraryNotifier extends Notifier<LibraryState> {
         for (final f in explicit) {'path': f.path, 'color': colorToHex(f.color)},
       ],
     });
+    if (signal) ref.read(localChangesProvider).changed();
+  }
+
+  /// Folders changed on another device (cloud sync): from [from] to [to]
+  /// (`{path, color}` by key). Folders made here since stay.
+  Future<void> applyRemoteFolders(Map<String, Object?> from, Map<String, Object?> to) async {
+    FolderEntry? entry(Object? v) => v is Map && v['path'] is List && (v['path'] as List).isNotEmpty
+        ? FolderEntry([...(v['path'] as List).cast<String>()],
+            v['color'] is String ? colorFromHex(v['color'] as String) : tokens.coverColors.first)
+        : null;
+    String key(List<String> path) => jsonEncode(path);
+    final out = <FolderEntry>[
+      for (final f in state.explicitFolders)
+        if (!from.containsKey(key(f.path)) || to.containsKey(key(f.path))) entry(to[key(f.path)]) ?? f,
+    ];
+    for (final e in to.entries) {
+      if (out.any((f) => key(f.path) == e.key)) continue;
+      final f = entry(e.value);
+      if (f != null) out.add(f);
+    }
+    await _saveFolders(out, signal: false);
   }
 
   Future<void> _ensureFolder(List<String> path) async {

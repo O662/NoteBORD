@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../settings/sync_widgets.dart';
+import '../settings/settings_screen.dart' show openSyncSettings;
 import '../../library/library.dart';
 import '../../study/study_state.dart';
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart';
-import '../canvas/top_bar.dart' show showQuickSettings;
 import '../common.dart';
 import '../icons.dart';
 import '../routes.dart';
@@ -160,14 +161,14 @@ class AppSidebar extends ConsumerWidget {
             ]),
           ),
           Row(spacing: 8, children: [
-            Expanded(child: _SaveCard(onTap: () => showComingSoon(context, 'Cloud sync'))),
+            Expanded(child: SyncStatusCard(onTap: () => openSyncSettings(context))),
             ChromeButton(
               label: 'Settings',
               icon: EIcons.gear,
               iconSize: 22,
               width: 52,
               height: 52,
-              onPressed: () => showQuickSettings(context),
+              onPressed: () => openSyncSettings(context),
             ),
           ]),
         ]),
@@ -345,47 +346,6 @@ class _FolderRow extends ConsumerWidget {
                 ]),
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// "Saved on this tablet" until cloud sync arrives (Phase 7).
-class _SaveCard extends StatelessWidget {
-  const _SaveCard({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return Semantics(
-      button: true,
-      label: 'Saved on this tablet. Cloud sync is not set up.',
-      excludeSemantics: true,
-      child: Material(
-        color: c.surface,
-        shape: RoundedRectangleBorder(
-          side: BorderSide(color: c.line),
-          borderRadius: BorderRadius.circular(Radii.button),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(Radii.button),
-          onTap: onTap,
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 52),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(spacing: 10, children: [
-              EIcon(EIcons.deviceSaved, size: 22, color: c.green),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, spacing: 1, children: [
-                  Text('Saved on this tablet', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.text)),
-                  Text('Sync isn’t set up', style: TextStyle(fontSize: 12, color: c.textMuted)),
-                ]),
-              ),
-            ]),
           ),
         ),
       ),

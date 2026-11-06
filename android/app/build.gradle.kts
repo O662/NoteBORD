@@ -30,6 +30,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Microsoft sign-in for OneDrive sync comes back to the app at
+        // com.endless.endless://auth (flutter_appauth; docs/CLOUD_SETUP.md).
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.endless.endless"
     }
 
     buildTypes {

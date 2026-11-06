@@ -31,6 +31,7 @@ import '../recognition/reader.dart';
 import '../recognition/segment.dart' show isHandwriting, writingIn;
 import '../library/library.dart' show clockProvider, libraryProvider;
 import '../planner/planner_state.dart' show plannerProvider;
+import '../sync/sync_state.dart';
 import '../state/links.dart';
 import '../state/notebook.dart';
 import '../state/office_docs.dart';

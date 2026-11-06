@@ -1,3 +1,33 @@
+# Setting up Google and Microsoft for Endless
+
+**Phase 9a (2026-11-05): cloud sync with Google Drive and OneDrive needs this too.** The steps are the same project and the same app registration as for calendar sync below, with a few additions. They're in the next section; Parts 1 and 2 below say how to make the project and the registration.
+
+## Cloud sync: Google Drive and OneDrive
+
+Settings › Sync & backup → **Connect** signs in. Until the build has the client ids, Connect says sign-in isn't set up yet, and everything else keeps working on the tablet.
+
+**Google Drive** (in the Google Cloud project from Part 1):
+1. **APIs & Services → Library → Google Drive API → Enable.**
+2. **Data access → Add or remove scopes**: tick `https://www.googleapis.com/auth/drive.file` ("See, edit, create and delete only the specific Google Drive files you use with this app"). It's **non-sensitive**: no verification is needed for it, even published. Endless sees only the files and folders it makes, not the rest of your Drive. That's why Change folder lists only folders Endless made (or makes a new one).
+3. The Android client and the Web client from Part 1 (steps 7 and 8) are all Android needs. Send me the **Web client ID**.
+4. *(Windows)* The Desktop client from step 9: its ID and secret.
+
+**OneDrive** (in the app registration from Part 2):
+1. **API permissions → Add a permission → Microsoft Graph → Delegated**: `Files.ReadWrite` (with `offline_access` and `User.Read`, already there for the calendar). Personal accounts approve it when they sign in.
+2. **Authentication → Add a platform → Mobile and desktop applications** → *Custom redirect URIs*: `com.endless.endless://auth` → **Configure**. (Endless signs in to Microsoft on Android through the system browser with AppAuth, which comes back to the app at that address. The `msauth://` Android platform from step 2b.4 isn't used for this.)
+3. *(Windows)* `http://localhost` under Mobile and desktop applications (step 2b.5).
+4. Send me the **Application (client) ID**.
+
+**Building with them.** Client ids aren't secrets; they go in at build time:
+
+```
+flutter build apk --release   --dart-define=GOOGLE_WEB_CLIENT_ID=1234-abc.apps.googleusercontent.com   --dart-define=MICROSOFT_CLIENT_ID=00000000-0000-0000-0000-000000000000
+```
+
+For Windows add `--dart-define=GOOGLE_DESKTOP_CLIENT_ID=…` and `--dart-define=GOOGLE_DESKTOP_CLIENT_SECRET=…`. They're read in `lib/sync/cloud_auth.dart` (`CloudIds`).
+
+**Costs.** The Drive API and Microsoft Graph are free for this use. Notebooks count against your own Drive or OneDrive storage (15 GB free on Google, 5 GB on OneDrive); big videos moved there count too.
+
 # Setting up Google Calendar and Outlook sync
 
 The calendar syncs both ways with Google Calendar and with Outlook / Microsoft 365. Endless talks to them directly from the tablet: there is no Endless server. For that, Google and Microsoft each need to know the app exists. You register it once with each, and they give you an ID that goes into the app.

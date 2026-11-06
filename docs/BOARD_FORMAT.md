@@ -225,7 +225,8 @@ Every item has these fields:
 
 **Videos, as implemented (v1, Phase 8b, Video.png):** a `video` item is a video's card on the page (700 × 490 at `unit: 1`).
 
-- The file is `asset` (in `assets/`, up to 100 MB; sealed on a page with a password, up to 200 MB) or, for a bigger one, `link`: a file name in the device's own videos folder (`<app support>/videos/`), not in the package. A board file carries an asset, not a linked file; on another device a linked video shows its still and can't play. (Phase 9 moves big videos to Google Drive.)
+- The file is `asset` (in `assets/`, up to 100 MB; sealed on a page with a password, up to 200 MB) or, for a bigger one, `link`: a file name in the device's own videos folder (`<app support>/videos/`), not in the package. A board file carries an asset, not a linked file; on another device a linked video shows its still and can't play unless it's in the cloud.
+- `cloud` (Phase 9a): where a big video was moved to, `{"in": "google" | "onedrive", "path": "Videos/vid_….mp4", "size": 734003200}`, the path inside the sync folder. Once it's there the device's own copy goes; it plays from the cloud (through the app's local media server, which adds the sign-in), and is fetched into `<app support>/videos/cloud/<link>` when a frame, the trim strip or a transcript needs the file. `link` stays as the name it's kept under. Any device signed in to that cloud can play it.
 - `preview` is a still from it (a JPEG in `assets/`), drawn until it plays and in exports. `videoW` × `videoH` is its shape as shown. `sound: false` when it has no sound.
 - `trimFrom` / `trimTo` (ms) are where it starts and stops playing; absent is its start and end. The file isn't cut.
 - `transcript`, `speakers`, `language` and `transcribe` are as for `audio` (see Recordings), with one difference: a video without `transcribe` has **never been transcribed**; a transcript asked for is written with `transcribe: {"state": …}`, `done` included.
@@ -322,10 +323,41 @@ A `.board` file is the package zipped, with `notebook.json` at the top of the zi
 - `index/recognition.json` goes along when "Include recognized handwriting text" is on (the default), with only the exported clear pages. Import keeps it for clear pages only, and not at all for a notebook with a password, so search works straight away.
 - `study.json` goes along with the entries of the flashcards on the exported pages (all of them when a page with a password goes along, since its cards can't be told apart), and comes back on import, so studying carries on where it was.
 
+## Sync (Phase 9a)
+The copy in the cloud (Google Drive or OneDrive, in the folder picked in Settings › Sync & backup, "Endless Notebooks" to start with):
+
+```
+Endless Notebooks/
+├── endless.json                      # folders, decks, notebooks deleted for good (below)
+├── <notebookId>.board/
+│   ├── notebook.json                 # as on the tablet, plus `sync`
+│   ├── pages/<pageId>.<hash>.json    # a page, plus its stamps in `sync`
+│   ├── pages/<pageId>.<hash>.json.enc
+│   ├── lock.<hash>.json
+│   ├── study.<hash>.json
+│   └── assets/<name>                 # as on the tablet (named by content already)
+├── PDF/<title> (<last 4 of id>).pdf  # only with "Also save a PDF copy"
+└── Videos/<link>                     # big videos moved to the cloud
+```
+
+- **Every file but `notebook.json` is named after its contents** (`<hash>` is the FNV-1a hash and length of the bytes), so no file is ever written over: two devices sending at the same moment can't replace each other's pages. `notebook.json` is written last and lists the rest, so whichever lands last describes a whole notebook. A device whose `notebook.json` was replaced sees on its next sync that the files listed aren't the ones it sent, and merges again. Files the new `notebook.json` no longer lists are deleted after it's written.
+- **Stamps.** A stamp says when something last changed: `<ms, 15 digits>.<counter, 6 digits>.<device id>`, which sorts in time order. A change is stamped with the notebook's `updatedAt`, but always later than the stamp it replaces, so an edit made after seeing another device's change wins over it even with a slow clock.
+- A page's `sync`: `{"page": stamp, "items": {itemId: stamp}, "gone": {itemId: stamp}}`: its own fields (title, paper, template, spell check's ignored words), each item, and items deleted.
+- `notebook.json`'s `sync`: `{"v": 1, "fields": {name: stamp}, "gonePages": {pageId: stamp}, "sealed": {pageId: stamp}, "lockNotebook": stamp, "study": stamp, "files": {"pages/<pageId>.json": hash, "lock.json": hash, …}, "assets": [names in the cloud], "device": "Kim’s tablet"}`. `fields` covers every field but `id`, `format`, `version`, `createdAt` and `updatedAt` (the page order is the field `pages`).
+- **Merging ("Merge both").** For each item, by `id`: the copy with the newer stamp; an item deleted on one device stays deleted unless it changed later on another (then it comes back). Notebook fields one by one, the same way. Pages added on either device are both kept, in the order of the device whose page order changed last, each added page after the page before it. A page deleted on one device stays deleted unless written on later. Items' order on a page: the copy changed last, with items only the other has after the item before them there. The merge gives the same notebook whichever order copies meet in. Fields and item types this version doesn't know travel untouched (merging works on the JSON).
+- **Pages with a password** merge as a whole (their items can't be read without it): the sealed copy wins over a clear one unless the page itself changed later on the other device (its password removed); two sealed copies, the newer. A page's `lock.json` entry goes with its sealed copy; the notebook's password is the newer one's.
+- **"Keep the newest"** (the other choice): the copy changed last replaces the other as a whole.
+- `study.json`: the newer copy. `index/recognition.json` isn't synced: each device reads the handwriting itself.
+- `endless.json`: `{"format": "endless.sync", "version": 1, "folders": Keyed, "decks": Keyed, "notebooks": Keyed}`, each `Keyed` being `{"values": {key: value}, "stamps": {key: stamp}, "gone": {key: stamp}}`: folders by `jsonEncode(path)` (`{path, color}`), decks by id (as in `decks.json`), and only deletions for notebooks (deleted for good, so no device brings them back).
+- **On the device** (never in a package or a board file): `sync/settings.json` (Sync & backup's settings, this device's id, and when each notebook was last synced), `sync/nb_<id>.json` (a hash and stamp of each part of the notebook as last synced, so changes since are seen and stamped, and each cloud's file hashes as last seen there), `sync/root.json` and `sync/pdf.json`. Sign-ins that last (refresh tokens) are in the platform's secure storage.
+
+## Version history (Phase 9a)
+`versions/<notebookId>/<pageId>/<ms>-<why>[-<device>].json`, or `.json.enc` on a page with a password (sealed with the page's key): a page's file as it was. `why` is `edit` (kept while writing, at most every 10 minutes), `sync` (before another device's changes came in; `device` names it) or `restore` (before an earlier version was restored). Thinned out: everything from the last hour, one per 10 minutes for a day, one per day for a month, one per week after, at most 100 a page. On the device only; deleted with the notebook.
+
 ## Outside the packages
 The app's data folder also holds `settings.json`, `library.json` (folders: `{"version": 1, "folders": [{"path": ["School", "Physics"], "color": "#2B5A8C"}]}`), `decks.json` (the flashcard decks: `{"version": 1, "decks": [{"id": "dk_…", "name": "Physics — Momentum", "createdAt": "…"}]}`; a card from another device adds its deck from its `deckName`), `templates/<id>.json` (My templates: `format: "endless.template"`, `name`, `paper`, `template`, `items`), `calendar.json` (the calendars and the events made here; a calendar link is a calendar with `kind: "feed"`, `from` (`google`, `outlook` or `web`), `fetchedAt` and `error`, whose events aren't stored but read again from `calendars/<id>.ics`, the last copy of the link's file; `links` maps such an event's id to its notes, `{notebook, page?}`; the link itself is in the platform's secure storage, never in a file), `planner.json` and `index.sqlite` (the library index and search index, and what's remembered and the flashcards on each page for the Remember and Flashcards screens: caches rebuilt from the packages).
 
 ## Rules
 - Unknown item types and fields must be kept on load and written back on save, so newer files survive older apps. A known type whose fields can't be read (a missing `w`, a bad color) is kept as it is too.
 - Stroke points are stored as flat numbers rounded to 0.1 px. A future binary encoding can come in v2.
-- Sync merges at item level by `id`, so two devices never overwrite each other's strokes.
+- Sync merges at item level by `id`, so two devices never overwrite each other's strokes (see Sync).

@@ -2,6 +2,8 @@
     <!-- Calendar links (.ics) are read from the web; so is the handwriting
          model, the first time. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Cloud sync's "Only sync on Wi-Fi" checks whether the network is metered. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <!-- "Unlock with fingerprint or face" for locked pages. -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <!-- Reminders from Need to remember: shown as notifications (Android 13+

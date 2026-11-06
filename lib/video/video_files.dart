@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../board/model.dart';
 import '../state/notebook.dart';
+import '../sync/sync_state.dart';
 import 'media_server.dart';
 
 // Where a video's file is (Phase 8b). Up to [bigVideo] it's in the
@@ -54,7 +55,17 @@ class VideoSource {
 Future<VideoSource?> videoSourceOf(Ref ref, NotebookNotifier nb, VideoItem v) async {
   if (v.link case final link?) {
     final f = File(p.join((await ref.read(videosDirProvider)()).path, link));
-    return await f.exists() ? VideoSource(f.path) : null;
+    if (await f.exists()) return VideoSource(f.path);
+    if (v.cloud == null) return null;
+    // Moved to the cloud: the copy fetched before, else played from there.
+    final sync = ref.read(syncProvider.notifier);
+    final cached = await sync.cachedVideo(link);
+    if (await cached.exists()) return VideoSource(cached.path);
+    final stream = await sync.streamVideo(v);
+    if (stream == null) return null;
+    final (uri, headers) = stream;
+    if (uri.scheme == 'file') return VideoSource(uri.toFilePath());
+    return VideoSource(await ref.read(mediaServerProvider).proxy(uri, headers, videoMime(link)), served: true);
   }
   final asset = v.asset!;
   final path = await nb.assetPath(asset);
@@ -62,6 +73,21 @@ Future<VideoSource?> videoSourceOf(Ref ref, NotebookNotifier nb, VideoItem v) as
   final bytes = await nb.readAsset(asset);
   if (bytes == null) return null;
   return VideoSource(await ref.read(mediaServerProvider).serve(bytes, videoMime(asset)), served: true);
+}
+
+/// A big video's file on this device, fetched from the cloud first if it
+/// was moved there (to grab frames, trim or transcribe); null if it can't
+/// be had.
+Future<File?> videoFileOf(Ref ref, VideoItem v, {void Function(double)? progress}) async {
+  final link = v.link;
+  if (link == null) return null;
+  final f = File(p.join((await ref.read(videosDirProvider)()).path, link));
+  if (await f.exists()) return f;
+  try {
+    return await ref.read(syncProvider.notifier).fetchVideo(v, progress: progress);
+  } on Object {
+    return null;
+  }
 }
 
 /// Lets go of a served [source].

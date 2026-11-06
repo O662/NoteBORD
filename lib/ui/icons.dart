@@ -238,8 +238,20 @@ abstract final class EIcons {
     _p('M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1'),
   ]);
 
-  /// Saved on this device (sync comes in a later phase).
+  /// Saved on this device (no cloud sync set up).
   static final deviceSaved = EIconData([_p(_rect(5, 3, 14, 18, 2)), _p('M9 11.5l2 2 4-4.5')]);
+
+  /// Cloud sync (Sync.dc.html).
+  static final cloud = EIconData([_p('M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z')], strokeWidth: 1.8);
+  static final cloudCheck = EIconData([
+    _p('M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z'),
+    _p('M9.5 13.5l2 2 3.5-3.5'),
+  ], strokeWidth: 1.8);
+  static final cloudOff = EIconData([
+    _p('M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z'),
+    _p('M4 4l16 16'),
+  ], strokeWidth: 1.8);
+  static final sync = EIconData([_p('M20 12a8 8 0 0 1-14 5.3M4 12a8 8 0 0 1 14-5.3'), _p('M18 3v4h-4M6 21v-4h4')], strokeWidth: 2);
   static final swap = EIconData([_p('M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4')], strokeWidth: 2);
   static final chevronLeft = EIconData([_p('M15 6l-6 6 6 6')], strokeWidth: 2.2);
   static final fingerprint = EIconData([

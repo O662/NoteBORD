@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'package:endless/sync/sync_state.dart';
 import 'package:endless/app.dart';
 import 'package:endless/board/ids.dart';
 import 'package:endless/board/lock.dart';
@@ -179,6 +180,8 @@ Future<List<Override>> testOverrides(
     feedFetcherProvider.overrideWithValue(feeds ?? FakeFeeds()),
     feedLinksProvider.overrideWithValue(feedLinks ?? MemoryFeedLinks()),
     feedReaderProvider.overrideWithValue((text, id, now) async => readFeed(text, id, now)),
+    // Cloud sync runs when a test asks (SyncController.syncNow).
+    autoSyncProvider.overrideWithValue(false),
     if (location != null) initialLocationProvider.overrideWithValue(location),
   ];
 }

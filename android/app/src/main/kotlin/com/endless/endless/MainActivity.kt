@@ -28,6 +28,22 @@ class MainActivity : FlutterFragmentActivity() {
         audio = AudioTools(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
         // Videos on the page: length, still frames (lib/video/video_tools.dart).
         video = VideoTools(flutterEngine.dartExecutor.binaryMessenger)
+        // Cloud sync's "Only sync on Wi-Fi": whether the network in use is
+        // unmetered (Wi-Fi or Ethernet, not mobile data) (lib/sync/sync_state.dart).
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "endless/net").setMethodCallHandler { call, result ->
+            if (call.method != "unmetered") {
+                result.notImplemented()
+                return@setMethodCallHandler
+            }
+            val cm = getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+            val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+            result.success(
+                mapOf(
+                    "online" to (caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true),
+                    "unmetered" to (caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == true),
+                ),
+            )
+        }
         // The clocks on the page show the time zone by name (lib/state/time_zone.dart).
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "endless/time").setMethodCallHandler { call, result ->
             if (call.method == "zone") result.success(java.util.TimeZone.getDefault().id) else result.notImplemented()

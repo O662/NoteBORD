@@ -51,6 +51,9 @@ import 'panels.dart';
 import 'pen_popover.dart';
 import 'recording_pill.dart';
 import 'top_bar.dart';
+import 'version_history.dart';
+import '../settings/sync_widgets.dart' show VideoUploadCard;
+import '../../sync/sync_state.dart' show syncProvider;
 import 'transcript_panel.dart';
 
 export '../math/math_actions.dart' show mathHint;
@@ -73,7 +76,6 @@ const rulerHint = 'Two fingers rotate the ruler · the pen snaps to its edge';
 /// What the ⋯ menu items open, until their screens exist.
 const _moreFeatures = {
   'Page & paper': 'Page & paper',
-  'Version history': 'Version history',
 };
 
 /// Handles a ⋯ menu choice for [pane] (shared with Split view).
@@ -89,6 +91,8 @@ void handleMoreItem(BuildContext context, Pane pane, MoreItem item, ValueChanged
       showTransferDialog(context, pane: pane, mode: TransferMode.import);
     case 'Print':
       printNotebook(context, pane);
+    case 'Version history':
+      showVersionHistory(context, pane);
     default:
       comingSoon(_moreFeatures[item.label] ?? item.label);
   }
@@ -1011,6 +1015,21 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                     ),
                   // The handwriting model downloading on first use.
                   if (!sealed && chrome) const Positioned(left: 14, bottom: 16, child: ModelNoteView()),
+                  // A big video going to the cloud (Video.png), beside the map.
+                  if (chrome)
+                    Positioned(
+                      right: 12 + cornerWidth + 12,
+                      bottom: 16,
+                      child: Consumer(builder: (context, ref, _) {
+                        final ups = ref.watch(syncProvider.select((s) => [
+                              for (final u in s.uploads.values)
+                                if (u.notebookId == pane.notebookId) u,
+                            ]));
+                        return Column(mainAxisSize: MainAxisSize.min, spacing: 8, children: [
+                          for (final u in ups) VideoUploadCard(upload: u),
+                        ]);
+                      }),
+                    ),
                   // A pinned menu or ⋯ stays open until a tap anywhere else.
                   if (blocking)
                     Positioned.fill(

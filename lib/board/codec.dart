@@ -109,7 +109,7 @@ Item decodeItem(Json json) {
 const _boxKeys = {..._itemKeys, 'w', 'h'};
 
 const _videoKeys = {
-  ..._boxKeys, 'unit', 'asset', 'link', 'name', 'durationMs', 'videoW', 'videoH', 'preview', 'sound', 'trimFrom', 'trimTo', //
+  ..._boxKeys, 'unit', 'asset', 'link', 'cloud', 'name', 'durationMs', 'videoW', 'videoH', 'preview', 'sound', 'trimFrom', 'trimTo', //
   'transcript', 'speakers', 'language', 'transcribe',
 };
 
@@ -494,6 +494,7 @@ Item? _decodeKnown(Json json) {
         unit: _num(json['unit'], 1),
         asset: json['asset'] as String?,
         link: json['link'] as String?,
+        cloud: VideoCloud.fromJson(json['cloud']),
         name: json['name'] as String? ?? '',
         durationMs: (json['durationMs'] as num?)?.toInt() ?? 0,
         videoW: _num(json['videoW'], 16),
