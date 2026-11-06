@@ -253,7 +253,7 @@ class KeepGoingService : Service() {
         val manager = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= 26) {
             manager.createNotificationChannel(
-                NotificationChannel("recording", "Recording and transcripts", NotificationManager.IMPORTANCE_LOW),
+                NotificationChannel("recording", "Recording, transcripts and sync", NotificationManager.IMPORTANCE_LOW),
             )
         }
         val open = PendingIntent.getActivity(

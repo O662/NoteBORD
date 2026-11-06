@@ -1072,8 +1072,10 @@ class NotebookNotifier extends Notifier<NotebookState> {
   /// Takes changes from another device (cloud sync): the notebook was
   /// [from] when sync read it from the disk, and is to become [to]. Only
   /// what changed between them is applied, so anything written here since
-  /// stays. Pages changed lose their undo history (it would no longer fit
-  /// them). False if this notebook can't take them now.
+  /// stays. It isn't an undo step, and this device's undo history stays:
+  /// steps find their items by id, so Undo still takes back what was done
+  /// here (a page deleted on the other device loses its history with it).
+  /// False if this notebook can't take them now.
   bool applyRemote(BoardDoc from, BoardDoc to) {
     if (!ref.mounted) return false;
     final nb = state.notebook;
@@ -1149,8 +1151,6 @@ class NotebookNotifier extends Notifier<NotebookState> {
           ..clear()
           ..addAll(head.spellIgnore);
       }
-      _undo.remove(pid);
-      _redo.remove(pid);
       _dirtyPages.add(pid);
       _index.pageChanged(id, pid);
     }
@@ -1159,6 +1159,9 @@ class NotebookNotifier extends Notifier<NotebookState> {
     state = state.copyWith(revision: state.revision + 1, saveStatus: SaveStatus.saving);
     return true;
   }
+
+  /// Whether there are changes not written to the disk yet.
+  bool get hasUnsaved => _dirtyPages.isNotEmpty || _metaDirty;
 
   /// Earlier versions of page [pageId], newest first.
   Future<List<PageVersion>> versionsOf(String pageId) => _versions.list(id, pageId);

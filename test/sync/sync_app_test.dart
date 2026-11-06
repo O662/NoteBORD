@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 
@@ -215,8 +216,13 @@ void main() {
     Set<String> ids(ProviderContainer c) => {for (final i in c.read(notebookProvider(id)).pages.first.items) i.id};
     expect(ids(a), {s1.id, s2.id});
     expect(ids(b), {s1.id, s2.id});
-    // B's own stroke is still B's to undo; A's arrived without an undo step.
-    expect(nb.canUndo(pageId), isFalse);
+    // A's stroke arrived without an undo step, and B's own stays B's to
+    // undo: Undo takes back B's stroke and leaves A's.
+    expect(nb.canUndo(pageId), isTrue);
+    nb.undo(pageId);
+    expect(ids(b), {s1.id});
+    nb.redo(pageId);
+    expect(ids(b), {s1.id, s2.id});
     // And it's on B's disk.
     await nb.flush();
     await tester.pump(const Duration(milliseconds: 20));
@@ -227,6 +233,57 @@ void main() {
     await syncIn(tester, a);
     await syncIn(tester, b);
     expect(ids(b), {s1.id});
+  });
+
+  testWidgets('leaving the app: what isn\'t in the cloud yet goes first; nothing to send, nothing runs', (tester) async {
+    final store = MemoryBoardStore();
+    syncingWithGoogle(store);
+    final id = addUntitled(store);
+    final c = await pumpCanvas(tester, store: store, notebookId: id, extra: syncOverrides(cloud));
+    await syncIn(tester, c);
+    final sync = c.read(syncProvider.notifier);
+    expect(sync.hasChangesToSend, isFalse);
+    cloud.writes.clear();
+    var done = false;
+    unawaited(sync.finishBeforeLeaving().whenComplete(() => done = true));
+    await tester.pump();
+    expect(done, isTrue);
+    expect(cloud.writes, isEmpty);
+
+    // Written, not even saved yet, and the app is left at once.
+    final s = strokeFrom([const Offset(10, 10), const Offset(80, 40)]);
+    c.read(notebookProvider(id).notifier).addStroke(shownPage(c).id, s);
+    expect(sync.hasChangesToSend, isTrue);
+    done = false;
+    unawaited(sync.finishBeforeLeaving().whenComplete(() => done = true));
+    for (var i = 0; i < 100 && !done; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(done, isTrue);
+    final page = cloud.files.keys.firstWhere((k) => k.contains('/pages/'));
+    expect(utf8.decode(cloud.files[page]!), contains(s.id));
+    expect(sync.hasChangesToSend, isFalse);
+  });
+
+  testWidgets('Use another account: signs out, signs in, and everything goes to the new one', (tester) async {
+    final store = MemoryBoardStore();
+    syncingWithGoogle(store);
+    addUntitled(store);
+    final c = await pumpApp(tester, store: store, location: Routes.settings(), extra: syncOverrides(cloud));
+    await syncIn(tester, c);
+    await tester.tap(find.bySemanticsLabel('Change folder'));
+    await tester.pumpAndSettle();
+    expect(find.text('Signed in as kim@example.com'), findsOneWidget);
+    // The new account's Drive is empty.
+    cloud.files.clear();
+    await tester.tap(find.bySemanticsLabel('Use another account'));
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(c.read(syncProvider).settings.google.active, isTrue);
+    // Everything was sent again, though this device had synced it before.
+    expect(cloud.files.keys.where((k) => k.endsWith('/notebook.json')), hasLength(1));
   });
 
   testWidgets('Version history: earlier versions of the page, a preview, Restore, Undo', (tester) async {

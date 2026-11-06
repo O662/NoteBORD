@@ -5,10 +5,12 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleListener;
+import 'dart:ui' show AppExitResponse;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
+import '../audio/platform_audio.dart' show audioToolsProvider;
 import '../board/model.dart';
 import '../board/store.dart';
 import '../library/library.dart';
@@ -344,12 +346,56 @@ class SyncController extends Notifier<SyncState> {
     if (!ref.read(autoSyncProvider)) return;
     _tick?.cancel();
     _tick = Timer.periodic(every, (_) => _auto());
-    _life ??= AppLifecycleListener(onResume: _auto);
+    _life ??= AppLifecycleListener(onResume: _auto, onInactive: _leaving, onExitRequested: _exiting);
     _soon = Timer(const Duration(seconds: 3), _auto);
   }
 
   void _auto() {
     if (state.settings.anyOn) unawaited(syncNow());
+  }
+
+  /// Leaving the app (Home, another app, the screen off, or closing it):
+  /// what isn't in the cloud yet goes now, while Endless is still allowed
+  /// to finish. Nothing runs later in the background.
+  void _leaving() => unawaited(finishBeforeLeaving());
+
+  /// Closing the window on a computer: syncs first (at most 20 s).
+  Future<AppExitResponse> _exiting() async {
+    await finishBeforeLeaving(limit: const Duration(seconds: 20));
+    return AppExitResponse.exit;
+  }
+
+  /// Whether anything here isn't in the cloud yet: a notebook saved since
+  /// its last sync, or one open with changes still being written.
+  bool get hasChangesToSend {
+    if (!state.settings.anyOn) return false;
+    if (state.dirty.isNotEmpty) return true;
+    for (final n in ref.read(libraryProvider).notebooks) {
+      if (ref.exists(notebookProvider(n.id)) && ref.read(notebookProvider(n.id).notifier).hasUnsaved) return true;
+      if (!state.isSynced(n.id, n.updatedAt)) return true;
+    }
+    return false;
+  }
+
+  /// Saves what's open and syncs it, if anything isn't in the cloud yet.
+  /// On Android a notification ("Syncing your notes") keeps Endless going
+  /// until it's done, for [limit] at most, so leaving the app or swiping it
+  /// away doesn't stop it halfway. Offline, nothing is lost: the notes are
+  /// on the tablet and go the next time Endless is open.
+  Future<void> finishBeforeLeaving({Duration limit = const Duration(minutes: 2)}) async {
+    if (!hasChangesToSend) return;
+    final tools = ref.read(audioToolsProvider);
+    final kept = await tools.keepGoing(true, kind: 'sync', title: 'Syncing your notes', text: 'To ${state.cloudNames}');
+    try {
+      for (final n in ref.read(libraryProvider).notebooks) {
+        if (ref.exists(notebookProvider(n.id))) await ref.read(notebookProvider(n.id).notifier).flush();
+      }
+      await syncNow().timeout(limit);
+    } on TimeoutException {
+      // What's left goes next time.
+    } finally {
+      if (kept) await tools.keepGoing(false, kind: 'sync');
+    }
   }
 
   void _changed(String? notebookId) {
@@ -399,10 +445,24 @@ class SyncController extends Notifier<SyncState> {
     }
   }
 
-  /// Signs out of [kind]; what's in the cloud stays there.
+  /// Signs out of [kind]; what's in the cloud stays there. Connecting
+  /// again (with this account or another) sends everything to that one.
   Future<void> disconnect(CloudKind kind) async {
     await ref.read(cloudAuthProvider(kind)).signOut();
-    await _save(state.settings.withCloud(kind, state.settings.of(kind).copyWith(on: false, account: () => null)));
+    await _save(state.settings.withCloud(kind, state.settings.of(kind).copyWith(on: false, account: () => null, lastSync: () => null)));
+    await _forgetCloud(kind);
+  }
+
+  /// Forgets what [kind]'s folder had (another account or folder: start over).
+  Future<void> _forgetCloud(CloudKind kind) async {
+    for (final n in await _store.listSyncFiles()) {
+      if (!n.startsWith('nb_') && n != 'pdf') continue;
+      final side = await _store.loadSyncFile(n);
+      if (side == null) continue;
+      (side['remote'] as Map?)?.remove(kind.name);
+      if (n == 'pdf') side.remove(kind.name);
+      await _store.saveSyncFile(n, side);
+    }
   }
 
   /// Turns syncing with [kind] on or off (signing in first if needed).
@@ -420,13 +480,7 @@ class SyncController extends Notifier<SyncState> {
     if (f.isEmpty) return;
     await _save(state.settings.withCloud(kind, state.settings.of(kind).copyWith(folder: f, lastSync: () => null)));
     // Everything goes to the new folder: forget what the old one had.
-    for (final n in await _store.listSyncFiles()) {
-      if (!n.startsWith('nb_')) continue;
-      final side = await _store.loadSyncFile(n);
-      if (side == null) continue;
-      (side['remote'] as Map?)?.remove(kind.name);
-      await _store.saveSyncFile(n, side);
-    }
+    await _forgetCloud(kind);
     unawaited(syncNow());
   }
 

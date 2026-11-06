@@ -497,7 +497,7 @@ class _FolderDialogState extends ConsumerState<_FolderDialog> {
   void initState() {
     super.initState();
     ref.read(syncProvider.notifier).foldersIn(widget.kind).then((f) {
-      if (mounted) setState(() => _folders = f..sort());
+      if (mounted) setState(() => _folders = [...f]..sort());
     }, onError: (Object e) {
       if (mounted) setState(() => _error = 'Couldn’t list folders: $e');
     });
@@ -524,9 +524,26 @@ class _FolderDialogState extends ConsumerState<_FolderDialog> {
     final c = context.colors;
     final folders = _folders;
     return DialogFrame(
-      title: 'Sync folder',
+      title: widget.kind.label,
       width: 520,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 14, children: [
+        if (ref.watch(syncProvider).settings.of(widget.kind).account case final account?)
+          Row(spacing: 12, children: [
+            Expanded(
+              child: Text('Signed in as ${account.email}', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.text)),
+            ),
+            SecondaryButton(
+              label: 'Use another account',
+              height: 44,
+              padding: 14,
+              onPressed: () async {
+                final ctrl = ref.read(syncProvider.notifier);
+                Navigator.of(context).pop();
+                await ctrl.disconnect(widget.kind);
+                await ctrl.connect(widget.kind);
+              },
+            ),
+          ]),
         Text(
           widget.kind == CloudKind.google
               ? 'Notebooks go in this folder in My Drive. Endless can only see folders it made, so pick one of those or name a new one.'

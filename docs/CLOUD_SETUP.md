@@ -26,6 +26,14 @@ flutter build apk --release   --dart-define=GOOGLE_WEB_CLIENT_ID=1234-abc.apps.g
 
 For Windows add `--dart-define=GOOGLE_DESKTOP_CLIENT_ID=…` and `--dart-define=GOOGLE_DESKTOP_CLIENT_SECRET=…`. They're read in `lib/sync/cloud_auth.dart` (`CloudIds`).
 
+**Who owns what, and how long it lasts.**
+- **The developer side** (the Google Cloud project and the Microsoft app registration) belongs to the account you make them with. It isn't the account people sync with: anyone can sign in to Endless with their own Google or Microsoft account. To hand it over: Google Cloud → IAM → add another Google account as **Owner** (then the first can be removed); Microsoft Entra → the app registration → **Owners** → add one (and, for the tenant itself, make another account a Global Administrator). The client ids don't change, so no new build is needed.
+- **Google OAuth clients unused for six months are deleted by Google** (its policy since 2025). Any sign-in or token refresh from Endless counts as use, so a client in regular use stays.
+- **Google Desktop client secret** (Windows only): the console shows it once, when it's made. Copy it then.
+- **Microsoft**: Endless has no client secret, so nothing expires on that side.
+- **Signing in, for people using Endless.** On Android, Google sign-in rides on the Google account already on the tablet: sign in once; it lasts until access is removed in the Google account's settings, or the account leaves the tablet. On Windows, a refresh token: it lasts until unused for 6 months or revoked. Microsoft: a refresh token that lasts 90 days and renews each time it's used, so opening Endless now and then keeps it; a password change or "sign out everywhere" means signing in again. In Endless: Settings › Sync & backup → Change folder → **Use another account** switches accounts.
+- **Testing mode (Google)**: while the project's audience is "Testing", Google signs everyone out every 7 days and only listed test users can sign in. With only `drive.file` (non-sensitive), **Publish app** removes both without verification. (Two-way calendar sync later adds sensitive calendar scopes; then the "unverified app" warning and the 100-user cap apply until it's verified.)
+
 **Costs.** The Drive API and Microsoft Graph are free for this use. Notebooks count against your own Drive or OneDrive storage (15 GB free on Google, 5 GB on OneDrive); big videos moved there count too.
 
 # Setting up Google Calendar and Outlook sync
