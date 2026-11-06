@@ -271,6 +271,16 @@ class GoogleDriveCloud extends _Rest {
   }
 
   @override
+  Future<void> rename(String path, String name) async {
+    final id = await _id(path);
+    if (id == null) return;
+    final r = await send((t) => req('PATCH', _api.replace(path: '${_api.path}/$id', queryParameters: {'fields': 'id'}), t,
+        headers: {'Content-Type': 'application/json'}, body: utf8.encode(jsonEncode({'name': name}))));
+    if (r.statusCode != 200) fail(r, 'Renaming');
+    _ids.removeWhere((k, _) => k == path || k.startsWith('$path/'));
+  }
+
+  @override
   Future<void> upload(String path, File file, {void Function(double)? progress, CloudCancel? cancel}) async {
     final existing = await _id(path);
     final (dir, name) = _split(path);
@@ -386,6 +396,13 @@ class OneDriveCloud extends _Rest {
   Future<void> delete(String path) async {
     final r = await send((t) => req('DELETE', Uri.parse(_item(path)), t));
     if (r.statusCode != 204 && r.statusCode != 200 && r.statusCode != 404) fail(r, 'Deleting');
+  }
+
+  @override
+  Future<void> rename(String path, String name) async {
+    final r = await send((t) => req('PATCH', Uri.parse(_item(path)), t,
+        headers: {'Content-Type': 'application/json'}, body: utf8.encode(jsonEncode({'name': name}))));
+    if (r.statusCode != 200 && r.statusCode != 404) fail(r, 'Renaming');
   }
 
   @override

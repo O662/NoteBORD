@@ -329,7 +329,7 @@ The copy in the cloud (Google Drive or OneDrive, in the folder picked in Setting
 ```
 Endless Notebooks/
 ├── endless.json                      # folders, decks, notebooks deleted for good (below)
-├── <notebookId>.board/
+├── <title> · <notebookId>.board/
 │   ├── notebook.json                 # as on the tablet, plus `sync`
 │   ├── pages/<pageId>.<hash>.json    # a page, plus its stamps in `sync`
 │   ├── pages/<pageId>.<hash>.json.enc
@@ -340,6 +340,7 @@ Endless Notebooks/
 └── Videos/<link>                     # big videos moved to the cloud
 ```
 
+- **A notebook's folder is `<title> · <id>.board`**: the title so people can tell them apart in Drive or OneDrive (characters folders can't have removed, cut at 60), the id so Endless knows which notebook it is. Renaming the notebook renames its folder on the next sync. A folder named just `<id>.board` (before 2026-11-05) is read and renamed. If two folders hold the same notebook (two devices renaming at the same moment), one is synced and the other deleted; the device that wrote there still has its changes and sends them again.
 - **Every file but `notebook.json` is named after its contents** (`<hash>` is the FNV-1a hash and length of the bytes), so no file is ever written over: two devices sending at the same moment can't replace each other's pages. `notebook.json` is written last and lists the rest, so whichever lands last describes a whole notebook. A device whose `notebook.json` was replaced sees on its next sync that the files listed aren't the ones it sent, and merges again. Files the new `notebook.json` no longer lists are deleted after it's written.
 - **Stamps.** A stamp says when something last changed: `<ms, 15 digits>.<counter, 6 digits>.<device id>`, which sorts in time order. A change is stamped with the notebook's `updatedAt`, but always later than the stamp it replaces, so an edit made after seeing another device's change wins over it even with a slow clock.
 - A page's `sync`: `{"page": stamp, "items": {itemId: stamp}, "gone": {itemId: stamp}}`: its own fields (title, paper, template, spell check's ignored words), each item, and items deleted.

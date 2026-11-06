@@ -35,7 +35,9 @@ void main() {
     await a.store.saveAsset(id, 'abc.png', fakePng());
     final report = await a.sync(cloud);
     expect(report.sent, {id});
-    expect(cloud.files.keys, containsAll(['endless.json', '$id.board/notebook.json', '$id.board/assets/abc.png']));
+    // Its folder is named after it, then its id.
+    final dir = 'Lab journal · $id.board';
+    expect(cloud.files.keys, containsAll(['endless.json', '$dir/notebook.json', '$dir/assets/abc.png']));
 
     final rb = await b.sync(cloud);
     expect(rb.changedHere, {id});
@@ -45,7 +47,7 @@ void main() {
     expect(nb.pages.single.items.single.id, s);
     expect(await b.store.loadAsset(id, 'abc.png'), fakePng());
     // The cloud copy is a .board package: notebook.json lists its pages.
-    final remote = jsonDecode(utf8.decode(cloud.files['$id.board/notebook.json']!)) as Json;
+    final remote = jsonDecode(utf8.decode(cloud.files['$dir/notebook.json']!)) as Json;
     expect(remote['pages'], nb.notebook.pageIds);
   });
 
@@ -152,7 +154,7 @@ void main() {
     await b.sync(cloud);
     await a.store.deleteNotebook(id);
     await a.sync(cloud);
-    expect(cloud.files.keys.where((k) => k.startsWith('$id.board')), isEmpty);
+    expect(cloud.files.keys.where((k) => k.contains('$id.board')), isEmpty);
     await b.sync(cloud);
     expect(b.host.deleted, [id]);
     expect(await b.store.loadNotebookMeta(id), isNull);
@@ -200,8 +202,8 @@ void main() {
     await small.store.saveAsset(id, 'pic.png', fakePng());
     await small.store.saveAsset(id, 'talk.m4a', Uint8List.fromList([1, 2, 3]));
     await small.sync(cloud);
-    expect(cloud.files.keys, contains('$id.board/assets/talk.m4a'));
-    expect(cloud.files.keys, isNot(contains('$id.board/assets/pic.png')));
+    expect(cloud.files.keys, contains('Physics · $id.board/assets/talk.m4a'));
+    expect(cloud.files.keys, isNot(contains('Physics · $id.board/assets/pic.png')));
   });
 
   test('a page with a password syncs sealed, with its password entry', () async {
@@ -219,7 +221,7 @@ void main() {
     });
     await a.edit(id, (nb) => nb.notebook.extra['touched'] = true);
     await a.sync(cloud);
-    final pageFiles = cloud.files.keys.where((k) => k.startsWith('$id.board/pages/$pageId.')).toList();
+    final pageFiles = cloud.files.keys.where((k) => k.startsWith('Physics · $id.board/pages/$pageId.')).toList();
     expect(pageFiles, hasLength(1));
     expect(pageFiles.single, endsWith('.json.enc'));
     await b.sync(cloud);
@@ -247,7 +249,7 @@ void main() {
     // a's page file landed after b's (a slower upload), and b's
     // notebook.json after a's.
     for (final e in afterA.entries) {
-      if (e.key.startsWith('$id.board/pages/$pageId.')) cloud.files.putIfAbsent(e.key, () => e.value);
+      if (e.key.startsWith('Physics · $id.board/pages/$pageId.')) cloud.files.putIfAbsent(e.key, () => e.value);
     }
     await b.sync(cloud);
     await a.sync(cloud);
@@ -316,6 +318,58 @@ void main() {
     expect(await one.itemIds(id), {s1, s2, s3});
     expect(await two.itemIds(id), {s1, s2, s3});
     expect(await two.store.loadAsset(id, 'photo.png'), fakePng());
-    expect(File('${tmp.path}/cloud/$id.board/notebook.json').existsSync(), isTrue);
+    expect(File('${tmp.path}/cloud/Shared · $id.board/notebook.json').existsSync(), isTrue);
+  });
+
+  test('folders are named after their notebooks, and renamed with them', () async {
+    final id = await a.newNotebook(title: 'Lab: week 1');
+    await a.sync(cloud);
+    expect(cloud.files.keys, contains('Lab week 1 · $id.board/notebook.json'));
+    await b.sync(cloud);
+    // Renamed on b: the folder follows, and a still finds it.
+    await b.edit(id, (nb) => nb.notebook.title = 'Lab journal');
+    await b.sync(cloud);
+    expect(cloud.files.keys.where((k) => k.contains(id)).every((k) => k.startsWith('Lab journal · $id.board/')), isTrue);
+    await a.sync(cloud);
+    expect((await a.load(id)).notebook.title, 'Lab journal');
+    expect(cloud.files.keys.where((k) => k.contains(id)).every((k) => k.startsWith('Lab journal · $id.board/')), isTrue);
+  });
+
+  test('a folder named the old way (just the id) is found and renamed', () async {
+    final id = await a.newNotebook(title: 'Physics');
+    await a.sync(cloud);
+    // As Endless named folders before.
+    await cloud.rename('Physics · $id.board', '$id.board');
+    await b.sync(cloud);
+    expect(await b.store.loadNotebookMeta(id), isNotNull);
+    expect(cloud.files.keys.where((k) => k.contains(id)).every((k) => k.startsWith('Physics · $id.board/')), isTrue);
+  });
+
+  test('two folders for one notebook (named on two devices at once): one is kept, nothing is lost', () async {
+    final id = await a.newNotebook(title: 'Physics');
+    await round();
+    await b.sync(cloud);
+    final s1 = await a.write(id, x: 10);
+    await a.sync(cloud);
+    // A second folder with an older name, as another device left it.
+    for (final e in {...cloud.files}.entries) {
+      if (e.key.startsWith('Physics · $id.board/')) cloud.files[e.key.replaceFirst('Physics · ', 'Old name · ')] = e.value;
+    }
+    final s2 = await b.write(id, x: 90);
+    await b.sync(cloud);
+    await a.sync(cloud);
+    await b.sync(cloud);
+    expect(await a.itemIds(id), {s1, s2});
+    expect(await b.itemIds(id), {s1, s2});
+    expect({for (final k in cloud.files.keys) if (k.contains(id)) k.split('/').first}, hasLength(1));
+  });
+
+  test('folder names: unsafe characters go, long titles are cut, no title is just the id', () {
+    expect(SyncEngine.folderNameFor('Lab: 1/2 "draft"?', 'nb_1'), 'Lab 1 2 draft · nb_1.board');
+    expect(SyncEngine.folderNameFor('', 'nb_1'), 'nb_1.board');
+    expect(SyncEngine.folderNameFor('x' * 100, 'nb_1').length, 60 + ' · nb_1.board'.length);
+    expect(SyncEngine.idOfFolder('Lab · journal · nb_1.board'), 'nb_1');
+    expect(SyncEngine.idOfFolder('nb_1.board'), 'nb_1');
+    expect(SyncEngine.idOfFolder('PDF'), isNull);
   });
 }

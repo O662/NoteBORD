@@ -16,9 +16,9 @@ import 'versions.dart';
 // Copies notebooks between this device and a cloud folder, both ways:
 //
 //   <folder>/endless.json             folders, decks, notebooks deleted for good
-//   <folder>/<id>.board/notebook.json the package, as on the tablet, with
-//   <folder>/<id>.board/pages/…       stamps (docs/BOARD_FORMAT.md, "Sync")
-//   <folder>/<id>.board/assets/…
+//   <folder>/<title> · <id>.board/notebook.json  the package, as on the
+//   <folder>/<title> · <id>.board/pages/…        tablet, with stamps
+//   <folder>/<title> · <id>.board/assets/…       (docs/BOARD_FORMAT.md, "Sync")
 //   <folder>/PDF/<title>.pdf          the PDF copy, if asked for
 //
 // For each notebook: read the cloud's notebook.json, fetch only the files
@@ -131,15 +131,43 @@ class SyncEngine {
 
   String _sidecar(String id) => 'nb_$id';
 
+  /// A notebook's folder in the cloud: its title (so people can tell which
+  /// is which), then its id (which is how Endless knows it).
+  static String folderNameFor(String title, String id) {
+    var t = title.replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1F·]'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (t.length > 60) t = t.substring(0, 60).trim();
+    while (t.endsWith('.')) {
+      t = t.substring(0, t.length - 1).trim();
+    }
+    return t.isEmpty ? '$id.board' : '$t · $id.board';
+  }
+
+  /// The notebook id a cloud folder holds (`Title · <id>.board`, or
+  /// `<id>.board` as before), or null if it isn't a notebook's.
+  static String? idOfFolder(String name) {
+    if (!name.endsWith('.board')) return null;
+    final base = name.substring(0, name.length - 6);
+    final at = base.lastIndexOf(' · ');
+    final id = (at < 0 ? base : base.substring(at + 3)).trim();
+    return id.isEmpty ? null : id;
+  }
+
   /// Syncs everything with [cloud]. Throws [CloudException] when the cloud
   /// can't be reached (nothing here is lost: it's tried again later).
   Future<SyncReport> syncAll(CloudDrive cloud) async {
     final report = SyncReport();
     final listing = await cloud.list('');
-    final remoteIds = {
-      for (final e in listing)
-        if (e.folder && e.name.endsWith('.board')) e.name.substring(0, e.name.length - 6),
-    };
+    // Notebook id → its folders (one, unless two devices named it
+    // differently at the same moment).
+    final remoteDirs = <String, List<String>>{};
+    for (final e in listing) {
+      final id = e.folder ? idOfFolder(e.name) : null;
+      if (id != null) (remoteDirs[id] ??= []).add(e.name);
+    }
+    for (final dirs in remoteDirs.values) {
+      dirs.sort();
+    }
+    final remoteIds = remoteDirs.keys.toSet();
     final localIds = (await store.listNotebookIds()).toSet();
 
     // Notebooks deleted here since they were last synced.
@@ -156,11 +184,13 @@ class SyncEngine {
       for (final id in {...localIds, ...remoteIds}) {
         final tomb = gone[id];
         if (tomb != null && !localIds.contains(id) || deletedHere.contains(id)) {
-          if (remoteIds.contains(id)) await cloud.delete('$id.board');
+          for (final d in remoteDirs[id] ?? const <String>[]) {
+            await cloud.delete(d);
+          }
           await store.saveSyncFile(_sidecar(id), null);
           continue;
         }
-        await _syncNotebook(cloud, id, remote: remoteIds.contains(id), tomb: tomb, report: report);
+        await _syncNotebook(cloud, id, dirs: remoteDirs[id] ?? const [], tomb: tomb, report: report);
       }
     }
     if (options.pdfCopy) await _sendPdfs(cloud, localIds.where((id) => !gone.containsKey(id) || report.synced.containsKey(id)), report);
@@ -224,10 +254,13 @@ class SyncEngine {
   Future<void> _syncNotebook(
     CloudDrive cloud,
     String id,
-    {required bool remote,
+    {required List<String> dirs,
     String? tomb,
     required SyncReport report}) async {
-    final dir = '$id.board';
+    final remote = dirs.isNotEmpty;
+    // Its folder: the one there (named as the notebook was then), or one
+    // named now for a notebook new to the cloud.
+    var dir = remote ? dirs.first : '';
     final side = await store.loadSyncFile(_sidecar(id)) ?? {};
     final known = Known.fromJson(side['known']);
     final seen = _strings((side['remote'] as Map?)?[cloud.kind.name]);
@@ -270,6 +303,10 @@ class SyncEngine {
 
     final open = host.isOpen(id);
     if (open) await host.flush(id);
+    if (!remote) {
+      final meta = await store.loadNotebookMeta(id);
+      dir = folderNameFor(meta?.title ?? '', id);
+    }
 
     Future<_Outcome?> mergeAndWrite() async {
       final local = await _readLocal(id);
@@ -413,6 +450,15 @@ class SyncEngine {
         await cloud.delete('$dir/$name');
       }
     }
+
+    // Named after the notebook as it is now (renamed with it); a second
+    // folder for it, from another device at the same moment, goes (that
+    // device still has its changes, and sends them again).
+    for (final extra in dirs.skip(1)) {
+      await cloud.delete(extra);
+    }
+    final named = folderNameFor(doc.notebook['title'] as String? ?? '', id);
+    if (named != dir) await cloud.rename(dir, named);
 
     await store.saveSyncFile(_sidecar(id), {
       'known': known.toJson(),

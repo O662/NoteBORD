@@ -82,6 +82,9 @@ abstract class CloudDrive {
   /// Deletes a file or a folder and everything in it (nothing if absent).
   Future<void> delete(String path);
 
+  /// Renames the file or folder at [path] (in the same folder) to [name].
+  Future<void> rename(String path, String name);
+
   /// Sends a big file in parts, reporting how far it's got (0–1).
   Future<void> upload(String path, File file, {void Function(double)? progress, CloudCancel? cancel});
 
@@ -150,6 +153,20 @@ class MemoryCloud implements CloudDrive {
   Future<void> delete(String path) async {
     _check();
     files.removeWhere((k, _) => k == path || k.startsWith('$path/'));
+  }
+
+  @override
+  Future<void> rename(String path, String name) async {
+    _check();
+    final slash = path.lastIndexOf('/');
+    final to = slash < 0 ? name : '${path.substring(0, slash)}/$name';
+    for (final k in [...files.keys]) {
+      if (k == path) {
+        files[to] = files.remove(k)!;
+      } else if (k.startsWith('$path/')) {
+        files['$to${k.substring(path.length)}'] = files.remove(k)!;
+      }
+    }
   }
 
   @override
@@ -222,6 +239,17 @@ class FolderCloud implements CloudDrive {
       await f.delete();
     } else if (await Directory(f.path).exists()) {
       await Directory(f.path).delete(recursive: true);
+    }
+  }
+
+  @override
+  Future<void> rename(String path, String name) async {
+    final f = _file(path);
+    final to = p.join(f.parent.path, p.basename(name));
+    if (await f.exists()) {
+      await f.rename(to);
+    } else if (await Directory(f.path).exists()) {
+      await Directory(f.path).rename(to);
     }
   }
 
