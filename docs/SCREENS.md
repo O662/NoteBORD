@@ -10,6 +10,12 @@ Each screen is 1280×800 (Android tablet, landscape). The PNG is in `design/scre
 | `Main` | Library + folders |
 | `Canvas` | Writing canvas (S Pen) |
 | `Split` | Split view |
+| `Window` | Window view: a floating window over the page |
+| `Window-faded-resized` | Window view faded and resized, Pen: window |
+| `Window-source-picker` | Window view: what it shows |
+| `Window-other-note` | Window view showing another note |
+| `Window-bubble` | Window view shrunk to a bubble |
+| `Canvas-view-menu` | Ruler, laser & view, with Window view |
 | `Search` | Handwriting search |
 
 ## Files & sync
@@ -97,7 +103,7 @@ Each screen is 1280×800 (Android tablet, landscape). The PNG is in `design/scre
 - Sidebar → Sticky notes (`Stickies`) → a stack (`Stickies-stack`) or a note's place → Canvas at that spot.
 - Start: New note → Canvas. Continue writing → Canvas. Sidebar → Library (Main), Calendar, Flashcards (Study), Remember.
 - Canvas top-right: Share (dialog includes Export a copy) and ⋯ (Export, Import, Print, Password protect, Page & paper, Version history, Settings).
-- Canvas left rail: Insert menu, Study & math menu (RememberMark, FlashMake, Math, MathKit), Writing help menu (Spell, Convert), Ruler/laser/view menu (Tools, Split), and Search.
+- Canvas left rail: Insert menu, Study & math menu (RememberMark, FlashMake, Math, MathKit), Writing help menu (Spell, Convert), Ruler/laser/view menu (Tools, Split, Window), and Search.
 - Extra Canvas states: `Canvas-rail-hover-insert`, `Canvas-rail-pinned`, `Canvas-rail-centered-flyout`, `Canvas-more-menu`, `Canvas-map-hidden`, `Canvas-fullscreen`.
 - Canvas page bar (bottom left, Update 02): `Canvas-page-preview` (Preview), `Canvas` (All pages strip), `Canvas-page-menu` (⋯ page menu), `Canvas-page-move` (Move to…), `Canvas-page-rename` (Rename in the bar).
 - Tucking the pen menus away (Update 02): `Canvas-colors-tucked` (the pull tab), `Canvas-pen-settings` (the panel's handle).

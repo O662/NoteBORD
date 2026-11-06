@@ -27,7 +27,7 @@ Each feature names the screen that shows it (`design/screens/<Name>.png`, with s
   - **Insert** (blue +): Sticky note, Paper frame, Image, Record audio, Templates, Everything else (the full Insert menu).
   - **Study & math** (cap icon): Need to remember, Make flashcards, Math & graphs, Math tools.
   - **Writing help** ("abc✓" icon with a red squiggle): Spell check, Dictionary & thesaurus, Convert to text.
-  - **Ruler, laser & view**: Ruler, Laser pointer, Split view.
+  - **Ruler, laser & view**: Ruler, Laser pointer, Split view, Window view (Update 03). **[Canvas-view-menu]**
   - **Search** opens directly, with no menu.
   - **How the menus open:**
     - **Hovering** (S Pen hover / Air view, or a mouse on desktop) opens the menu, and it closes when the pointer leaves the rail and the menu.
@@ -140,6 +140,15 @@ Each feature names the screen that shows it (`design/screens/<Name>.png`, with s
 - **Where a notebook is saved:** each notebook has its own place (This tablet only, Google Drive or OneDrive). New ones get Settings › Notebooks & pages › "Save new notes to"; the library's notebook menu has **Save to…**. Sync only sends a notebook to its own place; one moved elsewhere tells the cloud it left once, so other devices stop syncing it there too, and the copy already in that cloud stays. Its big videos go to its cloud, or nowhere for This tablet only. The title pill says "Saved on this tablet" for one that stays on the tablet.
 - **Sticky notes** in the library (**[Stickies, Stickies-stack]**), under Remember in the sidebar with a count: every sticky note in every notebook with its handwriting and color and the notebook and page it's on (a tap there opens it at that spot). Stacks are fanned cards with "Stack · 5"; a tap opens all their notes, with Open on the page. Filters: All / Stacks / Loose notes, the paper colors, a notebook, and a search of what's written on them (handwriting recognition and typed text). They come from the index, so they're the notes as their pages have them: writing on one on its page changes it here. Notebooks and pages with a password are left out, and a line under the notes says how many.
 - **Page bar** and **tucking the pen menus away**: see Phase 1.
+
+## Update 03: window view and the Endless logo (docs/UPDATE_03.md)
+- **Window view** (**[Window, Window-faded-resized, Window-source-picker, Window-other-note, Window-bubble]**): a floating window over the page showing another spot of this page, another page of this notebook, or another note, while you keep writing on the page. Opened from Ruler, laser & view → Window view (one window for now).
+  - Drag the title bar (⋮⋮) anywhere; at least 120 dp stays on screen. The pin locks it in place. The dark corner resizes it (340 × 200 to 960 × 700). The footer's slider fades its paper and ink (25–100%); the bars stay solid.
+  - Tap the title to pick what it shows (recent notes, or Find another note…). A finger pans inside it; pinch or − and + zoom (50–200%).
+  - **Pen: page / Pen: window:** where the S Pen writes. Read-only by default; with Pen: window it says "Pen writes here", and a pen tap on the page switches back.
+  - Swap (⇄) with the main view, Open as split view, Shrink (–) to a bubble with the note's title (tap to open it again), and Close (×).
+  - Its place, size, opacity and what it shows are saved per notebook on the tablet, so it comes back where you left it.
+- **Logo and app icon** (**[Logo]**): the infinity arrow, from design/logo/: the Android launcher icon (adaptive, with a monochrome layer for themed icons), the notification icon, the splash screen, and the sidebar's mark beside "Endless" in Newsreader.
 
 ## Later
 **Needs a backend** (Supabase recommended, or a Cloudflare relay for end-to-end encryption) **and a security review before any real users' data is stored.** The owner's decision (2026-11-06): no server holds anyone's notes for now. Options compared in Phase 9b: Supabase (managed, open source, can be self-hosted later), our own relay on Cloudflare (can be end-to-end encrypted), Firebase (rejected: no Windows or Linux database).

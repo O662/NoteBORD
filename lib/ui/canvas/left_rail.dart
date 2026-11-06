@@ -71,6 +71,7 @@ final List<RailGroup> railGroups = [
     RailItem('Laser pointer', 'Fades away, never saved', EIcons.laser, 'The laser pointer',
         isTool: true, tile: (c) => c.clayTint, tint: (c) => c.danger),
     RailItem('Split view', 'Two notes side by side', EIcons.split, 'Split view'),
+    RailItem('Window view', 'A floating window you can move, resize and fade', EIcons.windowView, 'Window view'),
   ]),
 ];
 

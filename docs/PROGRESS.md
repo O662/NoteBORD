@@ -1002,6 +1002,30 @@ The owner's answers (2026-11-06): build the full Themes screen now; each noteboo
 ### Not done yet / known limits
 - Not tried on the tablet: how quickly a new note shows up (it's there when its page is next written to the index, about a second after writing), and the screen with many notes (it draws every card at once).
 
+## Update 03a: Window view — built, not yet tried on the tablet (docs/UPDATE_03.md)
+
+| Item | Status | Where |
+|---|---|---|
+| Opening it | Ruler, laser & view → **Window view** (Canvas-view-menu.png); picking it again closes it. A new one shows the next page of this notebook (another spot of this page for a notebook of one page), at 452, 286, 470 × 330, 88% | `RailItem('Window view')`, `WindowController` (`lib/ui/canvas/window_view.dart`) |
+| The window (Window.png) | Title bar: ⋮⋮, the source's color, title and "This notebook · page 5" / "This page · another spot" / "Another note · page 1" with ▾, then Swap, Open as split view, Lock position, Shrink, Close. The page: another canvas of its own (`Pane` + `InkCanvas`, like a side of Split view), in the theme's colors. Footer: opacity slider (25–100% in 5s) and %, −, zoom %, +, Pen: page / Pen: window. The dark corner handle resizes | `WindowView` |
+| Moving and sizing | The title bar drags it from where it's touched; at least 120 dp of it stays on screen and its title bar never goes above the top. Lock position stops that. The corner: 340 × 200 to 960 × 700 | `WindowSpot.fit` |
+| Fading | Only the window's paper and ink fade (the page shows through); the bars, its outline (darker as it fades) and the shadow stay. The shadow is drawn only outside it, so a faded window isn't greyed | `_OuterShadow` |
+| What it shows (Window-source-picker.png) | This page · another spot (it remembers where you panned), every other page of this notebook, the 3 notebooks used last (at their last page), and **Find another note…**: a list of every notebook, searched by name (a dialog, not the Search screen, so the pick comes back to the window) | `_SourceMenu`, `_FindNote` |
+| Inside | A finger pans; pinching zooms; − and + step 25%. Kept to 50–200% | `WindowController.zoomBy`, `_viewChanged` |
+| Pen: page / Pen: window | Read-only by default (a pen on it does nothing); Pen: window makes it writable with "Pen writes here", and the page underneath read-only; a pen tap on the page switches back to Pen: page | `InkCanvas.writable`, `onActivate` |
+| Swap, split, bubble, close | ⇄ swaps the window's notebook, page, zoom and pan with the main view's. Split view opens the two side by side (and closes the window). – shrinks it to a dark bubble with the title where it was; a tap opens it again. × closes it | `swap`, `shrink`, `restore`, `close` |
+| Saved per notebook | Open or not, bubble, place and size, opacity, lock, Pen, what it shows and its zoom and pan, in this tablet's settings (`prefs['window:<notebook id>']`), not in the notebook file: it's how this tablet's screen was laid out | `WindowSpot.toJson` |
+
+**Judgment calls:**
+- **Above the page bar and the map**, under open menus and the pen settings: otherwise a big window disappears under the map.
+- **Undo** (the tool bar and Ctrl+Z) is the main page's; writing in the window is undone by switching to it with Swap.
+- **In Split view** Window view says it's for one notebook (Split view already shows two).
+- **Not in the notebook file.** The window's state is this tablet's, so it doesn't sync; another device opens the notebook without it.
+
+### Not done yet / known limits
+- One window at a time (UPDATE_03: "a few windows at once would be nice later").
+- Not tried on the tablet: dragging with the S Pen and a finger, pinching inside the window, and writing in it with Pen: window.
+
 ## Storage layout
 
 ```
@@ -1188,6 +1212,8 @@ Also in `<app documents>/Endless/` since Phase 9a: `sync/` (settings.json: Sync 
 - Update 02b: `test/theme_palettes_test.dart` (Paper exactly Paper; the recipes on Paper's own colors give Paper's palette within a step; every theme's 7 colors and the meaningful colors; an accent changes accent colors only; High contrast readable; fallbacks), `test/ui/settings_screen_test.dart` (every section opens; Pen & S Pen rows change what the canvas uses; search, nothing found, a section ends it; saved-only settings kept and written; Themes: theme, accent, mode, paper, keep pages light, Make my own; the page light under dark menus; Account's name and the clouds; Open to the last note; prefs defaults and round trip), `test/ui/new_note_test.dart` (name, nested New folder, This tablet only, paper, cover, the path; Make these my defaults and Use my defaults; OneDrive signing in first; a cloud that can't, and the dialog staying; the library menu's Save to…), `test/sync/save_location_test.dart` (each notebook only to its place, before-a-choice to every cloud, quick syncs; moved: the old cloud told once and left alone, the other device learning it and stopping; a device that never had it not bringing it down; the round trip) and 13 goldens (`settings_general`, `settings_pen`, `settings_notebooks`, `settings_search`, `settings_account`, `settings_dark`, `themes`, `themes_dark`, `themes_sage_rose`, `themes_midnight_dark`, `library_contrast`, `new_note`, `new_note_dark`). `gestures_settings` is now Settings › Pen & S Pen; `sync_settings`/`sync_settings_dark` changed with the full side menu.
 
 - Update 02c: `test/ui/stickies_test.dart` (every note and stack with its place, the summary, what's left out and the line saying so; All / Stacks / Loose notes, a color matching a stack by any of its notes, a notebook, searching words on a note under the top one, no match and Clear filters; a stack's notes and Open on the page; a note put on a page showing up through the index; `stickyText` and `StickyEntry`) and 3 goldens (`stickies`, `stickies_dark`, `stickies_stack`). The sidebar's new row changed 16 library, calendar, planner and Remember goldens, regenerated.
+
+- Update 03a: `test/ui/window_view_test.dart` (opening it from the menu on the next page at its place; dragging, staying on screen, locking, resizing to its smallest and largest; opacity; zoom kept to 50–200%; read-only, Pen: window making it writable and the page read-only, and back; picking another page and another spot; swap, the bubble and back, saved in the settings, closed and opened again where it was; Open as split view; saving and the bounds) and 6 goldens (`canvas_view_menu`, `canvas_window`, `canvas_window_dark`, `canvas_window_faded_resized`, `canvas_window_source_picker`, `canvas_window_bubble`).
 
 ## Next
 - **Update 02 tablet checklist.** Release build (`flutter build apk --release`, `adb install -r`).

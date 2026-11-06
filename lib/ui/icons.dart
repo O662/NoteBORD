@@ -312,6 +312,18 @@ abstract final class EIcons {
     const IconPart('M4 4h16v10l-6 6H4z', fill: true, fillTint: IconTint.stickyPaper, tint: IconTint.gold),
     const IconPart('M14 20v-6h6', tint: IconTint.gold),
   ], strokeWidth: 1.6);
+  // Window view (Window.dc.html).
+  static final windowView = EIconData([_p('M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z'), _p('M12 12h6v5h-6z')]);
+  static final grip = EIconData([
+    for (final (x, y) in const [(4.0, 4.0), (10.0, 4.0), (4.0, 10.0), (10.0, 10.0), (4.0, 16.0), (10.0, 16.0)])
+      IconPart(_circle(x + 5, y + 2, 1.6), stroke: false, fill: true),
+  ]);
+  static final windowSwap = EIconData([_p('M4 8h14l-3-3M20 16H6l3 3')], strokeWidth: 1.9);
+  static final opacity = EIconData([
+    _p(_circle(12, 12, 8)),
+    const IconPart('M12 4a8 8 0 0 1 0 16z', fill: true),
+  ]);
+  static final resizeCorner = EIconData([_p('M9 3L3 9M9 6.5L6.5 9')], strokeWidth: 1.6, viewBox: 10);
   static final checkBold = EIconData([_p('M5 12l5 5 9-10')], strokeWidth: 2.6);
 }
 

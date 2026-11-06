@@ -49,6 +49,7 @@ import 'left_rail.dart';
 import 'live_bar.dart';
 import 'model_note.dart';
 import 'page_bar.dart';
+import 'window_view.dart';
 import 'panels.dart';
 import 'pen_popover.dart';
 import 'recording_pill.dart';
@@ -133,6 +134,9 @@ void handleRailItem(
       showTemplatesDialog(context, pane: pane);
     case 'Split view':
       openSplitView(context, ref, pane);
+    case 'Window view':
+      // The notebook screen opens it; here it's Split view.
+      showNote(context, 'Window view is for one notebook. Close a side of Split view to use it.');
     case 'Ruler':
       // Picking it again puts it away.
       if (pane.ruler.visible) {
@@ -230,6 +234,13 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
   /// What's open above the page bar (preview, all pages, page menu).
   PageLayer? _pageLayer;
 
+  /// The floating window view (Window.png), and what it shows.
+  late final WindowController _window = WindowController(ref, pane)..addListener(_windowChanged);
+
+  void _windowChanged() {
+    if (mounted) setState(() {});
+  }
+
   /// Full screen hides every menu except the zoom pill.
   bool _full = false;
 
@@ -299,6 +310,9 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     pane.video.removeListener(_cardsChanged);
     pane.selection.removeListener(_selectionChanged);
     _spell?.dispose();
+    _window
+      ..removeListener(_windowChanged)
+      ..dispose();
     _lifecycle.dispose();
     // Leaving the notebook stops its recording playing (recording itself
     // keeps going until Stop).
@@ -447,6 +461,8 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
         _startSpell();
       case 'Dictionary & thesaurus':
         _openDictionary();
+      case 'Window view':
+        _window.toggle();
       default:
         handleRailItem(context, ref, pane, item, _comingSoon, hint: _showHint, onFlashcards: _startFlashcards, onLive: _startLive);
     }
@@ -842,6 +858,10 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                 },
                 child: PageTheme(child: InkCanvas(
                   pane: pane,
+                  // Pen: window writes in the window; a pen tap on the page
+                  // brings it back here.
+                  writable: !(_window.spot.open && !_window.spot.bubble && _window.spot.penHere),
+                  onActivate: _window.penToPage,
                   onViewTap: _board ? (at) => _leaveBoard(at: at) : (spelling ? _spellTap : null),
                   onFlashcards: _startFlashcards,
                   // Clear of the rail, the top pills (and the color tray), and the pages rail.
@@ -1061,6 +1081,8 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                         ]);
                       }),
                     ),
+                  // The window view: over the page bar and the map, under menus.
+                  if (chrome && !sealed) WindowView(controller: _window, screen: box.biggest),
                   // A pinned menu or ⋯ stays open until a tap anywhere else.
                   if (blocking)
                     Positioned.fill(

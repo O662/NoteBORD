@@ -81,4 +81,32 @@ void main() {
     await t.tap(find.text('Rename'));
   });
   _golden('colors_tucked', setUp: (t) => t.tap(find.bySemanticsLabel('Tuck colors away (or swipe up)')));
+
+  // Update 03: the window view (Window*.png) and the menu that opens it.
+  Future<void> openWindow(WidgetTester t) async {
+    await t.tap(byLabel('Ruler, laser & view'));
+    await t.pump();
+    await t.tap(find.text('Window view'));
+    await t.pumpAndSettle();
+  }
+
+  _golden('view_menu', setUp: (t) => t.tap(byLabel('Ruler, laser & view')));
+  _golden('window', setUp: openWindow);
+  _golden('window_dark', mode: ThemeMode.dark, setUp: openWindow);
+  _golden('window_faded_resized', setUp: (t) async {
+    await openWindow(t);
+    await t.drag(find.bySemanticsLabel('Resize window'), const Offset(160, 90));
+    await t.pumpAndSettle();
+    await t.drag(find.byType(Slider), const Offset(-120, 0));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Pen: page'));
+  });
+  _golden('window_source_picker', setUp: (t) async {
+    await openWindow(t);
+    await t.tap(find.textContaining('This notebook · page'));
+  });
+  _golden('window_bubble', setUp: (t) async {
+    await openWindow(t);
+    await t.tap(byLabel('Shrink to a bubble'));
+  });
 }
