@@ -49,7 +49,7 @@ Each feature names the screen that shows it (`design/screens/<Name>.png`, with s
 ## Phase 3: Canvas tools and objects
 - **Select and lasso:** move, resize, rotate, recolor, copy, delete, convert to text, remember, and make a flashcard. **[Convert, RememberMark]**
 - **Shapes:** hold to straighten. Keep the pen still about 500 ms at the end of a stroke and it snaps to a line, circle, rectangle or triangle, with the angle shown. **[Tools]**
-- **Flick back to make an arrow:** a short hook back at the end of a line becomes an arrowhead. It works on curves and on both ends, and connectors snap to shapes. Arrowhead styles are Open, Filled and "Like my ink". **[Arrows]**
+- **Flick back to make an arrow:** a short hook back at the end of a line, then a return to the tip, becomes an arrowhead. A hook without the return stays ink, so letters such as e and R aren't made arrows (owner's change, 2026-11-09). It works on curves and on both ends, and connectors snap to shapes. Arrowhead styles are Open, Filled and "Like my ink". **[Arrows]**
   - An arrow or straight line that starts or ends on a shape, sticky note, frame, card or other item snaps to its edge (with a small dot) and stays attached when the item moves or is resized. Dragging the end away lets go.
 - **Scribble to erase:** scribbling over ink erases only the strokes under the scribble. Sensitivity is Light, Normal or Firm. **[Scribble]**
 - **Text boxes, sticky notes and sticky stacks** (fanned, with a count). **[Board]**

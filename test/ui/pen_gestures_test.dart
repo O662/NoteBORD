@@ -144,7 +144,12 @@ void main() {
 
   group('flick back for an arrow', () {
     final line = _line(const Offset(300, 450), const Offset(580, 340), n: 50, wobble: 1);
-    List<Offset> hooked() => [...line, for (var i = 1; i <= 5; i++) Offset.lerp(line.last, const Offset(556, 358), i / 5)!];
+    // The line, a flick back, and a return to the tip.
+    List<Offset> hooked() => [
+          ...line,
+          for (var i = 1; i <= 5; i++) Offset.lerp(line.last, const Offset(556, 358), i / 5)!,
+          for (var i = 1; i <= 5; i++) Offset.lerp(const Offset(556, 358), line.last, i / 5)!,
+        ];
 
     testWidgets('a quick hook makes an arrowhead in the chosen style; Undo keeps the ink', (tester) async {
       final c = await pumpCanvas(

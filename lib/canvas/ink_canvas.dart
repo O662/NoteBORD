@@ -37,6 +37,7 @@ import '../state/notebook.dart';
 import '../state/office_docs.dart';
 import '../transfer/files.dart';
 import '../state/settings.dart';
+import '../state/diag.dart';
 import '../study/reminders.dart' show reminderServiceProvider;
 import '../study/remember.dart';
 import '../study/fsrs.dart' show Fsrs, Rating, waitLabel;
@@ -103,9 +104,14 @@ part 'ink_canvas_video.dart';
 /// Eraser radius in screen px.
 const eraserRadius = 10.0;
 
-/// Touches this soon after the stylus was seen (hovering or writing) are
-/// treated as the palm and ignored.
+/// A touch this soon after the stylus was seen (hovering or writing) might
+/// be the palm: it's held, and does nothing until it moves [heldSlop].
 const palmWindow = Duration(milliseconds: 600);
+
+/// A held touch that moves this far (screen px) while the pen is off the
+/// page is a finger after all, and starts panning (or whatever a finger
+/// there does). A resting palm doesn't travel this far before the pen lands.
+const heldSlop = 32.0;
 
 /// The pen counts as held still while it stays within this many screen px.
 const holdSlop = 4.0;
@@ -158,7 +164,9 @@ enum _Drag {
 enum _Touch { navigate, ruler, selection, graph }
 
 /// The endless page. Routes raw pointers: the stylus draws, fingers pan and
-/// zoom, and touches while the stylus is near are rejected as the palm.
+/// zoom, and touches while the stylus is writing are rejected as the palm.
+/// A touch while the stylus is only near is held until it's clearly a finger
+/// (see [palmWindow]).
 /// A mouse draws with the left button and pans with the others, so the app
 /// can be tried on a desktop.
 ///
@@ -210,8 +218,15 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   /// Repaints the gesture overlay (and the ink layer's hidden items).
   final _overlay = GestureOverlayState();
 
+  /// The committed ink as an image, while the view holds still.
+  final _inkCache = InkLayerCache();
+
   final _touches = <int, Offset>{};
   final _ignored = <int>{};
+
+  /// Touches that landed while the pen was near, and where they landed:
+  /// maybe the palm, maybe a finger. See [_moveHeld].
+  final _held = <int, Offset>{};
   _Touch _touch = _Touch.navigate;
   Similarity _touchTransform = Similarity.identity;
   int? _drawPointer;
@@ -493,6 +508,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
   @override
   void dispose() {
+    _inkingIn?.inking = false;
     _layout?.picture.dispose();
     pane.removeListener(_paneChanged);
     pane.status.removeListener(_statusChanged);
@@ -512,6 +528,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     active.dispose();
     _hover.dispose();
     _overlay.dispose();
+    _inkCache.dispose();
     pane.live.removeListener(_liveChanged);
     pane.audio.removeListener(_audioChanged);
     pane.video.removeListener(_videoChanged);
@@ -548,6 +565,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   }
 
   void _onDown(PointerDownEvent e) {
+    if (_isStylus(e)) diagStep('pen down');
+    if (kDiag) diag('down ${e.kind.name} p${e.pointer} t${e.timeStamp.inMilliseconds} stylusDown=$_stylusDown sinceStylus=${_lastStylus == null ? null : (e.timeStamp - _lastStylus!).inMilliseconds}ms touches=${_touches.length} held=${_held.length} draw=$_drawPointer');
     final settings = ref.read(settingsProvider);
     final inks = _isStylus(e) || (e.kind == PointerDeviceKind.mouse && e.buttons & kPrimaryMouseButton != 0);
     if (_edit != null) {
@@ -579,6 +598,9 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       _lastStylus = e.timeStamp;
       _stylusDown = true;
       _endTouches(); // the palm often lands before the pen
+      // Touches held while the pen hovered were the palm.
+      _held.clear();
+      _heldAt.clear();
       if (_drawPointer != null) _cancelInput();
       final sideButton = e.buttons & (kPrimaryStylusButton | kSecondaryStylusButton) != 0;
       final erase = settings.tool == CanvasTool.eraser || e.kind == PointerDeviceKind.invertedStylus || sideButton;
@@ -594,10 +616,23 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
       }
       return;
     }
-    if (_stylusNear(e.timeStamp)) {
+    if (_stylusDown) {
+      // The pen is writing: this is the palm, for as long as it's down.
+      diag('  -> ignored (palm, pen writing)');
       _ignored.add(e.pointer);
       return;
     }
+    if (_stylusNear(e.timeStamp)) {
+      // The pen is hovering (or just lifted): wait and see.
+      diag('  -> held (pen near)');
+      _held[e.pointer] = e.localPosition;
+      return;
+    }
+    _fingerDown(e, settings);
+  }
+
+  /// A finger (not the palm) came down at [e].
+  void _fingerDown(PointerDownEvent e, AppSettings settings) {
     if (_fingerDrawing && _drawPointer != null) {
       // A second finger means navigate, not draw (or, on a ruler end, that
       // both fingers now move the ruler).
@@ -703,15 +738,69 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   }
 
   void _onMove(PointerMoveEvent e) {
+    if (kDiag) {
+      if (_isStylus(e) && e.pointer == _drawPointer) {
+        diagPenSample(e.timeStamp);
+      } else if (!_isStylus(e)) {
+        diag('move ${e.kind.name} p${e.pointer} t${e.timeStamp.inMilliseconds} at ${e.localPosition.dx.round()},${e.localPosition.dy.round()} ${_touches.containsKey(e.pointer) ? "tracked" : _held.containsKey(e.pointer) ? "held ${(e.localPosition - _held[e.pointer]!).distance.round()}px" : _ignored.contains(e.pointer) ? "ignored" : "untracked"} stylusDown=$_stylusDown draw=$_drawPointer');
+      }
+    }
     if (_isStylus(e)) _lastStylus = e.timeStamp;
     if (e.pointer == _drawPointer) {
       _addSample(e);
     } else if (_touches.containsKey(e.pointer)) {
       _moveTouch(e.pointer, e.localPosition);
+    } else if (_held.containsKey(e.pointer)) {
+      _moveHeld(e);
     }
   }
 
+  /// A held touch moved. Once it has travelled [heldSlop] with the pen off
+  /// the page, it's a finger: it (and any other held finger, for a pinch)
+  /// starts from where it is now, as if it had just come down there.
+  void _moveHeld(PointerMoveEvent e) {
+    _heldAt[e.pointer] = e.localPosition;
+    if (_stylusDown || _drawPointer != null) return;
+    if ((e.localPosition - _held[e.pointer]!).distance < heldSlop) return;
+    final others = {
+      for (final p in _held.keys)
+        if (p != e.pointer) p: _heldAt[p] ?? _held[p]!,
+    };
+    _held.clear();
+    _heldAt.clear();
+    diag('  -> promoted p${e.pointer} (+${others.length} more)');
+    _fingerDown(_downAt(e), ref.read(settingsProvider));
+    // The others join this finger's gesture from where they are now.
+    for (final MapEntry(key: p, value: at) in others.entries) {
+      if (_touches.isEmpty || _drawPointer != null) break;
+      _touches[p] = at;
+      _tapFinger = null;
+      _chipFinger = null;
+    }
+  }
+
+  /// Where each held touch is now (for the others joining a pinch).
+  final _heldAt = <int, Offset>{};
+
+  static PointerDownEvent _downAt(PointerMoveEvent e) => PointerDownEvent(
+        viewId: e.viewId,
+        timeStamp: e.timeStamp,
+        pointer: e.pointer,
+        kind: e.kind,
+        device: e.device,
+        position: e.position,
+        buttons: e.buttons,
+        pressure: e.pressure,
+        pressureMin: e.pressureMin,
+        pressureMax: e.pressureMax,
+        radiusMajor: e.radiusMajor,
+        radiusMinor: e.radiusMinor,
+        size: e.size,
+      ).transformed(e.transform);
+
   void _onUp(PointerUpEvent e) {
+    if (_isStylus(e)) diagStep('pen up');
+    diag('up ${e.kind.name} p${e.pointer} t${e.timeStamp.inMilliseconds}');
     if (_isStylus(e)) {
       _stylusDown = false;
       _lastStylus = e.timeStamp;
@@ -719,16 +808,27 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     if (e.pointer == _drawPointer) _finishInput();
     _liftTouch(e.pointer);
     _ignored.remove(e.pointer);
+    _dropHeld(e.pointer);
   }
 
   void _onCancel(PointerCancelEvent e) {
+    diag('CANCEL ${e.kind.name} p${e.pointer} t${e.timeStamp.inMilliseconds}');
     if (_isStylus(e)) _stylusDown = false;
     if (e.pointer == _drawPointer) _cancelInput();
     _liftTouch(e.pointer);
     _ignored.remove(e.pointer);
+    _dropHeld(e.pointer);
+  }
+
+  void _dropHeld(int pointer) {
+    _held.remove(pointer);
+    _heldAt.remove(pointer);
   }
 
   void _onHover(PointerHoverEvent e) {
+    if (kDiag && _isStylus(e) && (_lastStylus == null || e.timeStamp - _lastStylus! > const Duration(milliseconds: 300))) {
+      diag('hover ${e.kind.name} starts t${e.timeStamp.inMilliseconds}');
+    }
     if (_isStylus(e)) _lastStylus = e.timeStamp;
     if (_isStylus(e) || e.kind == PointerDeviceKind.mouse) {
       _hover.value = e.localPosition;
@@ -841,8 +941,14 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
   // The drawing pointer.
 
+  /// The notebook told the pen is down (autosaves wait for it to lift), so
+  /// the same one hears it lift even if the page changes meanwhile.
+  NotebookNotifier? _inkingIn;
+
   void _startInput(PointerDownEvent e, {required bool erase}) {
     final settings = ref.read(settingsProvider);
+    _inkingIn?.inking = false;
+    _inkingIn = _notebook..inking = true;
     _tapPen = _isStylus(e);
     _drawPointer = e.pointer;
     _drawAt = e.localPosition;
@@ -1126,6 +1232,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   }
 
   void _cancelInput() {
+    diag('input cancelled (${_drag.name})');
     switch (_drag) {
       case _Drag.erase:
         _notebook.endErase();
@@ -1150,6 +1257,8 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   }
 
   void _resetInput() {
+    _inkingIn?.inking = false;
+    _inkingIn = null;
     if (_drag == _Drag.rulerEnd) pane.ruler.releaseEnd();
     _drawPointer = null;
     _drawAt = null;
@@ -1302,7 +1411,10 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
   }
 
   void _finishInk() {
-    if (!active.isActive) return;
+    if (!active.isActive) {
+      diag('stroke with no points: dropped');
+      return;
+    }
     _clearGraphed();
     final settings = ref.read(settingsProvider);
     final notifier = _notebook;
@@ -1314,12 +1426,14 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
     // A star drawn next to something marks it to remember (before a
     // scribble: a star's tips look like back-and-forths).
     if (snapped == null && _rememberStar(active.toItem(z: page.nextZ), settings)) {
+      diag('stroke ${active.points.length} pts -> remember star (not kept)');
       active.clear();
       return;
     }
 
     if (scribble.isNotEmpty) {
       // The scribble itself is never kept.
+      diag('stroke ${active.points.length} pts -> scribble erased ${scribble.length} strokes (not kept)');
       if (_targetNote case final note?) {
         final left = note.withoutInk(scribble);
         notifier.replaceItems(page.id, [if (left is ChecklistItem) left.pruned else left]);
@@ -1350,6 +1464,7 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
           shaped = attachEnds(shaped, page.items, slop: _attachReach * _unit);
         }
       }
+      diag('stroke ${active.points.length} pts ${active.times.isEmpty ? 0 : active.times.last}ms -> kept${shaped == null ? "" : snapped != null ? " as ${snapped.kind.name}" : " as arrow"}${_targetNote != null ? " on a note" : ""}');
       _putStroke(raw);
       _wroteMath(raw);
       if (shaped != null) {
@@ -2508,11 +2623,14 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
 
   @override
   Widget build(BuildContext context) {
-    final notebook = ref.watch(notebookProvider(pane.notebookId));
+    // Everything but "Saving…/Saved" (the only change that doesn't bump the
+    // revision): a save rebuilt the whole canvas and slowed the pen.
+    final (:revision, :page) = ref.watch(notebookProvider(pane.notebookId).select(
+      (s) => (revision: s.revision, page: s.pageAt(pane.page)),
+    ));
     final settings = ref.watch(settingsProvider);
     final colors = context.colors;
     final brightness = Theme.of(context).brightness;
-    final page = notebook.pageAt(pane.page);
     final layout = _layoutPicture(page.page.template, colors);
 
     // Leaving select and lasso (or an undo removing items) updates the selection.
@@ -2580,8 +2698,11 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
             _chartLinks(page, colors),
             RepaintBoundary(
               child: CustomPaint(
-                painter: InkLayerPainter(_vp, page, notebook.revision, brightness, colors,
-                    hidden: _hidden, repaint: Listenable.merge([_overlay, _liveTick])),
+                painter: InkLayerPainter(_vp, page, revision, brightness, colors,
+                    hidden: _hidden,
+                    repaint: Listenable.merge([_overlay, _liveTick]),
+                    cache: _inkCache,
+                    devicePixelRatio: MediaQuery.devicePixelRatioOf(context)),
               ),
             ),
             // A recording playing: the ink written at that moment lit, and
@@ -2615,7 +2736,9 @@ class InkCanvasState extends ConsumerState<InkCanvas> with TickerProviderStateMi
             if (!_viewOnly)
               IgnorePointer(child: CustomPaint(painter: RulerPainter(pane.ruler, _vp, settings.rulerUnit, colors))),
             if (_canInk && hoverRing != null)
-              IgnorePointer(child: CustomPaint(painter: HoverRingPainter(_hover, hoverRing))),
+              // Its own layer: the ring follows a hovering pen every frame,
+              // and shouldn't make the layers around it paint again.
+              IgnorePointer(child: RepaintBoundary(child: CustomPaint(painter: HoverRingPainter(_hover, hoverRing)))),
           ]),
         ),
         // Chips on what's remembered, and the flashcards being made.
@@ -3046,8 +3169,95 @@ class LayoutPainter extends CustomPainter {
   bool shouldRepaint(LayoutPainter old) => old.picture != picture || old.vp != vp;
 }
 
+/// The committed ink as the screen shows it, kept as an image.
+///
+/// Impeller has no raster cache, so a layer that isn't repainted is still
+/// drawn again, every stroke of it, each frame. On a full page that slowed
+/// the pen: every frame of a new stroke redrew all the ink under it. Once
+/// the view holds still for [settle], the ink is drawn once into an image
+/// and frames draw that. While the page pans or zooms the strokes are drawn
+/// directly, as the image would be the wrong size.
+class InkLayerCache extends ChangeNotifier {
+  /// The view must hold still this long before the image is made.
+  static const settle = Duration(milliseconds: 120);
+
+  /// Larger than this (device px) a side isn't cached; ink is drawn directly.
+  static const maxSide = 8192;
+
+  ui.Image? _image;
+  ui.Picture? _source;
+  _InkView? _imageView;
+  _InkView? _lastView;
+  Timer? _settle;
+
+  /// Whether the last paint used the image (for tests).
+  @visibleForTesting
+  bool get usedImage => _usedImage;
+  bool _usedImage = false;
+
+  void paint(Canvas canvas, Size size, CanvasView vp, ui.Picture picture, double dpr) {
+    final view = (scale: vp.scale, translation: vp.translation, size: size, dpr: dpr);
+    final image = _image;
+    if (image != null && identical(_source, picture) && _imageView == view) {
+      _lastView = view;
+      _drawImage(canvas, image, dpr);
+      return;
+    }
+    // The page changed under a still view (a stroke went down), or the
+    // view has been still since the last paint: make the image now.
+    final still = _lastView == view;
+    _lastView = view;
+    final w = (size.width * dpr).ceil(), h = (size.height * dpr).ceil();
+    if (still && w > 0 && h > 0 && w <= maxSide && h <= maxSide) {
+      final recorder = ui.PictureRecorder();
+      _drawInk(Canvas(recorder)..scale(dpr), vp, picture);
+      final screen = recorder.endRecording();
+      final made = screen.toImageSync(w, h);
+      screen.dispose();
+      _image?.dispose();
+      _image = made;
+      _source = picture;
+      _imageView = view;
+      _drawImage(canvas, made, dpr);
+      return;
+    }
+    _usedImage = false;
+    _drawInk(canvas, vp, picture);
+    _settle?.cancel();
+    _settle = Timer(settle, notifyListeners);
+  }
+
+  void _drawImage(Canvas canvas, ui.Image image, double dpr) {
+    _usedImage = true;
+    canvas
+      ..save()
+      ..scale(1 / dpr)
+      ..drawImage(image, Offset.zero, Paint())
+      ..restore();
+  }
+
+  static void _drawInk(Canvas canvas, CanvasView vp, ui.Picture picture) {
+    canvas
+      ..save()
+      ..translate(vp.translation.dx, vp.translation.dy)
+      ..scale(vp.scale)
+      ..drawPicture(picture)
+      ..restore();
+  }
+
+  @override
+  void dispose() {
+    _settle?.cancel();
+    _image?.dispose();
+    _image = null;
+    super.dispose();
+  }
+}
+
+typedef _InkView = ({double scale, Offset translation, Size size, double dpr});
+
 /// Committed ink. Records the items near the view into a picture once, then
-/// replays it at the current pan and zoom.
+/// replays it at the current pan and zoom (through [cache], when given).
 class InkLayerPainter extends CustomPainter {
   InkLayerPainter(
     this.vp,
@@ -3057,8 +3267,16 @@ class InkLayerPainter extends CustomPainter {
     this.colors, {
     Set<String> Function()? hidden,
     Listenable? repaint,
+    this.cache,
+    this.devicePixelRatio = 1,
   })  : hidden = hidden ?? _none,
-        super(repaint: repaint == null ? vp : Listenable.merge([vp, repaint]));
+        super(
+          repaint: Listenable.merge([vp, ?repaint, ?cache]),
+        );
+
+  /// Keeps the ink as an image while the view holds still.
+  final InkLayerCache? cache;
+  final double devicePixelRatio;
 
   final CanvasView vp;
   final PageRuntime page;
@@ -3075,17 +3293,20 @@ class InkLayerPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (page.isEmpty) return;
     final picture = page.regionPicture(vp.visiblePage, brightness, colors, hidden: hidden());
-    canvas
-      ..save()
-      ..translate(vp.translation.dx, vp.translation.dy)
-      ..scale(vp.scale)
-      ..drawPicture(picture)
-      ..restore();
+    if (cache case final cache?) {
+      cache.paint(canvas, size, vp, picture, devicePixelRatio);
+    } else {
+      InkLayerCache._drawInk(canvas, vp, picture);
+    }
   }
 
   @override
   bool shouldRepaint(InkLayerPainter old) =>
-      old.page != page || old.revision != revision || old.brightness != brightness || old.colors != colors;
+      old.page != page ||
+      old.revision != revision ||
+      old.brightness != brightness ||
+      old.colors != colors ||
+      old.devicePixelRatio != devicePixelRatio;
 }
 
 class ActiveStrokePainter extends CustomPainter {

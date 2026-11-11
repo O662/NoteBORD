@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../board/ids.dart';
 import '../library/library.dart';
 import '../recognition/handwriting_index.dart';
+import '../state/diag.dart';
 import '../state/notebook.dart' show writeQueueProvider;
 import '../state/settings.dart' show boardStoreProvider;
 import 'calendar_model.dart';
@@ -210,7 +211,7 @@ class Deadlines extends Notifier<List<CalEvent>> {
     Future.microtask(() async {
       _asked = false;
       if (!_alive) return;
-      final rows = await ref.read(indexDbProvider).searchText(const ['due']);
+      final rows = await diagTimeAsync('calendar deadlines', () => ref.read(indexDbProvider).searchText(const ['due']));
       if (!_alive) return;
       final library = ref.read(libraryProvider);
       state = deadlinesIn(

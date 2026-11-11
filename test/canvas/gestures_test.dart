@@ -61,6 +61,13 @@ List<Offset> _withHook(List<Offset> main, Offset hookTo, {int n = 6}) => [
       for (var i = 1; i <= n; i++) Offset.lerp(main.last, hookTo, i / n)!,
     ];
 
+/// [main], a hook out to [hookTo], and back [back] of the way to the tip:
+/// the arrow flick.
+List<Offset> _withFlick(List<Offset> main, Offset hookTo, {int n = 6, double back = 1}) => [
+      ..._withHook(main, hookTo, n: n),
+      for (var i = 1; i <= n; i++) Offset.lerp(hookTo, main.last, back * i / n)!,
+    ];
+
 void main() {
   group('hold to straighten', () {
     test('a shaky line becomes a straight line with its angle', () {
@@ -140,21 +147,79 @@ void main() {
   group('flick back for an arrow', () {
     final line = _line(const Offset(50, 230), const Offset(330, 120), n: 60, wobble: 1);
 
-    test('a short hook at the end makes an end arrow and is trimmed off', () {
-      // The design's flick: from the tip back and down (Arrows.dc.html).
-      final pts = _withHook(line, const Offset(306, 138));
+    test('a flick back and return to the tip makes an end arrow and is trimmed off', () {
+      // The design's flick: from the tip back and down (Arrows.dc.html), then
+      // back to the tip.
+      final pts = _withFlick(line, const Offset(306, 138));
       final f = detectFlicks(pts)!;
       expect((f.start, f.end), (false, true));
       expect(f.from, 0);
       expect(pts[f.to], _near(line.last, 3));
     });
 
+    test('a hook back without the return stays ink', () {
+      expect(detectFlicks(_withHook(line, const Offset(306, 138))), isNull);
+      // Coming only a little of the way back isn't a return either.
+      expect(detectFlicks(_withFlick(line, const Offset(306, 138), back: 0.3)), isNull);
+      // Nor is a return that heads off somewhere else.
+      expect(detectFlicks([..._withHook(line, const Offset(306, 138)), for (var i = 1; i <= 6; i++) Offset(306 + i * 5.0, 138 + i * 4.0)]),
+          isNull);
+    });
+
+    test('letters that end in a hook stay ink: R and e', () {
+      // R: down the stem, back up it, round the bowl, then the leg.
+      List<Offset> seg(Offset a, Offset b, int n) => [for (var i = 1; i <= n; i++) Offset.lerp(a, b, i / n)!];
+      final r = [
+        const Offset(100, 100),
+        ...seg(const Offset(100, 100), const Offset(100, 160), 20),
+        ...seg(const Offset(100, 160), const Offset(101, 100), 20),
+        ...seg(const Offset(101, 100), const Offset(120, 100), 6),
+        for (var i = 1; i <= 16; i++) const Offset(120, 115) + Offset(15 * math.sin(i / 16 * math.pi), -15 * math.cos(i / 16 * math.pi)),
+        ...seg(const Offset(120, 130), const Offset(102, 130), 6),
+        ...seg(const Offset(102, 130), const Offset(130, 160), 10),
+      ];
+      // At the size drawn here and at handwriting size (a third of it).
+      List<Offset> scaled(List<Offset> pts, double k) => [for (final p in pts) p * k];
+      for (final k in [1.0, 0.6, 0.35]) {
+        expect(detectFlicks(scaled(r, k)), isNull, reason: 'R at $k');
+      }
+      // e: a rising bar, over the top and round, out to a tail.
+      final e = [
+        ...seg(const Offset(60, 130), const Offset(100, 115), 12),
+        for (var i = 1; i <= 30; i++)
+          const Offset(80, 120) + Offset.fromDirection(-0.25 - i / 30 * 1.6 * math.pi, 21),
+        ...seg(const Offset(80, 120) + Offset.fromDirection(-0.25 - 1.6 * math.pi, 21), const Offset(112, 128), 8),
+      ];
+      for (final k in [1.0, 0.6, 0.35]) {
+        expect(detectFlicks(scaled(e, k)), isNull, reason: 'e at $k');
+      }
+    });
+
+    test('the flick scales with the line: small arrows zoomed out, big flicks on long lines', () {
+      // 60 screen px of line and an 8 px flick, drawn at 25% zoom (4 page
+      // px a screen px). The old fixed 50 px minimums turned it down.
+      final small = _withFlick(_line(const Offset(0, 0), const Offset(240, -80), n: 30, wobble: 1), const Offset(214, -54), n: 4);
+      final f = detectFlicks(small, unit: 4)!;
+      expect((f.start, f.end), (false, true));
+      expect(small[f.to], _near(const Offset(240, -80), 6));
+      // The same stroke at 100% is a 60 px line too: also an arrow.
+      expect(detectFlicks([for (final p in small) p / 4]), isNotNull);
+      // A 700 px line can end in a 120 px flick (the old cap was 50 px).
+      final long = _line(const Offset(0, 400), const Offset(700, 400), n: 120, wobble: 1);
+      final big = detectFlicks(_withFlick(long, const Offset(590, 440), n: 12))!;
+      expect(big.end, isTrue);
+      // But not one half the line long.
+      expect(detectFlicks(_withFlick(long, const Offset(360, 440), n: 30)), isNull);
+    });
+
     test('hooks at both ends make a double-headed arrow', () {
       final main = _line(const Offset(300, 110), const Offset(540, 110), n: 60, wobble: 0.5);
+      // The start's flick: the pen lands on the tip, flicks out and back,
+      // then draws the line.
       final pts = [
+        for (var i = 0; i < 6; i++) Offset.lerp(main.first, const Offset(320, 96), i / 6)!,
         for (var i = 0; i < 6; i++) Offset.lerp(const Offset(320, 96), main.first, i / 6)!,
-        ...main,
-        for (var i = 1; i <= 6; i++) Offset.lerp(main.last, const Offset(520, 124), i / 6)!,
+        ..._withFlick(main, const Offset(520, 124)),
       ];
       final f = detectFlicks(pts)!;
       expect((f.start, f.end), (true, true));
@@ -169,7 +234,7 @@ void main() {
       ];
       final end = curve.last, before = curve[curve.length - 4];
       final back = (before - end) / (before - end).distance;
-      final pts = _withHook(curve, end + Offset(back.dx * 0.9 - back.dy * 0.4, back.dy * 0.9 + back.dx * 0.4) * 22);
+      final pts = _withFlick(curve, end + Offset(back.dx * 0.9 - back.dy * 0.4, back.dy * 0.9 + back.dx * 0.4) * 22);
       final f = detectFlicks(pts)!;
       expect(f.end, isTrue);
       expect(f.to, curve.length - 1);
@@ -185,14 +250,15 @@ void main() {
       ];
       expect(detectFlicks(check), isNull);
       // Going a long way back along the line.
-      expect(detectFlicks(_withHook(line, const Offset(200, 175), n: 30)), isNull);
-      // Too short a line for an arrow.
-      final short = _line(const Offset(0, 0), const Offset(30, 0), n: 10, wobble: 0.2);
-      expect(detectFlicks(_withHook(short, const Offset(24, 5))), isNull);
+      expect(detectFlicks(_withFlick(line, const Offset(200, 175), n: 30)), isNull);
+      // Too short a line for an arrow, even a small one (25 screen px at least).
+      final short = _line(const Offset(0, 0), const Offset(18, 0), n: 8, wobble: 0.2);
+      expect(detectFlicks(_withFlick(short, const Offset(14, 4))), isNull);
     });
 
     /// A pen-like line: it slows into a rounded tip of [radius], turns back
-    /// by [180 - fold]°, and flicks [hook] px, curving by [curl]°.
+    /// by [180 - fold]°, flicks [hook] px, curving by [curl]°, and returns to
+    /// the tip a little off the hook.
     (List<Offset>, List<int>) penFlick({
       Offset from = const Offset(50, 300),
       double heading = -20,
@@ -225,6 +291,7 @@ void main() {
         step(len, 4);
         d += len;
       }
+      final tip = p;
       // Round the tip: turn by 180 - fold degrees along a small arc.
       final turn = (180 - fold) * math.pi / 180 * side;
       final arcLen = math.max(radius * (180 - fold) * math.pi / 180, 0.1);
@@ -238,6 +305,13 @@ void main() {
       for (var i = 0; i < m; i++) {
         a += curl * math.pi / 180 / m * side;
         step(hook / m, 4);
+      }
+      // Back to the tip, landing a few px off it.
+      final out = p, to = tip + Offset(r.nextDouble() - .5, r.nextDouble() - .5) * 6;
+      for (var i = 1; i <= m; i++) {
+        pts.add(Offset.lerp(out, to, i / m)! + Offset(r.nextDouble() - .5, r.nextDouble() - .5) * 0.4);
+        t += 4;
+        times.add(t);
       }
       return (pts, times);
     }
@@ -288,14 +362,19 @@ void main() {
       // A longer swing straight back along the line: still not a barb.
       final long = [for (var i = 0; i <= 8; i++) Offset(100 + 20 - i * 2.5, 300.3), ...line];
       expect(detectFlicks(long), isNull);
-      // A barb 30° off the line, drawn into the tip first: an arrowhead at the start.
-      final barb = [for (var i = 0; i <= 6; i++) Offset.lerp(const Offset(117, 290), line.first, i / 6)!, ...line.skip(1)];
+      // A barb 30° off the line, flicked out from the tip and back first: an
+      // arrowhead at the start.
+      final barb = [
+        for (var i = 0; i <= 6; i++) Offset.lerp(line.first, const Offset(117, 290), i / 6)!,
+        for (var i = 1; i <= 6; i++) Offset.lerp(const Offset(117, 290), line.first, i / 6)!,
+        ...line.skip(1),
+      ];
       final f = detectFlicks(barb)!;
       expect((f.start, f.end), (true, false));
     });
 
     test('a slow hook is deliberate ink, not a flick', () {
-      final pts = _withHook(line, const Offset(306, 138));
+      final pts = _withFlick(line, const Offset(306, 138));
       final fast = [for (var i = 0; i < pts.length; i++) i * 8];
       expect(detectFlicks(pts, times: fast), isNotNull);
       final slow = [for (var i = 0; i < pts.length; i++) i < line.length ? i * 8 : line.length * 8 + (i - line.length + 1) * 150];

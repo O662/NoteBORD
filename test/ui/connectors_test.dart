@@ -56,12 +56,16 @@ Future<void> _pen(WidgetTester tester, List<Offset> points, {Duration? hold}) as
 
 List<Offset> _line(Offset a, Offset b, {int n = 40}) => [for (var i = 0; i <= n; i++) Offset.lerp(a, b, i / n)!];
 
-/// A line from [a] to [b] with a quick flick back at the end: an arrow.
+/// A line from [a] to [b] with a quick flick back and return at the end: an arrow.
 List<Offset> _flick(Offset a, Offset b) {
   final d = (a - b) / (a - b).distance; // back along the line
   const turn = 15 * math.pi / 180;
   final hook = Offset(d.dx * math.cos(turn) - d.dy * math.sin(turn), d.dx * math.sin(turn) + d.dy * math.cos(turn)) * 30;
-  return [..._line(a, b, n: 50), for (var i = 1; i <= 5; i++) Offset.lerp(b, b + hook, i / 5)!];
+  return [
+    ..._line(a, b, n: 50),
+    for (var i = 1; i <= 5; i++) Offset.lerp(b, b + hook, i / 5)!,
+    for (var i = 1; i <= 5; i++) Offset.lerp(b + hook, b, i / 5)!,
+  ];
 }
 
 Future<void> _tool(WidgetTester tester, String label) async {

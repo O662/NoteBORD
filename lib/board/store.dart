@@ -62,8 +62,9 @@ abstract class BoardStore {
   Future<LoadedNotebook?> loadNotebook(String id);
   Future<void> saveNotebook(Notebook notebook);
 
-  /// Writes a page in the clear (and removes any sealed copy).
-  Future<void> savePage(String notebookId, BoardPage page);
+  /// Writes a page in the clear (and removes any sealed copy). [encoded]
+  /// is the page as [encodePage] gives it, when the caller already has it.
+  Future<void> savePage(String notebookId, BoardPage page, {String? encoded});
 
   /// When page [pageId] was last written, clear or sealed (the page
   /// preview's "edited 2 hours ago"), or null if it never was.
@@ -235,8 +236,8 @@ class FileBoardStore implements BoardStore {
       _writeAtomic(File(p.join(_notebookDir(notebook.id).path, 'notebook.json')), encodeNotebook(notebook));
 
   @override
-  Future<void> savePage(String notebookId, BoardPage page) async {
-    await _writeAtomic(_pageFile(notebookId, page.id), encodePage(page));
+  Future<void> savePage(String notebookId, BoardPage page, {String? encoded}) async {
+    await _writeAtomic(_pageFile(notebookId, page.id), encoded ?? encodePage(page));
     await _deleteIfExists(_sealedFile(notebookId, page.id));
   }
 
@@ -513,9 +514,9 @@ class MemoryBoardStore implements BoardStore {
   Future<void> saveNotebook(Notebook notebook) async => notebooks[notebook.id] = encodeNotebook(notebook);
 
   @override
-  Future<void> savePage(String notebookId, BoardPage page) async {
+  Future<void> savePage(String notebookId, BoardPage page, {String? encoded}) async {
     pageWrites++;
-    (pages[notebookId] ??= {})[page.id] = encodePage(page);
+    (pages[notebookId] ??= {})[page.id] = encoded ?? encodePage(page);
     sealedPages[notebookId]?.remove(page.id);
     written['$notebookId/${page.id}'] = DateTime.now();
   }

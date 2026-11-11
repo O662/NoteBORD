@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
@@ -103,6 +105,27 @@ class SyncReport {
   final synced = <String, DateTime>{};
 }
 
+/// Runs a sync's slow, self-contained work (see [SyncEngine.worker]).
+typedef SyncWorker = Future<R> Function<R>(FutureOr<R> Function() task);
+
+/// On this isolate (tests, and the fallback).
+Future<R> runInline<R>(FutureOr<R> Function() task) async => task();
+
+/// On a short-lived isolate of its own, so the pen and the page never wait
+/// for a sync. Anything that can't be sent there (it shouldn't happen)
+/// runs here instead, as before.
+Future<R> runOnIsolate<R>(FutureOr<R> Function() task) async {
+  try {
+    return await Isolate.run(task, debugName: 'sync');
+  } on ArgumentError catch (e) {
+    debugPrint('Sync: ran on the UI isolate ($e)');
+    return task();
+  } on IsolateSpawnException catch (e) {
+    debugPrint('Sync: ran on the UI isolate ($e)');
+    return task();
+  }
+}
+
 class SyncEngine {
   SyncEngine({
     required this.store,
@@ -110,6 +133,7 @@ class SyncEngine {
     required this.stamper,
     required this.versions,
     this.options = const SyncOptions(),
+    this.worker = runInline,
   });
 
   final BoardStore store;
@@ -117,6 +141,10 @@ class SyncEngine {
   final Stamper stamper;
   final VersionStore versions;
   SyncOptions options;
+
+  /// Where each notebook's reading, stamping, merging and hashing runs:
+  /// [runOnIsolate] in the app. It reads [store] and computes, nothing else.
+  final SyncWorker worker;
 
   static const rootFile = 'endless.json';
   static const _pdfDir = 'PDF';
@@ -324,7 +352,7 @@ class SyncEngine {
     // named now for a notebook new to the cloud.
     var dir = remote ? dirs.first : '';
     final side = await store.loadSyncFile(_sidecar(id)) ?? {};
-    final known = Known.fromJson(side['known']);
+    var known = Known.fromJson(side['known']);
     final seen = _strings((side['remote'] as Map?)?[cloud.kind.name]);
 
     // What the cloud has, fetching only files changed since last seen.
@@ -373,36 +401,35 @@ class SyncEngine {
       dir = folderNameFor(meta?.title ?? '', id);
     }
 
+    // Reading, stamping, merging and comparing every page and item is the
+    // slow part (most of a second for a full notebook on a tablet); it runs
+    // on [worker], away from the pen.
+    _Prepared? prepared;
     Future<_Outcome?> mergeAndWrite() async {
-      final local = await _readLocal(id);
-      if (local != null) stampChanges(local, known, stamper, editedAt: _updatedAt(local.notebook));
-      if (local == null && manifest == null) return null;
-
-      // Deleted for good on another device, and not changed here since.
-      if (local != null && tomb != null && !newer(local.stamps.latest, tomb)) {
-        return const _Outcome.deleted();
-      }
-
-      final remoteDoc = manifest == null ? null : _remoteDoc(manifest, fetched, local);
-      final merged = remoteDoc == null
-          ? local!
-          : local == null
-              ? remoteDoc
-              : mergeDocs(local, remoteDoc, policy: options.policy);
-
-      // What's here now (a file this device doesn't fetch stays in the
-      // cloud only).
-      final here = {...?local?.assets, ...fetchedAssets};
-      merged.assets
-        ..clear()
-        ..addAll(here);
+      final prep = prepared = await _prepare(_PrepareArgs(
+        store: store,
+        id: id,
+        known: known,
+        stamper: stamper,
+        manifest: manifest,
+        fetched: fetched,
+        fetchedAssets: fetchedAssets,
+        tomb: tomb,
+        policy: options.policy,
+      ));
+      known = prep.known;
+      if (prep.empty) return null;
+      if (prep.deleted) return const _Outcome.deleted();
+      final local = prep.local;
+      final merged = prep.merged!;
 
       if (local == null) {
         await _write(id, null, merged);
         return _Outcome(merged, added: true, changedHere: true);
       }
-      final changes = _differs(local, merged);
-      if (!changes) return _Outcome(merged);
+      if (!prep.changes) return _Outcome(merged);
+      final changes = prep.changes;
+      assert(changes);
       if (open) {
         if (_locksDiffer(local, merged)) return const _Outcome.waiting();
         await _keepVersions(id, local, merged, remoteDevice: _deviceOf(manifest));
@@ -439,7 +466,8 @@ class SyncEngine {
         stampChanges(now, known, stamper, editedAt: _updatedAt(now.notebook));
         doc = now;
       }
-    } else {
+    } else if (!(identical(doc, prepared?.merged) && prepared!.out != null)) {
+      // (Already recorded in the background otherwise.)
       known.record(doc);
     }
     if (!outcome.applied && !outcome.added && outcome.changedHere) {
@@ -448,31 +476,10 @@ class SyncEngine {
       await host.notebookWritten(id, added: true);
     }
 
-    // Send what the cloud doesn't have.
-    final files = <String, String>{};
-    final sends = <String, Uint8List>{};
-    for (final e in doc.pages.entries) {
-      final path = 'pages/${e.key}.json';
-      final text = encodeRemotePage(e.value, doc.stamps.page(e.key));
-      final bytes = Uint8List.fromList(utf8.encode(text));
-      files[path] = hashBytes(bytes);
-      sends[path] = bytes;
-    }
-    for (final e in doc.sealed.entries) {
-      final path = 'pages/${e.key}.json.enc';
-      files[path] = hashBytes(e.value);
-      sends[path] = e.value;
-    }
-    if (doc.lock != null) {
-      final bytes = Uint8List.fromList(utf8.encode(canonicalJson(doc.lock)));
-      files['lock.json'] = hashBytes(bytes);
-      sends['lock.json'] = bytes;
-    }
-    if (doc.study != null) {
-      final bytes = Uint8List.fromList(utf8.encode(canonicalJson(doc.study)));
-      files['study.json'] = hashBytes(bytes);
-      sends['study.json'] = bytes;
-    }
+    // Send what the cloud doesn't have (worked out in the background when
+    // the doc is the one prepared there).
+    final ready = prepared?.out;
+    final (:files, :sends) = ready != null && identical(doc, prepared?.merged) ? ready : _filesFor(doc);
     var wrote = false;
     for (final e in sends.entries) {
       if (manifest?.files[e.key] == files[e.key]) continue;
@@ -558,7 +565,79 @@ class SyncEngine {
 
   static String? _deviceOf(RemoteManifest? m) => m?.device;
 
-  BoardDoc _remoteDoc(RemoteManifest m, Map<String, Uint8List> fetched, BoardDoc? local) {
+  /// Work for one notebook that doesn't need the app, on [worker]: [a]'s
+  /// notebook read from storage and stamped, merged with the cloud's copy,
+  /// compared, and (when nothing came in) recorded as known with the files
+  /// the cloud gets worked out.
+  Future<_Prepared> _prepare(_PrepareArgs a) => _onWorker(worker, a);
+
+  // Static, so the task sent to another isolate holds [a] and nothing else.
+  static Future<_Prepared> _onWorker(SyncWorker worker, _PrepareArgs a) => worker(() => _prepareNotebook(a));
+
+  static Future<_Prepared> _prepareNotebook(_PrepareArgs a) async {
+    final known = a.known;
+    final local = await _readLocalFrom(a.store, a.id);
+    if (local != null) stampChanges(local, known, a.stamper, editedAt: _updatedAt(local.notebook));
+    if (local == null && a.manifest == null) return _Prepared(known: known, empty: true);
+
+    // Deleted for good on another device, and not changed here since.
+    if (local != null && a.tomb != null && !newer(local.stamps.latest, a.tomb!)) {
+      return _Prepared(known: known, deleted: true);
+    }
+
+    final remoteDoc = a.manifest == null ? null : _remoteDoc(a.manifest!, a.fetched, local);
+    final merged = remoteDoc == null
+        ? local!
+        : local == null
+            ? remoteDoc
+            : mergeDocs(local, remoteDoc, policy: a.policy);
+
+    // What's here now (a file this device doesn't fetch stays in the
+    // cloud only).
+    final here = {...?local?.assets, ...a.fetchedAssets};
+    merged.assets
+      ..clear()
+      ..addAll(here);
+
+    final changes = local != null && _differs(local, merged);
+    if (local == null || changes) {
+      return _Prepared(known: known, local: local, merged: merged, changes: changes);
+    }
+    // Nothing came in: this is what's sent, as it is.
+    known.record(merged);
+    return _Prepared(known: known, local: local, merged: merged, changes: false, out: _filesFor(merged));
+  }
+
+  /// The files of [doc] as the cloud has them: their contents and hashes.
+  static ({Map<String, String> files, Map<String, Uint8List> sends}) _filesFor(BoardDoc doc) {
+    final files = <String, String>{};
+    final sends = <String, Uint8List>{};
+    for (final e in doc.pages.entries) {
+      final path = 'pages/${e.key}.json';
+      final text = encodeRemotePage(e.value, doc.stamps.page(e.key));
+      final bytes = Uint8List.fromList(utf8.encode(text));
+      files[path] = hashBytes(bytes);
+      sends[path] = bytes;
+    }
+    for (final e in doc.sealed.entries) {
+      final path = 'pages/${e.key}.json.enc';
+      files[path] = hashBytes(e.value);
+      sends[path] = e.value;
+    }
+    if (doc.lock != null) {
+      final bytes = Uint8List.fromList(utf8.encode(canonicalJson(doc.lock)));
+      files['lock.json'] = hashBytes(bytes);
+      sends['lock.json'] = bytes;
+    }
+    if (doc.study != null) {
+      final bytes = Uint8List.fromList(utf8.encode(canonicalJson(doc.study)));
+      files['study.json'] = hashBytes(bytes);
+      sends['study.json'] = bytes;
+    }
+    return (files: files, sends: sends);
+  }
+
+  static BoardDoc _remoteDoc(RemoteManifest m, Map<String, Uint8List> fetched, BoardDoc? local) {
     final doc = BoardDoc(notebook: m.notebook, stamps: m.stamps.copy(), assets: {...m.assets});
     doc.stamps.pages.clear();
     for (final e in fetched.entries) {
@@ -594,7 +673,9 @@ class SyncEngine {
     return doc;
   }
 
-  Future<BoardDoc?> _readLocal(String id) async {
+  Future<BoardDoc?> _readLocal(String id) => _readLocalFrom(store, id);
+
+  static Future<BoardDoc?> _readLocalFrom(BoardStore store, String id) async {
     final loaded = await store.loadNotebook(id);
     if (loaded == null) return null;
     return BoardDoc(
@@ -753,3 +834,64 @@ Map<String, String> _strings(Object? j) => {
         for (final e in j.entries)
           if (e.value is String) e.key.toString(): e.value as String,
     };
+
+/// What [SyncEngine._prepareNotebook] needs: all of it can be sent to
+/// another isolate.
+class _PrepareArgs {
+  _PrepareArgs({
+    required this.store,
+    required this.id,
+    required this.known,
+    required this.stamper,
+    required this.manifest,
+    required this.fetched,
+    required this.fetchedAssets,
+    required this.tomb,
+    required this.policy,
+  });
+
+  final BoardStore store;
+  final String id;
+  final Known known;
+  final Stamper stamper;
+  final RemoteManifest? manifest;
+  final Map<String, Uint8List> fetched;
+  final Set<String> fetchedAssets;
+  final String? tomb;
+  final MergePolicy policy;
+}
+
+/// What [SyncEngine._prepareNotebook] found.
+class _Prepared {
+  _Prepared({
+    required this.known,
+    this.local,
+    this.merged,
+    this.changes = false,
+    this.empty = false,
+    this.deleted = false,
+    this.out,
+  });
+
+  /// What's known now (the notebook here stamped and recorded).
+  final Known known;
+
+  /// The notebook as stored here, stamped; null if there's none.
+  final BoardDoc? local;
+
+  /// [local] with the cloud's copy merged in.
+  final BoardDoc? merged;
+
+  /// Whether [merged] differs from [local].
+  final bool changes;
+
+  /// Neither here nor in the cloud.
+  final bool empty;
+
+  /// Deleted for good on another device, and not changed here since.
+  final bool deleted;
+
+  /// When nothing came in: [merged]'s files for the cloud, and [known] has
+  /// [merged] recorded.
+  final ({Map<String, String> files, Map<String, Uint8List> sends})? out;
+}

@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
 import 'package:endless/sync/cloud.dart';
 import 'package:endless/sync/engine.dart';
+import 'package:endless/sync/stamps.dart';
 import 'package:endless/sync/versions.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -77,6 +80,39 @@ void main() {
     final orderA = [for (final i in (await a.load(id)).pages.first.items) i.id];
     final orderB = [for (final i in (await b.load(id)).pages.first.items) i.id];
     expect(orderA, orderB);
+  });
+
+  test('the slow part runs on another isolate, with the same result', () async {
+    // No fallback here: anything that can't be sent there fails the test.
+    var ran = 0;
+    Future<R> isolate<R>(FutureOr<R> Function() task) {
+      ran++;
+      return Isolate.run(task);
+    }
+
+    final c = Install('c', worker: isolate, stamper: Stamper('dv_c', clock: _fixedClock));
+    final d = Install('d', worker: isolate, stamper: Stamper('dv_d', clock: _fixedClock));
+    final id = await c.newNotebook(title: 'Lab journal');
+    final s1 = await c.write(id, x: 10);
+    await c.sync(cloud);
+    await d.sync(cloud);
+    expect(await d.itemIds(id), {s1});
+    expect(ran, greaterThan(0));
+
+    // Both write offline, then sync: every stroke on both.
+    final s2 = await c.write(id, x: 50);
+    final s3 = await d.write(id, x: 90);
+    await c.sync(cloud);
+    await d.sync(cloud);
+    await c.sync(cloud);
+    expect(await c.itemIds(id), {s1, s2, s3});
+    expect(await d.itemIds(id), {s1, s2, s3});
+
+    // And a sync with nothing new sends nothing.
+    cloud.writes.clear();
+    await c.sync(cloud);
+    await d.sync(cloud);
+    expect(cloud.writes, isEmpty);
   });
 
   test('a stroke erased on one device goes on the other and doesn\'t come back', () async {
@@ -405,3 +441,6 @@ void main() {
     expect(cloud.files.keys.where((k) => k.contains(id)), isEmpty);
   });
 }
+
+/// A clock that can go to another isolate (a top-level function).
+DateTime _fixedClock() => DateTime.utc(2026, 11, 5, 12);

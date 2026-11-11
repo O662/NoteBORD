@@ -133,9 +133,14 @@ void main() {
     Future<void> arrow(List<Offset> line, Offset hook, ArrowStyle style, {Offset? startHook}) async {
       c.read(settingsProvider.notifier).apply((s) => s.copyWith(arrowStyle: style));
       await _pen(t, [
-        if (startHook != null) ...[for (var i = 0; i < 5; i++) Offset.lerp(startHook, line.first, i / 5)!],
+        // Each flick goes out from the tip and back to it.
+        if (startHook != null) ...[
+          for (var i = 0; i < 5; i++) Offset.lerp(line.first, startHook, i / 5)!,
+          for (var i = 0; i < 5; i++) Offset.lerp(startHook, line.first, i / 5)!,
+        ],
         ...line,
         for (var i = 1; i <= 5; i++) Offset.lerp(line.last, hook, i / 5)!,
+        for (var i = 1; i <= 5; i++) Offset.lerp(hook, line.last, i / 5)!,
       ]);
     }
 

@@ -163,7 +163,23 @@ class _PageBarState extends ConsumerState<PageBar> {
 
   Widget _build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
-    final nb = ref.watch(notebookProvider(pane.notebookId));
+    // Rebuilt when what the bar shows changes, not after every stroke and
+    // save (what opens above it watches the notebook itself).
+    ref.watch(notebookProvider(pane.notebookId).select((s) {
+      final n = s.pages.length;
+      final i = pane.page.clamp(0, n - 1);
+      final p = s.pages[i].page;
+      return (
+        n: n,
+        id: p.id,
+        title: p.title,
+        color: p.color,
+        sealed: s.isSealed(p.id),
+        prev: i > 0 ? s.pages[i - 1].page.title : null,
+        next: i < n - 1 ? s.pages[i + 1].page.title : null,
+      );
+    }));
+    final nb = ref.read(notebookProvider(pane.notebookId));
     final n = nb.pages.length;
     final index = pane.page.clamp(0, n - 1);
     final runtime = nb.pages[index];

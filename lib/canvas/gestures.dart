@@ -397,20 +397,28 @@ class Flicks {
   final int to;
 }
 
-/// Finds a short hook back at either end of a line. The hook must be short
-/// (at most 50 screen px and 35% of the line), quick, fold back along the
-/// line (within 75° at the end), and follow a smooth stretch, so zig-zags,
-/// check marks and long strokes back along the line stay ink.
+/// Finds a flick there and back at either end of a line: the pen draws the
+/// line, flicks a short hook back, then returns to the tip before lifting.
+/// A single hook back isn't enough, because letters such as e and R end in
+/// one. The hook must be short (at most a third of the line before it),
+/// quick, fold back along the line (within 75° at the end), and follow a
+/// smooth stretch, so zig-zags, check marks and long strokes back along the
+/// line stay ink.
+///
+/// Sizes follow the stroke, not just the zoom: the longest hook is a share
+/// of the line, and for a stroke under 150 screen px (a small arrow, often
+/// drawn zoomed out) every minimum shrinks with it, down to half.
 ///
 /// A hook at the start must angle away from the line (15–50°): pens often
 /// land with a tiny backswing straight along the line, and that isn't an
 /// arrowhead. [why] hears why a likely hook was turned down (for tuning).
 Flicks? detectFlicks(List<Offset> pts, {List<int>? times, double unit = 1, void Function(String)? why}) {
-  if (pts.length < 4) return null;
-  final end = _flickAtEnd(pts, times, unit, minAngle: 0, maxAngle: 75, minLen: 7, why: why);
+  if (pts.length < 6) return null;
+  unit *= (pathLength(pts) / (150 * unit)).clamp(0.5, 1.0);
+  final end = _returnFlickAtEnd(pts, times, unit, minAngle: 0, maxAngle: 75, minLen: 7, why: why);
   final rev = pts.reversed.toList();
   final revTimes = times?.reversed.map((t) => times.last - t).toList();
-  final startHit = _flickAtEnd(rev, revTimes, unit, minAngle: 15, maxAngle: 50, minLen: 12);
+  final startHit = _returnFlickAtEnd(rev, revTimes, unit, minAngle: 15, maxAngle: 50, minLen: 12);
   final to = end ?? pts.length - 1;
   final from = startHit == null ? 0 : pts.length - 1 - startHit;
   if (end == null && startHit == null) return null;
@@ -419,7 +427,68 @@ Flicks? detectFlicks(List<Offset> pts, {List<int>? times, double unit = 1, void 
   return Flicks(start: startHit != null, end: end != null, from: from, to: to);
 }
 
-/// Index of the tip where a flick at the end of [pts] starts, or null.
+/// Index of the tip where a there-and-back flick at the end of [pts] starts,
+/// or null: a hook back from the tip ([_flickAtEnd]), then a quick, fairly
+/// straight return that ends near the tip.
+int? _returnFlickAtEnd(
+  List<Offset> pts,
+  List<int>? times,
+  double unit, {
+  required double minAngle,
+  required double maxAngle,
+  required double minLen,
+  void Function(String)? why,
+}) {
+  final arc = arcLengths(pts);
+  final total = arc.last;
+  if (total < 50 * unit) return null;
+
+  // The turn back towards the tip: the sharp reversal nearest the end (the
+  // tip itself is the next one further back). Directions are taken over
+  // 5 px either side, so pen jitter doesn't count as a turn.
+  final k = 5 * unit;
+  double turnAt(int i) =>
+      angleBetween(pts[i] - _atArc(pts, arc, arc[i] - k), _atArc(pts, arc, arc[i] + k) - pts[i]);
+  var c = -1;
+  var sharpest = 110.0;
+  final window = math.max(60 * unit, 0.3 * total);
+  for (var i = pts.length - 2; i > 0 && total - arc[i] <= window; i--) {
+    if (total - arc[i] < 4 * unit) continue; // a wobble as the pen lifts
+    final turn = turnAt(i);
+    if (turn > sharpest) {
+      sharpest = turn;
+      c = i;
+    } else if (c >= 0 && turn < 110) {
+      break; // past the turn nearest the end
+    }
+  }
+  if (c < 3) return null; // no turn back at all
+
+  // Up to the turn, the stroke must be a line with a hook back.
+  final tip = _flickAtEnd(pts.sublist(0, c + 1), times?.sublist(0, c + 1), unit,
+      minAngle: minAngle, maxAngle: maxAngle, minLen: minLen, why: why);
+  if (tip == null) return null;
+
+  int? no(String reason) {
+    why?.call(reason);
+    return null;
+  }
+
+  final t = pts[tip], turn = pts[c], e = pts.last;
+  final hook = (turn - t).distance;
+  final back = e - turn;
+  if (back.distance < 0.5 * hook || (e - t).distance > math.max(0.6 * hook, 10 * unit)) {
+    return no('hook didn’t return to the tip');
+  }
+  if (angleBetween(back, t - turn) > 40) return no('return heads away from the tip');
+  if (total - arc[c] > 1.8 * back.distance) return no('return too curly');
+  if (times != null && times.length == pts.length && times.last - times[tip] > 900 + _extraMs(hook, unit) * 2) {
+    return no('flick too slow (${times.last - times[tip]} ms)');
+  }
+  return tip;
+}
+
+/// Index of the tip where a hook back at the end of [pts] starts, or null.
 int? _flickAtEnd(
   List<Offset> pts,
   List<int>? times,
@@ -432,7 +501,8 @@ int? _flickAtEnd(
   final arc = arcLengths(pts);
   final total = arc.last;
   final e = pts.last;
-  final reach = math.min(50 * unit, 0.35 * total);
+  // A quarter of line + hook: the hook is at most a third of the line.
+  final reach = 0.25 * total;
   if (total < 50 * unit) return null;
 
   // The line's direction just before the flick could start.
@@ -464,7 +534,7 @@ int? _flickAtEnd(
 
   if (flickLen > reach) return no('hook too long (${flickLen.round()} px)');
   if (total - arc[tip] > 1.8 * flickLen) return no('hook too curly');
-  if (times != null && times.length == pts.length && times.last - times[tip] > 500) {
+  if (times != null && times.length == pts.length && times.last - times[tip] > 500 + _extraMs(flickLen, unit)) {
     return no('hook too slow (${times.last - times[tip]} ms)');
   }
 
@@ -490,6 +560,9 @@ int? _flickAtEnd(
   if (run < 40 * unit || flickLen > 0.5 * run) return no('zig-zag or short line before the hook');
   return tip;
 }
+
+/// More time for a flick longer than 50 screen px: 3 ms a px.
+double _extraMs(double len, double unit) => math.max(0, len / unit - 50) * 3;
 
 Offset _atArc(List<Offset> pts, List<double> arc, double s) {
   if (s <= 0) return pts.first;

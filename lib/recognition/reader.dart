@@ -4,6 +4,7 @@ import '../board/model.dart';
 import 'recognized.dart';
 import 'recognizer.dart';
 import 'segment.dart';
+import '../state/diag.dart';
 
 /// Reads the handwriting in [strokes] line by line. Lines [previous] has
 /// already read (same strokes, same shapes, same language) are reused, so
@@ -22,7 +23,7 @@ Future<PageRecognition> readInk(
   int? sub,
   int blockBase = 0,
 }) async {
-  final lines = segmentLines(strokes);
+  final lines = diagTime('segmentLines', () => segmentLines(strokes));
   final known = <String, RecognizedLine>{
     if (previous != null && previous.language == language)
       for (final l in previous.lines) l.key: l,
@@ -40,6 +41,7 @@ Future<PageRecognition> readInk(
       read = cached;
     } else if (recognizer != null) {
       List<String> candidates;
+      diagStep('recognize line (${line.strokes.length} strokes)…');
       try {
         candidates = await recognizer.recognize(
           [for (final s in line.reading) samplesOf(s)],
@@ -51,7 +53,8 @@ Future<PageRecognition> readInk(
         // Kept as unreadable, so it isn't tried again until it changes.
         candidates = const [];
       }
-      read = alignLine(line, candidates, key: key);
+      diagStep('recognize line done');
+      read = diagTime('alignLine', () => alignLine(line, candidates, key: key));
     }
     if (read == null) continue;
     read = read.at(block: blockBase + line.block, holder: holder, sub: sub);
@@ -117,7 +120,7 @@ Future<PageRecognition> readPage(
 }) async {
   final lines = <RecognizedLine>[];
   var base = 0;
-  for (final g in inkGroupsOf(page)) {
+  for (final g in diagTime('inkGroupsOf', () => inkGroupsOf(page))) {
     final read = await readInk(
       g.strokes,
       language: language,

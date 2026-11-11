@@ -19,13 +19,29 @@ class InkThumb {
   final List<InkThumbStroke> strokes;
 
   /// At most this many points in total.
-  static const pointBudget = 1500;
-  static const strokeBudget = 400;
+  static const pointBudget = 4000;
+
+  /// A full page (about 800 strokes of handwriting) keeps every stroke,
+  /// simplified to a few points each. At 400, and only the first 400, a
+  /// full page's cover stopped changing as it was written on.
+  static const strokeBudget = 1500;
+
+  // Every stroke keeps at least its ends, so the budget has to allow that.
+  static const _fits = pointBudget >= 2 * strokeBudget;
 
   /// Simplifies a page's strokes, or returns null for a page without ink.
   static InkThumb? fromPage(BoardPage page) {
-    final strokes = page.items.whereType<StrokeItem>().take(strokeBudget).toList();
-    if (strokes.isEmpty) return null;
+    assert(_fits);
+    // Past the budget, strokes spread over the whole page.
+    final all = page.items.whereType<StrokeItem>().toList();
+    if (all.isEmpty) return null;
+    // The newest stroke is always in.
+    final strokes = all.length <= strokeBudget
+        ? all
+        : [
+            for (var i = 0; i < strokeBudget - 1; i++) all[(i * all.length) ~/ (strokeBudget - 1)],
+            all.last,
+          ];
     var bounds = strokes.first.bounds;
     for (final s in strokes.skip(1)) {
       bounds = bounds.expandToInclude(s.bounds);
@@ -51,7 +67,10 @@ class InkThumb {
     }
   }
 
-  String encode() => jsonEncode({
+  static final _encoded = Expando<String>('InkThumb.encode');
+
+  /// Encoded once per thumb: the library index writes it on every save.
+  String encode() => _encoded[this] ??= jsonEncode({
         'b': [bounds.left, bounds.top, bounds.right, bounds.bottom].map((v) => v.roundToDouble()).toList(),
         's': [
           for (final s in strokes)

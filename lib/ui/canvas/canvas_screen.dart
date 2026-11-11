@@ -493,10 +493,12 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
   /// The chart selected on its own, for the Chart selected bar.
   String? _chartId;
 
-  ChartItem? _selectedChart() {
+  ChartItem? _selectedChart() => _selectedChartIn(ref.read(notebookProvider(pane.notebookId)).pageAt(pane.page));
+
+  ChartItem? _selectedChartIn(PageRuntime page) {
     final ids = pane.selection.ids;
     if (ids.length != 1) return null;
-    final item = ref.read(notebookProvider(pane.notebookId)).pageAt(pane.page)[ids.single];
+    final item = page[ids.single];
     return item is ChartItem ? item : null;
   }
 
@@ -796,10 +798,20 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
-    final nb = ref.watch(notebookProvider(pane.notebookId));
+    // Only what this screen shows: not every stroke and "Saving…/Saved",
+    // which used to rebuild the whole screen after each stroke and each
+    // save, and made the pen lag on a full page. The canvas, title pill and
+    // page bar watch what they need themselves. While a chart or video is
+    // selected, its toolbar follows the page as it changes.
+    final shown = ref.watch(notebookProvider(pane.notebookId).select((s) {
+      final page = s.pageAt(pane.page);
+      final picked = _selectedChartIn(page) != null || _selectedVideo(page) != null;
+      return (id: page.id, sealed: s.isSealed(page.id), revision: picked ? s.revision : -1);
+    }));
     final notebook = ref.read(notebookProvider(pane.notebookId).notifier);
-    final pageId = nb.pageAt(pane.page).id;
-    final sealed = nb.isSealed(pageId);
+    final pageId = shown.id;
+    final sealed = shown.sealed;
+    final shownPage = ref.read(notebookProvider(pane.notebookId)).pageAt(pane.page);
     if (sealed && _board) _board = false;
     if (sealed && _spell != null) WidgetsBinding.instance.addPostFrameCallback((_) => _endSpell());
     final spelling = _spell != null && !sealed;
@@ -810,7 +822,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     final chrome = !_full && !_board;
     final tools = chrome && !sealed && !spelling && !mathOn && !cardsOn && !liveOn;
     final chart = tools ? _selectedChart() : null;
-    final video = tools ? _selectedVideo(nb.pageAt(pane.page)) : null;
+    final video = tools ? _selectedVideo(shownPage) : null;
     // The dictionary drawer covers the pages rail, the map and the zoom pill;
     // math mode and making flashcards have neither (Math.png, FlashMake.png),
     // and Remember this takes their place (RememberMark.png).
@@ -856,7 +868,10 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                   if (_popover) setState(() => _popover = false);
                   _glide.stop(); // a touch takes over from a glide
                 },
-                child: PageTheme(child: InkCanvas(
+                // Repaint boundaries here and around the floating chrome: a
+                // new stroke repaints the page only, and "Saving…/Saved"
+                // the title pill only, not every button on the screen.
+                child: RepaintBoundary(child: PageTheme(child: InkCanvas(
                   pane: pane,
                   // Pen: window writes in the window; a pen tap on the page
                   // brings it back here.
@@ -873,7 +888,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                     _dict ? _drawerReach : 60,
                     pageBar ? 16 + PageBar.height + 8 : 16,
                   ),
-                )),
+                ))),
               ),
             ),
             if (_spot != null && !sealed)
@@ -898,7 +913,11 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                 ),
               ),
             SafeArea(
-              child: LayoutBuilder(builder: (context, box) {
+              // Tight, so the LayoutBuilder is a relayout boundary: a pill
+              // rebuilt inside it (the title's "Saving…/Saved", the map)
+              // is laid out from here, not from the Scaffold down, which
+              // repainted all the chrome after every stroke and save.
+              child: SizedBox.expand(child: LayoutBuilder(builder: (context, box) {
                 return Stack(clipBehavior: Clip.none, children: [
                   if (chrome)
                     Positioned(
@@ -906,11 +925,13 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                       left: 0,
                       right: 0,
                       height: 72,
-                      child: TopBar(
-                        title: TitlePill(
-                          pane: pane,
-                          onBack: _back,
-                          onRename: () => renameNotebook(context, ref, pane.notebookId),
+                      child: RepaintBoundary(child: TopBar(
+                        title: RepaintBoundary(
+                          child: TitlePill(
+                            pane: pane,
+                            onBack: _back,
+                            onRename: () => renameNotebook(context, ref, pane.notebookId),
+                          ),
                         ),
                         pane: pane,
                         showTools: tools,
@@ -954,11 +975,11 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                                     onChangeData: () => editChartData(context, ref, pane, chart),
                                     onColors: () => editChartColors(context, ref, pane, chart),
                                     onUnlink: () => unlinkChart(ref, pane, chart),
-                                    onLinkAgain: canLinkAgain(nb.pageAt(pane.page), chart) ? () => linkChartAgain(ref, pane, chart) : null,
+                                    onLinkAgain: canLinkAgain(shownPage, chart) ? () => linkChartAgain(ref, pane, chart) : null,
                                     onDone: _chartDone,
                                   )
                                 : null,
-                      ),
+                      )),
                     ),
                   if (tools && settings.tool == CanvasTool.laser && !_popover)
                     const Positioned(top: 74, left: 0, right: 0, child: Center(child: LaserColors()))
@@ -1007,7 +1028,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                       right: 14,
                       bottom: 16,
                       child: Column(crossAxisAlignment: CrossAxisAlignment.end, spacing: 8, children: [
-                        if (mapShown) MapPanel(pane: pane, onHide: () => _setMap(false)),
+                        if (mapShown) RepaintBoundary(child: MapPanel(pane: pane, onHide: () => _setMap(false))),
                         ZoomPill(
                           view: pane.view,
                           onFit: _toggleBoard,
@@ -1092,11 +1113,13 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                     Positioned(
                       left: 12,
                       bottom: 16,
-                      child: PageBar(
-                        pane: pane,
-                        layer: _pageLayer,
-                        onLayer: _setPageLayer,
-                        maxWidth: box.maxWidth - 12 - (right ? 12 + cornerWidth + 14 : 12),
+                      child: RepaintBoundary(
+                        child: PageBar(
+                          pane: pane,
+                          layer: _pageLayer,
+                          onLayer: _setPageLayer,
+                          maxWidth: box.maxWidth - 12 - (right ? 12 + cornerWidth + 14 : 12),
+                        ),
                       ),
                     ),
                   if (tools)
@@ -1104,7 +1127,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                       left: 12,
                       // Centered on the left edge (top 274 on a 1280 × 800 screen).
                       top: math.max(84, (box.maxHeight - LeftRail.height) / 2),
-                      child: LeftRail(
+                      child: RepaintBoundary(child: LeftRail(
                         openId: _fly,
                         pinned: _pinned,
                         onHover: _hoverGroup,
@@ -1116,7 +1139,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                           _closeMenus();
                           context.push(Routes.search());
                         },
-                      ),
+                      )),
                     ),
                   if (tools && _more) Positioned(right: 12, top: 70, child: MoreMenu(onItem: _pickMoreItem)),
                   if (tools && _popover)
@@ -1136,7 +1159,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                       ),
                     ),
                 ]);
-              }),
+              })),
             ),
           ]),
         ),

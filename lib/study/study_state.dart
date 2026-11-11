@@ -6,6 +6,7 @@ import '../board/model.dart';
 import '../library/library.dart';
 import '../recognition/handwriting_index.dart';
 import '../state/changes.dart';
+import '../state/diag.dart';
 import '../state/notebook.dart' show writeQueueProvider;
 import '../state/settings.dart';
 import 'fsrs.dart';
@@ -185,7 +186,7 @@ class StudyData extends Notifier<StudySnapshot?> {
       try {
         do {
           _again = false;
-          await _read();
+          await diagTimeAsync('study read', _read);
         } while (_again && _alive);
       } finally {
         _reading = null;

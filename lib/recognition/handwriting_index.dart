@@ -15,6 +15,7 @@ import '../canvas/math_tools.dart' show mathToolText;
 import '../math/linear.dart' show mathSearchText;
 import '../search/search_text.dart';
 import '../state/settings.dart';
+import '../state/diag.dart';
 import '../study/remember.dart';
 import '../study/study_rows.dart';
 import '../transfer/pdf_export.dart' show HandwritingText, RecognizedHandwriting, cardText;
@@ -386,20 +387,21 @@ class HandwritingIndex {
   /// index and, unless [save] is off, recognition.json. Never call this for
   /// a private page.
   Future<void> _indexPage(String notebookId, BoardPage page, {bool download = true, bool save = true}) async {
-    final read = await _recognition(notebookId);
+    final read = await diagTimeAsync('load recognition', () => _recognition(notebookId));
     final previous = read[page.id];
     final lang = language;
-    final canRead = hasHandwriting(page) && await ref.read(inkModelsProvider.notifier).ensure(lang, download: download);
+    final canRead = diagTime('hasHandwriting', () => hasHandwriting(page)) &&
+        await diagTimeAsync('model check', () => ref.read(inkModelsProvider.notifier).ensure(lang, download: download));
     if (_disposed) return;
     // Without a recognizer, what was read before (on a tablet, or in a
     // board file) is kept for the strokes still here.
     // Ink on the page, on sticky notes and on every page of Office cards.
-    final now = await readPage(
+    final now = await diagTimeAsync('readPage ${page.items.length} items', () => readPage(
       page,
       language: canRead ? lang : previous?.language ?? lang,
       recognizer: canRead ? _recognizer : null,
       previous: previous,
-    );
+    ));
     // Locked while it was being read: it stays out.
     if (_disposed || _isPrivate(notebookId, page.id)) return;
     if (!_same(previous, now)) {
@@ -410,10 +412,11 @@ class HandwritingIndex {
       }
       _dirty.add(notebookId);
     }
-    if (save) await _save(notebookId);
-    await _db.replacePageText(notebookId, page.id, rowsFor(notebookId, page, now));
-    await _writeStudy(notebookId, page, now);
-    _changed();
+    if (save) await diagTimeAsync('save recognition.json', () => _save(notebookId));
+    final rows = diagTime('rowsFor', () => rowsFor(notebookId, page, now));
+    await diagTimeAsync('db.replacePageText', () => _db.replacePageText(notebookId, page.id, rows));
+    await diagTimeAsync('writeStudy', () => _writeStudy(notebookId, page, now));
+    diagTime('index changed listeners', _changed);
   }
 
   static bool _same(PageRecognition? a, PageRecognition b) {

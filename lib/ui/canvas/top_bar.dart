@@ -213,9 +213,12 @@ class ToolPill extends ConsumerWidget {
   Widget _build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final s = ref.watch(settingsProvider);
-    final nb = ref.watch(notebookProvider(pane.notebookId));
     final notebook = ref.read(notebookProvider(pane.notebookId).notifier);
-    final pageId = nb.pageAt(pane.page).id;
+    // Rebuilt when Undo or Redo turns on or off, not after every stroke.
+    final (:pageId, :canUndo, :canRedo) = ref.watch(notebookProvider(pane.notebookId).select((s) {
+      final id = s.pageAt(pane.page).id;
+      return (pageId: id, canUndo: notebook.canUndo(id), canRedo: notebook.canRedo(id));
+    }));
     final brightness = Theme.of(context).brightness;
     final extras = tokens.extraInkDefaults;
 
@@ -243,13 +246,13 @@ class ToolPill extends ConsumerWidget {
             ChromeButton(
               label: 'Undo',
               icon: EIcons.undo,
-              enabled: notebook.canUndo(pageId),
+              enabled: canUndo,
               onPressed: () => notebook.undo(pageId),
             ),
             ChromeButton(
               label: 'Redo',
               icon: EIcons.redo,
-              enabled: notebook.canRedo(pageId),
+              enabled: canRedo,
               onPressed: () => notebook.redo(pageId),
             ),
             const PillDivider(),

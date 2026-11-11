@@ -1,8 +1,12 @@
 import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
+import 'package:endless/library/library.dart';
+import 'package:endless/library/thumbs.dart';
+import 'package:endless/state/notebook.dart';
 import 'package:endless/state/settings.dart';
 import 'package:endless/theme/tokens.g.dart' as tokens;
 import 'package:endless/ui/canvas/canvas_screen.dart';
+import 'package:endless/ui/routes.dart';
 import 'package:endless/ui/settings/settings_rows.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -97,6 +101,83 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
   });
 
+  testWidgets('an autosave waits for the pen to lift, then happens at once', (tester) async {
+    final store = MemoryBoardStore();
+    await pumpCanvas(tester, store: store);
+    store.pageWrites = 0;
+
+    await _stylusStroke(tester, _scribble);
+    // The next word starts before the save is due, and is still being
+    // written when it would have been.
+    final pen = await tester.createGesture(kind: PointerDeviceKind.stylus);
+    var t = const Duration(seconds: 30);
+    await pen.down(const Offset(400, 600), timeStamp: t);
+    for (var i = 1; i <= 8; i++) {
+      t += const Duration(milliseconds: 100);
+      await pen.moveTo(Offset(400 + i * 12.0, 600 + (i.isEven ? 0 : 10)), timeStamp: t);
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(store.pageWrites, 0, reason: 'nothing is written mid-stroke');
+    await pen.up(timeStamp: t);
+    await tester.pump();
+    expect(store.pageWrites, 1, reason: 'written as the pen lifts');
+    // With the stroke just finished too.
+    final saved = (await store.loadNotebook(canvasPane.notebookId))!.pages[canvasPane.page];
+    expect(saved.items, hasLength(2));
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(store.pageWrites, 1);
+    expect(find.textContaining('· Saved'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('autosaves make the library cover again only now and then', (tester) async {
+    final c = await pumpCanvas(tester);
+    InkThumb? cover() => c.read(libraryProvider).byId(canvasPane.notebookId)!.thumb;
+
+    await _stylusStroke(tester, _scribble);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(cover()!.strokes, hasLength(1));
+
+    // Another stroke saved soon after: the cover waits (making it reads all
+    // the ink on the page).
+    await _stylusStroke(tester, [for (final p in _scribble) p + const Offset(0, 100)]);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(cover()!.strokes, hasLength(1));
+
+    // Leaving the notebook (or the app going to the background) catches it up.
+    await c.read(notebookProvider(canvasPane.notebookId).notifier).flush();
+    await tester.pump();
+    expect(cover()!.strokes, hasLength(2));
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('going back to the library shows the cover with what was just written', (tester) async {
+    // Opened from the library, as on the tablet.
+    final c = await pumpApp(tester, store: storeWith(sampleNotebook()), location: Routes.all);
+    await tester.tap(find.text('Physics — Lecture notes'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    canvasPane = tester.widget<CanvasScreen>(find.byType(CanvasScreen)).pane;
+    final id = canvasPane.notebookId;
+    final before = c.read(libraryProvider).byId(id)!.thumb;
+    expect(before, isNotNull, reason: 'it has a cover already');
+    int inked() => shownPage(c).items.whereType<StrokeItem>().length;
+
+    await _stylusStroke(tester, _scribble);
+    await tester.pump(const Duration(milliseconds: 600));
+    await _stylusStroke(tester, [for (final p in _scribble) p + const Offset(0, 100)]);
+    await tester.pump(const Duration(milliseconds: 600));
+    final strokes = inked();
+
+    await tester.tap(byLabel('Back to library'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    expect(c.read(libraryProvider).byId(id)!.thumb!.strokes, hasLength(strokes));
+    await tester.pump(const Duration(seconds: 5));
+  });
+
   testWidgets('fingers pan and pinch-zoom but never draw', (tester) async {
     final c = await pumpCanvas(tester);
     final one = await tester.startGesture(const Offset(500, 400));
@@ -118,33 +199,99 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
   });
 
-  testWidgets('touches are ignored while the S Pen is near (palm rejection)', (tester) async {
+  testWidgets('the palm is ignored while the S Pen writes, even after it lifts', (tester) async {
+    final c = await pumpCanvas(tester);
+    final pen = await tester.createGesture(kind: PointerDeviceKind.stylus);
+    await pen.down(const Offset(400, 400), timeStamp: const Duration(seconds: 20));
+    await pen.moveTo(const Offset(420, 400), timeStamp: const Duration(milliseconds: 20010));
+
+    // The palm lands while the pen writes…
+    final palm = await tester.createGesture(pointer: 21);
+    await palm.down(const Offset(600, 500), timeStamp: const Duration(milliseconds: 20020));
+    await palm.moveTo(const Offset(610, 500), timeStamp: const Duration(milliseconds: 20030));
+    await pen.moveTo(const Offset(460, 400), timeStamp: const Duration(milliseconds: 20040));
+    await pen.up(timeStamp: const Duration(milliseconds: 20050));
+    // …and slides off as the hand moves on, long after: the page stays put.
+    await palm.moveTo(const Offset(800, 450), timeStamp: const Duration(seconds: 22));
+    await palm.up(timeStamp: const Duration(seconds: 22));
+    await tester.pump();
+    expect(canvasPane.view.translation, Offset.zero);
+    expect(_items(c), hasLength(1));
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('a palm landing while the S Pen hovers is ignored once the pen writes', (tester) async {
+    final c = await pumpCanvas(tester);
+    final pen = await tester.createGesture(kind: PointerDeviceKind.stylus);
+    await pen.addPointer(location: const Offset(400, 400), timeStamp: const Duration(seconds: 20));
+    await pen.moveTo(const Offset(405, 400), timeStamp: const Duration(seconds: 20)); // hovering
+
+    // Two contacts of palm, shifting a little: nothing happens yet.
+    final a = await tester.createGesture(pointer: 21);
+    final b = await tester.createGesture(pointer: 22);
+    await a.down(const Offset(600, 500), timeStamp: const Duration(milliseconds: 20100));
+    await b.down(const Offset(650, 520), timeStamp: const Duration(milliseconds: 20100));
+    await a.moveTo(const Offset(615, 505), timeStamp: const Duration(milliseconds: 20150));
+    await b.moveTo(const Offset(640, 530), timeStamp: const Duration(milliseconds: 20150));
+    await tester.pump();
+    expect(canvasPane.view.translation, Offset.zero);
+    expect(find.text('100%'), findsOneWidget);
+
+    // The pen writes: they were the palm, however far they go now.
+    await pen.down(const Offset(405, 400), timeStamp: const Duration(milliseconds: 20200));
+    await pen.moveTo(const Offset(460, 400), timeStamp: const Duration(milliseconds: 20220));
+    await pen.up(timeStamp: const Duration(milliseconds: 20240));
+    await a.moveTo(const Offset(400, 600), timeStamp: const Duration(milliseconds: 20300));
+    await b.moveTo(const Offset(900, 600), timeStamp: const Duration(milliseconds: 20300));
+    await a.up();
+    await b.up();
+    await tester.pump();
+    expect(canvasPane.view.translation, Offset.zero);
+    expect(find.text('100%'), findsOneWidget);
+    expect(_items(c), hasLength(1));
+    await pen.removePointer();
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('a finger pans and pinches the first time, even with the S Pen hovering', (tester) async {
     await pumpCanvas(tester);
     final pen = await tester.createGesture(kind: PointerDeviceKind.stylus);
     await pen.addPointer(location: const Offset(900, 600), timeStamp: const Duration(seconds: 20));
     await pen.moveTo(const Offset(905, 600), timeStamp: const Duration(seconds: 20)); // hovering
 
-    // Two fingers of palm while the pen hovers: no zoom.
-    final a = await tester.createGesture(pointer: 21);
-    final b = await tester.createGesture(pointer: 22);
-    await a.down(const Offset(500, 400), timeStamp: const Duration(milliseconds: 20100));
-    await b.down(const Offset(700, 400), timeStamp: const Duration(milliseconds: 20100));
-    await a.moveTo(const Offset(400, 400), timeStamp: const Duration(milliseconds: 20150));
-    await b.moveTo(const Offset(800, 400), timeStamp: const Duration(milliseconds: 20150));
-    await a.up();
-    await b.up();
+    // One finger drags: once it's clearly travelling, the page follows it.
+    final f = await tester.createGesture(pointer: 21);
+    await f.down(const Offset(500, 400), timeStamp: const Duration(milliseconds: 20100));
+    await f.moveTo(const Offset(450, 400), timeStamp: const Duration(milliseconds: 20120));
+    await pen.moveTo(const Offset(906, 600), timeStamp: const Duration(milliseconds: 20130)); // still hovering
+    await f.moveTo(const Offset(350, 380), timeStamp: const Duration(milliseconds: 20150));
+    await f.up();
     await tester.pump();
-    expect(find.text('100%'), findsOneWidget);
+    expect(canvasPane.view.translation, const Offset(-100, -20));
 
-    // Once the pen has been gone a while, fingers work again.
-    await a.down(const Offset(500, 400), timeStamp: const Duration(seconds: 25));
-    await b.down(const Offset(700, 400), timeStamp: const Duration(seconds: 25));
-    await a.moveTo(const Offset(400, 400), timeStamp: const Duration(seconds: 25));
-    await b.moveTo(const Offset(800, 400), timeStamp: const Duration(seconds: 25));
+    // Two fingers pinch: it zooms.
+    await pen.moveTo(const Offset(905, 600), timeStamp: const Duration(seconds: 21));
+    final a = await tester.createGesture(pointer: 22);
+    final b = await tester.createGesture(pointer: 23);
+    await a.down(const Offset(500, 400), timeStamp: const Duration(milliseconds: 21100));
+    await b.down(const Offset(700, 400), timeStamp: const Duration(milliseconds: 21100));
+    await a.moveTo(const Offset(450, 400), timeStamp: const Duration(milliseconds: 21120));
+    await b.moveTo(const Offset(750, 400), timeStamp: const Duration(milliseconds: 21120));
+    await a.moveTo(const Offset(400, 400), timeStamp: const Duration(milliseconds: 21150));
+    await b.moveTo(const Offset(800, 400), timeStamp: const Duration(milliseconds: 21150));
     await a.up();
     await b.up();
     await tester.pump();
-    expect(find.text('200%'), findsOneWidget);
+    expect(find.text('100%'), findsNothing);
+
+    // Once the pen has been gone a while, fingers work straight away.
+    final g = await tester.createGesture(pointer: 24);
+    final before = canvasPane.view.translation;
+    await g.down(const Offset(500, 400), timeStamp: const Duration(seconds: 25));
+    await g.moveTo(const Offset(490, 400), timeStamp: const Duration(seconds: 25));
+    await g.up();
+    await tester.pump();
+    expect(canvasPane.view.translation, before + const Offset(-10, 0));
     await pen.removePointer();
     await tester.pump(const Duration(seconds: 5));
   });

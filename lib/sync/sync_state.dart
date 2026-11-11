@@ -16,6 +16,7 @@ import '../board/store.dart';
 import '../library/library.dart';
 import '../recognition/handwriting_index.dart';
 import '../state/changes.dart';
+import '../state/diag.dart';
 import '../state/notebook.dart';
 import '../state/settings.dart';
 import '../study/study_state.dart';
@@ -303,6 +304,12 @@ final cloudFactoryProvider = Provider<CloudFactory>((ref) {
 /// the app comes back). Tests turn it off and call [SyncController.syncNow].
 final autoSyncProvider = Provider<bool>((ref) => true);
 
+/// Where a sync's slow work runs: another isolate in the app (a sync froze
+/// the pen for most of a second every few seconds while writing on a full
+/// notebook). Tests run it on their own isolate (fake time can't wait for
+/// another one).
+final syncWorkerProvider = Provider<SyncWorker>((ref) => runOnIsolate);
+
 /// Settings as the app started (bootstrap loads sync/settings.json).
 final initialSyncSettingsProvider = Provider<SyncSettings>((ref) => const SyncSettings());
 
@@ -549,7 +556,7 @@ class SyncController extends Notifier<SyncState> {
       }
       return _running!;
     }
-    final run = _running = _run(manual: manual, only: only).whenComplete(() {
+    final run = _running = diagTimeAsync('sync ${only ?? "all"}', () => _run(manual: manual, only: only)).whenComplete(() {
       _running = null;
       if (_again) {
         _again = false;
@@ -587,6 +594,8 @@ class SyncController extends Notifier<SyncState> {
       host: _AppHost(ref),
       stamper: Stamper(settings.device),
       versions: ref.read(versionStoreProvider),
+      // Reading and hashing every page runs away from the pen.
+      worker: ref.read(syncWorkerProvider),
       options: SyncOptions(
         boardFiles: settings.boardFiles,
         pdfCopy: settings.pdfCopy,
@@ -777,7 +786,8 @@ class _AppHost implements SyncHost {
 
   @override
   Future<void> flush(String id) async {
-    if (isOpen(id)) await ref.read(notebookProvider(id).notifier).flush();
+    // To the disk only: the library cover waits for the notebook to close.
+    if (isOpen(id)) await ref.read(notebookProvider(id).notifier).flush(cover: false);
     await ref.read(writeQueueProvider).idle;
   }
 

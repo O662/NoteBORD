@@ -169,7 +169,10 @@ class MapPanel extends ConsumerWidget {
 
   Widget _build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
-    final nb = ref.watch(notebookProvider(pane.notebookId));
+    // The page as it changes, not "Saving…/Saved".
+    final (:page, :revision) = ref.watch(notebookProvider(pane.notebookId).select(
+      (s) => (page: s.pageAt(pane.page), revision: s.revision),
+    ));
     final brightness = Theme.of(context).brightness;
     return Container(
       width: cornerWidth,
@@ -198,7 +201,7 @@ class MapPanel extends ConsumerWidget {
             ),
           ),
         ]),
-        _MinimapView(view: pane.view, page: nb.pageAt(pane.page), revision: nb.revision, brightness: brightness),
+        _MinimapView(view: pane.view, page: page, revision: revision, brightness: brightness),
       ]),
     );
   }

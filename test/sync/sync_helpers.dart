@@ -17,16 +17,17 @@ import '../helpers.dart';
 /// One install of Endless (a device), with its own storage, syncing
 /// through whatever cloud it's given.
 class Install {
-  Install(String name, {BoardStore? store, DateTime Function()? clock, SyncOptions? options})
+  Install(String name, {BoardStore? store, DateTime Function()? clock, SyncOptions? options, SyncWorker worker = runInline, Stamper? stamper})
       : store = store ?? MemoryBoardStore(),
         clock = clock ?? (() => DateTime.utc(2026, 11, 5, 12)) {
     host = TestHost(this.store);
     engine = SyncEngine(
       store: this.store,
       host: host,
-      stamper: Stamper('dv_$name', clock: () => this.clock()),
+      stamper: stamper ?? Stamper('dv_$name', clock: () => this.clock()),
       versions: VersionStore(this.store, clock: () => this.clock()),
       options: options ?? SyncOptions(deviceName: name),
+      worker: worker,
     );
   }
 

@@ -8,6 +8,7 @@ import '../board/ids.dart';
 import '../board/model.dart';
 import '../board/store.dart';
 import '../state/changes.dart';
+import '../state/diag.dart';
 import '../state/save_location.dart';
 import '../state/settings.dart';
 import '../sync/sync_state.dart' show syncProvider;
@@ -421,13 +422,20 @@ class LibraryNotifier extends Notifier<LibraryState> {
   }
 
   /// Called by an open notebook after each save.
-  void notebookSaved(Notebook nb, List<BoardPage> pages, Set<String> sealed) {
+  /// [cover]: make the cover from the pages again. Autosaves skip it most
+  /// of the time (it reads all the ink); a locked notebook never has one.
+  void notebookSaved(Notebook nb, List<BoardPage> pages, Set<String> sealed, {bool cover = true}) {
     final previous = state.byId(nb.id);
+    diag('notebookSaved ${nb.id} cover=$cover known=${previous != null} lastPage=${previous?.lastPage} '
+        'oldCoverStrokes=${previous?.thumb?.strokes.length}');
     if (previous == null) return;
     final e = previous.withMeta(nb);
+    if (kDiag && cover && !nb.locked) {
+      diag('  new cover strokes=${coverThumb(pages, e.lastPage, sealed)?.strokes.length}');
+    }
     _put(e.copyWith(
       lockedPages: pages.where((p) => p.locked).length,
-      thumb: () => nb.locked ? null : coverThumb(pages, e.lastPage, sealed),
+      thumb: cover || nb.locked ? () => nb.locked ? null : coverThumb(pages, e.lastPage, sealed) : null,
     ));
   }
 

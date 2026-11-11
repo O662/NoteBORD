@@ -13,10 +13,13 @@ import 'board/store.dart';
 import 'library/index_db.dart';
 import 'spelling/spelling_state.dart';
 import 'state/bootstrap.dart';
+import 'state/diag.dart';
 import 'state/time_zone.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  startFrameDiag();
+  startStallWatch();
   _registerLicenses();
   // For the clocks on the page.
   unawaited(readTimeZone());

@@ -71,6 +71,30 @@ void main() {
       expect(coverThumb([locked], 0, const {}), isNull);
       expect(coverThumb([BoardPage(id: 'e'), page], 0, const {}), isNotNull);
     });
+
+    test('a full page’s cover takes strokes from all of it, newest included', () {
+      // 3000 short strokes, top to bottom: more than the cover keeps.
+      final strokes = [
+        for (var i = 0; i < 3000; i++) strokeFrom([Offset(10, i * 3.0), Offset(30, i * 3.0)], z: i + 1),
+      ];
+      final t = InkThumb.fromPage(BoardPage(id: 'full', items: strokes))!;
+      expect(t.strokes, hasLength(InkThumb.strokeBudget));
+      expect(t.bounds.bottom, closeTo(2999 * 3, 5), reason: 'the bottom of the page is on the cover');
+      final ys = [for (final s in t.strokes) s.points.first.dy];
+      expect(ys.last, 2999 * 3, reason: 'the newest stroke is on the cover');
+      expect(ys.where((y) => y > 4500), isNotEmpty, reason: 'and the second half of the page');
+    });
+
+    test('a full page of handwriting keeps every stroke on its cover', () {
+      // About what fills a page: 850 words of 45 points.
+      final strokes = [
+        for (var i = 0; i < 850; i++)
+          strokeFrom([for (var k = 0; k < 45; k++) Offset(60 + (i % 14) * 85 + k * 1.5, 300 + (i ~/ 14) * 34.0 + (k % 6))], z: i + 1),
+      ];
+      final t = InkThumb.fromPage(BoardPage(id: 'full', items: strokes))!;
+      expect(t.strokes, hasLength(850));
+      expect(t.strokes.fold<int>(0, (n, s) => n + s.points.length), lessThanOrEqualTo(InkThumb.pointBudget));
+    });
   });
 
   group('notebooks', () {

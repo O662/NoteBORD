@@ -31,6 +31,7 @@ import 'biometric.dart';
 import 'changes.dart';
 import 'office_docs.dart';
 import 'settings.dart';
+import 'diag.dart';
 
 enum SaveStatus { saved, saving, failed }
 
@@ -187,12 +188,27 @@ class NotebookNotifier extends Notifier<NotebookState> {
   /// everything is on disk within about half a second.
   static const saveDelay = Duration(milliseconds: 400);
 
+  /// The library's cover of the notebook is made again on an autosave at
+  /// most this often (and always on [flush] from elsewhere: leaving the
+  /// notebook, the app going to the background). Making it reads all the
+  /// ink on the page, which slowed the pen when it happened after every
+  /// stroke.
+  static const coverEvery = Duration(seconds: 30);
+
   final _undo = <String, List<Command>>{};
   final _redo = <String, List<Command>>{};
   final _dirtyPages = <String>{};
   bool _metaDirty = false;
   bool _contentChanged = false;
   Timer? _saveTimer;
+
+  /// When the cover was last made (see [coverEvery]); null: not yet.
+  DateTime? _coverAt;
+
+  /// While the pen is on the page, an autosave waits for it to lift, so the
+  /// work never lands in the middle of a stroke.
+  bool _inking = false;
+  bool _saveWhenLifted = false;
   List<EditStep>? _erasing;
   String? _erasePage;
 
@@ -266,8 +282,13 @@ class NotebookNotifier extends Notifier<NotebookState> {
 
     ref.onDispose(() {
       _library.detach(id, _editor);
+      diag('notebook $id closing: saveDue=${_saveTimer?.isActive ?? false} whenLifted=$_saveWhenLifted coverStale=$_coverStale');
       index.detach(id, source);
-      if (_saveTimer?.isActive ?? false) flush();
+      if ((_saveTimer?.isActive ?? false) || _saveWhenLifted) {
+        flush();
+      } else if (_coverStale) {
+        _refreshCover();
+      }
       _saveTimer?.cancel();
       for (final p in pages) {
         p.dispose();
@@ -1345,7 +1366,30 @@ class NotebookNotifier extends Notifier<NotebookState> {
 
   void _scheduleSave() {
     if (_saveTimer?.isActive ?? false) return;
-    _saveTimer = Timer(saveDelay, flush);
+    _saveTimer = Timer(saveDelay, _autosave);
+  }
+
+  /// The pen (or a finger drawing) went down on, or came up from, a page
+  /// of this notebook. An autosave due meanwhile happens as it lifts.
+  set inking(bool on) {
+    if (_inking == on || !ref.mounted) return;
+    _inking = on;
+    if (!on && _saveWhenLifted) {
+      _saveWhenLifted = false;
+      _autosave();
+    }
+  }
+
+  void _autosave() {
+    if (_inking) {
+      _saveWhenLifted = true;
+      diag('autosave $id waits for the pen');
+      return;
+    }
+    final now = _clock();
+    final cover = _coverAt == null || now.difference(_coverAt!) >= coverEvery;
+    diag('autosave $id cover=$cover');
+    flush(cover: cover);
   }
 
   /// The key a page is written with: its own, else the notebook's.
@@ -1354,10 +1398,20 @@ class NotebookNotifier extends Notifier<NotebookState> {
   bool _needsKey(String pageId) => _lock.entryFor(pageId) != null;
 
   /// Writes every unsaved change now (also called when the app is
-  /// backgrounded and when the notebook closes).
-  Future<void> flush() {
+  /// backgrounded and when the notebook closes). [cover]: make the
+  /// library's cover again too (see [coverEvery]).
+  Future<void> flush({bool cover = true}) {
+    if (kDiag) {
+      final from = StackTrace.current.toString().split('\n').skip(1).take(2).map((l) => l.replaceAll(RegExp(r'\s+'), ' '));
+      diagStep('flush cover=$cover dirty=${_dirtyPages.length} from ${from.join(' < ')}');
+    }
     _saveTimer?.cancel();
-    if (_dirtyPages.isEmpty && !_metaDirty) return _queue.idle;
+    _saveWhenLifted = false;
+    if (_dirtyPages.isEmpty && !_metaDirty) {
+      // An autosave left the cover behind: catch it up.
+      if (cover && _coverStale) _refreshCover();
+      return _queue.idle;
+    }
     final nb = _notebook;
     final pages = <(BoardPage, Uint8List?)>[];
     for (final pageId in _dirtyPages) {
@@ -1375,7 +1429,27 @@ class NotebookNotifier extends Notifier<NotebookState> {
     _contentChanged = false;
     final allPages = [for (final p in _pages) p.page];
     final sealed = {..._sealed.keys};
-    return _queue.run(() => _write(nb, pages, allPages, sealed, written));
+    if (cover) {
+      _coverAt = _clock();
+      _coverStale = false;
+    } else {
+      _coverStale = true;
+    }
+    return _queue.run(() => _write(nb, pages, allPages, sealed, written, cover: cover));
+  }
+
+  /// Whether an autosave skipped the cover since it was last made.
+  bool _coverStale = false;
+
+  void _refreshCover() {
+    diag('refreshCover $id');
+    _coverAt = _clock();
+    _coverStale = false;
+    final nb = _notebook;
+    final pages = [for (final p in _pages) p.page];
+    final sealed = {..._sealed.keys};
+    // Queued like a save: it may come as the notebook closes.
+    _queue.run(() async => _library.notebookSaved(nb, pages, sealed));
   }
 
   Future<void> _write(
@@ -1383,28 +1457,31 @@ class NotebookNotifier extends Notifier<NotebookState> {
     List<(BoardPage, Uint8List?)> pages,
     List<BoardPage> allPages,
     Set<String> sealed,
-    Set<String> written,
-  ) async {
+    Set<String> written, {
+    bool cover = true,
+  }) async {
     try {
       // Page files first: notebook.json never lists a page that isn't written.
-      final kept = <(String, Uint8List, bool)>[];
+      // Each page is encoded once; its bytes for version history only when
+      // a version is due (every 10 minutes).
+      final kept = <(String, Uint8List Function(), bool)>[];
       for (final (page, key) in pages) {
         if (key == null) {
-          final text = encodePage(page);
-          await _store.savePage(nb.id, page);
-          kept.add((page.id, Uint8List.fromList(utf8.encode(text)), false));
+          final text = diagTime('encodePage ${page.items.length} items', () => encodePage(page));
+          await diagTimeAsync('store.savePage', () => _store.savePage(nb.id, page, encoded: text));
+          kept.add((page.id, () => utf8.encode(text), false));
         } else {
           final bytes = await _crypto.seal(key, encodePage(page));
           await _store.saveSealedPage(nb.id, page.id, bytes);
-          kept.add((page.id, bytes, true));
+          kept.add((page.id, () => bytes, true));
         }
       }
       await _store.saveNotebook(nb);
-      _library.notebookSaved(nb, allPages, sealed);
+      diagTime('library.notebookSaved cover=$cover', () => _library.notebookSaved(nb, allPages, sealed, cover: cover));
       _changes.changed(nb.id);
       // Version history: the page as it is now, at most every 10 minutes.
       for (final (pageId, bytes, isSealed) in kept) {
-        await _versions.keepWhileEditing(nb.id, pageId, () => bytes, sealed: isSealed);
+        await _versions.keepWhileEditing(nb.id, pageId, bytes, sealed: isSealed);
       }
       if (ref.mounted && _dirtyPages.isEmpty && !_metaDirty) {
         state = state.copyWith(saveStatus: SaveStatus.saved);
