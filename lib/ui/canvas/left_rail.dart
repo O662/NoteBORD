@@ -6,6 +6,7 @@ import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart' show Radii, TypeScale;
 import '../common.dart';
 import '../icons.dart';
+import 'shortcuts.dart';
 
 /// One row of a rail menu.
 class RailItem {
@@ -76,7 +77,9 @@ final List<RailGroup> railGroups = [
 ];
 
 /// The compact floating rail: Insert, Study & math, Writing help,
-/// Ruler/laser/view, then Search. Each group opens a menu beside the rail.
+/// Ruler/laser/view, then the student's shortcuts (Update 04, up to 6),
+/// Search, and the dashed Your shortcuts button. Each group opens a menu
+/// beside the rail.
 /// Hovering (S Pen or mouse) previews it and leaving closes it; tapping pins
 /// it until a tap outside, a second tap, or picking an item.
 class LeftRail extends StatelessWidget {
@@ -90,13 +93,51 @@ class LeftRail extends StatelessWidget {
     required this.onClose,
     required this.onItem,
     required this.onSearch,
+    this.shortcuts = const [],
+    this.isOn,
+    this.onShortcut,
+    this.editOpen = false,
+    this.onEdit,
   });
 
   static const _buttonPitch = 46.0; // 44 + 2 gap
 
-  /// The rail's height (without a menu open): borders, padding, five
-  /// buttons, the divider and the gaps. The canvas centers it with this.
+  /// The rail's height (without a menu open) with no shortcuts and no
+  /// shortcuts button (Split view): borders, padding, five buttons, the
+  /// divider and the gaps.
   static const height = 2 + 12 + 5 * 44.0 + 9 + 5 * 2;
+
+  /// The rail's height with [shortcuts] shortcuts and the Your shortcuts
+  /// button: the four menus, a divider, the shortcuts, a divider (if any),
+  /// Search and the button.
+  static double heightWith(int shortcuts) {
+    final buttons = 4 + shortcuts + 2;
+    final dividers = shortcuts > 0 ? 2 : 1;
+    return 2 + 12 + buttons * 44.0 + dividers * 9 + (buttons + dividers - 1) * 2;
+  }
+
+  /// Where the canvas puts the rail's top: centered on the screen, but
+  /// clear of the bottom panels (the page bar, or the All pages strip when
+  /// [allPages] is open) and below the top bar (CanvasShortcuts.dc.html
+  /// `railTop`).
+  /// How many of [count] shortcuts fit between the top bar and the bottom
+  /// panels. With the All pages strip open on a short screen, the last ones
+  /// step aside until it closes (the rail never covers the strip).
+  static int fitting(int count, double screenHeight, {bool allPages = false, double minTop = 76}) {
+    final room = screenHeight - (allPages ? 277 : 80) - minTop;
+    var n = count;
+    while (n > 0 && heightWith(n) > room) {
+      n--;
+    }
+    return n;
+  }
+
+  static double topFor(double screenHeight, double railHeight, {bool allPages = false, double minTop = 76}) {
+    final bottomLimit = screenHeight - (allPages ? 277 : 80);
+    final centered = (screenHeight - railHeight) / 2;
+    final top = centered < bottomLimit - railHeight ? centered : bottomLimit - railHeight;
+    return top < minTop ? minTop : top;
+  }
 
   final String? openId;
   final bool pinned;
@@ -106,6 +147,20 @@ class LeftRail extends StatelessWidget {
   final VoidCallback onClose;
   final ValueChanged<RailItem> onItem;
   final VoidCallback onSearch;
+
+  /// The student's shortcuts, in order.
+  final List<ShortcutTool> shortcuts;
+
+  /// Whether a tool shortcut is on (shown dark).
+  final bool Function(ShortcutTool tool)? isOn;
+  final ValueChanged<ShortcutTool>? onShortcut;
+
+  /// The Your shortcuts panel is open.
+  final bool editOpen;
+
+  /// Opens the Your shortcuts panel; null leaves out the button and the
+  /// menus' pins (Split view).
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -133,10 +188,21 @@ class LeftRail extends StatelessWidget {
               child: _GroupButton(group: g, open: g.id == openId, pinned: pinned && g.id == openId, onTap: () => onTap(g.id)),
             ),
           const PillDivider(vertical: false),
+          for (final t in shortcuts)
+            MouseRegion(
+              onEnter: (_) => onLeave(),
+              child: _ShortcutButton(tool: t, on: isOn?.call(t) ?? false, onTap: () => onShortcut?.call(t)),
+            ),
+          if (shortcuts.isNotEmpty) const PillDivider(vertical: false),
           MouseRegion(
             onEnter: (_) => onLeave(),
             child: ChromeButton(label: 'Search', icon: EIcons.search, onPressed: onSearch),
           ),
+          if (onEdit != null)
+            MouseRegion(
+              onEnter: (_) => onLeave(),
+              child: ShortcutsButton(open: editOpen, onPressed: onEdit!),
+            ),
         ]),
       ),
     );
@@ -149,9 +215,30 @@ class LeftRail extends StatelessWidget {
           Padding(
             // The gap is part of the hover area, so moving to the menu keeps it open.
             padding: EdgeInsets.only(left: 8, top: math.max(0, 6 + index * _buttonPitch - 8)),
-            child: _Flyout(group: open, pinned: pinned, onClose: onClose, onItem: onItem),
+            child: _Flyout(group: open, pinned: pinned, onClose: onClose, onItem: onItem, pins: onEdit != null),
           ),
       ]),
+    );
+  }
+}
+
+/// A shortcut on the rail: a tool shows dark while it's on.
+class _ShortcutButton extends StatelessWidget {
+  const _ShortcutButton({required this.tool, required this.on, required this.onTap});
+
+  final ShortcutTool tool;
+  final bool on;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return ChromeButton(
+      label: tool.label,
+      selected: on,
+      foreground: tool.tint?.call(c) ?? c.text,
+      onPressed: onTap,
+      child: EIcon(tool.icon, color: on ? c.onInverse : tool.tint?.call(c) ?? c.text),
     );
   }
 }
@@ -223,12 +310,15 @@ class _TickPainter extends CustomPainter {
 }
 
 class _Flyout extends StatelessWidget {
-  const _Flyout({required this.group, required this.pinned, required this.onClose, required this.onItem});
+  const _Flyout({required this.group, required this.pinned, required this.onClose, required this.onItem, this.pins = false});
 
   final RailGroup group;
   final bool pinned;
   final VoidCallback onClose;
   final ValueChanged<RailItem> onItem;
+
+  /// A pin beside each item that can be a shortcut (Canvas-pin-from-menu.png).
+  final bool pins;
 
   @override
   Widget build(BuildContext context) {
@@ -238,7 +328,7 @@ class _Flyout extends StatelessWidget {
       label: '${group.label} menu',
       explicitChildNodes: true,
       child: Container(
-        width: 272,
+        width: pins ? 316 : 272,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: c.surface,
@@ -278,7 +368,12 @@ class _Flyout extends StatelessWidget {
               ]),
             ),
           ),
-          for (final item in group.items) _Row(item: item, onTap: () => onItem(item)),
+          for (final item in group.items)
+            Row(spacing: 2, children: [
+              Expanded(child: _Row(item: item, onTap: () => onItem(item))),
+              if (pins && shortcutForRailItem(item.label) != null)
+                ShortcutPin(tool: shortcutForRailItem(item.label)!),
+            ]),
         ]),
       ),
     );

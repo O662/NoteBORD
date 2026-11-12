@@ -262,6 +262,12 @@ abstract final class EIcons {
   static final sidebarCollapse = EIconData([_p('M4 4h16v16H4z M9 4v16 M16 9l-3 3 3 3')]);
   static final sidebarExpand = EIconData([_p('M4 4h16v16H4z M9 4v16 M13 9l3 3-3 3')]);
   static final menu = EIconData([_p('M4 7h16M4 12h16M4 17h16')]);
+  // Your shortcuts (CanvasShortcuts.dc.html): the toolbar button, the pin
+  // beside menu items (filled when pinned), and the PDF tool.
+  static final addShortcut = EIconData([_p('M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M16.5 13.5v6 M13.5 16.5h6')]);
+  static final pushpin = EIconData([_p('M9 4h6l-1 6 4 3v2h-5v5l-1 1-1-1v-5H6v-2l4-3z')]);
+  static final pushpinFilled = EIconData([const IconPart('M9 4h6l-1 6 4 3v2h-5v5l-1 1-1-1v-5H6v-2l4-3z', fill: true)]);
+  static final pdfDoc = EIconData([_p('M6 3h9l4 4v14H6z M15 3v4h4 M9 13h6M9 17h4')]);
   static final pin = EIconData([_p('M9 4h6l-1 6 3 3H7l3-3z'), _p('M12 13v7')]);
   static final restore = EIconData([_p('M3 12a9 9 0 1 0 3-6.7'), _p('M3 4v5h5')]);
   static final palette = EIconData([

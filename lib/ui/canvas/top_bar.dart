@@ -14,6 +14,7 @@ import '../../theme/tokens.g.dart' as tokens;
 import '../../theme/tokens.g.dart' show Radii, TypeScale;
 import '../common.dart';
 import '../icons.dart';
+import '../shell.dart' show narrowWidth;
 
 /// Title · tools · Share/⋯, floating over the page (Canvas.dc.html header).
 class TopBar extends StatelessWidget {
@@ -61,6 +62,12 @@ class TopBar extends StatelessWidget {
   /// Opens the Share dialog.
   final VoidCallback onShare;
 
+  /// The bar's height in portrait: two rows (CanvasPortrait.png).
+  static const twoRowHeight = 128.0;
+
+  /// The bar's height for a screen [width] wide.
+  static double heightFor(double width) => width < narrowWidth ? twoRowHeight : 72;
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -75,6 +82,33 @@ class TopBar extends StatelessWidget {
           onTogglePopover: onTogglePopover,
           onToggleTray: onToggleTray,
         );
+        // Portrait (UPDATE_04 §8, CanvasPortrait.png): row 1 has the title
+        // pill on the left and Share + ⋯ on the right; row 2 the tools,
+        // centered. The canvas gives the bar [twoRowHeight] then.
+        if (constraints.maxWidth < narrowWidth && constraints.maxHeight >= twoRowHeight) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Column(children: [
+              SizedBox(
+                height: 72,
+                child: Row(spacing: 12, children: [
+                  Flexible(child: Align(alignment: Alignment.centerLeft, child: title)),
+                  if (showActions) ActionsPill(moreOpen: moreOpen, onToggleMore: onToggleMore, onShare: onShare),
+                ]),
+              ),
+              SizedBox(
+                height: twoRowHeight - 72,
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: center ?? (showTools ? tools : const SizedBox()),
+                  ),
+                ),
+              ),
+            ]),
+          );
+        }
         // The tool pill is centered on screen; the title takes what's left on
         // the left. As in the design, the right pill may use part of the gap.
         return Padding(

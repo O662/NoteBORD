@@ -268,6 +268,7 @@ Future<ProviderContainer> pumpCanvas(
   Duration? recognitionIdle,
   ReminderService reminders = const NoReminders(),
   List<Override> extra = const [],
+  Size? size,
 }) async {
   final s = store ?? MemoryBoardStore();
   final id = notebookId ?? (s.notebooks.isEmpty ? addUntitled(s) : s.notebooks.keys.first);
@@ -275,6 +276,7 @@ Future<ProviderContainer> pumpCanvas(
     tester,
     store: s,
     location: Routes.notebook(id),
+    size: size,
     biometric: biometric,
     recognizer: recognizer,
     recognitionIdle: recognitionIdle,

@@ -125,7 +125,8 @@ class WindowSpot {
   /// [r] kept within the sizes allowed, and on [screen] by at least
   /// [keepOnScreen] (the title bar always reachable).
   static Rect fit(Rect r, Size screen) {
-    final w = r.width.clamp(minSize.width, maxSize.width);
+    // Never wider than 92% of the screen (portrait, UPDATE_04 §8).
+    final w = r.width.clamp(minSize.width, math.max(minSize.width, math.min(maxSize.width, screen.width * 0.92)));
     final h = r.height.clamp(minSize.height, maxSize.height);
     final x = r.left.clamp(keepOnScreen - w, math.max(keepOnScreen - w, screen.width - keepOnScreen)).toDouble();
     final y = r.top.clamp(0.0, math.max(0.0, screen.height - 46)).toDouble();

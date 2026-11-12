@@ -56,6 +56,8 @@ void main() {
     await tester.tap(_switch('Pressure changes thickness'));
     await tester.tap(_switch('Scribble to erase'));
     await tester.pump();
+    await tester.ensureVisible(_option('How much scribbling counts', 'Firm'));
+    await tester.pump();
     await tester.tap(_option('How much scribbling counts', 'Firm'));
     await tester.tap(_option('Arrowheads', 'Filled'));
     await tester.pump();

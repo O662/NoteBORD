@@ -17,6 +17,7 @@ import 'package:endless/state/settings.dart';
 import 'package:endless/templates/templates.dart';
 import 'package:endless/theme/tokens.g.dart' as tokens;
 import 'package:flutter/gestures.dart';
+import 'package:endless/ui/canvas/insert_menu.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -214,7 +215,7 @@ void main() {
   // A later-phase tile's card, over the menu.
   _golden('insert_coming_soon', notebook: sampleNotebook, page: 2, setUp: (t, c) async {
     await _openInsert(t);
-    await t.tap(find.bySemanticsLabel('PDF'));
+    await t.tap(find.descendant(of: find.byType(InsertMenu), matching: find.bySemanticsLabel('PDF')));
     await t.pumpAndSettle();
   });
 

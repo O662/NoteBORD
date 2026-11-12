@@ -1115,6 +1115,30 @@ The owner's request (2026-11-11): build Update 04 in full, all 10 sections. Sett
 - Not tried on the tablet: rotating on each library screen, the drawer with a finger, the rail with the S Pen hovering.
 - The Search, Settings and Flashcards screens have their own layouts (no sidebar) and weren't changed for portrait here; they're checked in 04b with the canvas.
 
+## Update 04b: your shortcuts on the toolbar, and the canvas in portrait — built, not yet tried on the tablet (docs/UPDATE_04.md §10, §8)
+
+| Item | Status | Where |
+|---|---|---|
+| The toolbar (CanvasShortcuts.dc.html) | The 4 menus, a line, **up to 6 shortcuts**, a line, Search, and the dashed **Your shortcuts** button (dark while its panel is open) | `LeftRail` (`lib/ui/canvas/left_rail.dart`) |
+| What a shortcut does | **Tools** (Ruler, Laser pointer, Sticky note, Paper frame) switch on in place and show dark; tapping again goes back to the pen (the ruler is put away). **Everything else** opens straight away, as its menu item does: Image, Record audio, Video, Website, Table, Chart, Checklist, Time stamp, Templates, Need to remember, Make flashcards, Math & graphs, Graph, Math tools, Spell check, Dictionary & thesaurus, Convert to text, Split view, Window view, Print, Export, Version history. **PDF** opens Import (a PDF as pages you write on, Phase 4a), since the Insert menu's PDF on the board is still "coming soon" | `shortcutCatalog`, `_runShortcut`, `_shortcutOn` (`canvas_screen.dart`) |
+| Pins (Canvas-pin-from-menu.png) | Every item in the 4 menus but "Everything else" has a pin on its right; the filled pin takes it off. With 6, the pins grey out and say "Your shortcuts are full (6)". The menus are 316 dp wide for them | `ShortcutPin`, `_Flyout` |
+| The panel (CanvasShortcuts.png, CanvasShortcuts-search.png) | 690 × 640 beside the toolbar over a light scrim. Left: "On your toolbar · 3 of 6", each with move up / down and remove (red ×), up to 3 empty spots, **Reset to the default** (Record audio, PDF, Ruler). Right: "Find a tool, e.g. website, ruler, PDF", the catalog in Insert / Study & math / Writing help / Tools & view with **+ Add**, **Added** (green, a drawn check) or **Full**; "Nothing matches. Try “audio”, “web” or “graph”." Footer: the pin tip and **Done** | `ShortcutsPanel` |
+| Where it sits | Centered on the screen and growing with the shortcuts; never under the top bar (76 dp); clear of the page bar, and above the All pages strip while it's open; hidden while the page preview or page menu is open. In portrait it centers on the taller screen | `LeftRail.heightWith`, `topFor`, `fitting` |
+| Saving | `prefs['shortcuts']` in settings.json, on this tablet (the owner's choice, 2026-11-11: settings don't sync yet). New installs start with Record audio, PDF, Ruler | `ShortcutSettings` |
+| Settings | Pen & S Pen › Writing › **Toolbar shortcuts** ("Record audio · PDF · Ruler", **Edit**) opens the same panel as a dialog | `showShortcutsDialog`, `settings_sections.dart` |
+| Portrait canvas (CanvasPortrait.png) | Under 900 dp wide the top bar has two rows: the title pill on the left and Share + ⋯ on the right, then the tools centered (scaled down if they ever don't fit). The color tray, the pull tab, the laser colors, shape kinds and the pen settings open under row 2; the flashcard hint and the dictionary and transcript panels start below it | `TopBar` (`twoRowHeight`), `canvas_screen.dart` |
+| Portrait: the rest | The rail in the vertical middle; the page bar bottom-left and the zoom pill bottom-right (with the map button); **the map starts collapsed** (opening it lasts while the notebook is open and leaves the landscape setting alone); All pages starts closed (as everywhere); the hint pill sits above the page bar. The window view is never wider than 92% of the screen; the shortcuts panel too | `_portraitMap`, `_StatusLayout`, `WindowSpot.fit` |
+
+**Judgment calls:**
+- **When the shortcuts don't fit above the All pages strip** (6 on an 800 dp screen), the last ones step aside until it closes. The design's own formula would put the toolbar over the strip there, and UPDATE_04 says it must stay clear of it.
+- **Split view has no shortcuts** (its rail keeps the 4 menus and Search, with no pins): it's two notebooks and two pens, and the design only shows the notebook screen.
+- **The rail stays in the widget tree while it's hidden** (for the page preview and menu). Taking it out shifted the canvas's other floating pieces and lost their state, such as renaming a page in the bar.
+- **Tool shortcuts that have no "on" state** (Image opens the picker) stay plain buttons.
+
+### Not done yet / known limits
+- Not tried on the tablet: the S Pen hovering over shortcuts (they close an open menu, as Search does), and the panel's search with Samsung's handwriting keyboard.
+- Search, Settings and Flashcards in portrait: they have their own layouts with no sidebar, and work in portrait (no overflow) without a portrait-specific design.
+
 ## Storage layout
 
 ```
@@ -1307,6 +1331,8 @@ Also in `<app documents>/Endless/` since Phase 9a: `sync/` (settings.json: Sync 
 - Update 03b: `test/ui/logo_test.dart` (the sidebar's mark and its size; About's wordmark and tagline; the strokes match design/logo/; the adaptive icon with its monochrome layer, the background color, the foreground, notification and splash drawables with the logo's paths, the night splash, Android 12's splash theme, and the launcher PNGs) and 1 golden (`settings_about`). The sidebar's mark changed 21 library-screen goldens, regenerated.
 
 - Update 04a: `test/ui/shell_test.dart` (the sidebar folding to the rail and staying folded on another screen, saved in settings.json, and opening again; a rail folder; the rail's labels; Start's header folding and opening, remembered; every library screen in portrait with the top bar and nothing overflowing; ☰ and the scrim; the rail setting ignored in portrait; the dialog width rule; footer buttons stacking). `test/golden/update04_golden_test.dart`: `start_rail`, `calendar_rail`, `library_rail`, `stickies_rail`, `planner_rail`, `remember_rail`, `start_collapsed`, `start_portrait`, `start_portrait_menu`, `start_portrait_collapsed`, `library_portrait`, `calendar_portrait`. Goldens with the sidebar were made again (its new collapse button).
+
+- Update 04b: `test/ui/shortcuts_test.dart` (the catalog: defaults, unique ids, search, what can be pinned, unknown saved ids dropped, at most 6; the toolbar's height and place, with All pages and in portrait, and how many fit; the default shortcuts in order and centered; a tool on and off (ruler, laser); a feature opening (Version history); pinning from a menu, unpinning, full; the panel's move, remove, reset, search, add, "Nothing matches", Done, saved in settings.json; the toolbar re-centering with 6, stepping aside for All pages and hiding for the page menu; Settings › Toolbar shortcuts; the portrait canvas's two rows, centered rail and collapsed map (the landscape setting untouched); Search, Settings and Flashcards in portrait; the ⋯ menu and panel fitting in portrait). Goldens: `canvas_shortcuts`, `canvas_shortcuts_search`, `canvas_pin_from_menu`, `canvas_shortcuts_in_use`, `canvas_portrait`, `canvas_portrait_pen`, `canvas_portrait_more`, `canvas_portrait_shortcuts`. Every golden with the canvas rail was made again (the shortcuts and the dashed button); tests that look for an Insert tile by name now look inside the Insert menu (the PDF shortcut has the same name).
 
 ## Next
 - **Update 03 tablet checklist.** Release build (`flutter build apk --release`, `adb install -r`).

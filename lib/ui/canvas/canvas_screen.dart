@@ -53,6 +53,8 @@ import 'window_view.dart';
 import 'panels.dart';
 import 'pen_popover.dart';
 import 'recording_pill.dart';
+import 'shortcuts.dart';
+import '../shell.dart' show LayoutWidth;
 import 'top_bar.dart';
 import 'version_history.dart';
 import '../settings/sync_widgets.dart' show VideoUploadCard;
@@ -234,6 +236,9 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
   /// What's open above the page bar (preview, all pages, page menu).
   PageLayer? _pageLayer;
 
+  /// The Your shortcuts panel (CanvasShortcuts.png) is open.
+  bool _shortcutsOpen = false;
+
   /// The floating window view (Window.png), and what it shows.
   late final WindowController _window = WindowController(ref, pane)..addListener(_windowChanged);
 
@@ -386,6 +391,50 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
         _more = false;
         if (_pageLayer != PageLayer.all) _pageLayer = null;
       });
+
+  void _toggleShortcuts() => setState(() {
+        _shortcutsOpen = !_shortcutsOpen;
+        _fly = null;
+        _pinned = false;
+        _more = false;
+        _popover = false;
+      });
+
+  /// A tool shortcut that's on shows dark (CanvasShortcuts.dc.html `scList`).
+  bool _shortcutOn(ShortcutTool t) => switch (t.id) {
+        'ruler' => pane.ruler.visible,
+        'laser' => ref.read(settingsProvider).tool == CanvasTool.laser,
+        'sticky' => ref.read(settingsProvider).tool == CanvasTool.sticky,
+        'frame' => ref.read(settingsProvider).tool == CanvasTool.frame,
+        _ => false,
+      };
+
+  /// Runs a shortcut: a tool switches on, or (on already) back to the pen;
+  /// anything else opens its feature as its menu item would.
+  void _runShortcut(ShortcutTool t) {
+    if (t.isTool && _shortcutOn(t)) {
+      _closeMenus();
+      if (t.id == 'ruler') {
+        pane.ruler.hide();
+      } else {
+        ref.read(settingsProvider.notifier).apply((s) => s.copyWith(tool: CanvasTool.pen));
+      }
+      return;
+    }
+    if (t.railLabel != null) {
+      final item = railGroups.expand((g) => g.items).firstWhere((i) => i.label == t.railLabel);
+      _pickRailItem(item);
+    } else if (t.insert != null) {
+      _closeMenus();
+      runInsert(context, ref, pane, t.insert!, hint: _showHint, onLive: _startLive);
+    } else if (t.more != null) {
+      _pickMoreItem(MoreItem(t.more!, t.icon));
+    } else if (t.id == 'pdf') {
+      // PDF: pages you can write on (Phase 4a's import).
+      _closeMenus();
+      showTransferDialog(context, pane: pane, mode: TransferMode.import);
+    }
+  }
 
   void _setPageLayer(PageLayer? layer) => setState(() {
         _pageLayer = layer;
@@ -731,8 +780,18 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
 
   void _setMap(bool open) {
     if (open && _full) setState(() => _full = false);
+    // Portrait starts with the map collapsed (UPDATE_04 §8): opening it
+    // there lasts while the notebook is open, and leaves the landscape
+    // setting alone.
+    if (context.narrow) {
+      setState(() => _portraitMap = open);
+      return;
+    }
     ref.read(settingsProvider.notifier).apply((s) => s.copyWith(mapOpen: open));
   }
+
+  /// The map, opened in portrait (where it starts collapsed).
+  bool _portraitMap = false;
 
   /// Glides from the current zoom and pan to [scale] and [translation].
   void _glideTo(double scale, Offset translation) {
@@ -830,11 +889,16 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     final transcript = !sealed && !spelling && !_dict ? pane.audio.transcriptOf : null;
     final panel = (pane.panel.value || transcript != null) && !sealed;
     final right = !spelling && !_dict && !mathOn && !cardsOn && !liveOn && !panel;
-    final mapShown = tools && right && settings.mapOpen;
+    final mapShown = tools && right && (context.narrow ? _portraitMap : settings.mapOpen);
     // The page bar: everywhere but the modes with their own bottom row.
     final pageBar = chrome && !spelling && !mathOn && !cardsOn;
     final pageMenu = pageBar && (_pageLayer == PageLayer.peek || _pageLayer == PageLayer.menu);
     final blocking = (tools && (_more || (_pinned && _fly != null))) || pageMenu;
+    final shortcuts = [for (final id in settings.shortcuts) ?shortcutById(id)];
+    List<ShortcutTool> railShortcuts(double height, double drop) => shortcuts
+        .take(LeftRail.fitting(shortcuts.length, height,
+            allPages: pageBar && _pageLayer == PageLayer.all, minTop: 76 + drop))
+        .toList();
     // The math keyboard is where the hint would be.
     final hintShown = !sealed && _hint != null && !_popover && !blocking && pane.math.draft == null;
 
@@ -918,13 +982,17 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
               // is laid out from here, not from the Scaffold down, which
               // repainted all the chrome after every stroke and save.
               child: SizedBox.expand(child: LayoutBuilder(builder: (context, box) {
+                // In portrait the top bar has two rows (CanvasPortrait.png);
+                // what hangs under it moves down by the second one.
+                final barHeight = TopBar.heightFor(box.maxWidth);
+                final drop = barHeight - 72;
                 return Stack(clipBehavior: Clip.none, children: [
                   if (chrome)
                     Positioned(
                       top: 0,
                       left: 0,
                       right: 0,
-                      height: 72,
+                      height: barHeight,
                       child: RepaintBoundary(child: TopBar(
                         title: RepaintBoundary(
                           child: TitlePill(
@@ -982,16 +1050,16 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                       )),
                     ),
                   if (tools && settings.tool == CanvasTool.laser && !_popover)
-                    const Positioned(top: 74, left: 0, right: 0, child: Center(child: LaserColors()))
+                    Positioned(top: 74 + drop, left: 0, right: 0, child: const Center(child: LaserColors()))
                   else if (tools && settings.tool == CanvasTool.shape && !_popover)
-                    const Positioned(top: 74, left: 0, right: 0, child: Center(child: ShapeKinds()))
+                    Positioned(top: 74 + drop, left: 0, right: 0, child: const Center(child: ShapeKinds()))
                   else if (tools && settings.trayOpen && !_popover)
-                    const Positioned(top: 70, left: 0, right: 0, child: Center(child: ColorTray()))
+                    Positioned(top: 70 + drop, left: 0, right: 0, child: const Center(child: ColorTray()))
                   else if (tools && !settings.trayOpen && settings.swipeTuck && !_popover)
-                    Positioned(top: 63, left: 0, right: 0, child: Center(child: TrayPullTab(onOpen: _toggleTray))),
+                    Positioned(top: 63 + drop, left: 0, right: 0, child: Center(child: TrayPullTab(onOpen: _toggleTray))),
                   if (cardsOn && chrome) ...[
                     Positioned(
-                      top: 84,
+                      top: 84 + drop,
                       left: 0,
                       right: 0,
                       child: Center(
@@ -1018,7 +1086,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                         delegate: _StatusLayout(
                           // Between the page bar and the map (Canvas.dc.html: 520 + 440).
                           slot: pageBar && box.maxWidth >= 1000 ? (446, box.maxWidth - 12 - cornerWidth - 14) : null,
-                          lift: 16 + PageBar.height + 8 - 20,
+                          lift: pageBar ? 16 + PageBar.height + 8 - 20 : 0,
                         ),
                         child: GestureStatus(pane: pane, orElse: hintShown ? HintPill(text: _hint!) : null),
                       ),
@@ -1054,7 +1122,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                   if (_dict && !sealed)
                     Positioned(
                       right: 14,
-                      top: 84,
+                      top: 84 + drop,
                       bottom: 16,
                       child: DictionaryDrawer(
                         query: _lookup,
@@ -1067,7 +1135,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                   if (transcript != null)
                     Positioned(
                       right: 14,
-                      top: 84,
+                      top: 84 + drop,
                       bottom: 16,
                       child: TranscriptPanel(
                         key: ValueKey(transcript),
@@ -1122,24 +1190,46 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                         ),
                       ),
                     ),
+                  // Hidden while the page preview or page menu is open
+                  // (UPDATE_04 §10): it would sit over them.
                   if (tools)
                     Positioned(
                       left: 12,
-                      // Centered on the left edge (top 274 on a 1280 × 800 screen).
-                      top: math.max(84, (box.maxHeight - LeftRail.height) / 2),
-                      child: RepaintBoundary(child: LeftRail(
-                        openId: _fly,
-                        pinned: _pinned,
-                        onHover: _hoverGroup,
-                        onTap: _tapGroup,
-                        onLeave: _leaveRail,
-                        onClose: _closeMenus,
-                        onItem: _pickRailItem,
-                        onSearch: () {
-                          _closeMenus();
-                          context.push(Routes.search());
-                        },
-                      )),
+                      // Centered on the left edge, clear of the page bar or the
+                      // All pages strip; it grows with the shortcuts.
+                      top: LeftRail.topFor(
+                        box.maxHeight,
+                        LeftRail.heightWith(railShortcuts(box.maxHeight, drop).length),
+                        allPages: pageBar && _pageLayer == PageLayer.all,
+                        minTop: 76 + drop,
+                      ),
+                      child: Visibility(
+                        visible: !pageMenu,
+                        maintainState: true,
+                        child: RepaintBoundary(
+                          child: ListenableBuilder(
+                            listenable: pane.ruler,
+                            builder: (context, _) => LeftRail(
+                              openId: _fly,
+                              pinned: _pinned,
+                              onHover: _hoverGroup,
+                              onTap: _tapGroup,
+                              onLeave: _leaveRail,
+                              onClose: _closeMenus,
+                              onItem: _pickRailItem,
+                              onSearch: () {
+                                _closeMenus();
+                                context.push(Routes.search());
+                              },
+                              shortcuts: railShortcuts(box.maxHeight, drop),
+                              isOn: _shortcutOn,
+                              onShortcut: _runShortcut,
+                              editOpen: _shortcutsOpen,
+                              onEdit: _toggleShortcuts,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   if (tools && _more) Positioned(right: 12, top: 70, child: MoreMenu(onItem: _pickMoreItem)),
                   if (tools && _popover)
@@ -1158,6 +1248,29 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                         ),
                       ),
                     ),
+                  // Last, so opening it doesn't move the children above.
+                  if (tools && _shortcutsOpen) ...[
+                    Positioned.fill(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _toggleShortcuts,
+                        child: ColoredBox(color: context.colors.scrim.withValues(alpha: 0.18)),
+                      ),
+                    ),
+                    Positioned(
+                      // Beside the toolbar (left 86), or centered when the
+                      // screen is too narrow for that.
+                      left: box.maxWidth - math.min(690, box.maxWidth * 0.92) >= 98
+                          ? 86
+                          : (box.maxWidth - math.min(690, box.maxWidth * 0.92)) / 2,
+                      top: math.max(16, box.maxHeight / 2 - 320),
+                      child: ShortcutsPanel(
+                        width: math.min(690, box.maxWidth * 0.92),
+                        height: math.min(640, box.maxHeight - 32),
+                        onClose: _toggleShortcuts,
+                      ),
+                    ),
+                  ],
                 ]);
               })),
             ),
@@ -1200,7 +1313,8 @@ class _StatusLayout extends SingleChildLayoutDelegate {
   Offset getPositionForChild(Size size, Size child) {
     final y = size.height - 20 - child.height;
     final s = slot;
-    if (s == null) return Offset((size.width - child.width) / 2, y);
+    // No room beside the page bar (portrait): above it.
+    if (s == null) return Offset((size.width - child.width) / 2, y - lift);
     if (child.width <= s.$2 - s.$1) return Offset((s.$1 + s.$2 - child.width) / 2, y);
     return Offset((size.width - child.width) / 2, y - lift);
   }

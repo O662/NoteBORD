@@ -802,9 +802,11 @@ void main() {
       for (final title in ['ON THE PAGE', 'FILES', 'BUILD ON THE BOARD', 'LIVE WIDGETS']) {
         expect(find.text(title), findsOneWidget, reason: title);
       }
+      // In the menu (the toolbar's shortcuts behind it share some names).
       for (final s in insertSections) {
         for (final e in s.entries) {
-          expect(find.bySemanticsLabel(e.label), findsOneWidget, reason: e.label);
+          expect(find.descendant(of: find.byType(InsertMenu), matching: find.bySemanticsLabel(e.label)), findsOneWidget,
+              reason: e.label);
         }
       }
       expect(insertSections.expand((s) => s.entries), hasLength(27));
@@ -831,7 +833,7 @@ void main() {
       await tester.pump();
 
       // Later phases open a card and leave the menu open.
-      await tester.tap(find.bySemanticsLabel('PDF'));
+      await tester.tap(find.descendant(of: find.byType(InsertMenu), matching: find.bySemanticsLabel('PDF')));
       await tester.pumpAndSettle();
       expect(find.text('Coming soon'), findsOneWidget);
       expect(find.textContaining('Put a PDF on the board'), findsOneWidget);
@@ -878,7 +880,7 @@ void main() {
         'Google Drive', 'OneDrive', 'Scan a document',
       ]);
       for (final e in later) {
-        await tester.tap(find.bySemanticsLabel(e.label));
+        await tester.tap(find.descendant(of: find.byType(InsertMenu), matching: find.bySemanticsLabel(e.label)));
         await tester.pumpAndSettle();
         expect(find.text('Coming soon'), findsOneWidget, reason: e.label);
         expect(find.text(e.soon!), findsOneWidget, reason: e.label);

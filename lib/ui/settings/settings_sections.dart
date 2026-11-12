@@ -19,6 +19,7 @@ import '../../theme/palettes.dart';
 import '../common.dart' show showComingSoon;
 import '../dialogs.dart';
 import '../icons.dart';
+import '../canvas/shortcuts.dart';
 import '../library/format.dart' show folderLabel;
 import '../spell/teach_handwriting.dart';
 import 'settings_rows.dart';
@@ -205,6 +206,15 @@ List<SettingsGroup> settingsGroups(SettingsSection section) => switch (section) 
                 (s, on) => s.copyWith(fingerDraws: on)),
             _choice('spenButton', 'S Pen button', ['Erase', 'Select', 'Laser'], 'Hold it while writing'),
             _flag('hoverMenus', 'Hover menus', 'Hover the pen over the left menu to open it (Air view)'),
+            ButtonDef('Toolbar shortcuts', 'Up to 6 tools on the left toolbar, one tap away',
+                descOf: (ref) {
+                  final names = [
+                    for (final id in ref.watch(settingsProvider.select((s) => s.shortcuts))) ?shortcutById(id)?.label,
+                  ];
+                  return names.isEmpty ? 'None yet. Up to 6 tools on the left toolbar' : names.join(' · ');
+                },
+                button: (_) => 'Edit',
+                onTap: (context, ref) => showShortcutsDialog(context)),
           ]),
           SettingsGroup('Gestures', [
             _setting('Hold to straighten lines and shapes', '', (s) => s.snap, (s, on) => s.copyWith(snap: on)),
