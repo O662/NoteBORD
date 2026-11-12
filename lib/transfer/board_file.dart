@@ -180,9 +180,10 @@ Notebook boardFileNotebook(Uint8List bytes) => _open(bytes).$2;
 /// Makes a notebook in [folder] from the `.board` file [bytes]; items keep
 /// their ids. A notebook new to this tablet keeps its id too, so the same
 /// file imported again can [replace] it; else it gets a new one (keep
-/// both). [replace] is a notebook to write over, everything in it gone.
-/// Throws [ImportProblem] if it isn't a board file, before anything is
-/// written.
+/// both). [replace] is a notebook to write over, everything in it gone;
+/// [saveTo] is where that one was saved (`Notebook.saveTo`), so it stays
+/// there. Throws [ImportProblem] if it isn't a board file, before anything
+/// is written.
 Future<ImportedBoard> importBoardFile(
   BoardStore store,
   Uint8List bytes, {
@@ -190,6 +191,7 @@ Future<ImportedBoard> importBoardFile(
   required DateTime now,
   String? replace,
   bool pinned = false,
+  String? saveTo,
 }) async {
   final (byName, source) = _open(bytes);
   Uint8List? read(String name) => byName[name]?.readBytes();
@@ -235,10 +237,12 @@ Future<ImportedBoard> importBoardFile(
       page = BoardPage(
         id: pageId,
         title: page.title,
+        color: page.color,
         paper: page.paper,
         template: page.template,
         locked: page.locked,
         items: page.items,
+        spellIgnore: page.spellIgnore,
         extra: page.extra,
       );
     }
@@ -273,6 +277,7 @@ Future<ImportedBoard> importBoardFile(
     theme: source.theme,
     locked: source.locked,
     pinned: pinned,
+    saveTo: saveTo,
     extra: source.extra,
     extraDefaults: source.extraDefaults,
   );

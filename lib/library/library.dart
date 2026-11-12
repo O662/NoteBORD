@@ -297,13 +297,16 @@ class LibraryNotifier extends Notifier<LibraryState> {
   void _put(NotebookEntry e) {
     final list = [...state.notebooks];
     final i = list.indexWhere((n) => n.id == e.id);
-    if (i < 0) {
+    final before = i < 0 ? null : list[i];
+    if (before == null) {
       list.add(e);
     } else {
       list[i] = e;
     }
     state = LibraryState(notebooks: list, explicitFolders: state.explicitFolders);
-    _index.upsert(e);
+    // The cover's ink is written only when it's another one: most saves
+    // (and every rename, move and page turn) leave it as it is.
+    _index.upsert(e, thumb: before == null || !identical(before.thumb, e.thumb));
   }
 
   Future<void> _editMeta(String id, void Function(Notebook nb) change) async {

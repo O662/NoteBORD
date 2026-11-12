@@ -219,12 +219,12 @@ double segmentDistance(Offset a1, Offset a2, Offset b1, Offset b2) {
     final u = _cross(b1 - a1, d1) / denom;
     if (t >= 0 && t <= 1 && u >= 0 && u <= 1) return 0;
   }
-  return [
-    _pointSegment(a1, b1, b2),
-    _pointSegment(a2, b1, b2),
-    _pointSegment(b1, a1, a2),
-    _pointSegment(b2, a1, a2),
-  ].reduce(math.min);
+  // No list: the eraser and scribble checks call this for every segment of
+  // every stroke near the pen, on each sample.
+  return math.min(
+    math.min(_pointSegment(a1, b1, b2), _pointSegment(a2, b1, b2)),
+    math.min(_pointSegment(b1, a1, a2), _pointSegment(b2, a1, a2)),
+  );
 }
 
 // Arrowheads (Arrows.dc.html): sides about 30° off the line, as long as

@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-import 'dart:ui' show Color, Offset, Rect;
+import 'dart:ui' show Color, Offset;
 
 import '../board/ids.dart';
 import '../board/model.dart';
@@ -231,6 +231,3 @@ Color mainInkColor(List<StrokeItem> ink) {
   final top = counts.entries.reduce((a, b) => b.value > a.value ? b : a).key;
   return Color(top);
 }
-
-/// The page-space box around a conversion's ink.
-Rect? convertArea(List<StrokeItem> strokes) => strokesRect(strokes);

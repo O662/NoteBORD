@@ -1047,6 +1047,46 @@ The owner's answers (2026-11-06): build the full Themes screen now; each noteboo
 ### Not done yet / known limits
 - Not seen on the tablet: the icon on the home screen (and with themed icons on), the splash in light and dark, the notification icon in the status bar. The debug APK builds (`flutter build apk --debug`).
 
+## Code review (2026-11-11) — done on this PC, not yet tried on the tablet
+
+The owner asked for a pass over the whole project for bugs, code nothing uses, and anything that could be quicker. The work in progress was committed first (`a77da16`, tagged `backup-before-review-2026-11-11`). Read closely: storage, the notebook's state and autosave, the canvas (input, painting, the ink cache), the pen gestures, sync (engine, merge, the app's side), the library and its index, handwriting indexing, import and export, locks. Skimmed and scanned for known kinds of mistake: everything else.
+
+### Bugs fixed
+
+| What was wrong | Fix | Where |
+|---|---|---|
+| **Sync never finished for a notebook saved to one place** (Update 02b). The app counted a notebook as synced only when *every* cloud that was on had it. So with a cloud on, a notebook saved on this tablet only was always "waiting": every time Endless was left, "Syncing your notes" came up and a full sync ran, for nothing. With both clouds on, a notebook saved to one of them never read "Synced to Google Drive" and kept its "Waiting to sync" badge. | A notebook is synced once every cloud *it's saved to* has it. One that goes to no cloud isn't waiting for anything | `SyncController._run`, `hasChangesToSend` (`lib/sync/sync_state.dart`) |
+| **A notebook deleted for good stayed "waiting to sync"** until the app was restarted, with the same "Syncing your notes" every time Endless was left | It stops waiting once a full sync has told the cloud | same |
+| **Changing the theme left things on the open page in the old theme's colors** (sticky notes, cards, frames; the map and page previews too) until the page was written on or moved a long way. The page's cached pictures were kept per light/dark only | They're kept per theme as well | `PageRuntime.regionPicture`, `fullPicture` |
+| **A notebook replaced from a board file forgot where it was saved**, so one kept on this tablet only started going to every cloud that's on | Replace keeps its place, as it keeps its folder and pin | `Transfers._replace`, `importBoardFile(saveTo:)` |
+| **One damaged notebook.json could stop the app from starting.** A file that was JSON but not a notebook's (a field missing, or of the wrong kind) wasn't caught where a file that isn't JSON at all was, and the library is read at start | It reads as missing, like any other damaged file: that notebook is left out and the rest load. Settings and the other small files likewise | `FileBoardStore.loadNotebookMeta`, `_readJson` |
+| A page in a board file whose own id didn't match its file name lost its color and its spell check's ignored words on import | Kept | `importBoardFile` |
+| **A screen held its page by number**, so a page added, removed or moved before it by something else put another page on screen: another device's changes coming in with sync, or (with two pages of one notebook in Split view or Window view) the other side. A stroke could then go on the wrong page | Whatever keeps a notebook open keeps its pane on the same page by its id, at once (not a frame later), with the view and what's selected as they were. A pane that was sent somewhere (Next, the page strip, Undo of Delete page) goes where it was sent, and one whose page is gone shows the page now in its place. "Continue writing" gets the new number too | `NotebookGate` (`lib/ui/routes.dart`), `Pane.follow`, `Pane.sends` |
+| **Version history's Restore** didn't put back the page's color, and Undo after it brought back the items but left the restored title, paper and template | The page's title, color, paper and template are part of the same undo step as its items (Undo and Redo move all of it). The words spell check ignores stay as they are now | `Command.head`, `NotebookNotifier.restoreVersion` |
+
+### Quicker
+
+| What | Before | Now | Where |
+|---|---|---|---|
+| Writing a page's search rows (after handwriting is read) and its things to remember | One round trip to the database's isolate per row: hundreds for a full page | One batch (still one transaction) | `IndexDb.replacePageText`, `replacePageStudy` |
+| The library index row of an open notebook | Its cover ink (tens of kB) was written again after every save, page turn and rename | Only when the cover is another one; the row is written whole if it turns out not to be there | `IndexDb.upsert(thumb:)`, `LibraryNotifier._put` |
+| Sealing a file on a page with a password | Built a list of ints eight times the file's size on the way (a 20 MB recording: 160 MB) | Written straight into its bytes | `LockCrypto._seal` |
+| The eraser and scribble checks | A list made and thrown away for every segment tested; sin and cos worked out four times for every point of every stroke under a scribble | Neither | `segmentDistance`, `OrientedBox` |
+
+### Taken out (nothing used it)
+`HandwritingIndex.recognitionOf` and `recognitionJson` (board files read recognition.json from storage), `RecognizedLine.inBlock`, `NotebookNotifier.hasOpenLocks`, `SaveLocation.forCloud`, `syncsTo` (it also disagreed with the sync engine about a place it didn't know), `InkImage.inkAt`, `officeExtensions`, `partName`, `convertArea`, `debugSyncSettings`, and a leftover `assert` in the sync engine. `FileBoardStore`'s two copies of "write to a temp file, then rename" are one.
+
+### Looked at and left alone (for the owner to decide)
+- **Deleted pages' files stay in the notebook's folder** (`pages/<id>.json`), like unused pictures in `assets/` (Phase 3b's known limit). They aren't in notebook.json, exports or sync, but on Windows they're in Documents. Cleaning both up belongs together.
+- **A quick sync still asks the cloud for its list every 5 s while writing in a notebook saved on this tablet only.** Nothing is sent, and it no longer counts as waiting, but the request is made. Skipping it needs the app to know whether a cloud the notebook left has been told yet (the engine keeps that).
+- **Every stroke still makes the screen's ink image again** (`InkLayerCache`). Drawing the last image plus the new stroke would cost the same however full the page is; worth doing if the tablet still shows lag on full pages.
+
+### Tests
+`test/sync/save_location_app_test.dart` (new: tablet only, one of two clouds, both, deleted for good), and additions to `test/canvas/ink_engine_test.dart` (pictures per theme), `test/board/board_format_test.dart` (damaged files), `test/transfer/board_file_test.dart` (a page under another name; replace keeps the place), `test/library/library_test.dart` (a row written without its cover), `test/ui/page_follow_test.dart` (new: pages added, removed and moved before the page on screen by sync; going to a page is still the screen's own doing; both sides of Split view), `test/state/state_test.dart` (Restore with its title, color, paper and template, undone and redone). Each new test of a bug failed before its fix.
+
+### The copies in "Features to share"
+The three reading copies (Flashcards, Hold to straighten, Ruler) were made on 2026-11-02 and the code had moved since (the pen work of 2026-11-09, then this review): 27 of their 38 excerpts had other line numbers, and 5 of those other text. All 38 match the code again, with their headings' line numbers. They go out of date whenever the files they quote change; a script that finds each excerpt again and rewrites it did this, and isn't in the repo.
+
 ## Storage layout
 
 ```

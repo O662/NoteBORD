@@ -125,9 +125,10 @@ void openNotebook(BuildContext context, WidgetRef ref, String id) {
 }
 
 /// Loads a notebook, then shows [builder] with it open. Keeps the notebook
-/// open (and autosaving) while this is on screen.
-class NotebookGate extends ConsumerWidget {
-  const NotebookGate({super.key, required this.pane, required this.builder, this.compact = false});
+/// open (and autosaving) while this is on screen, and keeps the pane on its
+/// page while pages are added, removed or moved before it.
+class NotebookGate extends ConsumerStatefulWidget {
+  const NotebookGate({super.key, required this.pane, required this.builder, this.compact = false, this.onFollowed});
 
   final Pane pane;
   final WidgetBuilder builder;
@@ -135,21 +136,88 @@ class NotebookGate extends ConsumerWidget {
   /// Inside a split pane: no full-screen error page.
   final bool compact;
 
+  /// Called (once the frame is drawn) when the pane's page number was
+  /// changed to keep it on its page: the place this device is at in the
+  /// notebook has another number now.
+  final VoidCallback? onFollowed;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) => ListenableBuilder(
+  ConsumerState<NotebookGate> createState() => _NotebookGateState();
+}
+
+class _NotebookGateState extends ConsumerState<NotebookGate> {
+  Pane get pane => widget.pane;
+
+  /// The page the pane was on when last looked at, and how many times it
+  /// had been sent somewhere by then (see [_keepOnPage]).
+  ({String notebookId, String pageId, int sends})? _shown;
+
+  @override
+  void didUpdateWidget(NotebookGate old) {
+    super.didUpdateWidget(old);
+    if (old.pane != widget.pane) _shown = null;
+  }
+
+  /// A pane holds its page's number. When pages are added, removed or moved
+  /// before that page by something other than this pane (another device's
+  /// changes coming in with sync, or the other side of Split view), the
+  /// number is changed so the same page stays on screen. A pane that has
+  /// been sent somewhere since is left where it was sent, and one whose
+  /// page is gone shows the page now in its place.
+  void _keepOnPage(NotebookState nb) {
+    final pages = nb.pages;
+    if (pages.isEmpty) return;
+    final was = _shown;
+    if (was != null && was.notebookId == pane.notebookId && was.sends == pane.sends) {
+      final at = nb.indexOf(was.pageId);
+      if (at >= 0 && at != pane.page) {
+        pane.follow(at);
+        _followed();
+      }
+    }
+    pane.clampTo(pages.length);
+    _shown = (notebookId: pane.notebookId, pageId: pages[pane.page].id, sends: pane.sends);
+  }
+
+  bool _telling = false;
+
+  /// Says so after this frame (never while widgets are being built).
+  void _followed() {
+    if (_telling || widget.onFollowed == null) return;
+    _telling = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _telling = false;
+      if (mounted) widget.onFollowed?.call();
+    });
+  }
+
+  /// Which pages the notebook has, in order (changes when one is added,
+  /// removed or moved; not when one is written on).
+  static String _pageIds(NotebookState s) => [for (final p in s.pages) p.id].join('\n');
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
         listenable: pane,
         // A Consumer, so switching the pane's notebook drops the old one.
         builder: (context, _) => Consumer(builder: (context, ref, _) {
-          final loaded = ref.watch(loadedNotebookProvider(pane.notebookId));
+          final id = pane.notebookId;
+          final loaded = ref.watch(loadedNotebookProvider(id));
           return loaded.when(
             skipLoadingOnReload: true,
             data: (_) {
+              final notebook = notebookProvider(id);
+              // As the pages change, not a frame later: a stroke finished in
+              // between goes on the page being written on.
+              ref.listen(notebook.select(_pageIds), (_, _) {
+                if (mounted && pane.notebookId == id) _keepOnPage(ref.read(notebook));
+              });
               // Watching keeps the notebook open for as long as this is shown.
-              pane.clampTo(ref.watch(notebookProvider(pane.notebookId).select((s) => s.pages.length)));
-              return builder(context);
+              ref.watch(notebook.select(_pageIds));
+              _keepOnPage(ref.read(notebook));
+              return widget.builder(context);
             },
             loading: () => ColoredBox(color: context.colors.bg),
-            error: (e, _) => _Missing(compact: compact),
+            error: (e, _) => _Missing(compact: widget.compact),
           );
         }),
       );

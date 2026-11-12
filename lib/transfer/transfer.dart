@@ -334,13 +334,15 @@ class Transfers {
   }
 
   /// Writes the board file [bytes] over notebook [have], which keeps its
-  /// place in the library. An open copy is saved first, then read again.
+  /// place in the library and where it's saved (one kept on this tablet
+  /// only mustn't start going to a cloud). An open copy is saved first,
+  /// then read again.
   Future<void> _replace(NotebookEntry have, Uint8List bytes) async {
     final id = have.id;
     if (ref.exists(notebookProvider(id))) await ref.read(notebookProvider(id).notifier).flush();
     await ref.read(writeQueueProvider).idle;
     await ref.read(handwritingIndexProvider).forgetNotebook(id);
-    await importBoardFile(_store, bytes, folder: have.folder, now: _now, replace: id, pinned: have.pinned);
+    await importBoardFile(_store, bytes, folder: have.folder, now: _now, replace: id, pinned: have.pinned, saveTo: have.saveTo);
     await ref.read(libraryProvider.notifier).addFromStore(id);
     ref.read(studyProvider.notifier).forget(id);
     ref.invalidate(loadedNotebookProvider(id));

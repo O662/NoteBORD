@@ -428,8 +428,6 @@ class SyncEngine {
         return _Outcome(merged, added: true, changedHere: true);
       }
       if (!prep.changes) return _Outcome(merged);
-      final changes = prep.changes;
-      assert(changes);
       if (open) {
         if (_locksDiffer(local, merged)) return const _Outcome.waiting();
         await _keepVersions(id, local, merged, remoteDevice: _deviceOf(manifest));

@@ -5,6 +5,7 @@ import 'package:endless/canvas/canvas_view.dart';
 import 'package:endless/canvas/page_runtime.dart';
 import 'package:endless/canvas/spatial_index.dart';
 import 'package:endless/canvas/stroke_geometry.dart';
+import 'package:endless/theme/palettes.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers.dart';
@@ -106,6 +107,23 @@ void main() {
       expect(removed.$1, 0);
       expect(page.contentBounds, isNull);
       expect(page.revision, 2);
+    });
+
+    test('a page\'s pictures are made again for another theme, and kept for the same one', () {
+      final page = PageRuntime(BoardPage(id: 'p'))..insert(strokeFrom(line));
+      const view = Rect.fromLTWH(0, 0, 200, 200);
+      final paper = paletteFor('paper', themeAccent, Brightness.light);
+      final sage = paletteFor('sage', themeAccent, Brightness.light);
+
+      final region = page.regionPicture(view, Brightness.light, paper);
+      expect(identical(page.regionPicture(view, Brightness.light, paper), region), isTrue);
+      // Sticky notes, cards and frames are drawn in the theme's colors.
+      expect(identical(page.regionPicture(view, Brightness.light, sage), region), isFalse);
+
+      final full = page.fullPicture(Brightness.light, paper);
+      expect(identical(page.fullPicture(Brightness.light, paper), full), isTrue);
+      expect(identical(page.fullPicture(Brightness.light, sage), full), isFalse);
+      page.dispose();
     });
   });
 

@@ -146,6 +146,26 @@ void main() {
       expect(loaded.pages.single.items, isEmpty);
       expect(loaded.notebook.folderPath, ['School']);
     });
+
+    test('a page file that names another page comes in under its own name, with all it had', () async {
+      final store = MemoryBoardStore();
+      final other = encodePage(BoardPage(
+        id: 'pg_other',
+        title: 'Forces',
+        color: const Color(0xFF2F6FED),
+        paper: Paper.grid,
+        items: [strokeFrom([Offset.zero, const Offset(10, 10)])],
+        spellIgnore: ['Kirchhoff'],
+      ));
+      final result = await importBoardFile(store, zip({'notebook.json': meta, 'pages/pg_1.json': other}), folder: const [], now: testNow);
+      final got = (await store.loadNotebook(result.notebookId))!.pages.single;
+      expect(got.id, 'pg_1');
+      expect(got.title, 'Forces');
+      expect(got.color, const Color(0xFF2F6FED));
+      expect(got.paper, Paper.grid);
+      expect(got.items, hasLength(1));
+      expect(got.spellIgnore, ['Kirchhoff']);
+    });
   });
 
   group('the same notebook again', () {
@@ -178,13 +198,15 @@ void main() {
       final store = await withPages(['pg_1', 'pg_3']);
       await store.saveAsset('nb_same', 'old.png', Uint8List.fromList([3]));
       await store.saveStudy('nb_same', {'version': 1, 'cards': {'fc_old': <String, dynamic>{}}});
-      final result = await importBoardFile(store, bytes, folder: const ['School'], now: testNow, replace: 'nb_same', pinned: true);
+      final result = await importBoardFile(store, bytes, folder: const ['School'], now: testNow, replace: 'nb_same', pinned: true, saveTo: 'device');
       expect(result.notebookId, 'nb_same');
       expect(await store.listNotebookIds(), ['nb_same']);
       final after = (await store.loadNotebook('nb_same'))!;
       expect(after.notebook.title, 'Physics (backup)');
       expect(after.notebook.folderPath, ['School']);
       expect(after.notebook.pinned, isTrue);
+      // Still saved where it was (on this tablet only, here).
+      expect(after.notebook.saveTo, 'device');
       expect([for (final p in after.pages) (p.items.single as TextItem).text], ['Physics (backup) pg_1', 'Physics (backup) pg_2']);
       expect(await store.listAssets('nb_same'), ['kept.png']);
       expect(((await store.loadStudy('nb_same'))?['cards'] as Map?)?.keys ?? const [], isNot(contains('fc_old')));

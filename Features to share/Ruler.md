@@ -696,7 +696,7 @@ class _RulerMenuState extends ConsumerState<RulerMenu> {
 
 ## How the canvas uses it
 
-### `lib/canvas/ink_canvas.dart`, lines 212–224
+### `lib/canvas/ink_canvas.dart`, lines 250–262
 
 The canvas's ruler state.
 
@@ -716,7 +716,7 @@ The canvas's ruler state.
   int? _chipFinger;
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 539–565
+### `lib/canvas/ink_canvas.dart`, lines 636–662
 
 A finger landing on the ruler: on an end, it swings and stretches it; elsewhere, fingers move it; on the chip, a tap.
 
@@ -750,7 +750,7 @@ A finger landing on the ruler: on an end, it swings and stretches it; elsewhere,
         }
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 660–723
+### `lib/canvas/ink_canvas.dart`, lines 851–914
 
 Fingers moving: move, pinch to lengthen, and turn the ruler. Lifting a finger after a tap on the chip opens the menu.
 
@@ -821,7 +821,7 @@ Fingers moving: move, pinch to lengthen, and turn the ruler. Lifting a finger af
   /// Drops every finger (the pen came down), landing a selection pinch.
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 769–779
+### `lib/canvas/ink_canvas.dart`, lines 966–976
 
 The pen on a ruler end or on the chip.
 
@@ -839,7 +839,7 @@ The pen on a ruler end or on the chip.
     }
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 819–823
+### `lib/canvas/ink_canvas.dart`, lines 1045–1049
 
 A stroke that starts near an edge follows it.
 
@@ -851,7 +851,7 @@ A stroke that starts near an edge follows it.
         active.begin(
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 846–853
+### `lib/canvas/ink_canvas.dart`, lines 1072–1079
 
 ```dart
   /// Drags the ruler's [side] end (−1 left, 1 right) with this pointer.
@@ -864,7 +864,7 @@ A stroke that starts near an edge follows it.
   }
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 911–914
+### `lib/canvas/ink_canvas.dart`, lines 1137–1140
 
 ```dart
       case _Drag.rulerChip:
@@ -873,7 +873,7 @@ A stroke that starts near an edge follows it.
         pane.ruler.dragEnd(e.localPosition);
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 963–966
+### `lib/canvas/ink_canvas.dart`, lines 1195–1198
 
 ```dart
       case _Drag.rulerChip:
@@ -882,7 +882,7 @@ A stroke that starts near an edge follows it.
         pane.ruler.releaseEnd();
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 991–994
+### `lib/canvas/ink_canvas.dart`, lines 1229–1232
 
 ```dart
   void _openRulerMenu() {
@@ -891,7 +891,7 @@ A stroke that starts near an edge follows it.
   }
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 1042–1069
+### `lib/canvas/ink_canvas.dart`, lines 1296–1323
 
 Ink drawn along the ruler lands on its edge, and the chip shows the line's length as it's drawn.
 
@@ -926,7 +926,7 @@ Ink drawn along the ruler lands on its edge, and the chip shows the line's lengt
       return;
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 2358–2358
+### `lib/canvas/ink_canvas.dart`, lines 2737–2737
 
 Where the ruler is painted over the page.
 
@@ -936,13 +936,13 @@ Where the ruler is painted over the page.
 
 ## Turning it on, and the unit setting
 
-### `lib/ui/canvas/canvas_screen.dart`, lines 62–62
+### `lib/ui/canvas/canvas_screen.dart`, lines 76–76
 
 ```dart
 const rulerHint = 'Two fingers rotate the ruler · the pen snaps to its edge';
 ```
 
-### `lib/ui/canvas/canvas_screen.dart`, lines 123–131
+### `lib/ui/canvas/canvas_screen.dart`, lines 140–148
 
 ```dart
     case 'Ruler':
@@ -963,7 +963,7 @@ const rulerHint = 'Two fingers rotate the ruler · the pen snaps to its edge';
     RailItem('Ruler', 'Two fingers rotate · pen snaps', EIcons.ruler, 'The ruler', isTool: true),
 ```
 
-### `lib/state/settings.dart`, lines 109–110
+### `lib/state/settings.dart`, lines 113–114
 
 ```dart
   /// What the ruler's ticks measure.

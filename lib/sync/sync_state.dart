@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -242,7 +241,8 @@ class SyncState {
   final Map<String, VideoUpload> uploads;
 
   /// Whether notebook [id], last edited [updatedAt], is the same here and
-  /// in every cloud that's on.
+  /// in every cloud that's on which it's saved to. (Never true for one that
+  /// goes to no cloud: ask only about notebooks that go to one.)
   bool isSynced(String id, DateTime updatedAt) {
     if (!settings.anyOn || dirty.contains(id)) return false;
     final at = settings.synced[id];
@@ -383,12 +383,25 @@ class SyncController extends Notifier<SyncState> {
     return AppExitResponse.exit;
   }
 
+  /// The clouds that are on which a notebook saved to [saveTo] goes to
+  /// (every one, for a notebook from before there was a choice; none, for
+  /// one saved on this tablet only or to a cloud that's off).
+  List<CloudKind> _cloudsFor(String? saveTo, [List<CloudKind>? among]) => [
+        for (final k in among ?? state.settings.active)
+          if (saveTo == null || k.name == saveTo) k,
+      ];
+
   /// Whether anything here isn't in the cloud yet: a notebook saved since
-  /// its last sync, or one open with changes still being written.
+  /// its last sync, or one open with changes still being written. A
+  /// notebook that goes to no cloud (saved on this tablet only, or to a
+  /// cloud that's off) never counts.
   bool get hasChangesToSend {
     if (!state.settings.anyOn) return false;
-    if (state.dirty.isNotEmpty) return true;
-    for (final n in ref.read(libraryProvider).notebooks) {
+    final library = ref.read(libraryProvider);
+    // Deleted for good here: its cloud hasn't been told yet.
+    if (state.dirty.any((id) => library.byId(id) == null)) return true;
+    for (final n in library.notebooks) {
+      if (_cloudsFor(n.saveTo).isEmpty) continue;
       if (ref.exists(notebookProvider(n.id)) && ref.read(notebookProvider(n.id).notifier).hasUnsaved) return true;
       if (!state.isSynced(n.id, n.updatedAt)) return true;
     }
@@ -604,29 +617,40 @@ class SyncController extends Notifier<SyncState> {
         deviceName: deviceName,
       ),
     );
-    Map<String, DateTime>? syncedEverywhere;
+    // What each cloud has now, as it is here (notebook id → last edited).
+    final reports = <CloudKind, Map<String, DateTime>>{};
     var s = settings;
     try {
       for (final kind in clouds) {
         final report = await engine.syncAll(_cloud(kind), only: only);
         final now = ref.read(clockProvider)().toUtc();
         s = s.withCloud(kind, s.of(kind).copyWith(lastSync: () => now));
-        syncedEverywhere = syncedEverywhere == null
-            ? {...report.synced}
-            : {
-                for (final e in report.synced.entries)
-                  if (syncedEverywhere.containsKey(e.key)) e.key: e.value,
-              };
+        reports[kind] = report.synced;
       }
       if (!ref.mounted) return;
-      final synced = {...state.settings.synced, ...?syncedEverywhere};
+      // A notebook is synced once every cloud it's saved to has it: its own
+      // (Update 02), or all that are on for one from before there was a
+      // choice. One that goes to none isn't waiting for anything.
+      final entries = {for (final n in ref.read(libraryProvider).notebooks) n.id: n};
+      final syncedNow = <String, DateTime>{};
+      final sends = <String>{};
+      for (final n in entries.values) {
+        final goes = _cloudsFor(n.saveTo, clouds);
+        if (goes.isEmpty) continue;
+        sends.add(n.id);
+        final at = [for (final k in goes) reports[k]![n.id]];
+        if (!at.contains(null)) syncedNow[n.id] = at.last!;
+      }
       // Notebooks gone from here are no longer tracked.
-      final ids = {for (final n in ref.read(libraryProvider).notebooks) n.id};
-      synced.removeWhere((id, _) => !ids.contains(id));
-      // A notebook changed again while syncing stays waiting.
+      final synced = {...state.settings.synced, ...syncedNow}..removeWhere((id, _) => !entries.containsKey(id));
+      // A notebook changed again while syncing stays waiting. One deleted
+      // for good here waits for a full sync, which tells its cloud.
       final stillDirty = {
         for (final id in state.dirty)
-          if (_changes[id] != changesBefore[id] || !(syncedEverywhere?.containsKey(id) ?? false)) id,
+          if (!entries.containsKey(id)
+              ? only != null
+              : sends.contains(id) && (_changes[id] != changesBefore[id] || !syncedNow.containsKey(id)))
+            id,
       };
       state = state.copyWith(phase: SyncPhase.idle, message: () => null, dirty: stillDirty);
       await _save(state.settings.copyWith(
@@ -860,6 +884,3 @@ class _AppHost implements SyncHost {
 
 /// Loads sync/settings.json (bootstrap).
 Future<SyncSettings> loadSyncSettings(BoardStore store) async => SyncSettings.fromJson(await store.loadSyncFile('settings'));
-
-/// The settings file as text (for tests).
-String debugSyncSettings(SyncSettings s) => jsonEncode(s.toJson());

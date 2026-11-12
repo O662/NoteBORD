@@ -23,13 +23,7 @@ enum SaveLocation {
         google => CloudKind.google,
         onedrive => CloudKind.onedrive,
       };
-
-  static SaveLocation forCloud(CloudKind kind) => kind == CloudKind.onedrive ? onedrive : google;
 }
-
-/// Whether a notebook saved to [location] (null: one from before there was
-/// a choice) goes to [cloud].
-bool syncsTo(SaveLocation? location, CloudKind cloud) => location == null || location.cloud == cloud;
 
 /// Where new notes go: Settings › Notebooks & pages › "Save new notes to",
 /// or before that's picked, Google Drive or OneDrive if one is on, else

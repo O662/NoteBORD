@@ -111,8 +111,10 @@ class OrientedBox {
   final double halfU;
   final double halfV;
 
-  Offset get u => Offset(math.cos(angle), math.sin(angle));
-  Offset get v => Offset(-math.sin(angle), math.cos(angle));
+  // Worked out once: [contains] asks for them for every point of every
+  // stroke under a scribble.
+  late final Offset u = Offset(math.cos(angle), math.sin(angle));
+  late final Offset v = Offset(-u.dy, u.dx);
 
   double get diagonal => 2 * math.sqrt(halfU * halfU + halfV * halfV);
 

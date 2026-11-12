@@ -155,10 +155,13 @@ class FileBoardStore implements BoardStore {
   /// Asset names never leave the assets folder.
   File _assetFile(String nb, String name) => File(p.join(_assetDir(nb).path, p.basename(name)));
 
+  /// The file as JSON, or null if it's missing or damaged (not JSON, or
+  /// not an object).
   Future<Json?> _readJson(File f) async {
     if (!await f.exists()) return null;
     try {
-      return jsonDecode(await f.readAsString()) as Json;
+      final json = jsonDecode(await f.readAsString());
+      return json is Json ? json : null;
     } on FormatException {
       return null;
     }
@@ -205,6 +208,10 @@ class FileBoardStore implements BoardStore {
     try {
       return decodeNotebook(await meta.readAsString());
     } on FormatException {
+      return null;
+    } on TypeError {
+      // JSON, but not a notebook's: a field missing or of the wrong kind.
+      // One damaged file must not keep the library from loading.
       return null;
     }
   }
@@ -432,12 +439,7 @@ class FileBoardStore implements BoardStore {
 
   /// Write to a temp file, flush, then rename over the target, so a crash
   /// mid-write leaves the previous version intact.
-  Future<void> _writeAtomic(File target, String contents) async {
-    await target.parent.create(recursive: true);
-    final tmp = File('${target.path}.tmp');
-    await tmp.writeAsString(contents, flush: true);
-    await tmp.rename(target.path);
-  }
+  Future<void> _writeAtomic(File target, String contents) => _writeAtomicBytes(target, utf8.encode(contents));
 
   Future<void> _writeAtomicBytes(File target, Uint8List bytes) async {
     await target.parent.create(recursive: true);

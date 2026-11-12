@@ -52,6 +52,3 @@ OfficeKind? officeKindOf(Uint8List bytes) {
   }
   return null;
 }
-
-/// The extensions of the Office files the board shows.
-const officeExtensions = ['docx', 'pptx', 'xlsx'];

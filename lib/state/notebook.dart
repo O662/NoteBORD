@@ -80,13 +80,30 @@ class ReplaceStep extends EditStep {
   EditStep get inverse => ReplaceStep(at, before, item);
 }
 
+/// A page's own settings: what version history puts back along with the
+/// items.
+typedef PageHead = ({String title, Color? color, Paper paper, Object? template});
+
+PageHead _headOf(BoardPage p) => (title: p.title, color: p.color, paper: p.paper, template: p.template);
+
 class Command {
-  const Command(this.pageId, this.steps);
+  const Command(this.pageId, this.steps, {this.head});
 
   final String pageId;
   final List<EditStep> steps;
 
-  Command get inverse => Command(pageId, [for (final s in steps.reversed) s.inverse]);
+  /// The page's own settings before and after, when the command changes
+  /// them (restoring a version); null when they stay as they are.
+  final (PageHead, PageHead)? head;
+
+  Command get inverse => Command(
+        pageId,
+        [for (final s in steps.reversed) s.inverse],
+        head: switch (head) {
+          (final before, final after) => (after, before),
+          null => null,
+        },
+      );
 }
 
 @immutable
@@ -337,6 +354,15 @@ class NotebookNotifier extends Notifier<NotebookState> {
         case ReplaceStep():
           page.replace(_freshest(s.item));
       }
+    }
+    if (c.head case (_, final to)?) {
+      page.page
+        ..title = to.title
+        ..color = to.color
+        ..paper = to.paper
+        ..template = to.template;
+      // The paper and the template's layout are drawn again.
+      page.invalidate();
     }
   }
 
@@ -862,9 +888,11 @@ class NotebookNotifier extends Notifier<NotebookState> {
     });
   }
 
-  void _commit(PageRuntime page, List<EditStep> steps) {
-    if (steps.isEmpty) return;
-    final c = Command(page.id, _withCharts(page, _withConnectors(page, steps)));
+  /// Applies [steps] as one undo step; with [head], the page's own settings
+  /// change in the same step.
+  void _commit(PageRuntime page, List<EditStep> steps, {(PageHead, PageHead)? head}) {
+    if (steps.isEmpty && head == null) return;
+    final c = Command(page.id, _withCharts(page, _withConnectors(page, steps)), head: head);
     _apply(c);
     _push(c);
     _changed(page.id);
@@ -1340,8 +1368,10 @@ class NotebookNotifier extends Notifier<NotebookState> {
     return null;
   }
 
-  /// Puts page [pageId] back as [version] was, as one undo step. The page
-  /// as it is now is kept in version history first.
+  /// Puts page [pageId] back as [version] was: its items and its title,
+  /// color, paper and template, all as one undo step. (The words spell
+  /// check ignores stay as they are now: they're not what the page shows.)
+  /// The page as it is now is kept in version history first.
   Future<bool> restoreVersion(String pageId, BoardPage version) async {
     if (!_editable(pageId)) return false;
     final page = _pageById(pageId)!;
@@ -1354,13 +1384,10 @@ class NotebookNotifier extends Notifier<NotebookState> {
       for (final (i, item) in page.items.indexed.toList().reversed) RemoveStep(i, item),
       for (final (i, item) in version.items.indexed) InsertStep(i, item),
     ];
-    page.page.title = version.title;
-    page.page.paper = version.paper;
-    page.page.template = version.template;
-    _commit(page, steps);
+    final before = _headOf(page.page), after = _headOf(version);
+    _commit(page, steps, head: before == after ? null : (before, after));
     return true;
   }
-
 
   // Saving.
 
@@ -1618,9 +1645,6 @@ class NotebookNotifier extends Notifier<NotebookState> {
     _pageKeys.clear();
     _lockChanged();
   }
-
-  /// Whether any page with a password is open right now.
-  bool get hasOpenLocks => state.pages.any((p) => !_sealed.containsKey(p.id) && _keyFor(p.id) != null);
 
   /// Removes the page's own password (it must be unlocked).
   Future<void> removePageLock(String pageId) async {

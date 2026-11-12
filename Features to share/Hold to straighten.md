@@ -6,7 +6,7 @@ This is a copy for reading. The code lives in the Endless app (Flutter/Dart). Wh
 
 ## Recognising the shape
 
-### `lib/canvas/gestures.dart`, lines 1–385
+### `lib/canvas/gestures.dart`, lines 1–387
 
 Shared geometry, then fitting a line, circle, oval, rectangle or triangle to a stroke, and snapping a line to 0°, 45° or 90°.
 
@@ -124,8 +124,10 @@ class OrientedBox {
   final double halfU;
   final double halfV;
 
-  Offset get u => Offset(math.cos(angle), math.sin(angle));
-  Offset get v => Offset(-math.sin(angle), math.cos(angle));
+  // Worked out once: [contains] asks for them for every point of every
+  // stroke under a scribble.
+  late final Offset u = Offset(math.cos(angle), math.sin(angle));
+  late final Offset v = Offset(-u.dy, u.dx);
 
   double get diagonal => 2 * math.sqrt(halfU * halfU + halfV * halfV);
 
@@ -400,7 +402,7 @@ ShapeFit? _fitEllipse(List<Offset> ring) {
 
 ## Timing the hold, the snap, and moving the line's end
 
-### `lib/canvas/ink_canvas.dart`, lines 97–104
+### `lib/canvas/ink_canvas.dart`, lines 116–123
 
 How still, and for how long.
 
@@ -415,7 +417,7 @@ const holdPreview = Duration(milliseconds: 150);
 const holdSnap = Duration(milliseconds: 500);
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 203–210
+### `lib/canvas/ink_canvas.dart`, lines 241–248
 
 ```dart
   // Hold to straighten.
@@ -428,7 +430,7 @@ const holdSnap = Duration(milliseconds: 500);
     });
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 1042–1113
+### `lib/canvas/ink_canvas.dart`, lines 1296–1367
 
 After the snap, a line's end follows the pen (that's how angle and length are adjusted). Moving the pen restarts the hold timer.
 
@@ -503,16 +505,18 @@ After the snap, a line's end follows the pen (that's how angle and length are ad
       ..shape = fit.points
       ..opacity = 1;
     _status(null);
-    HapticFeedback.selectionClick();
+    if (ref.read(settingsProvider).pref<bool>('haptics')) HapticFeedback.selectionClick();
   }
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 1013–1035
+### `lib/canvas/ink_canvas.dart`, lines 1259–1289
 
 Clearing it all when the pen lifts.
 
 ```dart
   void _resetInput() {
+    _inkingIn?.inking = false;
+    _inkingIn = null;
     if (_drag == _Drag.rulerEnd) pane.ruler.releaseEnd();
     _drawPointer = null;
     _drawAt = null;
@@ -523,6 +527,12 @@ Clearing it all when the pen lifts.
     _inkTarget = null;
     _stretching = null;
     _connector = null;
+    _pad = null;
+    _pulled = null;
+    _stackOnto = null;
+    _stackArmed = false;
+    _stackTimer?.cancel();
+    _stackTimer = null;
     if (_touch != _Touch.graph) _graphId = null;
     if (_selection.live == null) _moving = const {};
     _scribbleIds = const {};
@@ -537,13 +547,16 @@ Clearing it all when the pen lifts.
       ..marquee = null;
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 1159–1219
+### `lib/canvas/ink_canvas.dart`, lines 1413–1479
 
 Pen up: the drawn ink is kept, then swapped for the shape, so Undo gives the ink back.
 
 ```dart
   void _finishInk() {
-    if (!active.isActive) return;
+    if (!active.isActive) {
+      diag('stroke with no points: dropped');
+      return;
+    }
     _clearGraphed();
     final settings = ref.read(settingsProvider);
     final notifier = _notebook;
@@ -555,12 +568,14 @@ Pen up: the drawn ink is kept, then swapped for the shape, so Undo gives the ink
     // A star drawn next to something marks it to remember (before a
     // scribble: a star's tips look like back-and-forths).
     if (snapped == null && _rememberStar(active.toItem(z: page.nextZ), settings)) {
+      diag('stroke ${active.points.length} pts -> remember star (not kept)');
       active.clear();
       return;
     }
 
     if (scribble.isNotEmpty) {
       // The scribble itself is never kept.
+      diag('stroke ${active.points.length} pts -> scribble erased ${scribble.length} strokes (not kept)');
       if (_targetNote case final note?) {
         final left = note.withoutInk(scribble);
         notifier.replaceItems(page.id, [if (left is ChecklistItem) left.pruned else left]);
@@ -591,6 +606,7 @@ Pen up: the drawn ink is kept, then swapped for the shape, so Undo gives the ink
           shaped = attachEnds(shaped, page.items, slop: _attachReach * _unit);
         }
       }
+      diag('stroke ${active.points.length} pts ${active.times.isEmpty ? 0 : active.times.last}ms -> kept${shaped == null ? "" : snapped != null ? " as ${snapped.kind.name}" : " as arrow"}${_targetNote != null ? " on a note" : ""}');
       _putStroke(raw);
       _wroteMath(raw);
       if (shaped != null) {
@@ -605,7 +621,7 @@ Pen up: the drawn ink is kept, then swapped for the shape, so Undo gives the ink
   /// [raw] with the flick at either end turned into an arrowhead, or null.
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 1261–1267
+### `lib/canvas/ink_canvas.dart`, lines 1521–1527
 
 ```dart
   static String _shapeName(ShapeKind k) => switch (k) {
@@ -617,7 +633,7 @@ Pen up: the drawn ink is kept, then swapped for the shape, so Undo gives the ink
       };
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 417–420
+### `lib/canvas/ink_canvas.dart`, lines 491–494
 
 ```dart
   /// A straightened line's marks go when its "Undo" message does.
@@ -628,7 +644,7 @@ Pen up: the drawn ink is kept, then swapped for the shape, so Undo gives the ink
 
 ## The stroke being drawn
 
-### `lib/canvas/ink_canvas.dart`, lines 2597–2695
+### `lib/canvas/ink_canvas.dart`, lines 2981–3079
 
 Holds the shape shown in place of the ink after the snap.
 

@@ -92,7 +92,15 @@ class Pane extends ChangeNotifier {
   /// Index of the page shown.
   int get page => _page;
 
+  /// How many times this pane has been told which page to show ([goTo],
+  /// [show]), counting the times it was there already. Whoever keeps it on
+  /// its page while pages come and go before it ([follow]) leaves it alone
+  /// once this has changed: it was sent somewhere.
+  int get sends => _sends;
+  int _sends = 0;
+
   void goTo(int page) {
+    _sends++;
     if (page == _page) return;
     _page = page;
     selection.clear();
@@ -105,7 +113,14 @@ class Pane extends ChangeNotifier {
   /// Keeps the page inside a notebook of [count] pages (no notification).
   void clampTo(int count) => _page = _page.clamp(0, count < 1 ? 0 : count - 1);
 
+  /// The page shown is number [page] now: pages were added, removed or
+  /// moved before it (by another device, or the other side of Split view).
+  /// It's the same page, so the view and what's selected stay as they are
+  /// (no notification: whoever calls this is drawing it again).
+  void follow(int page) => _page = page;
+
   void show(String notebookId, int page) {
+    _sends++;
     if (notebookId == _notebookId && page == _page) return;
     _notebookId = notebookId;
     _page = page;

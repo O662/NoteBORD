@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
 
 import 'office_model.dart';
@@ -868,6 +867,3 @@ String roman(int n) {
   }
   return out.toString();
 }
-
-/// The file name of a part, for messages.
-String partName(String path) => p.posix.basename(path);

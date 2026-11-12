@@ -49,6 +49,36 @@ void main() {
       expect(await db.all(), isEmpty);
     });
 
+    testWidgets('a row written without its cover keeps the cover it had; one not there yet is written whole', (tester) async {
+      final store = storeWith(sampleNotebook());
+      final db = IndexDb.memory();
+      addTearDown(db.close);
+      final entry = (await loadLibrary(store, db, testNow.toUtc())).byId('nb_sample')!;
+      final strokes = entry.thumb!.strokes.length;
+
+      final opened = testNow.toUtc().add(const Duration(minutes: 5));
+      await db.upsert(entry.copyWith(title: 'Renamed', lastPage: 1, openedAt: opened, pinned: true), thumb: false);
+      var row = (await db.all()).single;
+      expect(row.title, 'Renamed');
+      expect(row.lastPage, 1);
+      expect(row.openedAt, opened);
+      expect(row.pinned, isTrue);
+      expect(row.folder, entry.folder);
+      expect(row.createdAt, entry.createdAt);
+      expect(row.thumb!.strokes, hasLength(strokes));
+
+      // A new cover (or none) is written when asked for.
+      await db.upsert(entry.copyWith(thumb: () => null));
+      expect((await db.all()).single.thumb, isNull);
+
+      // Nothing to update: the whole row goes in, cover and all.
+      await db.remove(entry.id);
+      await db.upsert(entry, thumb: false);
+      row = (await db.all()).single;
+      expect(row.title, entry.title);
+      expect(row.thumb!.strokes, hasLength(strokes));
+    });
+
     testWidgets('the Trash empties itself after 30 days', (tester) async {
       final store = storeWith(sampleNotebook());
       final nb = decodeNotebook(store.notebooks['nb_sample']!)..trashedAt = testNow.toUtc().subtract(const Duration(days: 31));

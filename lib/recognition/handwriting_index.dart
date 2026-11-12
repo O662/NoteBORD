@@ -600,27 +600,11 @@ class HandwritingIndex {
     return RecognizedHandwriting(out);
   }
 
-  /// What's known of a page's handwriting (nothing is read).
-  Future<PageRecognition?> recognitionOf(String notebookId, String pageId) async =>
-      (await _recognition(notebookId))[pageId];
-
   /// What a page of an open notebook says as far as it's been read: from
   /// memory for an unlocked page with a password, else as indexed. For
   /// spell check.
   Future<PageRecognition?> pageRecognition(String notebookId, String pageId) async =>
       _unlockedRead[notebookId]?[pageId] ?? (await _recognition(notebookId))[pageId];
-
-  /// The notebook's recognition.json as it would be written, for a board
-  /// file of [pageIds] (all pages when null).
-  Future<Json?> recognitionJson(String notebookId, {Set<String>? pageIds}) async {
-    await flush();
-    final read = await _recognition(notebookId);
-    final pages = {
-      for (final e in read.entries)
-        if (pageIds == null || pageIds.contains(e.key)) e.key: e.value.toJson(),
-    };
-    return pages.isEmpty ? null : {'version': 1, 'pages': pages};
-  }
 
   void dispose() {
     _disposed = true;

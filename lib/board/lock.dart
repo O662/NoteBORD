@@ -204,7 +204,14 @@ class LockCrypto {
 
   static Uint8List _seal(Uint8List key, Uint8List nonce, List<int> clear) {
     final box = DartAesGcm.with256bits().encryptSync(clear, secretKeyData: SecretKeyData(key), nonce: nonce);
-    return Uint8List.fromList([..._magic, ...nonce, ...box.mac.bytes, ...box.cipherText]);
+    // Straight into the bytes: a list of ints takes eight times the room,
+    // which matters for a recording or a video on a page with a password.
+    final cipher = box.cipherText;
+    return Uint8List(32 + cipher.length)
+      ..setRange(0, 4, _magic)
+      ..setRange(4, 16, nonce)
+      ..setRange(16, 32, box.mac.bytes)
+      ..setRange(32, 32 + cipher.length, cipher);
   }
 
   static List<int> _unseal(Uint8List key, Uint8List data) {

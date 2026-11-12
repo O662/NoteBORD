@@ -15,8 +15,6 @@ class InkImage {
   final int width;
   final int height;
   final Float32List pixels;
-
-  bool inkAt(int x, int y) => pixels[y * width + x] > 0;
 }
 
 /// How tall the writing is: the median height of the strokes that aren't

@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:endless/board/codec.dart';
 import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
+import 'package:endless/library/index_db.dart';
+import 'package:endless/library/library.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers.dart';
@@ -129,6 +131,31 @@ void main() {
       expect(await store.loadSettings(), isNull);
       await store.saveSettings({'tool': 'marker'});
       expect(await store.loadSettings(), {'tool': 'marker'});
+    });
+
+    test('a damaged notebook.json or settings file reads as missing, whatever is wrong with it', () async {
+      final nb = Directory('${dir.path}/notebooks/nb_bad.board')..createSync(recursive: true);
+      final meta = File('${nb.path}/notebook.json');
+      for (final damaged in [
+        '{not json',
+        '[]',
+        '{"format":"other"}',
+        // Ours, but with fields missing or of the wrong kind.
+        '{"format":"endless.board","id":"nb_bad","createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-01T00:00:00Z"}',
+        '{"format":"endless.board","id":7,"pages":[],"createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-01T00:00:00Z"}',
+        '{"format":"endless.board","id":"nb_bad","pages":[],"createdAt":"yesterday","updatedAt":"today"}',
+      ]) {
+        meta.writeAsStringSync(damaged);
+        expect(await store.loadNotebookMeta('nb_bad'), isNull, reason: damaged);
+        expect(await store.loadNotebook('nb_bad'), isNull, reason: damaged);
+      }
+      // The library still loads, without it.
+      final db = IndexDb.memory();
+      addTearDown(db.close);
+      expect((await loadLibrary(store, db, testNow.toUtc())).notebooks, isEmpty);
+
+      File('${dir.path}/settings.json').writeAsStringSync('["not", "settings"]');
+      expect(await store.loadSettings(), isNull);
     });
 
     test('a sealed page replaces the clear one (and back), with lock.json beside it', () async {

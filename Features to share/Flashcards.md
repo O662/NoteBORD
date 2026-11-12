@@ -318,7 +318,7 @@ extension _CanvasStudy on InkCanvasState {
   // What's drawn for them.
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 1492–1494
+### `lib/canvas/ink_canvas.dart`, lines 1758–1760
 
 When making cards, a finished lasso loop circles a side instead of selecting.
 
@@ -328,7 +328,7 @@ When making cards, a finished lasso loop circles a side instead of selecting.
     if (pane.cards.on) return _circleForCard(loop);
 ```
 
-### `lib/canvas/ink_canvas.dart`, lines 1654–1659
+### `lib/canvas/ink_canvas.dart`, lines 1921–1926
 
 Flashcard on the selection toolbar.
 
@@ -686,7 +686,7 @@ class NewCardPanel extends ConsumerWidget {
 
 ## How a card is stored
 
-### `lib/board/model.dart`, lines 2946–3036
+### `lib/board/model.dart`, lines 3048–3138
 
 ```dart
 /// One side of a flashcard: items on the page it was made on, by id (drawn
@@ -782,7 +782,7 @@ class FlashcardItem extends Item {
 
 ```
 
-### `lib/study/study_state.dart`, lines 19–92
+### `lib/study/study_state.dart`, lines 21–108
 
 Decks, saved in decks.json.
 
@@ -854,10 +854,24 @@ class Decks extends Notifier<List<Deck>> {
   /// New cards go into [deck] from now on.
   void use(Deck deck) => ref.read(settingsProvider.notifier).apply((s) => s.copyWith(lastDeck: () => deck.id));
 
-  void _save() {
+  /// Decks changed on another device (cloud sync): from [from] to [to]
+  /// (deck JSON by id). Decks made here since stay.
+  void applyRemote(Map<String, Object?> from, Map<String, Object?> to) {
+    final out = [
+      for (final d in state)
+        if (!from.containsKey(d.id) || to.containsKey(d.id)) Deck.fromJson(to[d.id]) ?? d,
+      for (final e in to.entries)
+        if (!state.any((d) => d.id == e.key)) ?Deck.fromJson(e.value),
+    ];
+    state = out;
+    _save(signal: false);
+  }
+
+  void _save({bool signal = true}) {
     final json = {'version': 1, 'decks': [for (final d in state) d.toJson()]};
     final store = ref.read(boardStoreProvider);
     ref.read(writeQueueProvider).run(() => store.saveDecks(json));
+    if (signal) ref.read(localChangesProvider).changed();
   }
 }
 

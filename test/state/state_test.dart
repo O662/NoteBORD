@@ -1,3 +1,5 @@
+import 'dart:ui' show Color;
+
 import 'package:endless/board/codec.dart';
 import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
@@ -144,6 +146,56 @@ void main() {
       expect(page.paper, Paper.lines);
       expect(page.template, 'cornell');
       expect(c.read(notebookProvider('nb_sample')).notebook.pageIds[1], page.id);
+      await tester.pump(const Duration(seconds: 1));
+    });
+
+    testWidgets('restoring a version puts back the page’s title, color, paper and template too, and Undo takes all of it back', (tester) async {
+      final store = MemoryBoardStore();
+      final id = addUntitled(store);
+      final c = await _container(store, id);
+      final n = c.read(notebookProvider(id).notifier);
+      BoardPage page() => c.read(notebookProvider(id)).pages[0].page;
+      final pageId = page().id;
+      final now = _line(10);
+      n.addStroke(pageId, now);
+      n.renamePage(pageId, 'Now');
+      n.setPageColor(pageId, const Color(0xFF2F6FED));
+      n.setPagePaper(pageId, paper: Paper.grid, template: () => 'cornell');
+      void expectNow() {
+        expect(page().items.single.id, now.id);
+        expect(page().title, 'Now');
+        expect(page().color, const Color(0xFF2F6FED));
+        expect(page().paper, Paper.grid);
+        expect(page().template, 'cornell');
+      }
+
+      final then = _line(40);
+      final version = BoardPage(id: pageId, title: 'Then', color: const Color(0xFFC0392B), paper: Paper.lines, items: [then]);
+      void expectThen() {
+        expect(page().items.single.id, then.id);
+        expect(page().title, 'Then');
+        expect(page().color, const Color(0xFFC0392B));
+        expect(page().paper, Paper.lines);
+        expect(page().template, isNull);
+      }
+
+      expect(await n.restoreVersion(pageId, version), isTrue);
+      expectThen();
+      // One undo step: the ink and the page's own settings, together.
+      n.undo(pageId);
+      expectNow();
+      n.redo(pageId);
+      expectThen();
+      n.undo(pageId);
+      expectNow();
+      expect(n.canUndo(pageId), isTrue, reason: 'the stroke written before is still a step');
+
+      // A version that differs only in the page's settings is a step too.
+      final renamed = BoardPage(id: pageId, title: 'Only the name', color: page().color, paper: page().paper, template: page().template, items: [now]);
+      expect(await n.restoreVersion(pageId, renamed), isTrue);
+      expect(page().title, 'Only the name');
+      n.undo(pageId);
+      expectNow();
       await tester.pump(const Duration(seconds: 1));
     });
   });

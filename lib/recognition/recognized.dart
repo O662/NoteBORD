@@ -71,8 +71,6 @@ class RecognizedLine {
   /// stack, which note under the top one (from 1). Null otherwise.
   final int? sub;
 
-  RecognizedLine inBlock(int b) => at(block: b, holder: holder, sub: sub);
-
   /// The same line in paragraph [block], written on [holder] ([sub]).
   RecognizedLine at({required int block, String? holder, int? sub}) =>
       block == this.block && holder == this.holder && sub == this.sub

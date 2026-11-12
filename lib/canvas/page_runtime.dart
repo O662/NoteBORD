@@ -120,13 +120,17 @@ class PageRuntime {
 
   ui.Picture? _full;
   Brightness? _fullBrightness;
+  EndlessColors? _fullColors;
 
   /// Every item over the template layout, for the map and page thumbnails.
+  /// Made again for another theme: notes, cards and frames are drawn in
+  /// its colors.
   ui.Picture fullPicture(Brightness brightness, EndlessColors colors) {
-    if (_full == null || _fullBrightness != brightness) {
+    if (_full == null || _fullBrightness != brightness || _fullColors != colors) {
       _full?.dispose();
       _full = _record(page.items, brightness, colors, template: page.template);
       _fullBrightness = brightness;
+      _fullColors = colors;
     }
     return _full!;
   }
@@ -143,6 +147,7 @@ class PageRuntime {
     final r = partial ? _partial : _region;
     if (r != null &&
         r.brightness == brightness &&
+        r.colors == colors &&
         identical(r.hidden, hidden) &&
         r.area.contains(visible.topLeft) &&
         r.area.contains(visible.bottomRight)) {
@@ -152,7 +157,7 @@ class PageRuntime {
     final area = visible.inflate(visible.longestSide / 2);
     final ids = index.query(area)..removeAll(hidden);
     final items = [for (final i in page.items) if (ids.contains(i.id)) i];
-    final fresh = _RegionPicture(area, brightness, hidden, _record(items, brightness, colors));
+    final fresh = _RegionPicture(area, brightness, colors, hidden, _record(items, brightness, colors));
     if (partial) {
       _partial = fresh;
     } else {
@@ -179,10 +184,13 @@ class PageRuntime {
 }
 
 class _RegionPicture {
-  _RegionPicture(this.area, this.brightness, this.hidden, this.picture);
+  _RegionPicture(this.area, this.brightness, this.colors, this.hidden, this.picture);
 
   final Rect area;
   final Brightness brightness;
+
+  /// The theme it was drawn in (a palette is one instance per theme).
+  final EndlessColors colors;
   final Set<String> hidden;
   final ui.Picture picture;
 }

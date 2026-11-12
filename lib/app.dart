@@ -143,8 +143,12 @@ class _NotebookRouteState extends ConsumerState<NotebookRoute> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      NotebookGate(pane: pane, builder: (context) => CanvasScreen(pane: pane));
+  Widget build(BuildContext context) => NotebookGate(
+        pane: pane,
+        // "Continue writing" comes back to this page under its new number.
+        onFollowed: () => ref.read(libraryProvider.notifier).recordOpened(pane.notebookId, pane.page),
+        builder: (context) => CanvasScreen(pane: pane),
+      );
 }
 
 class EndlessApp extends ConsumerStatefulWidget {

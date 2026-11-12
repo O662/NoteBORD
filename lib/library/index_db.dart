@@ -127,38 +127,55 @@ class IndexDb extends GeneratedDatabase {
     return [for (final r in rows) _entry(r)];
   }
 
-  Future<void> upsert(NotebookEntry e) => customStatement(
-        'INSERT OR REPLACE INTO notebooks (id, title, folder, cover, created_at, updated_at, page_count, locked, '
-        'locked_pages, pinned, trashed_at, last_page, opened_at, thumb, save_to) '
-        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [
-          e.id,
-          e.title,
-          jsonEncode(e.folder),
-          e.cover == null ? null : colorToHex(e.cover!),
-          e.createdAt.millisecondsSinceEpoch,
-          e.updatedAt.millisecondsSinceEpoch,
-          e.pageCount,
-          e.locked ? 1 : 0,
-          e.lockedPages,
-          e.pinned ? 1 : 0,
-          e.trashedAt?.millisecondsSinceEpoch,
-          e.lastPage,
-          e.openedAt?.millisecondsSinceEpoch,
-          e.thumb?.encode(),
-          e.saveTo,
-        ],
+  /// Writes [e]'s row. With [thumb] off, the row it already has keeps its
+  /// cover ink as it is: that's by far the biggest column (tens of kB), an
+  /// open notebook's row is written after every save, and its cover is made
+  /// again only now and then.
+  Future<void> upsert(NotebookEntry e, {bool thumb = true}) async {
+    final fields = <Object?>[
+      e.title,
+      jsonEncode(e.folder),
+      e.cover == null ? null : colorToHex(e.cover!),
+      e.createdAt.millisecondsSinceEpoch,
+      e.updatedAt.millisecondsSinceEpoch,
+      e.pageCount,
+      e.locked ? 1 : 0,
+      e.lockedPages,
+      e.pinned ? 1 : 0,
+      e.trashedAt?.millisecondsSinceEpoch,
+      e.lastPage,
+      e.openedAt?.millisecondsSinceEpoch,
+      e.saveTo,
+    ];
+    if (!thumb) {
+      final rows = await customUpdate(
+        'UPDATE notebooks SET title = ?, folder = ?, cover = ?, created_at = ?, updated_at = ?, page_count = ?, '
+        'locked = ?, locked_pages = ?, pinned = ?, trashed_at = ?, last_page = ?, opened_at = ?, save_to = ? '
+        'WHERE id = ?',
+        variables: [for (final v in [...fields, e.id]) Variable<Object>(v)],
       );
+      if (rows > 0) return;
+      // No row after all: the whole of it is written.
+    }
+    await customStatement(
+      'INSERT OR REPLACE INTO notebooks (title, folder, cover, created_at, updated_at, page_count, locked, '
+      'locked_pages, pinned, trashed_at, last_page, opened_at, save_to, id, thumb) '
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [...fields, e.id, e.thumb?.encode()],
+    );
+  }
 
   Future<void> remove(String id) => customStatement('DELETE FROM notebooks WHERE id = ?', [id]);
 
   // Search.
 
-  /// Replaces what can be searched on a page with [rows].
-  Future<void> replacePageText(String notebookId, String pageId, List<SearchRow> rows) => transaction(() async {
-        await customStatement('DELETE FROM search_text WHERE notebook_id = ? AND page_id = ?', [notebookId, pageId]);
+  /// Replaces what can be searched on a page with [rows]. One batch: a
+  /// transaction, sent to the database's isolate in one go (a row at a
+  /// time, a full page of handwriting was hundreds of round trips).
+  Future<void> replacePageText(String notebookId, String pageId, List<SearchRow> rows) => batch((b) {
+        b.customStatement('DELETE FROM search_text WHERE notebook_id = ? AND page_id = ?', [notebookId, pageId]);
         for (final r in rows) {
-          await customStatement(
+          b.customStatement(
             'INSERT INTO search_text (notebook_id, page_id, kind, ref, text, norm, context, x, y, w, h, at, data) '
             'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [
@@ -213,11 +230,12 @@ class IndexDb extends GeneratedDatabase {
 
   // Need to remember and flashcards.
 
-  /// Replaces what's remembered and the flashcards on a page with [rows].
-  Future<void> replacePageStudy(String notebookId, String pageId, List<StudyRow> rows) => transaction(() async {
-        await customStatement('DELETE FROM study_items WHERE notebook_id = ? AND page_id = ?', [notebookId, pageId]);
+  /// Replaces what's remembered and the flashcards on a page with [rows]
+  /// (one batch, as [replacePageText]).
+  Future<void> replacePageStudy(String notebookId, String pageId, List<StudyRow> rows) => batch((b) {
+        b.customStatement('DELETE FROM study_items WHERE notebook_id = ? AND page_id = ?', [notebookId, pageId]);
         for (final r in rows) {
-          await customStatement(
+          b.customStatement(
             'INSERT INTO study_items (notebook_id, page_id, kind, ref, x, y, w, h, at, data) '
             'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [

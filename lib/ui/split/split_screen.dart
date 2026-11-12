@@ -529,6 +529,8 @@ class _SplitPane extends ConsumerWidget {
         child: NotebookGate(
           pane: pane,
           compact: true,
+          // The side being written in is where this device is in the notebook.
+          onFollowed: focused ? () => ref.read(libraryProvider.notifier).recordOpened(pane.notebookId, pane.page) : null,
           builder: (context) {
             final nb = ref.watch(notebookProvider(pane.notebookId));
             final page = nb.pageAt(pane.page);
