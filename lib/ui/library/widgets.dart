@@ -13,6 +13,7 @@ import '../icons.dart';
 import '../routes.dart';
 import 'format.dart';
 import 'new_note_dialog.dart' show showSaveTo;
+import 'new_notebook_dialog.dart' show finishNotebookSetup;
 
 /// "FOLDERS", "NOTEBOOKS", "CONTINUE WRITING"…
 class SectionLabel extends StatelessWidget {
@@ -148,6 +149,8 @@ class NotebookCover extends StatelessWidget {
                     ]),
             ),
           ),
+        // Made with Skip for now (LibraryUnset.png).
+        if (height >= 100 && entry.setupPending) const Positioned(left: 16, bottom: 8, child: NotSetUpTag()),
         // Changes the cloud doesn't have yet (Main.dc.html).
         if (height >= 100) Positioned(right: 8, bottom: 8, child: WaitingToSyncBadge(entry: entry)),
       ]),
@@ -200,12 +203,34 @@ class _CoverPainter extends CustomPainter {
 
 // Menus.
 
+/// "Not set up" on a notebook made with Skip for now (LibraryUnset.png).
+class NotSetUpTag extends StatelessWidget {
+  const NotSetUpTag({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: c.stickyYellow, borderRadius: BorderRadius.circular(Radii.chip)),
+      child: Row(mainAxisSize: MainAxisSize.min, spacing: 5, children: [
+        EIcon(EIcons.info, size: 13, color: c.goldDeep),
+        Text('Not set up', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.goldDeep)),
+      ]),
+    );
+  }
+}
+
 class _MenuAction<T> {
-  const _MenuAction(this.value, this.label, this.icon);
+  const _MenuAction(this.value, this.label, this.icon, {this.desc, this.highlight = false});
 
   final T value;
   final String label;
   final EIconData icon;
+  final String? desc;
+
+  /// Finish setting up: a yellow row with a dark tile at the top.
+  final bool highlight;
 }
 
 Future<T?> _showActions<T>(BuildContext context, Offset at, List<_MenuAction<T>> actions) {
@@ -220,19 +245,43 @@ Future<T?> _showActions<T>(BuildContext context, Offset at, List<_MenuAction<T>>
     menuPadding: const EdgeInsets.all(8),
     items: [
       for (final a in actions)
-        PopupMenuItem<T>(
-          value: a.value,
-          height: 48,
-          child: Row(spacing: 12, children: [
-            EIcon(a.icon, color: c.text),
-            Text(a.label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.text)),
-          ]),
-        ),
+        if (a.highlight)
+          PopupMenuItem<T>(
+            value: a.value,
+            height: 72,
+            padding: EdgeInsets.zero,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              decoration: BoxDecoration(color: c.stickyYellow, borderRadius: BorderRadius.circular(Radii.button)),
+              child: Row(spacing: 12, children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(color: c.inverse, borderRadius: BorderRadius.circular(Radii.key)),
+                  child: Center(child: EIcon(EIcons.checkBold, size: 18, color: c.onInverse)),
+                ),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, spacing: 1, children: [
+                  Text(a.label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: c.text)),
+                  if (a.desc != null) Text(a.desc!, style: TextStyle(fontSize: 12, color: c.textMuted)),
+                ]),
+              ]),
+            ),
+          )
+        else
+          PopupMenuItem<T>(
+            value: a.value,
+            height: 48,
+            child: Row(spacing: 12, children: [
+              EIcon(a.icon, color: c.text),
+              Text(a.label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.text)),
+            ]),
+          ),
     ],
   );
 }
 
-enum _NotebookAction { open, split, rename, move, saveTo, color, pin, trash, restore, delete }
+enum _NotebookAction { finish, open, split, rename, move, saveTo, color, pin, trash, restore, delete }
 
 /// The long-press menu for a notebook card.
 Future<void> showNotebookMenu(BuildContext context, WidgetRef ref, NotebookEntry n, Offset at) async {
@@ -243,6 +292,10 @@ Future<void> showNotebookMenu(BuildContext context, WidgetRef ref, NotebookEntry
           _MenuAction(_NotebookAction.delete, 'Delete forever', EIcons.trash),
         ]
       : [
+          // Only for a notebook made with Skip for now (LibraryUnset-other-menu.png: not otherwise).
+          if (n.setupPending)
+            _MenuAction(_NotebookAction.finish, 'Finish setting up', EIcons.checkBold,
+                desc: 'Name, folder, save place, backup', highlight: true),
           _MenuAction(_NotebookAction.open, 'Open', EIcons.notebook),
           _MenuAction(_NotebookAction.split, 'Open in split view', EIcons.split),
           _MenuAction(_NotebookAction.rename, 'Rename', EIcons.edit),
@@ -255,6 +308,8 @@ Future<void> showNotebookMenu(BuildContext context, WidgetRef ref, NotebookEntry
   final choice = await _showActions(context, at, actions);
   if (choice == null || !context.mounted) return;
   switch (choice) {
+    case _NotebookAction.finish:
+      await finishNotebookSetup(context, ref, n.id);
     case _NotebookAction.open:
       openNotebook(context, ref, n.id);
     case _NotebookAction.split:

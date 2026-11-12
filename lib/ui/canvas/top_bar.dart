@@ -464,9 +464,13 @@ final List<MoreItem> moreItems = [
 
 /// The ⋯ menu panel.
 class MoreMenu extends StatelessWidget {
-  const MoreMenu({super.key, required this.onItem});
+  const MoreMenu({super.key, required this.onItem, this.leading = const []});
 
   final ValueChanged<MoreItem> onItem;
+
+  /// Rows before the usual ones (Finish setting up, for a notebook made
+  /// with Skip for now).
+  final List<MoreItem> leading;
 
   @override
   Widget build(BuildContext context) {
@@ -489,7 +493,7 @@ class MoreMenu extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           spacing: 2,
           children: [
-            for (final item in moreItems) ...[
+            for (final item in [...leading, ...moreItems]) ...[
               if (item.separatorBefore)
                 Container(height: 1, margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), color: c.lineSoft),
               Semantics(

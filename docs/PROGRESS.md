@@ -1139,6 +1139,29 @@ The owner's request (2026-11-11): build Update 04 in full, all 10 sections. Sett
 - Not tried on the tablet: the S Pen hovering over shortcuts (they close an open menu, as Search does), and the panel's search with Samsung's handwriting keyboard.
 - Search, Settings and Flashcards in portrait: they have their own layouts with no sidebar, and work in portrait (no overflow) without a portrait-specific design.
 
+## Update 04c: the New notebook prompt, Skip for now and Finish setting up — built, not yet tried on the tablet (docs/UPDATE_04.md §6)
+
+| Item | Status | Where |
+|---|---|---|
+| Opening it | Start's **Notebook** tile (and the collapsed bar's Notebook), and the Library's **New notebook** (in a folder, that folder is picked). **New note** keeps its own dialog (Update 02b) | `newNotebook` (`lib/ui/library/new_notebook_dialog.dart`) |
+| The prompt (NewNotebook.png) | 680 dp: "New notebook", "Three quick choices. In a rush? Skip and start writing.", the "About 10 seconds" chip. **1 Name it**: the name in a 54 dp field with a 2 dp blue line, and five cover colors (Blue, Rust, Green, Plum, Gold) inside it. **2 Where should it live?**: No folder, each top-level folder (with its color) and a dashed + (New folder, picked once made); then This tablet "Works offline", Google Drive and OneDrive ("Connected", or "Sign in first" in clay). **3 Back it up?**: the green or clay card with its shield and switch | `NewNotebookDialog` |
+| Backup | In the cloud: "Already backed up in Google Drive", the switch locked on. On this tablet: "Back up to Google Drive" (the cloud that's on; Google Drive if neither, signed in to on Create) or "No backup": "Only on this tablet. If the tablet is lost or reset, this notebook is gone." It starts on when a cloud is on | `NotebookChoices.backupCloud` |
+| What gets saved | This tablet + No backup is `saveTo: device`; This tablet backed up, or a cloud picked, is that cloud (sync keeps the copy; every notebook is on the tablet first either way). A cloud that isn't on is signed in to first; if that fails it says why and makes nothing | `NotebookChoices.saveTo`, `ensureCloud` |
+| Skip for now (NewNotebook-skipped.png) | "set up later from ⋯" under it. Makes **Untitled notebook** on this tablet, no folder, no backup, and opens it (so a student in a rush can just write), with "Untitled notebook is ready. When you have a minute, open More options › Finish setting up." | `_skip` |
+| Not set up (LibraryUnset.png) | notebook.json `"setup": "pending"` (BOARD_FORMAT.md); the index has a `setup_pending` column (schema 5). The cover shows a yellow **Not set up** tag; its menu starts with a yellow **Finish setting up** "Name, folder, save place, backup". A set-up notebook's menu doesn't have it (LibraryUnset-other-menu.png) | `Notebook.setupPending`, `NotSetUpTag`, `showNotebookMenu` |
+| Finish setting up (FinishSetup.png) | The same three steps: "Finish setting up", "This notebook was made in a hurry. Give it a name, a home and a backup.", no Skip; **Save** names it, moves it, sets its color and place, drops the tag, and syncs if it's going to a cloud. Also first in the canvas's ⋯ menu for such a notebook | `finishNotebookSetup`, `LibraryNotifier.finishSetup`, `MoreMenu.leading` |
+| Use these every time | "Use these every time and stop asking" saves the folder, place, backup and color (`prefs['newNotebookDefaults']`); then New notebook makes "Untitled notebook" with them at once. **Settings › Notebooks & pages › New notebooks**: "When I make a notebook" Ask each time / Use my choices, and "My choices" (e.g. "Personal · This tablet, no backup") | `NewNotebookSettings`, `settings_sections.dart` |
+| Portrait | The prompt is min(680, screen − 32) wide; the folder chips wrap; the footer buttons stack if they don't fit | `DialogActions` |
+
+**Judgment calls:**
+- **Skip opens the new notebook** rather than the design's "Untitled notebook is ready" card with "See it in the library": UPDATE_04 says Skip is so a student can just write. The card's text is the note shown instead.
+- **This tablet backed up to Google Drive is saved as Google Drive.** Endless keeps every notebook on the tablet first and syncs the cloud copy, so the two are the same thing underneath; Finish setting up and Save to… show it as Google Drive afterwards.
+- **"⋯" isn't in Figtree**, so "set up later from ⋯" draws the ⋯ button's own icon, and the note says "More options".
+
+### Not done yet / known limits
+- Not tried on the tablet: signing in to OneDrive from the prompt (needs the client ids, as in Phase 9a).
+- The folder chips list the top-level folders (and the one picked); a deeper folder is picked from the Library or with Move to folder.
+
 ## Storage layout
 
 ```
@@ -1333,6 +1356,8 @@ Also in `<app documents>/Endless/` since Phase 9a: `sync/` (settings.json: Sync 
 - Update 04a: `test/ui/shell_test.dart` (the sidebar folding to the rail and staying folded on another screen, saved in settings.json, and opening again; a rail folder; the rail's labels; Start's header folding and opening, remembered; every library screen in portrait with the top bar and nothing overflowing; ☰ and the scrim; the rail setting ignored in portrait; the dialog width rule; footer buttons stacking). `test/golden/update04_golden_test.dart`: `start_rail`, `calendar_rail`, `library_rail`, `stickies_rail`, `planner_rail`, `remember_rail`, `start_collapsed`, `start_portrait`, `start_portrait_menu`, `start_portrait_collapsed`, `library_portrait`, `calendar_portrait`. Goldens with the sidebar were made again (its new collapse button).
 
 - Update 04b: `test/ui/shortcuts_test.dart` (the catalog: defaults, unique ids, search, what can be pinned, unknown saved ids dropped, at most 6; the toolbar's height and place, with All pages and in portrait, and how many fit; the default shortcuts in order and centered; a tool on and off (ruler, laser); a feature opening (Version history); pinning from a menu, unpinning, full; the panel's move, remove, reset, search, add, "Nothing matches", Done, saved in settings.json; the toolbar re-centering with 6, stepping aside for All pages and hiding for the page menu; Settings › Toolbar shortcuts; the portrait canvas's two rows, centered rail and collapsed map (the landscape setting untouched); Search, Settings and Flashcards in portrait; the ⋯ menu and panel fitting in portrait). Goldens: `canvas_shortcuts`, `canvas_shortcuts_search`, `canvas_pin_from_menu`, `canvas_shortcuts_in_use`, `canvas_portrait`, `canvas_portrait_pen`, `canvas_portrait_more`, `canvas_portrait_shortcuts`. Every golden with the canvas rail was made again (the shortcuts and the dashed button); tests that look for an Insert tile by name now look inside the Insert menu (the PDF shortcut has the same name).
+
+- Update 04c: `test/ui/new_notebook_test.dart` (notebook.json's `setup`; the choices; Start's New notebook with a name, color, folder and No backup; a cloud that can't be signed in to makes nothing; Skip for now, the canvas ⋯ item, the library's Not set up tag and menu item, Finish setting up and the menu without it afterwards; "Use these every time" and Settings › New notebooks; the prompt in portrait); `test/library/library_test.dart` (Not set up through the index). Goldens: `new_notebook`, `new_notebook_no_backup`, `new_notebook_portrait`, `library_unset`, `library_unset_other_menu`, `finish_setup`; `settings_notebooks` again (the New notebooks rows).
 
 ## Next
 - **Update 03 tablet checklist.** Release build (`flutter build apk --release`, `adb install -r`).

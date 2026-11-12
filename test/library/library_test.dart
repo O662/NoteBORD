@@ -49,6 +49,21 @@ void main() {
       expect(await db.all(), isEmpty);
     });
 
+    testWidgets('a notebook made with Skip for now stays "Not set up" through the index (Update 04)', (tester) async {
+      final store = storeWith(sampleNotebook());
+      final nb = decodeNotebook(store.notebooks['nb_sample']!)..setupPending = true;
+      await store.saveNotebook(nb);
+      final db = IndexDb.memory();
+      addTearDown(db.close);
+      await loadLibrary(store, db, testNow.toUtc());
+      expect((await db.all()).single.setupPending, isTrue);
+      final done = decodeNotebook(store.notebooks['nb_sample']!)..setupPending = false;
+      await store.saveNotebook(done);
+      final lib = await loadLibrary(store, db, testNow.toUtc());
+      expect(lib.byId('nb_sample')!.setupPending, isFalse);
+      expect((await db.all()).single.setupPending, isFalse);
+    });
+
     testWidgets('a row written without its cover keeps the cover it had; one not there yet is written whole', (tester) async {
       final store = storeWith(sampleNotebook());
       final db = IndexDb.memory();

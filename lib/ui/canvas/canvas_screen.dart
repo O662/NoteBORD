@@ -54,6 +54,8 @@ import 'panels.dart';
 import 'pen_popover.dart';
 import 'recording_pill.dart';
 import 'shortcuts.dart';
+import '../icons.dart' show EIcons;
+import '../library/new_notebook_dialog.dart' show finishNotebookSetup;
 import '../shell.dart' show LayoutWidth;
 import 'top_bar.dart';
 import 'version_history.dart';
@@ -767,6 +769,10 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
 
   void _pickMoreItem(MoreItem item) {
     _closeMenus();
+    if (item.label == 'Finish setting up') {
+      finishNotebookSetup(context, ref, pane.notebookId);
+      return;
+    }
     handleMoreItem(context, pane, item, _comingSoon);
   }
 
@@ -868,6 +874,8 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
       return (id: page.id, sealed: s.isSealed(page.id), revision: picked ? s.revision : -1);
     }));
     final notebook = ref.read(notebookProvider(pane.notebookId).notifier);
+    // Made with Skip for now: ⋯ starts with Finish setting up.
+    final setupPending = ref.watch(notebookProvider(pane.notebookId).select((s) => s.notebook.setupPending));
     final pageId = shown.id;
     final sealed = shown.sealed;
     final shownPage = ref.read(notebookProvider(pane.notebookId)).pageAt(pane.page);
@@ -1231,7 +1239,18 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                         ),
                       ),
                     ),
-                  if (tools && _more) Positioned(right: 12, top: 70, child: MoreMenu(onItem: _pickMoreItem)),
+                  if (tools && _more)
+                    Positioned(
+                      right: 12,
+                      top: 70,
+                      child: MoreMenu(
+                        onItem: _pickMoreItem,
+                        leading: [
+                          if (setupPending)
+                            MoreItem('Finish setting up', EIcons.checkBold, desc: 'Name, folder, save place, backup', strong: true),
+                        ],
+                      ),
+                    ),
                   if (tools && _popover)
                     Positioned(
                       left: 0,

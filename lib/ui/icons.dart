@@ -267,6 +267,9 @@ abstract final class EIcons {
   static final addShortcut = EIconData([_p('M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M16.5 13.5v6 M13.5 16.5h6')]);
   static final pushpin = EIconData([_p('M9 4h6l-1 6 4 3v2h-5v5l-1 1-1-1v-5H6v-2l4-3z')]);
   static final pushpinFilled = EIconData([const IconPart('M9 4h6l-1 6 4 3v2h-5v5l-1 1-1-1v-5H6v-2l4-3z', fill: true)]);
+  // New notebook's backup card (NewNotebook.dc.html): backed up, or not.
+  static final shieldCheck = EIconData([_p('M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z M9 12l2 2 4-4')]);
+  static final shieldWarn = EIconData([_p('M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z M12 8v5 M12 16v.5')]);
   static final pdfDoc = EIconData([_p('M6 3h9l4 4v14H6z M15 3v4h4 M9 13h6M9 17h4')]);
   static final pin = EIconData([_p('M9 4h6l-1 6 3 3H7l3-3z'), _p('M12 13v7')]);
   static final restore = EIconData([_p('M3 12a9 9 0 1 0 3-6.7'), _p('M3 4v5h5')]);

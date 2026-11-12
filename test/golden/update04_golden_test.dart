@@ -3,17 +3,19 @@
 // Start-rail.png, StartCollapsed.png, CalendarRail.png, Main-rail.png,
 // StickiesRail.png, StartPortrait.png, StartPortraitMenu.png,
 // CanvasShortcuts*.png, Canvas-pin-from-menu.png, Canvas-shortcuts-in-use.png,
-// CanvasPortrait*.png.
+// CanvasPortrait*.png, NewNotebook*.png, FinishSetup.png, LibraryUnset*.png.
 //
 // Regenerate after an intended visual change:
 //   flutter test --update-goldens test/golden
 @Tags(['golden'])
 library;
 
+import 'package:endless/app.dart' show routerProvider;
 import 'package:endless/state/settings.dart';
 import 'package:endless/ui/canvas/shortcuts.dart';
 import 'package:endless/ui/routes.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers.dart';
@@ -102,4 +104,42 @@ void main() {
   _canvas('canvas_portrait_pen', size: portraitSize, setUp: (t) => t.tap(byLabel('Pen')));
   _canvas('canvas_portrait_more', size: portraitSize, setUp: (t) => t.tap(byLabel('More options')));
   _canvas('canvas_portrait_shortcuts', size: portraitSize, setUp: (t) => t.tap(byLabel('Add or edit your shortcuts')));
+
+  // §6: New notebook, Skip for now and Finish setting up.
+  _golden('new_notebook', Routes.start, setUp: (t) async {
+    await _tap(t, 'New notebook');
+    await t.enterText(find.byType(TextField), 'Biology 101');
+    await _tap(t, 'Green');
+    await _tap(t, 'School folder');
+  });
+  _golden('new_notebook_no_backup', Routes.start, setUp: (t) async {
+    await _tap(t, 'New notebook');
+    await t.enterText(find.byType(TextField), 'Biology 101');
+    final sw = find.byType(Switch);
+    if (t.widget<Switch>(sw).value) await t.tap(sw);
+  });
+  _golden('new_notebook_portrait', Routes.start, size: portraitSize, setUp: (t) => _tap(t, 'New notebook'));
+  Future<void> skipped(WidgetTester t) async {
+    await _tap(t, 'New notebook');
+    await _tap(t, 'Skip for now. Set up later from More options');
+    await t.pump(const Duration(seconds: 1));
+    ProviderScope.containerOf(t.element(find.byType(MaterialApp))).read(routerProvider).go(Routes.all);
+    await _settle(t);
+    await t.pump(const Duration(seconds: 1));
+    await t.pump();
+  }
+  _golden('library_unset', Routes.start, setUp: (t) async {
+    await skipped(t);
+    await t.longPress(find.text('Untitled notebook'));
+  });
+  _golden('library_unset_other_menu', Routes.start, setUp: (t) async {
+    await skipped(t);
+    await t.longPress(find.text('Calculus II'));
+  });
+  _golden('finish_setup', Routes.start, setUp: (t) async {
+    await skipped(t);
+    await t.longPress(find.text('Untitled notebook'));
+    await _settle(t);
+    await t.tap(find.text('Finish setting up'));
+  });
 }

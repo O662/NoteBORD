@@ -39,6 +39,7 @@ class Notebook {
     this.pinned = false,
     this.trashedAt,
     this.saveTo,
+    this.setupPending = false,
     Json? extra,
     Json? extraDefaults,
   })  : extra = extra ?? {},
@@ -67,6 +68,10 @@ class Notebook {
   /// null for a notebook from before there was a choice (every cloud that's
   /// on). See SaveLocation.
   String? saveTo;
+
+  /// Made with "Skip for now" (Update 04): the library tags it "Not set up"
+  /// and its ⋯ menus have "Finish setting up" until it is.
+  bool setupPending;
   final Json extra;
   final Json extraDefaults;
 }

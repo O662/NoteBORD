@@ -21,6 +21,7 @@ import '../dialogs.dart';
 import '../icons.dart';
 import '../canvas/shortcuts.dart';
 import '../library/format.dart' show folderLabel;
+import '../library/new_notebook_dialog.dart' show NotebookChoices, NewNotebookSettings;
 import '../spell/teach_handwriting.dart';
 import 'settings_rows.dart';
 
@@ -275,6 +276,33 @@ List<SettingsGroup> settingsGroups(SettingsSection section) => switch (section) 
                 options: const ['Dots', 'Lines', 'Grid', 'Blank'],
                 get: (ref) => _papers.indexOf(ref.watch(settingsProvider.select((s) => s.defaultPaper))),
                 set: (ref, i) => _set(ref, (s) => s.withPref('defaultPaper', _papers[i].name))),
+          ]),
+          // Update 04: "Use these every time and stop asking" in New notebook.
+          SettingsGroup('New notebooks', [
+            ChoiceDef('When I make a notebook', 'Its name, folder, save place and backup',
+                options: const ['Ask each time', 'Use my choices'],
+                get: (ref) => ref.watch(settingsProvider.select((s) => s.notebookDefaults)) == null ? 0 : 1,
+                set: (ref, i) => _set(
+                    ref,
+                    (s) => s.withPref(
+                        'newNotebookDefaults',
+                        i == 0
+                            ? null
+                            : (s.notebookDefaults ??
+                                    NotebookChoices(
+                                      folder: s.defaultFolder,
+                                      backup: defaultSaveLocation(s, ref.read(syncProvider).settings) != SaveLocation.device,
+                                    ))
+                                .toJson()))),
+            ValueDef('My choices', 'What new notebooks get without asking',
+                value: (ref) {
+                  final d = ref.watch(settingsProvider.select((s) => s.notebookDefaults));
+                  if (d == null) return 'Asks each time';
+                  final place = d.place == SaveLocation.device
+                      ? (d.backup ? 'This tablet, backed up' : 'This tablet, no backup')
+                      : d.place.label;
+                  return [if (d.folder.isNotEmpty) folderLabel(d.folder), place].join(' · ');
+                }),
           ]),
           SettingsGroup('Pages', [
             _flag('pageNumbers', 'Show page numbers'),

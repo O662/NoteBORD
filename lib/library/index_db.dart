@@ -42,7 +42,7 @@ class IndexDb extends GeneratedDatabase {
   Iterable<TableInfo<Table, dynamic>> get allTables => const [];
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -56,6 +56,8 @@ class IndexDb extends GeneratedDatabase {
           if (from < 3) await _createStudy();
           // Update 02: where each notebook is saved.
           if (from < 4) await customStatement('ALTER TABLE notebooks ADD COLUMN save_to TEXT');
+          // Update 04: made with "Skip for now", not set up yet.
+          if (from < 5) await customStatement('ALTER TABLE notebooks ADD COLUMN setup_pending INTEGER NOT NULL DEFAULT 0');
         },
       );
 
@@ -75,7 +77,8 @@ class IndexDb extends GeneratedDatabase {
             last_page INTEGER NOT NULL DEFAULT 0,
             opened_at INTEGER,
             thumb TEXT,
-            save_to TEXT
+            save_to TEXT,
+            setup_pending INTEGER NOT NULL DEFAULT 0
           )''');
 
   Future<void> _createSearch() async {
@@ -146,11 +149,12 @@ class IndexDb extends GeneratedDatabase {
       e.lastPage,
       e.openedAt?.millisecondsSinceEpoch,
       e.saveTo,
+      e.setupPending ? 1 : 0,
     ];
     if (!thumb) {
       final rows = await customUpdate(
         'UPDATE notebooks SET title = ?, folder = ?, cover = ?, created_at = ?, updated_at = ?, page_count = ?, '
-        'locked = ?, locked_pages = ?, pinned = ?, trashed_at = ?, last_page = ?, opened_at = ?, save_to = ? '
+        'locked = ?, locked_pages = ?, pinned = ?, trashed_at = ?, last_page = ?, opened_at = ?, save_to = ?, setup_pending = ? '
         'WHERE id = ?',
         variables: [for (final v in [...fields, e.id]) Variable<Object>(v)],
       );
@@ -159,8 +163,8 @@ class IndexDb extends GeneratedDatabase {
     }
     await customStatement(
       'INSERT OR REPLACE INTO notebooks (title, folder, cover, created_at, updated_at, page_count, locked, '
-      'locked_pages, pinned, trashed_at, last_page, opened_at, save_to, id, thumb) '
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'locked_pages, pinned, trashed_at, last_page, opened_at, save_to, setup_pending, id, thumb) '
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [...fields, e.id, e.thumb?.encode()],
     );
   }
@@ -353,6 +357,7 @@ class IndexDb extends GeneratedDatabase {
       openedAt: time('opened_at'),
       thumb: InkThumb.decode(r.read<String?>('thumb')),
       saveTo: r.read<String?>('save_to'),
+      setupPending: (r.read<int?>('setup_pending') ?? 0) != 0,
     );
   }
 }

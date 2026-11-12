@@ -38,6 +38,7 @@ class NotebookEntry {
     this.openedAt,
     this.thumb,
     this.saveTo,
+    this.setupPending = false,
   });
 
   final String id;
@@ -67,6 +68,9 @@ class NotebookEntry {
 
   /// Where it's saved (Notebook.saveTo).
   final String? saveTo;
+
+  /// Made with "Skip for now" and not set up yet (Notebook.setupPending).
+  final bool setupPending;
 
   bool get trashed => trashedAt != null;
 
@@ -100,6 +104,7 @@ class NotebookEntry {
         openedAt: openedAt ?? this.openedAt,
         thumb: thumb == null ? this.thumb : thumb(),
         saveTo: saveTo,
+        setupPending: setupPending,
       );
 
   /// Refreshes the fields that live in notebook.json.
@@ -119,6 +124,7 @@ class NotebookEntry {
         openedAt: openedAt,
         thumb: nb.locked ? null : thumb,
         saveTo: nb.saveTo,
+        setupPending: nb.setupPending,
       );
 
   /// Builds an entry from a loaded notebook, keeping this device's reading
@@ -340,6 +346,7 @@ class LibraryNotifier extends Notifier<LibraryState> {
     List<Item> items = const [],
     Color? cover,
     String? saveTo,
+    bool setupPending = false,
   }) async {
     final now = _now;
     final page = BoardPage(id: newId('pg', now: now), paper: paper, template: template, items: [...items]);
@@ -353,6 +360,7 @@ class LibraryNotifier extends Notifier<LibraryState> {
       pageIds: [page.id],
       defaultPaper: paper,
       saveTo: saveTo ?? defaultSaveLocation(ref.read(settingsProvider), ref.read(syncProvider).settings).name,
+      setupPending: setupPending,
     );
     await _store.savePage(nb.id, page);
     await _store.saveNotebook(nb);
@@ -389,6 +397,19 @@ class LibraryNotifier extends Notifier<LibraryState> {
 
   /// Where notebook [id] is saved (`device`, `google` or `onedrive`).
   Future<void> setSaveTo(String id, String saveTo) => _editMeta(id, (nb) => nb.saveTo = saveTo);
+
+  /// Finish setting up (Update 04): a skipped notebook gets its name, color,
+  /// folder and place, and loses its "Not set up" tag.
+  Future<void> finishSetup(String id, {required String title, required List<String> folder, Color? cover, required String saveTo}) async {
+    await _editMeta(id, (nb) {
+      nb.title = title;
+      nb.folderPath = [...folder];
+      if (cover != null) nb.coverColor = colorToHex(cover);
+      nb.saveTo = saveTo;
+      nb.setupPending = false;
+    });
+    if (folder.isNotEmpty) await _ensureFolder(folder);
+  }
 
   Future<void> trash(String id) {
     final now = _now;

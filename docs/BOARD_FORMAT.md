@@ -41,6 +41,8 @@ Locked notebooks and pages store `pages/<pageId>.json.enc` (AES-256-GCM) in plac
 ```
 `locked` means the whole notebook has a password. `pinned` shows it under Pinned on the Start page. `trashedAt` is set while it's in the Trash (it is deleted 30 days later). `saveTo` (optional, Update 02) is where the notebook is saved: `device` (this tablet only, never synced), `google` (Google Drive) or `onedrive`. A notebook without it, from before there was a choice, goes to every cloud that's on. It syncs like the other fields, so every device knows where the notebook goes.
 
+`setup` (optional, Update 04) is `"pending"` for a notebook made with **Skip for now** in New notebook: the library tags it "Not set up" and its ⋯ menus start with Finish setting up. Finishing removes the key. It syncs like the other fields.
+
 ## pages/<pageId>.json
 ```json
 {
