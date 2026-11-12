@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import '../board/store.dart';
@@ -11,8 +12,13 @@ import 'stamps.dart';
 // One is kept while you write (at most every 10 minutes), one before sync
 // changes the page with another device's changes, and one before a
 // restore. Older ones are thinned out: everything from the last hour, one
-// per 10 minutes for a day, one per day for a month, one per week after,
-// and never more than [VersionStore.maxPerPage].
+// per 10 minutes for a day, one per day after that, and never more than
+// [VersionStore.maxPerPage].
+//
+// Update 04 (History.png): a version can be named ("Before the midterm").
+// Named versions are kept until they're deleted; the others go after
+// [VersionStore.keepDays] days (30; Settings › Notebooks & pages). The names
+// are in `names.json` beside the versions.
 
 /// Why a version was kept.
 enum VersionReason {
@@ -24,9 +30,14 @@ enum VersionReason {
 }
 
 class PageVersion {
-  const PageVersion(this.name, this.at, this.reason, {required this.sealed, this.device});
+  const PageVersion(this.name, this.at, this.reason, {required this.sealed, this.device, this.label});
 
   final String name;
+
+  /// The name given to it ("Before the midterm"), or null.
+  final String? label;
+
+  PageVersion withLabel(String? label) => PageVersion(name, at, reason, sealed: sealed, device: device, label: label);
   final DateTime at;
   final VersionReason reason;
 
@@ -50,9 +61,18 @@ class PageVersion {
 }
 
 class VersionStore {
-  VersionStore(this.store, {DateTime Function()? clock}) : _clock = clock ?? DateTime.now;
+  VersionStore(this.store, {DateTime Function()? clock, int Function()? keepDays})
+      : _clock = clock ?? DateTime.now,
+        _keepDays = keepDays ?? (() => 30);
 
   static const maxPerPage = 100;
+
+  /// The file holding the names given to versions (not a version).
+  static const namesFile = 'names.json';
+
+  /// How long a version without a name is kept.
+  int get keepDays => _keepDays();
+  final int Function() _keepDays;
 
   /// While writing, a version at most this often.
   static const editEvery = Duration(minutes: 10);
@@ -62,12 +82,42 @@ class VersionStore {
   final _lastEdit = <String, DateTime>{};
   final _lastHash = <String, String>{};
 
-  /// Newest first.
+  /// Newest first, with their names.
   Future<List<PageVersion>> list(String notebookId, String pageId) async {
+    final labels = await _labels(notebookId, pageId);
     final out = [
-      for (final n in await store.listVersions(notebookId, pageId)) ?PageVersion.parse(n),
+      for (final n in await store.listVersions(notebookId, pageId))
+        if (PageVersion.parse(n) case final v?) v.withLabel(labels[v.name]),
     ]..sort((a, b) => b.at.compareTo(a.at));
     return out;
+  }
+
+  Future<Map<String, String>> _labels(String notebookId, String pageId) async {
+    final bytes = await store.loadVersion(notebookId, pageId, namesFile);
+    if (bytes == null) return {};
+    try {
+      final j = jsonDecode(utf8.decode(bytes));
+      return {
+        if (j is Map)
+          for (final e in j.entries)
+            if (e.value is String) e.key.toString(): e.value as String,
+      };
+    } on FormatException {
+      return {};
+    }
+  }
+
+  /// Names version [name] [label] (kept until deleted), or takes its name
+  /// away ([label] null or empty: it goes after [keepDays] like the others).
+  Future<void> setLabel(String notebookId, String pageId, String name, String? label) async {
+    final labels = await _labels(notebookId, pageId);
+    final l = label?.trim();
+    if (l == null || l.isEmpty) {
+      labels.remove(name);
+    } else {
+      labels[name] = l;
+    }
+    await store.saveVersion(notebookId, pageId, namesFile, Uint8List.fromList(utf8.encode(jsonEncode(labels))));
   }
 
   Future<Uint8List?> load(String notebookId, String pageId, String name) => store.loadVersion(notebookId, pageId, name);
@@ -113,17 +163,22 @@ class VersionStore {
     final now = _clock().toUtc();
     final kept = <PageVersion>[];
     final buckets = <String>{};
+    final keep = Duration(days: keepDays);
     for (final v in versions) {
+      // Named versions stay until they're deleted.
+      if (v.label != null) continue;
       final age = now.difference(v.at);
+      if (age >= keep) {
+        await store.deleteVersion(notebookId, pageId, v.name);
+        continue;
+      }
       final String? bucket;
       if (age < const Duration(hours: 1)) {
         bucket = null; // all kept
       } else if (age < const Duration(days: 1)) {
         bucket = 'm${v.at.millisecondsSinceEpoch ~/ editEvery.inMilliseconds}';
-      } else if (age < const Duration(days: 30)) {
-        bucket = 'd${v.at.millisecondsSinceEpoch ~/ const Duration(days: 1).inMilliseconds}';
       } else {
-        bucket = 'w${v.at.millisecondsSinceEpoch ~/ const Duration(days: 7).inMilliseconds}';
+        bucket = 'd${v.at.millisecondsSinceEpoch ~/ const Duration(days: 1).inMilliseconds}';
       }
       // Newest first, so the newest in each bucket is the one kept.
       if (bucket == null || buckets.add(bucket)) {

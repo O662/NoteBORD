@@ -270,6 +270,13 @@ abstract final class EIcons {
   // New notebook's backup card (NewNotebook.dc.html): backed up, or not.
   static final shieldCheck = EIconData([_p('M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z M9 12l2 2 4-4')]);
   static final shieldWarn = EIconData([_p('M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z M12 8v5 M12 16v.5')]);
+  /// Share's "Invite people and write together" (Share.dc.html).
+  static final personAdd = EIconData([_p(_circle(9, 8, 3.5)), _p('M3 20c.8-3.4 3.2-5 6-5s5.2 1.6 6 5M18 8v6M15 11h6')]);
+  /// A named version (History.dc.html).
+  static final bookmark = EIconData([const IconPart('M6 3h12v18l-6-4-6 4z', fill: true)]);
+  /// Share's "Share sheet" and OneDrive cards (Share.dc.html).
+  static final shareSheet = EIconData([_p('M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7 M12 3v12M7 8l5-5 5 5')]);
+  static final cloudUp = EIconData([_p('M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z M12 12v4')]);
   static final pdfDoc = EIconData([_p('M6 3h9l4 4v14H6z M15 3v4h4 M9 13h6M9 17h4')]);
   static final pin = EIconData([_p('M9 4h6l-1 6 3 3H7l3-3z'), _p('M12 13v7')]);
   static final restore = EIconData([_p('M3 12a9 9 0 1 0 3-6.7'), _p('M3 4v5h5')]);

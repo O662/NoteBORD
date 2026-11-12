@@ -1,5 +1,11 @@
+import 'dart:io';
+
+import '../board/codec.dart' show encodePage;
+import '../board/model.dart';
 import '../library/library.dart';
 import '../state/notebook.dart';
+import '../state/settings.dart' show boardStoreProvider;
+import 'pdf_export.dart' show PdfOptions;
 import 'transfer.dart';
 
 // Share (Share.png), without a server: copies of a page, a notebook or a
@@ -15,6 +21,25 @@ Set<String> shareablePageIds(NotebookState nb) => {
       for (final p in nb.pages)
         if (!nb.isSealed(p.id) && nb.lockFor(p.id) == null) p.id,
     };
+
+/// The recordings and videos on [nb]'s pages: what a board file leaves out
+/// without "Include audio and video".
+Set<String> mediaAssetsOf(NotebookState nb) => {
+      for (final p in nb.pages)
+        for (final i in p.page.items)
+          if (i is AudioItem)
+            i.asset
+          else if (i is VideoItem && i.asset != null)
+            i.asset!,
+    };
+
+/// "about 9 MB" in Share's footer: [bytes] rounded the way people say it.
+String sizeWords(int bytes) {
+  final mb = bytes / (1024 * 1024);
+  if (mb < 0.1) return '0.1 MB';
+  if (mb < 10) return '${mb.toStringAsFixed(1).replaceAll('.0', '')} MB';
+  return '${mb.round()} MB';
+}
 
 /// Copies to send, and what was left out.
 class ShareCopies {
@@ -43,7 +68,17 @@ extension ShareCopiesOf on Transfers {
   /// The copies of [scope] (from the open notebook [notebookId], on page
   /// [current]) in [format]. Throws [ExportProblem] when there's nothing
   /// that may be sent.
-  Future<ShareCopies> shareCopies(String notebookId, ShareScope scope, ExportFormat format, {required int current}) async {
+  ///
+  /// [pdf]: the PDF's text layer and paper (and an image's paper); [media]:
+  /// a board file's recordings and videos.
+  Future<ShareCopies> shareCopies(
+    String notebookId,
+    ShareScope scope,
+    ExportFormat format, {
+    required int current,
+    PdfOptions pdf = const PdfOptions(),
+    bool media = true,
+  }) async {
     final nb = ref.read(notebookProvider(notebookId));
     switch (scope) {
       case ShareScope.page:
@@ -51,12 +86,19 @@ extension ShareCopiesOf on Transfers {
         if (nb.lockFor(page.id) != null || nb.isSealed(page.id)) {
           throw const ExportProblem('This page has a password, so it can’t be shared.');
         }
-        return ShareCopies([await export(notebookId, scope: ExportScope.page, format: format, current: current)]);
+        return ShareCopies([
+          await export(notebookId,
+              scope: ExportScope.page,
+              format: format,
+              current: current,
+              pdf: pdf,
+              leaveOutAssets: media ? const {} : mediaAssetsOf(nb)),
+        ]);
       case ShareScope.notebook:
         if (format == ExportFormat.image) {
-          return shareCopies(notebookId, ShareScope.page, format, current: current);
+          return shareCopies(notebookId, ShareScope.page, format, current: current, pdf: pdf, media: media);
         }
-        final (file, left) = await _notebookCopy(notebookId, format);
+        final (file, left) = await _notebookCopy(notebookId, format, pdf: pdf, media: media);
         if (file == null) throw const ExportProblem('Every page here has a password, so nothing can be shared.');
         return ShareCopies([file], pagesLeftOut: left);
       case ShareScope.folder:
@@ -70,7 +112,7 @@ extension ShareCopiesOf on Transfers {
             notebooksLeft++;
             continue;
           }
-          final (file, left) = await _withOpen(n.id, () => _notebookCopy(n.id, format));
+          final (file, left) = await _withOpen(n.id, () => _notebookCopy(n.id, format, pdf: pdf, media: media));
           if (file == null) {
             notebooksLeft++;
           } else {
@@ -85,7 +127,8 @@ extension ShareCopiesOf on Transfers {
 
   /// Notebook [id] without its pages with a password, and how many those
   /// were; no file if every page has one.
-  Future<(ExportFile?, int)> _notebookCopy(String id, ExportFormat format) async {
+  Future<(ExportFile?, int)> _notebookCopy(String id, ExportFormat format,
+      {PdfOptions pdf = const PdfOptions(), bool media = true}) async {
     final nb = ref.read(notebookProvider(id));
     final ok = shareablePageIds(nb);
     final left = nb.pages.length - ok.length;
@@ -96,8 +139,64 @@ extension ShareCopiesOf on Transfers {
       picked: ok,
       format: format,
       current: 0,
+      pdf: pdf,
+      leaveOutAssets: media ? const {} : mediaAssetsOf(nb),
     );
     return (file, left);
+  }
+
+  /// About how big Share's copy of [scope] will be (the footer's "about
+  /// 9 MB"). From the open notebook's pages and files; other notebooks in a
+  /// folder count by their pages.
+  Future<int> estimateShare(String notebookId, ShareScope scope, ExportFormat format,
+      {required int current, bool media = true}) async {
+    final nb = ref.read(notebookProvider(notebookId));
+    final store = ref.read(boardStoreProvider);
+    final ok = shareablePageIds(nb);
+    final pages = switch (scope) {
+      ShareScope.page => [nb.pageAt(current)],
+      _ when format == ExportFormat.image => [nb.pageAt(current)],
+      _ => [for (final p in nb.pages) if (ok.contains(p.id)) p],
+    }.map((p) => p.page).toList();
+    Future<int> fileSize(String name) async {
+      final path = store.assetPath(notebookId, name);
+      if (path != null) {
+        final f = File(path);
+        if (await f.exists()) return f.length();
+      }
+      return (await store.loadAsset(notebookId, name))?.length ?? 0;
+    }
+
+    final mediaFiles = mediaAssetsOf(nb);
+    var ink = 0, files = 0;
+    final counted = <String>{};
+    for (final p in pages) {
+      ink += encodePage(p).length;
+      for (final i in p.items) {
+        final name = switch (i) {
+          ImageItem(:final asset) => asset,
+          AudioItem(:final asset) => asset,
+          VideoItem(:final asset?) => asset,
+          _ => null,
+        };
+        if (name == null || !counted.add(name)) continue;
+        if (mediaFiles.contains(name) && (format != ExportFormat.board || !media)) continue;
+        files += await fileSize(name);
+      }
+    }
+    var bytes = switch (format) {
+      ExportFormat.pdf => (ink * 0.6).round() + files + 40 * 1024 * pages.length,
+      ExportFormat.board => (ink * 0.3).round() + files,
+      ExportFormat.image => (ink * 0.8).round() + 300 * 1024,
+    };
+    if (scope == ShareScope.folder && format != ExportFormat.image) {
+      final lib = ref.read(libraryProvider);
+      final folder = lib.byId(notebookId)?.folder ?? const <String>[];
+      for (final n in lib.active.where((n) => n.id != notebookId && isInside(n.folder, folder) && !n.locked)) {
+        bytes += n.pageCount * (format == ExportFormat.pdf ? 120 : 40) * 1024;
+      }
+    }
+    return bytes;
   }
 
   /// Runs [task] with notebook [id] open (loaded, if it wasn't).

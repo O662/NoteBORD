@@ -3,14 +3,23 @@
 // Start-rail.png, StartCollapsed.png, CalendarRail.png, Main-rail.png,
 // StickiesRail.png, StartPortrait.png, StartPortraitMenu.png,
 // CanvasShortcuts*.png, Canvas-pin-from-menu.png, Canvas-shortcuts-in-use.png,
-// CanvasPortrait*.png, NewNotebook*.png, FinishSetup.png, LibraryUnset*.png.
+// CanvasPortrait*.png, NewNotebook*.png, FinishSetup.png, LibraryUnset*.png,
+// Share.png, History.png, History-naming.png.
 //
 // Regenerate after an intended visual change:
 //   flutter test --update-goldens test/golden
 @Tags(['golden'])
 library;
 
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:endless/app.dart' show routerProvider;
+import 'package:endless/board/codec.dart';
+import 'package:endless/board/model.dart';
+import 'package:endless/state/changes.dart' show versionStoreProvider;
+import 'package:endless/state/notebook.dart';
+import 'package:endless/sync/versions.dart';
 import 'package:endless/state/settings.dart';
 import 'package:endless/ui/canvas/shortcuts.dart';
 import 'package:endless/ui/routes.dart';
@@ -141,5 +150,47 @@ void main() {
     await t.longPress(find.text('Untitled notebook'));
     await _settle(t);
     await t.tap(find.text('Finish setting up'));
+  });
+
+  // §1: Share a copy.
+  _canvas('share_copy', setUp: (t) => t.tap(byLabel('Share')));
+  _canvas('share_copy_board', setUp: (t) async {
+    await t.tap(byLabel('Share'));
+    await _settle(t);
+    await t.tap(find.text('Board file'));
+    await _settle(t);
+    await t.tap(find.text('Save to tablet'));
+  });
+
+  // §4: Version history, with an earlier version and one from another device.
+  Future<void> history(WidgetTester t) async {
+    final c = ProviderScope.containerOf(t.element(find.byType(MaterialApp)));
+    final nb = c.read(notebookProvider(canvasPane.notebookId));
+    final page = nb.pageAt(canvasPane.page).page;
+    final store = c.read(versionStoreProvider).store;
+    var minutes = -90;
+    final versions = VersionStore(store, clock: () => testNow.toUtc().add(Duration(minutes: minutes += 40)));
+    Uint8List bytes(BoardPage p) => Uint8List.fromList(utf8.encode(encodePage(p)));
+    final half = BoardPage(id: page.id, items: page.items.take(page.items.length ~/ 2).toList());
+    await t.runAsync(() async {
+      await versions.keep(canvasPane.notebookId, page.id, bytes(half), reason: VersionReason.edit);
+      await versions.keep(canvasPane.notebookId, page.id, bytes(page), reason: VersionReason.sync, device: 'Kieth’s phone');
+    });
+    // Something since erased.
+    c.read(notebookProvider(canvasPane.notebookId).notifier).removeItems(page.id, [page.items.first.id]);
+    await t.tap(byLabel('More options'));
+    await _settle(t);
+    await t.tap(find.text('Version history'));
+    await _settle(t);
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await _settle(t);
+    // The version from before the phone's changes: what it added, what's gone since.
+    await t.tap(find.textContaining('Before changes from').last);
+    await _settle(t);
+  }
+  _canvas('history', setUp: history);
+  _canvas('history_naming', setUp: (t) async {
+    await history(t);
+    await t.tap(find.text('Name this version'));
   });
 }

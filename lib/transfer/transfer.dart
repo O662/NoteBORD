@@ -165,6 +165,7 @@ class Transfers {
     PdfOptions pdf = const PdfOptions(),
     bool includeAssets = true,
     bool includeRecognition = true,
+    Set<String> leaveOutAssets = const {},
     void Function(int done, int total)? onProgress,
   }) async {
     final notifier = ref.read(notebookProvider(notebookId).notifier);
@@ -187,6 +188,7 @@ class Transfers {
           pageIds: scope == ExportScope.notebook ? null : {for (final i in indexes) nb.pages[i].id},
           includeAssets: includeAssets,
           includeRecognition: includeRecognition,
+          leaveOut: leaveOutAssets,
         );
         return ExportFile(fileNameFor(title, 'board'), bytes, boardMime);
       case ExportFormat.pdf:
@@ -233,7 +235,8 @@ class Transfers {
               }
             }
           }
-          final png = await renderPagePng(page, images, docs: notifier.docs, typeset: notifier.mathPictures);
+          final png = await renderPagePng(page, images,
+              docs: notifier.docs, typeset: notifier.mathPictures, background: pdf.background);
           return ExportFile(fileNameFor(_fileTitle(nb.notebook, ExportScope.page, [indexes.first]), 'png'), png, pngMime);
         } finally {
           for (final i in images.values) {

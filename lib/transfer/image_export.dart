@@ -24,6 +24,7 @@ Future<Uint8List> renderPagePng(
   double scale = 2,
   OfficeSource? docs,
   MathSource? typeset,
+  bool background = true,
 }) async {
   final area = pageContent(page)?.inflate(fitMargin) ?? const Rect.fromLTWH(0, 0, 800, 600);
   final k = math.min(scale, maxImageSide / math.max(area.width, area.height));
@@ -34,7 +35,8 @@ Future<Uint8List> renderPagePng(
     ..scale(k)
     ..translate(-area.left, -area.top)
     ..drawRect(area, Paint()..color = c.bg);
-  _paper(canvas, page.paper, area);
+  // Share's "Include the dot paper background" off: plain paper.
+  if (background) _paper(canvas, page.paper, area);
   paintLayout(canvas, page.template, c);
   for (final item in page.items) {
     paintItem(canvas, item, ui.Brightness.light, c, images: (name) => images[name], docs: docs, math: typeset);

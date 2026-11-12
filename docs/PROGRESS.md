@@ -1162,6 +1162,34 @@ The owner's request (2026-11-11): build Update 04 in full, all 10 sections. Sett
 - Not tried on the tablet: signing in to OneDrive from the prompt (needs the client ids, as in Phase 9a).
 - The folder chips list the top-level folders (and the one picked); a deeper folder is picked from the Library or with Move to folder.
 
+## Update 04d: Share a copy and Version history — built, not yet tried on the tablet (docs/UPDATE_04.md §1, §4)
+
+| Item | Status | Where |
+|---|---|---|
+| Share a copy (Share.png) | "Share a copy", "Send it as a file anyone can open.", This page · Notebook · Folder. **As a**: PDF ("Best for reading and printing…"), Board file (.BOARD), Image (PNG, greyed out unless This page; picking Notebook or Folder with it moves to PDF). The options under them: PDF: Make handwriting searchable (on, "Recommended") and Include the dot paper background (on); Board file: Include audio and video ("Bigger file", off); Image: the background | `ShareDialog` (`lib/ui/transfer/share_dialog.dart`) |
+| Send with | **Share sheet** (Gmail, Messages, Bluetooth…), **Google Drive** and **OneDrive** (into "Shared copies" in Endless's folder there; signed in to first if needed), **Save to tablet** (the system file picker, one file at a time for a folder). The main button says Share… / Save to Drive / Save to OneDrive / Save | `ShareDest`, `SyncController.saveSharedCopies` |
+| Locked pages | Never in a copy (as since Phase 9b). The yellow note names them: "Page 4 (Exam notes) is locked, so it won’t be included.", "Pages 2, 4 and 7 are…", or for a folder "1 notebook and 3 pages are locked…"; This page on a locked page can't be sent | `_lockedNote`, `shareablePageIds` |
+| Coming later | A dashed card: "Invite people and write together · Coming later, once it can be done securely. For now, share a copy." No sharing backend | `share_dialog.dart` |
+| Footer | "Physics — Lecture notes · 11 pages · about 9 MB", "Lecture 3 — Momentum · about 0.8 MB", "School › Physics · 4 notebooks · about …". The size is an estimate from the pages and their files (other notebooks in a folder count by pages) | `Transfers.estimateShare`, `sizeWords` |
+| Audio and video | Without "Include audio and video", a board file leaves out the recordings and videos on its pages (their cards stay, empty); pictures always go. An image's background can be left off too | `mediaAssetsOf`, `exportBoardFile(leaveOut:)`, `renderPagePng(background:)` |
+| Version history (History.png) | A screen of its own from ⋯ → Version history: back, "Version history", the notebook › page and "saved automatically as you write, kept for 30 days", All versions / Named only. Left: the picked version's time and "This tablet · +12 strokes · 1 image", **Show changes** (on), the page, and the legend. Right: "6 VERSIONS · Newest first", grouped by day (Today, Yesterday, Sep 15) on a line with dots, each with its time, the device and what changed | `VersionHistoryScreen` (`lib/ui/canvas/version_history.dart`) |
+| What changed | Each version against the one before it: "+12 strokes · 1 image", "−3 strokes", "First notes on this page"; a version kept before another device's changes says "Before changes from Kim’s phone · …". Show changes boxes what the version added (green, dashed, ADDED) and what's been erased since (clay, struck through, ERASED LATER), nearby items in one box | `itemChanges`, `changeSummary`, `clustersOf` (`lib/canvas/clusters.dart`) |
+| Restore, Save as a new page | **Restore this version** keeps today's page as a version first and is one undo step ("Restored the version from … · Undo"). **Save as a new page** puts the version right after this page ("Lecture 3 (Today, 10:30 AM)", new item ids), goes there, with Undo | `restoreVersion`, `NotebookNotifier.insertPageCopy` |
+| Name this version (History-naming.png) | The header becomes "e.g. Before the midterm", **Save name** (blue), Cancel; the version gets a yellow bookmark chip and a gold dot. Named versions are kept until deleted; the others for 30 days | `NotebookNotifier.nameVersion`, `VersionStore.setLabel` (`names.json`) |
+| How long | Settings › Notebooks & pages › **Keep versions for**: 7, 30 (default) or 90 days ("Versions you name are kept until you delete them"). Older unnamed ones go at the next version kept; thinning is now all from the last hour, one per 10 minutes for a day, one per day after (no weekly ones) | `VersionStore.keepDays`, `_thin`, `AppSettings.versionDays` |
+| Portrait | The version list goes under the preview | `VersionHistoryScreen` |
+
+**Judgment calls:**
+- **Drive and OneDrive get the copy in "Shared copies"** inside Endless's own folder (Google only lets Endless see its own folders). Signing in from Share connects that cloud for sync too, the same as Settings › Sync & backup (one sign-in).
+- **A version kept before another device's changes** is this tablet's page from just before they came in, so it's listed as "This tablet · Before changes from Kim’s phone" rather than as the phone's own version (that one isn't on this tablet).
+- **The size is "about"**: the copy is only made when you send it.
+- **Every entry says "This tablet"**: versions are kept on the device that had them (Phase 9a).
+
+### Not done yet / known limits
+- Not tried on the tablet: the share sheet with each format, saving to Drive and OneDrive (needs the client ids), and the file picker for a folder (a picker per notebook).
+- A version's name is stored in the clear beside the versions, even for a page with a password (the versions themselves stay sealed).
+- "+2 lines" in the design counts lines of handwriting; Endless counts strokes and other items.
+
 ## Storage layout
 
 ```
@@ -1358,6 +1386,8 @@ Also in `<app documents>/Endless/` since Phase 9a: `sync/` (settings.json: Sync 
 - Update 04b: `test/ui/shortcuts_test.dart` (the catalog: defaults, unique ids, search, what can be pinned, unknown saved ids dropped, at most 6; the toolbar's height and place, with All pages and in portrait, and how many fit; the default shortcuts in order and centered; a tool on and off (ruler, laser); a feature opening (Version history); pinning from a menu, unpinning, full; the panel's move, remove, reset, search, add, "Nothing matches", Done, saved in settings.json; the toolbar re-centering with 6, stepping aside for All pages and hiding for the page menu; Settings › Toolbar shortcuts; the portrait canvas's two rows, centered rail and collapsed map (the landscape setting untouched); Search, Settings and Flashcards in portrait; the ⋯ menu and panel fitting in portrait). Goldens: `canvas_shortcuts`, `canvas_shortcuts_search`, `canvas_pin_from_menu`, `canvas_shortcuts_in_use`, `canvas_portrait`, `canvas_portrait_pen`, `canvas_portrait_more`, `canvas_portrait_shortcuts`. Every golden with the canvas rail was made again (the shortcuts and the dashed button); tests that look for an Insert tile by name now look inside the Insert menu (the PDF shortcut has the same name).
 
 - Update 04c: `test/ui/new_notebook_test.dart` (notebook.json's `setup`; the choices; Start's New notebook with a name, color, folder and No backup; a cloud that can't be signed in to makes nothing; Skip for now, the canvas ⋯ item, the library's Not set up tag and menu item, Finish setting up and the menu without it afterwards; "Use these every time" and Settings › New notebooks; the prompt in portrait); `test/library/library_test.dart` (Not set up through the index). Goldens: `new_notebook`, `new_notebook_no_backup`, `new_notebook_portrait`, `library_unset`, `library_unset_other_menu`, `finish_setup`; `settings_notebooks` again (the New notebooks rows).
+
+- Update 04d: `test/ui/transfer_test.dart`, Share (the dialog's parts and the locked-page note; a board file without the page with a password; PDF with its options, Image greyed for a notebook and This page's image; Save to tablet through the picker; Google Drive into Shared copies; audio and video left out or kept; a folder's copies); `test/ui/version_history_test.dart` (named versions kept and the others gone after 30 or 7 days, a name taken away; the setting; change summaries and clusters; the screen by day with Show changes, naming, Named only and Save as a new page; portrait); `test/sync/sync_app_test.dart` (Restore and Undo, as before). Goldens: `share_copy`, `share_copy_board`, `history`, `history_naming`; `share` and `settings_notebooks` again.
 
 ## Next
 - **Update 03 tablet checklist.** Release build (`flutter build apk --release`, `adb install -r`).

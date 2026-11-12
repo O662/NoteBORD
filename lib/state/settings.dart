@@ -196,6 +196,10 @@ class AppSettings {
   /// The Start page's greeting and big tiles folded into one slim bar.
   bool get startCollapsed => pref<bool>('startCollapsed');
 
+  /// How long versions without a name are kept (Settings › Notebooks &
+  /// pages › Keep versions for): 7, 30 or 90 days.
+  int get versionDays => const [7, 30, 90][pref<int>('versionDays').clamp(0, 2)];
+
   /// Pen & S Pen: hovering the S Pen over the left menu opens it.
   bool get hoverMenus => pref<bool>('hoverMenus');
 
@@ -395,6 +399,7 @@ const prefDefaults = <String, Object?>{
   'defaultPaper': 'dots',
   'pageNumbers': true,
   'pageTrash': 1,
+  'versionDays': 1,
   // Notifications
   'reminders': true,
   'calendarAlerts': 1,

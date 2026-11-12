@@ -43,6 +43,7 @@ Future<Uint8List> exportBoardFile(
   Set<String>? pageIds,
   bool includeAssets = true,
   bool includeRecognition = true,
+  Set<String> leaveOut = const {},
 }) async {
   final loaded = await store.loadNotebook(notebookId);
   if (loaded == null) throw StateError('Notebook $notebookId was not found');
@@ -124,7 +125,8 @@ Future<Uint8List> exportBoardFile(
       // they use, and, when a locked page goes along, the sealed files
       // (which pages use them can't be read without the password).
       final wanted = pageIds == null || refs.contains(base) || (sealed && anySealed);
-      if (!wanted) continue;
+      // Share without "Include audio and video": recordings and videos stay.
+      if (!wanted || leaveOut.contains(base)) continue;
       final bytes = await store.loadAsset(notebookId, name);
       if (bytes != null) add('assets/$name', bytes, compress: false);
     }

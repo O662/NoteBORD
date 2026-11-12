@@ -1348,6 +1348,27 @@ class NotebookNotifier extends Notifier<NotebookState> {
   /// Earlier versions of page [pageId], newest first.
   Future<List<PageVersion>> versionsOf(String pageId) => _versions.list(id, pageId);
 
+  /// Names version [v] of page [pageId] (kept until it's deleted), or takes
+  /// its name away (Update 04, History-naming.png).
+  Future<void> nameVersion(String pageId, PageVersion v, String? label) => _versions.setLabel(id, pageId, v.name, label);
+
+  /// Puts a copy of [source] (an earlier version, or another device's
+  /// version of a page) right after page [afterPageId], with new item ids
+  /// and [title]; returns its index (Version history's "Save as a new page",
+  /// the conflict screen's "Keep both as pages"). Null when that page is
+  /// gone.
+  int? insertPageCopy(String afterPageId, BoardPage source, {String? title}) {
+    final i = state.indexOf(afterPageId);
+    if (i < 0) return null;
+    final copy = copyPage(source);
+    if (title != null) copy.title = title;
+    state.notebook.pageIds.insert(i + 1, copy.id);
+    state.pages.insert(i + 1, _runtime(copy));
+    _metaDirty = true;
+    _changed(copy.id);
+    return i + 1;
+  }
+
   /// Version [v] of page [pageId], or null if it can't be read (gone, or
   /// sealed with a key that isn't open).
   Future<BoardPage?> loadVersion(String pageId, PageVersion v) async {

@@ -132,7 +132,7 @@ class DialogCloseButton extends StatelessWidget {
 
 /// The dark filled button ("Lock page", "Use …", "Open").
 class PrimaryButton extends StatelessWidget {
-  const PrimaryButton({super.key, required this.label, required this.onPressed, this.icon, this.height = 48, this.expand = false, this.padding});
+  const PrimaryButton({super.key, required this.label, required this.onPressed, this.icon, this.height = 48, this.expand = false, this.padding, this.color});
 
   final String label;
   final VoidCallback? onPressed;
@@ -142,6 +142,9 @@ class PrimaryButton extends StatelessWidget {
 
   /// Space each side of the label (22, or 20 with an icon).
   final double? padding;
+
+  /// In place of the dark fill (the accent, for a blue button).
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -154,7 +157,7 @@ class PrimaryButton extends StatelessWidget {
       label: label,
       excludeSemantics: true,
       child: Material(
-        color: enabled ? c.inverse : c.inverse.withValues(alpha: 0.4),
+        color: enabled ? color ?? c.inverse : (color ?? c.inverse).withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(Radii.button),
         child: InkWell(
           borderRadius: BorderRadius.circular(Radii.button),

@@ -307,7 +307,8 @@ List<SettingsGroup> settingsGroups(SettingsSection section) => switch (section) 
           SettingsGroup('Pages', [
             _flag('pageNumbers', 'Show page numbers'),
             _choice('pageTrash', 'Keep deleted pages in Trash', ['7 days', '30 days', 'Until I empty it']),
-            ValueDef('Version history', 'Earlier versions of each page', value: (_) => 'Keep 30 days'),
+            _choice('versionDays', 'Keep versions for', ['7 days', '30 days', '90 days'],
+                'Versions you name are kept until you delete them'),
           ]),
         ],
       SettingsSection.sync => [

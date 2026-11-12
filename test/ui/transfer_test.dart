@@ -7,6 +7,7 @@ import 'package:endless/board/lock.dart';
 import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
 import 'package:endless/library/library.dart';
+import 'package:endless/sync/cloud.dart';
 import 'package:endless/transfer/board_file.dart';
 import 'package:endless/transfer/files.dart';
 import 'package:endless/transfer/incoming.dart';
@@ -20,10 +21,12 @@ import 'package:endless/ui/routes.dart';
 import 'package:endless/ui/transfer/transfer_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:endless/study/study_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers.dart';
+import '../sync/sync_app_helpers.dart';
 import '../transfer/everything.dart';
 
 Finder _primary(String label) => find.widgetWithText(PrimaryButton, label);
@@ -39,13 +42,15 @@ Future<void> _more(WidgetTester t, String item) async {
 
 /// The sample notebook (4 pages, ink on page 3) open on page 3, with fake
 /// files.
-Future<(ProviderContainer, FakeFileTransfer, MemoryBoardStore)> _canvas(WidgetTester t, {MemoryBoardStore? store}) async {
+Future<(ProviderContainer, FakeFileTransfer, MemoryBoardStore)> _canvas(WidgetTester t,
+    {MemoryBoardStore? store, List<Override> extra = const []}) async {
   final files = FakeFileTransfer();
   final s = store ?? storeWith(sampleNotebook());
   final c = await pumpCanvas(t, store: s, notebookId: 'nb_sample', extra: [
     fileTransferProvider.overrideWithValue(files),
     pdfReaderProvider.overrideWithValue(FakePdfReader()),
     decodeAs(testPicture()),
+    ...extra,
   ]);
   canvasPane.goTo(2);
   await t.pump();
@@ -166,19 +171,24 @@ void main() {
       return store;
     }
 
-    testWidgets('Share: invites, links and editing together are coming later; a copy goes to the share sheet', (tester) async {
+    testWidgets('Share a copy: the board file leaves out the page with a password and says so', (tester) async {
       final (_, files, _) = await _canvas(tester, store: await lockedStore());
       await tester.tap(byLabel('Share'));
       await tester.pumpAndSettle();
+      expect(find.text('Share a copy'), findsOneWidget);
       expect(find.text('Coming later'), findsOneWidget);
-      expect(find.textContaining('Invite people'), findsOneWidget);
-      expect(find.textContaining('Pages with a password are never sent'), findsOneWidget);
-      for (final t in ['This page', 'Notebook', 'Folder', 'Export a copy']) {
-        expect(find.text(t), findsOneWidget);
+      expect(find.text('Invite people and write together'), findsOneWidget);
+      for (final t in ['This page', 'Notebook', 'Folder', 'Board file', 'Image', 'Share sheet', 'Google Drive', 'OneDrive', 'Save to tablet']) {
+        expect(find.text(t), findsOneWidget, reason: t);
       }
-      // Notebook (the default) as a board file: page 4 (password) isn't in it,
-      // not even sealed.
+      expect(find.text('PDF'), findsNWidgets(2), reason: 'the badge and the name');
+      // Notebook (the default): page 4 has a password.
+      expect(find.text('Page 4 is locked, so it won’t be included.'), findsOneWidget);
+      expect(find.textContaining('Physics — Lecture notes · 3 pages · about'), findsOneWidget);
       await tester.tap(find.text('Board file'));
+      await tester.pump();
+      expect(find.text('Include audio and video'), findsOneWidget);
+      await tester.tap(find.text('Share…'));
       await settleReal(tester, () => files.shared.isNotEmpty);
       final board = _zipNames(files.shared.single.bytes);
       expect(board, containsAll(['pages/pg_01.json', 'pages/pg_03.json']));
@@ -188,11 +198,19 @@ void main() {
       expect(find.textContaining('1 page with a password was left out'), findsOneWidget);
     });
 
-    testWidgets('Share a PDF of the notebook, and an image of this page', (tester) async {
+    testWidgets('a PDF of the notebook; an image only for This page', (tester) async {
       final (_, files, _) = await _canvas(tester);
       await tester.tap(byLabel('Share'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('PDF'));
+      // PDF is picked to begin with, with its two options on.
+      expect(find.text('Make handwriting searchable'), findsOneWidget);
+      expect(find.text('Recommended'), findsOneWidget);
+      expect(find.text('Include the dot paper background'), findsOneWidget);
+      // Image is greyed out for a notebook.
+      await tester.tap(find.text('Image'));
+      await tester.pump();
+      expect(find.text('Make handwriting searchable'), findsOneWidget, reason: 'still the PDF');
+      await tester.tap(find.text('Share…'));
       await settleReal(tester, () => files.shared.isNotEmpty);
       expect(files.shared.single.name, 'Physics — Lecture notes.pdf');
       expect(utf8.decode(files.shared.single.bytes.sublist(0, 5)), '%PDF-');
@@ -200,10 +218,73 @@ void main() {
 
       await tester.tap(byLabel('Share'));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('This page'));
+      await tester.pump();
       await tester.tap(find.text('Image'));
+      await tester.pump();
+      await tester.tap(find.text('Share…'));
       await settleReal(tester, () => files.shared.length == 2);
       expect(files.shared.last.name, 'Physics — Lecture notes — page 3.png');
       expect(files.shared.last.bytes.sublist(1, 4), 'PNG'.codeUnits);
+      // Back to Notebook: the image isn't kept.
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('Save to tablet goes through the file picker', (tester) async {
+      final (_, files, _) = await _canvas(tester);
+      await tester.tap(byLabel('Share'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save to tablet'));
+      await tester.pump();
+      expect(find.text('You pick where on the tablet, such as Downloads.'), findsOneWidget);
+      await tester.tap(find.text('Save'));
+      await settleReal(tester, () => files.saved.isNotEmpty);
+      expect(files.saved.single.name, 'Physics — Lecture notes.pdf');
+      expect(files.shared, isEmpty);
+    });
+
+    testWidgets('Google Drive: the copy goes to Shared copies in Endless’s folder', (tester) async {
+      final cloud = MemoryCloud();
+      final store = storeWith(sampleNotebook());
+      syncingWithGoogle(store);
+      final (_, files, _) = await _canvas(tester, store: store, extra: syncOverrides(cloud));
+      await tester.tap(byLabel('Share'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Google Drive'));
+      await tester.pump();
+      await tester.tap(find.text('Board file'));
+      await tester.pump();
+      await tester.tap(find.text('Save to Drive'));
+      await settleReal(tester, () => cloud.files.containsKey('Shared copies/Physics — Lecture notes.board'));
+      expect(files.shared, isEmpty);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Saved Physics — Lecture notes.board to Google Drive › Shared copies'), findsOneWidget);
+    });
+
+    testWidgets('without “Include audio and video” a board file leaves recordings out', (tester) async {
+      final nb = sampleNotebook();
+      nb.pages[2].items.add(AudioItem(id: 'au_1', x: 10, y: 10, z: 99, createdAt: DateTime.utc(2026, 9, 25), asset: 'rec.m4a', name: 'Lecture', recordedAt: DateTime.utc(2026, 9, 25), durationMs: 1000));
+      final store = storeWith(nb);
+      await store.saveAsset('nb_sample', 'rec.m4a', Uint8List.fromList(List.filled(64, 7)));
+      final (_, files, _) = await _canvas(tester, store: store);
+      await tester.tap(byLabel('Share'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Board file'));
+      await tester.pump();
+      await tester.tap(find.text('Share…'));
+      await settleReal(tester, () => files.shared.isNotEmpty);
+      expect(_zipNames(files.shared.single.bytes), isNot(contains('assets/rec.m4a')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(byLabel('Share'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Board file'));
+      await tester.pump();
+      await tester.tap(find.text('Include audio and video'));
+      await tester.pump();
+      await tester.tap(find.text('Share…'));
+      await settleReal(tester, () => files.shared.length == 2);
+      expect(_zipNames(files.shared.last.bytes), contains('assets/rec.m4a'));
     });
 
     testWidgets('This page, on a page with a password: nothing can be sent', (tester) async {
@@ -248,19 +329,12 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Folder'));
       await tester.pump();
-      expect(find.textContaining('Every notebook in'), findsOneWidget);
+      expect(find.textContaining('School › Physics · 2 notebooks'), findsOneWidget);
       await tester.tap(find.text('Board file'));
+      await tester.pump();
+      await tester.tap(find.text('Share…'));
       await settleReal(tester, () => files.shared.length >= 2);
       expect({for (final f in files.shared) f.name}, {'Physics — Lecture notes.board', 'Lab journal.board'});
-    });
-
-    testWidgets('the Export a copy row opens Export, to save it or pick pages', (tester) async {
-      await _canvas(tester);
-      await tester.tap(byLabel('Share'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.bySemanticsLabel('Export a copy'));
-      await tester.pumpAndSettle();
-      expect(_primary('Export PDF'), findsOneWidget);
     });
   });
 

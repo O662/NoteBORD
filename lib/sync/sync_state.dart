@@ -551,6 +551,28 @@ class SyncController extends Notifier<SyncState> {
     if (pdfCopy == true || media == true || wifiOnly == false) unawaited(syncNow());
   }
 
+  /// Share a copy (Update 04): puts [files] in "Shared copies" in
+  /// [kind]'s Endless folder, signing in first if it isn't connected.
+  /// Returns why it couldn't, or null.
+  Future<String?> saveSharedCopies(CloudKind kind, List<({String name, Uint8List bytes})> files) async {
+    if (!state.settings.of(kind).connected) {
+      final why = await connect(kind);
+      if (why != null) return why;
+    }
+    try {
+      final cloud = _cloud(kind);
+      for (final f in files) {
+        await cloud.write('$sharedCopiesFolder/${f.name}', f.bytes);
+      }
+      return null;
+    } on CloudException catch (e) {
+      return e.message;
+    }
+  }
+
+  /// Where Share puts copies in a cloud (sync leaves this folder alone).
+  static const sharedCopiesFolder = 'Shared copies';
+
   CloudDrive _cloud(CloudKind kind) =>
       ref.read(cloudFactoryProvider)(kind, ref.read(cloudAuthProvider(kind)), state.settings.of(kind).folder);
 

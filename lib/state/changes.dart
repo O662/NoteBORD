@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../board/store.dart';
+import '../library/library.dart' show clockProvider;
 import '../sync/versions.dart';
 import 'settings.dart';
 
@@ -25,5 +26,6 @@ final localChangesProvider = Provider<LocalChanges>((ref) {
 /// Earlier versions of pages (version history).
 final versionStoreProvider = Provider<VersionStore>((ref) {
   final BoardStore store = ref.read(boardStoreProvider);
-  return VersionStore(store);
+  // Settings › Notebooks & pages › Keep versions for: how long unnamed ones stay.
+  return VersionStore(store, clock: () => ref.read(clockProvider)(), keepDays: () => ref.read(settingsProvider).versionDays);
 });

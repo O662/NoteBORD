@@ -352,7 +352,7 @@ void main() {
     await tester.tap(find.text('Version history'));
     await tester.pumpAndSettle();
     expect(find.text('Version history'), findsWidgets);
-    expect(find.text('While writing'), findsOneWidget);
+    expect(find.text('First notes on this page'), findsOneWidget);
 
     await tester.tap(find.bySemanticsLabel('Restore this version'));
     await tester.pumpAndSettle();
