@@ -27,6 +27,7 @@ import '../routes.dart';
 import 'calendar_grid.dart' show layoutDay;
 import 'calendar_widgets.dart';
 import 'ink_pad.dart';
+import '../shell.dart';
 
 // The planner (Planner.png): Today (top 3, to-dos, the day's schedule with
 // the calendar's events and the time blocked for to-dos, notes for today,
@@ -100,9 +101,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
         autofocus: true,
         child: Scaffold(
           backgroundColor: c.bg,
-          body: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+          body: AppShell(children: [
               const AppSidebar(selected: SidebarItem.calendar),
               Expanded(
                 child: Padding(
@@ -229,7 +228,52 @@ class _TodayView extends ConsumerWidget {
   final DateTime day;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Row(
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Portrait: today's notes and tomorrow go under the schedule, which
+    // keeps a usable width (UPDATE_04 §8).
+    if (context.narrow) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 14,
+        children: [
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 14,
+              children: [
+                SizedBox(
+                  width: 290,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    spacing: 14,
+                    children: [
+                      _TopThree(day: day),
+                      Expanded(child: _TodoCard(day: day)),
+                    ],
+                  ),
+                ),
+                Expanded(child: _Schedule(day: day)),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 240,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 14,
+              children: [
+                Expanded(child: _NotesToday(day: day)),
+                SizedBox(width: 290, child: _Tomorrow(day: addDays(day, 1))),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+    return _wide(day);
+  }
+
+  static Widget _wide(DateTime day) => Row(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     spacing: 14,
     children: [
@@ -772,7 +816,14 @@ class _ScheduleState extends ConsumerState<_Schedule> {
                     ),
                   )
                 else
-                  Text('Drag a to-do here to block time', style: TextStyle(fontSize: 12, color: c.textMuted)),
+                  Flexible(
+                    child: Text(
+                      'Drag a to-do here to block time',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12, color: c.textMuted),
+                    ),
+                  ),
               ],
             ),
           ),

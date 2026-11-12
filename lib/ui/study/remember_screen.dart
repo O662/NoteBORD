@@ -17,6 +17,7 @@ import '../library/sidebar.dart';
 import '../routes.dart';
 import 'item_preview.dart';
 import 'study_format.dart';
+import '../shell.dart';
 
 /// A filter chip: everything, things with a reminder, or a folder's.
 @immutable
@@ -134,7 +135,7 @@ class _RememberScreenState extends ConsumerState<RememberScreen> {
     return Scaffold(
       backgroundColor: c.bg,
       body: SafeArea(
-        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child: AppShell(children: [
           const AppSidebar(selected: SidebarItem.remember),
           Expanded(
             child: Stack(children: [

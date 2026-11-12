@@ -204,9 +204,11 @@ class FakeFeeds implements FeedFetcher {
   }
 }
 
-/// Pumps the whole app at the tablet size (1280×800), starting at [location].
+/// Pumps the whole app at the tablet size (1280×800), or [size] (portrait:
+/// [portraitSize]), starting at [location].
 Future<ProviderContainer> pumpApp(
   WidgetTester tester, {
+  Size? size,
   MemoryBoardStore? store,
   String location = Routes.start,
   FakeBiometric? biometric,
@@ -216,7 +218,7 @@ Future<ProviderContainer> pumpApp(
   ReminderService reminders = const NoReminders(),
   List<Override> extra = const [],
 }) async {
-  tester.view.physicalSize = tokens.Sizes.tabletFrame;
+  tester.view.physicalSize = size ?? tokens.Sizes.tabletFrame;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final overrides = await testOverrides(
@@ -233,6 +235,9 @@ Future<ProviderContainer> pumpApp(
   await tester.pump();
   return ProviderScope.containerOf(tester.element(find.byType(EndlessApp)));
 }
+
+/// The tablet held upright (UPDATE_04 §8).
+const portraitSize = Size(800, 1280);
 
 /// Adds an empty "Untitled notebook" to [store] and returns its id.
 String addUntitled(MemoryBoardStore store) {

@@ -189,6 +189,13 @@ class AppSettings {
   /// General: open to the Start page (0) or the last note (1).
   bool get openLastNote => pref<int>('openTo') == 1;
 
+  /// The app sidebar folded down to the 80 dp icon rail (Update 04, one
+  /// setting for every screen).
+  bool get sidebarCollapsed => pref<bool>('sidebarCollapsed');
+
+  /// The Start page's greeting and big tiles folded into one slim bar.
+  bool get startCollapsed => pref<bool>('startCollapsed');
+
   /// Pen & S Pen: hovering the S Pen over the left menu opens it.
   bool get hoverMenus => pref<bool>('hoverMenus');
 
@@ -365,6 +372,9 @@ const prefDefaults = <String, Object?>{
   'theme': 'paper',
   'accent': 'theme',
   'keepPagesLight': false,
+  // Layout (Update 04): remembered, not shown in Settings
+  'sidebarCollapsed': false,
+  'startCollapsed': false,
   // General
   'openTo': 0,
   'dateFormat': 0,

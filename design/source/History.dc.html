@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Version history</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; box-sizing: border-box; padding: 20px 24px 22px; display: flex; flex-direction: column; gap: 16px; background: #EEE7D8; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<header style="display: flex; align-items: center; gap: 12px">
+<a href="Canvas.dc.html" aria-label="Back to the page" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #FFFDF8; border: 1px solid #DDD4C2; color: #1E1C19"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px">
+<h1 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 30px; font-weight: 400">Version history</h1>
+<span style="font-size: 14px; color: #5E574C">Physics — Lecture notes › Lecture 3 — Momentum · saved automatically as you write, kept for 30 days</span>
+</div>
+<div role="radiogroup" aria-label="Show versions" style="display: flex; gap: 2px; padding: 3px; border-radius: 12px; background: #E4DCCB">
+<sc-for list="{{ filters }}" as="f" hint-placeholder-count="2">
+<button role="radio" aria-checked="{{ f.on }}" onClick="{{ f.pick }}" style="height: 40px; padding: 0 16px; border: 0; border-radius: 9px; background: {{ f.bg }}; color: #1E1C19; font-size: 14px; font-weight: 600; box-shadow: {{ f.shadow }}">{{ f.label }}</button>
+</sc-for>
+</div>
+</header>
+
+<div style="flex-grow: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px">
+
+<section aria-label="Preview of the selected version" style="min-width: 0; display: flex; flex-direction: column; border: 1px solid #DDD4C2; border-radius: 20px; background: #FFFDF8; overflow: hidden">
+<div style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #E4DCCB">
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0">
+<sc-if value="{{ renaming }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; gap: 8px; align-items: center">
+<input aria-label="Version name" value="{{ draft }}" onInput="{{ typeDraft }}" placeholder="e.g. Before the midterm" style="height: 40px; width: 300px; box-sizing: border-box; padding: 0 12px; border: 2px solid #2B5A8C; border-radius: 10px; font-family: inherit; font-size: 15px; background: #FFFFFF; color: #1E1C19">
+<button onClick="{{ saveName }}" style="height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: #2B5A8C; color: #FFFDF8; font-size: 14px; font-weight: 700">Save name</button>
+<button onClick="{{ cancelName }}" style="height: 40px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: #3D3830; font-size: 14px; font-weight: 600">Cancel</button>
+</div>
+</sc-if>
+<sc-if value="{{ notRenaming }}" hint-placeholder-val="{{ true }}">
+<span style="font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ selTitle }}</span>
+<span style="font-size: 13px; color: #5E574C">{{ selMeta }}</span>
+</sc-if>
+</div>
+<sc-if value="{{ isCurrent }}" hint-placeholder-val="{{ false }}">
+<span style="padding: 4px 10px; border-radius: 999px; background: #E3ECE4; color: #2F5D3A; font-size: 12px; font-weight: 800">CURRENT</span>
+</sc-if>
+<label style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 4px; font-size: 14px; font-weight: 600; color: #3D3830; cursor: pointer">
+<span style="white-space: nowrap">Show changes</span>
+<button role="switch" aria-checked="{{ changesStr }}" aria-label="Show changes" onClick="{{ toggleChanges }}" style="position: relative; width: 46px; height: 28px; padding: 0; border: 0; border-radius: 999px; background: {{ swBg }}"><span style="position: absolute; top: 3px; left: {{ swLeft }}; width: 22px; height: 22px; border-radius: 50%; background: #FFFDF8; box-shadow: 0 1px 3px rgba(0,0,0,0.25)"></span></button>
+</label>
+</div>
+
+<div style="position: relative; flex-grow: 1; min-height: 0; background-color: #F6F1E7; background-image: radial-gradient(#D6CDBA 1.2px, transparent 1.3px); background-size: 24px 24px">
+<div style="position: absolute; left: 40px; top: 26px; font-family: Caveat, 'Segoe Print', cursive; font-size: 46px; color: #2B5A8C; line-height: 1">Lecture 3 — Momentum</div>
+
+<sc-for list="{{ items }}" as="it" hint-placeholder-count="6">
+<div style="position: absolute; left: {{ it.x }}; top: {{ it.y }}; width: {{ it.w }}; height: {{ it.h }}; box-sizing: border-box; padding: 6px 10px; border-radius: 12px; background: {{ it.bg }}; outline: {{ it.outline }}; opacity: {{ it.op }}">
+<sc-if value="{{ it.isText }}" hint-placeholder-val="{{ true }}">
+<span style="display: block; font-family: Caveat, 'Segoe Print', cursive; font-size: {{ it.size }}; color: {{ it.ink }}; line-height: 1.15; text-decoration: {{ it.strike }}">{{ it.text }}</span>
+</sc-if>
+<sc-if value="{{ it.isDiagram }}" hint-placeholder-val="{{ false }}">
+<svg width="250" height="150" viewBox="0 0 310 190" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-label="Incline diagram"><path d="M10 176 L300 176 L300 36 Z" stroke="#1E1C19" stroke-width="2.5"/><rect x="145" y="62" width="52" height="34" stroke="#1E1C19" stroke-width="2.5" transform="rotate(-25.8 170 96)"/><path d="M168 82 L168 156 M161 146 L168 157 L175 146" stroke="#B5532A" stroke-width="2.5"/><path d="M196 70 L252 43 M240 41 L253 43 L246 54" stroke="#2B5A8C" stroke-width="2.5"/></svg>
+</sc-if>
+<sc-if value="{{ it.isSticky }}" hint-placeholder-val="{{ false }}">
+<div style="width: 100%; height: 100%; box-sizing: border-box; padding: 10px 12px; background: #F8E08E; border-radius: 4px; box-shadow: 0 8px 14px -10px rgba(30,28,25,0.5); transform: rotate(-2deg); font-family: Caveat, 'Segoe Print', cursive; font-size: 24px; line-height: 1.1; color: #3D3020">{{ it.text }}</div>
+</sc-if>
+<sc-if value="{{ it.tag }}" hint-placeholder-val="{{ false }}">
+<span style="position: absolute; right: -6px; top: -12px; padding: 2px 8px; border-radius: 999px; background: {{ it.tagBg }}; color: #FFFDF8; font-size: 11px; font-weight: 800; white-space: nowrap; font-family: Figtree, sans-serif">{{ it.tagText }}</span>
+</sc-if>
+</div>
+</sc-for>
+
+<sc-if value="{{ showLegend }}" hint-placeholder-val="{{ true }}">
+<div style="position: absolute; left: 16px; bottom: 14px; display: flex; gap: 14px; padding: 8px 12px; border-radius: 10px; background: rgba(255,253,248,0.94); border: 1px solid #E4DCCB; font-size: 12px; font-weight: 600; color: #3D3830">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; border-radius: 3px; background: rgba(62,123,79,0.25); outline: 1.5px dashed #3E7B4F"></span>Added in this version</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; border-radius: 3px; background: rgba(181,83,42,0.18); outline: 1.5px dashed #B5532A"></span>Erased later</span>
+</div>
+</sc-if>
+</div>
+
+<div style="display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid #E4DCCB">
+<span style="flex-grow: 1; font-size: 13px; color: #5E574C">{{ footNote }}</span>
+<button onClick="{{ startName }}" style="height: 44px; padding: 0 14px; border: 1px solid #CFC5B1; border-radius: 12px; background: transparent; color: #1E1C19; font-size: 14px; font-weight: 600; white-space: nowrap">{{ nameLabel }}</button>
+<button onClick="{{ copyIt }}" disabled="{{ isCurrent }}" style="height: 44px; padding: 0 14px; border: 1px solid #CFC5B1; border-radius: 12px; background: transparent; color: #1E1C19; font-size: 14px; font-weight: 600; white-space: nowrap; opacity: {{ dimCur }}">Save as a new page</button>
+<button onClick="{{ restore }}" disabled="{{ isCurrent }}" style="height: 44px; padding: 0 18px; border: 0; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 15px; font-weight: 700; white-space: nowrap; opacity: {{ dimCur }}">Restore this version</button>
+</div>
+</section>
+
+<aside aria-label="Versions" style="min-height: 0; display: flex; flex-direction: column; border: 1px solid #DDD4C2; border-radius: 20px; background: #FFFDF8; overflow: hidden">
+<div style="padding: 14px 18px 8px; display: flex; align-items: baseline; justify-content: space-between">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C">{{ countLabel }}</span>
+<span style="font-size: 12px; color: #5E574C">Newest first</span>
+</div>
+<div style="flex-grow: 1; min-height: 0; overflow: auto; padding: 0 10px 12px">
+<sc-for list="{{ groups }}" as="g" hint-placeholder-count="3">
+<div style="padding: 10px 8px 4px; font-size: 13px; font-weight: 700; color: #3D3830">{{ g.day }}</div>
+<sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="3">
+<button onClick="{{ r.pick }}" aria-pressed="{{ r.on }}" style="position: relative; width: 100%; display: flex; gap: 12px; padding: 10px 10px 10px 12px; margin-bottom: 2px; border: 0; border-radius: 12px; background: {{ r.bg }}; text-align: left; color: #1E1C19">
+<span style="position: relative; width: 14px; flex-shrink: 0; display: flex; justify-content: center"><span style="position: absolute; top: 0; bottom: -14px; width: 2px; background: #E4DCCB"></span><span style="position: relative; margin-top: 4px; width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; background: {{ r.dot }}; border: 2px solid {{ r.dotRing }}"></span></span>
+<span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px">
+<span style="display: flex; align-items: center; gap: 8px"><span style="font-size: 15px; font-weight: 700">{{ r.time }}</span><span style="font-size: 12px; color: #5E574C; white-space: nowrap">{{ r.device }}</span></span>
+<sc-if value="{{ r.named }}" hint-placeholder-val="{{ false }}"><span style="align-self: flex-start; display: flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 6px; background: #F3EAD4; color: #6B4B10; font-size: 12px; font-weight: 700"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg>{{ r.name }}</span></sc-if>
+<span style="font-size: 13px; color: #3D3830">{{ r.summary }}</span>
+</span>
+</button>
+</sc-for>
+</sc-for>
+</div>
+<div style="padding: 10px 18px 14px; border-top: 1px solid #E4DCCB; font-size: 12px; line-height: 1.45; color: #5E574C">Named versions are kept until you delete them. Others are kept for 30 days. Change this in Settings › Backup.</div>
+</aside>
+</div>
+
+<sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+<div role="status" style="position: absolute; left: 50%; bottom: 34px; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 12px 14px 12px 18px; border-radius: 14px; background: #1E1C19; color: #FFFDF8; font-size: 14px; box-shadow: 0 16px 30px -16px rgba(0,0,0,0.6)">
+<span>{{ toast }}</span>
+<button onClick="{{ undoToast }}" style="height: 36px; padding: 0 12px; border: 0; border-radius: 9px; background: rgba(255,255,255,0.12); color: #FFFDF8; font-size: 14px; font-weight: 700">Undo</button>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: 'v4', filter: 'all', changes: true, renaming: false, draft: '', names: { v6: 'Before the midterm' }, toast: '' };
+  }
+  renderVals() {
+    var self = this, st = this.state;
+    // id, day, time, device, summary, items present, items added
+    var V = [
+      { id: 'v1', day: 'Today', time: '2:14 PM', device: 'This tablet', summary: '+18 strokes · Impulse notes', has: ['p', 'cons', 'diag', 'imp', 'next', 'sticky'], add: ['imp'] },
+      { id: 'v2', day: 'Today', time: '1:52 PM', device: 'This tablet', summary: '+1 sticky note', has: ['p', 'cons', 'diag', 'next', 'sticky'], add: ['sticky'] },
+      { id: 'v3', day: 'Today', time: '10:55 AM', device: 'Kieth’s phone', summary: 'Merged from phone · +2 lines', has: ['p', 'cons', 'diag', 'next'], add: ['next'] },
+      { id: 'v4', day: 'Yesterday', time: '4:30 PM', device: 'This tablet', summary: '+1 diagram', has: ['p', 'cons', 'diag', 'old'], add: ['diag'] },
+      { id: 'v5', day: 'Yesterday', time: '3:10 PM', device: 'This tablet', summary: '+2 lines', has: ['p', 'cons', 'old'], add: ['cons'] },
+      { id: 'v6', day: 'Sep 15', time: '9:02 AM', device: 'This tablet', summary: 'First notes on this page', has: ['p', 'old'], add: ['p', 'old'] }
+    ];
+    var ITEMS = {
+      p: { x: 46, y: 104, w: 300, h: 58, text: 'p = m · v', size: 40, ink: '#1E1C19' },
+      cons: { x: 46, y: 176, w: 380, h: 58, text: 'Momentum is conserved', size: 36, ink: '#1E1C19' },
+      old: { x: 46, y: 250, w: 330, h: 50, text: 'in every collision?', size: 30, ink: '#5E574C' },
+      diag: { x: 470, y: 112, w: 270, h: 166, diagram: true },
+      imp: { x: 46, y: 320, w: 300, h: 100, text: 'Impulse\nJ = F · Δt = Δp', size: 34, ink: '#2B5A8C' },
+      next: { x: 470, y: 300, w: 260, h: 52, text: '→ next: collisions', size: 30, ink: '#5E574C' },
+      sticky: { x: 600, y: 380, w: 170, h: 110, sticky: true, text: 'Ask about elastic vs inelastic' }
+    };
+    var current = V[0];
+    var shown = st.filter === 'named' ? V.filter(function (v) { return st.names[v.id]; }) : V;
+    var sel = V.filter(function (v) { return v.id === st.sel; })[0] || V[0];
+    var groups = [];
+    shown.forEach(function (v) {
+      var g = groups.filter(function (x) { return x.day === v.day; })[0];
+      if (!g) { g = { day: v.day, rows: [] }; groups.push(g); }
+      var on = v.id === sel.id, nm = st.names[v.id];
+      g.rows.push({ time: v.time, device: v.device + (v.id === 'v1' ? ' · now' : ''), summary: v.summary, named: !!nm, name: nm || '', on: on ? 'true' : 'false', bg: on ? '#EAF0F6' : 'transparent', dot: on ? '#2B5A8C' : '#FFFDF8', dotRing: on ? '#2B5A8C' : (nm ? '#B5862A' : '#BFB49E'), pick: function () { self.setState({ sel: v.id, renaming: false }); } });
+    });
+    var keys = Object.keys(ITEMS);
+    var items = [];
+    keys.forEach(function (k) {
+      var inSel = sel.has.indexOf(k) >= 0, inCur = current.has.indexOf(k) >= 0;
+      var added = st.changes && inSel && sel.add.indexOf(k) >= 0;
+      var gone = st.changes && inSel && !inCur;
+      if (!inSel) return;
+      var it = ITEMS[k];
+      items.push({ x: it.x + 'px', y: it.y + 'px', w: it.w + 'px', h: it.h + 'px', isText: !it.diagram && !it.sticky, isDiagram: !!it.diagram, isSticky: !!it.sticky, text: it.text, size: (it.size || 30) + 'px', ink: it.ink || '#1E1C19',
+        bg: added ? 'rgba(62,123,79,0.12)' : (gone ? 'rgba(181,83,42,0.10)' : 'transparent'), outline: added ? '2px dashed rgba(62,123,79,0.6)' : (gone ? '2px dashed rgba(181,83,42,0.55)' : 'none'),
+        op: 1, strike: gone ? 'line-through' : 'none', tag: added || gone, tagBg: added ? '#3E7B4F' : '#B5532A', tagText: added ? 'ADDED' : 'ERASED LATER' });
+    });
+    var isCurrent = sel.id === 'v1', nm = st.names[sel.id];
+    return {
+      filters: [{ id: 'all', label: 'All versions' }, { id: 'named', label: 'Named only' }].map(function (f) { var on = st.filter === f.id; return { label: f.label, on: on ? 'true' : 'false', bg: on ? '#FFFDF8' : 'transparent', shadow: on ? '0 1px 3px rgba(30,28,25,0.2)' : 'none', pick: function () { self.setState({ filter: f.id }); } }; }),
+      groups: groups, countLabel: shown.length + (st.filter === 'named' ? ' named' : ' versions'), items: items,
+      selTitle: (nm ? nm + ' · ' : '') + sel.day + ', ' + sel.time, selMeta: sel.device + ' · ' + sel.summary,
+      isCurrent: isCurrent, dimCur: isCurrent ? 0.4 : 1, showLegend: st.changes && !isCurrent,
+      footNote: isCurrent ? 'This is the page as it is now.' : 'Restoring keeps today’s page as a version, so you can always come back.',
+      changesStr: st.changes ? 'true' : 'false', swBg: st.changes ? '#2B5A8C' : '#BFB49E', swLeft: st.changes ? '21px' : '3px', toggleChanges: function () { self.setState({ changes: !st.changes }); },
+      renaming: st.renaming, notRenaming: !st.renaming, draft: st.draft, nameLabel: nm ? 'Rename' : 'Name this version',
+      startName: function () { self.setState({ renaming: true, draft: nm || '' }); }, typeDraft: function (e) { self.setState({ draft: e.target.value }); },
+      saveName: function () { var n = Object.assign({}, st.names); if (st.draft.trim()) n[sel.id] = st.draft.trim(); else delete n[sel.id]; self.setState({ names: n, renaming: false }); },
+      cancelName: function () { self.setState({ renaming: false }); },
+      restore: function () { if (!isCurrent) self.setState({ toast: 'Restored the ' + sel.day.toLowerCase() + ' ' + sel.time + ' version · today’s page is saved as a version' }); },
+      copyIt: function () { if (!isCurrent) self.setState({ toast: 'Saved as a new page after this one' }); },
+      toast: st.toast, undoToast: function () { self.setState({ toast: '' }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

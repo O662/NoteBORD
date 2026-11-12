@@ -18,6 +18,7 @@ import '../dialogs.dart';
 import '../icons.dart';
 import '../library/sidebar.dart';
 import '../routes.dart';
+import '../shell.dart';
 
 /// Each notebook's page order (for "Page 5"), read again when it changes.
 final _pageOrderProvider = FutureProvider.autoDispose.family<List<String>, String>((ref, id) async {
@@ -226,7 +227,7 @@ class _StickiesScreenState extends ConsumerState<StickiesScreen> {
     return Scaffold(
       backgroundColor: c.bg,
       body: SafeArea(
-        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child: AppShell(children: [
           const AppSidebar(selected: SidebarItem.stickies),
           Expanded(
             child: Stack(children: [

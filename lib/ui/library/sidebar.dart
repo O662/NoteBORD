@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../settings/sync_widgets.dart';
 import '../settings/settings_screen.dart' show openSyncSettings;
 import '../../library/library.dart';
+import '../../state/settings.dart';
 import '../../study/study_state.dart';
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart';
@@ -16,6 +17,15 @@ import '../routes.dart';
 import 'widgets.dart';
 
 enum SidebarItem { home, all, calendar, flashcards, remember, stickies, trash }
+
+/// How the sidebar shows (Update 04): the 272 dp panel, the 80 dp icon rail
+/// it folds down to, or the slide-out drawer of portrait screens.
+enum SidebarMode { full, rail, drawer }
+
+/// Folds the sidebar down to the rail, or opens it again. One setting for
+/// every screen, remembered across launches.
+void toggleSidebar(WidgetRef ref) =>
+    ref.read(settingsProvider.notifier).apply((s) => s.withPref('sidebarCollapsed', !s.sidebarCollapsed));
 
 /// Folders expanded in the sidebar tree (kept while moving between screens).
 final expandedFoldersProvider = NotifierProvider<ExpandedFolders, Set<String>>(ExpandedFolders.new);
@@ -31,9 +41,15 @@ class ExpandedFolders extends Notifier<Set<String>> {
 /// Home · All notebooks · Calendar · Flashcards · Remember · Trash, folders,
 /// and the save status with Settings.
 class AppSidebar extends ConsumerWidget {
-  const AppSidebar({super.key, this.selected, this.folder, this.folderTree = false});
+  const AppSidebar({super.key, this.selected, this.folder, this.folderTree = false, this.mode = SidebarMode.full});
 
   final SidebarItem? selected;
+
+  /// Set by [AppShell] from the window's width and the setting.
+  final SidebarMode mode;
+
+  AppSidebar withMode(SidebarMode mode) =>
+      AppSidebar(key: key, selected: selected, folder: folder, folderTree: folderTree, mode: mode);
 
   /// The folder shown, highlighted in the tree.
   final List<String>? folder;
@@ -52,6 +68,14 @@ class AppSidebar extends ConsumerWidget {
     // Every note, a stack's notes each counted.
     final stickies = ref.watch(studyProvider.select((s) => s?.stickies.fold<int>(0, (n, e) => n + e.count) ?? 0));
     final current = folder;
+    if (mode == SidebarMode.rail) {
+      return _Rail(
+        selected: selected ?? (current != null ? SidebarItem.all : null),
+        folder: current,
+        due: due,
+        remembered: remembered,
+      );
+    }
     // The open folder's parents are always expanded, so it shows.
     final expanded = {
       ...ref.watch(expandedFoldersProvider),
@@ -77,7 +101,7 @@ class AppSidebar extends ConsumerWidget {
       label: 'Library',
       explicitChildNodes: true,
       child: Container(
-        width: 272,
+        width: mode == SidebarMode.drawer ? 300 : 272,
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: folderTree ? 20 : 22),
         decoration: BoxDecoration(color: c.side, border: Border(right: BorderSide(color: c.line))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: folderTree ? 14 : 18, children: [
@@ -85,7 +109,7 @@ class AppSidebar extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 6),
             child: Row(spacing: 10, children: [
               const EndlessMark(width: 40),
-              Flexible(
+              Expanded(
                 child: Text(
                   'Endless',
                   maxLines: 1,
@@ -100,6 +124,19 @@ class AppSidebar extends ConsumerWidget {
                   ),
                 ),
               ),
+              if (mode == SidebarMode.full) ...[
+                Transform.translate(
+                  offset: const Offset(6, 0),
+                  child: ChromeButton(
+                    label: 'Collapse the sidebar',
+                    icon: EIcons.sidebarCollapse,
+                    iconSize: 22,
+                    foreground: c.textMuted,
+                    expanded: true,
+                    onPressed: () => toggleSidebar(ref),
+                  ),
+                ),
+              ],
             ]),
           ),
           _SearchBox(onTap: () => context.push(Routes.search())),
@@ -361,6 +398,223 @@ class _FolderRow extends ConsumerWidget {
                 ]),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The sidebar folded down (CalendarRail.dc.html `navClosed`): expand,
+/// search, each section as an icon with a short label and its badge, the
+/// top-level folders, then sync and Settings.
+class _Rail extends ConsumerWidget {
+  const _Rail({required this.selected, required this.folder, required this.due, required this.remembered});
+
+  final SidebarItem? selected;
+  final List<String>? folder;
+  final int due;
+  final int remembered;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
+    final lib = ref.watch(libraryProvider);
+    final folders = lib.childrenOf(const []);
+    Widget item(SidebarItem it, EIconData icon, String label, String route, {String? badge, Color? badgeColor, String? said}) =>
+        _RailRow(
+          icon: icon,
+          label: label,
+          selected: selected == it,
+          badge: badge,
+          badgeColor: badgeColor,
+          said: said,
+          onTap: () => context.go(route),
+        );
+    return Semantics(
+      container: true,
+      label: 'Library, collapsed',
+      explicitChildNodes: true,
+      child: Container(
+        width: 80,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(color: c.side, border: Border(right: BorderSide(color: c.line))),
+        child: Column(children: [
+          ChromeButton(
+            label: 'Expand the sidebar',
+            icon: EIcons.sidebarExpand,
+            iconSize: 22,
+            width: 48,
+            expanded: false,
+            onPressed: () => toggleSidebar(ref),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 4, 0, 6),
+            child: _BoxedIcon(
+              label: 'Search notes and handwriting',
+              icon: EIcons.search,
+              onTap: () => context.push(Routes.search()),
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(spacing: 2, children: [
+                item(SidebarItem.home, EIcons.home, 'Home', Routes.start),
+                item(SidebarItem.all, EIcons.notebook, 'Notebooks', Routes.all, said: '${lib.active.length}'),
+                item(SidebarItem.calendar, EIcons.calendar, 'Calendar', Routes.calendar),
+                item(SidebarItem.flashcards, EIcons.flashcards, 'Cards', Routes.flashcards(),
+                    badge: due > 0 ? '$due' : null, badgeColor: c.clay, said: due > 0 ? '$due due' : null),
+                item(SidebarItem.remember, EIcons.star, 'Remember', Routes.remember,
+                    badge: remembered > 0 ? '$remembered' : null,
+                    badgeColor: c.gold,
+                    said: remembered > 0 ? '$remembered to remember' : null),
+                item(SidebarItem.stickies, EIcons.stickyNotes, 'Stickies', Routes.stickies),
+                item(SidebarItem.trash, EIcons.trash, 'Trash', Routes.trash),
+                if (folders.isNotEmpty)
+                  Container(width: 40, height: 1, margin: const EdgeInsets.symmetric(vertical: 8), color: c.lineStrong),
+                for (final f in folders)
+                  Semantics(
+                    button: true,
+                    selected: folder != null && folder!.isNotEmpty && folder!.first == f.name,
+                    label: '${f.name} folder',
+                    excludeSemantics: true,
+                    child: ContextTarget(
+                      onMenu: (at) => showFolderMenu(context, ref, f, at),
+                      child: Material(
+                        color: folder != null && listEquals(folder, f.path) ? c.sideSelected : Colors.transparent,
+                        borderRadius: BorderRadius.circular(Radii.button),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(Radii.button),
+                          onTap: () => context.go(Routes.library(f.path)),
+                          child: SizedBox(width: 48, height: 42, child: Center(child: FolderIcon(color: f.color))),
+                        ),
+                      ),
+                    ),
+                  ),
+              ]),
+            ),
+          ),
+          SyncStatusIcon(onTap: () => openSyncSettings(context)),
+          const SizedBox(height: 4),
+          ChromeButton(
+            label: 'Settings',
+            icon: EIcons.gear,
+            iconSize: 22,
+            width: 48,
+            onPressed: () => context.push(Routes.settings()),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// A 48×44 icon on a white tile with a line (the rail's Search).
+class _BoxedIcon extends StatelessWidget {
+  const _BoxedIcon({required this.label, required this.icon, required this.onTap});
+
+  final String label;
+  final EIconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: Material(
+        color: c.surface,
+        shape: RoundedRectangleBorder(side: BorderSide(color: c.line), borderRadius: BorderRadius.circular(Radii.button)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(Radii.button),
+          onTap: onTap,
+          child: SizedBox(width: 48, height: 44, child: Center(child: EIcon(icon, color: c.text))),
+        ),
+      ),
+    );
+  }
+}
+
+class _RailRow extends StatelessWidget {
+  const _RailRow({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.badge,
+    this.badgeColor,
+    this.said,
+  });
+
+  final EIconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final String? badge;
+  final Color? badgeColor;
+
+  /// The count read aloud.
+  final String? said;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      value: said,
+      excludeSemantics: true,
+      child: Material(
+        color: selected ? c.sideSelected : Colors.transparent,
+        borderRadius: BorderRadius.circular(Radii.button),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(Radii.button),
+          onTap: onTap,
+          child: SizedBox(
+            width: 68,
+            height: 54,
+            child: Stack(clipBehavior: Clip.none, children: [
+              Positioned.fill(
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, spacing: 3, children: [
+                  EIcon(icon, color: c.text),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.fade,
+                    softWrap: false,
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: c.text,
+                    ),
+                  ),
+                ]),
+              ),
+              if (badge != null)
+                Positioned(
+                  left: 32,
+                  top: 0,
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: 18),
+                    height: 18,
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: badgeColor,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: c.side, width: 2),
+                    ),
+                    child: Text(
+                      badge!,
+                      style: TextStyle(fontSize: 11, height: 1, fontWeight: FontWeight.w800, color: c.onAccent),
+                    ),
+                  ),
+                ),
+            ]),
           ),
         ),
       ),

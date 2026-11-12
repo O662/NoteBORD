@@ -1087,6 +1087,34 @@ The owner asked for a pass over the whole project for bugs, code nothing uses, a
 ### The copies in "Features to share"
 The three reading copies (Flashcards, Hold to straighten, Ruler) were made on 2026-11-02 and the code had moved since (the pen work of 2026-11-09, then this review): 27 of their 38 excerpts had other line numbers, and 5 of those other text. All 38 match the code again, with their headings' line numbers. They go out of date whenever the files they quote change; a script that finds each excerpt again and rewrites it did this, and isn't in the repo.
 
+## Update 04a: the collapsible sidebar, Start's header, portrait library screens and dialogs — built, not yet tried on the tablet (docs/UPDATE_04.md §5, §8, §9)
+
+The owner's request (2026-11-11): build Update 04 in full, all 10 sections. Settings and the toolbar shortcuts stay on the tablet for now (no settings sync), and the crash report goes through the share sheet (there's no server). Built in five parts: 04a (this), 04b the canvas (shortcuts and portrait), 04c the new notebook prompt, 04d share, conflicts, recovery and version history, 04e print layout.
+
+| Item | Status | Where |
+|---|---|---|
+| Collapse button (Start.png, every library screen) | By the logo, `M4 4h16v16H4z M9 4v16 M16 9l-3 3 3 3`; folds the sidebar to the rail | `AppSidebar`, `toggleSidebar` (`lib/ui/library/sidebar.dart`) |
+| The rail (CalendarRail.dc.html `navClosed`) | 80 dp: Expand, Search (a white tile), Home · Notebooks · Calendar · Cards · Remember · Stickies · Trash (icon and 11 dp label, the current one highlighted; a folder counts as Notebooks), the badges (cards due in clay, to remember in gold), a line, the top-level folders as colored folder icons (long-press for their menu), then sync status as a cloud icon on a white tile (a tap opens Sync & backup; it says the status aloud) and Settings | `_Rail`, `_RailRow`, `SyncStatusIcon` (`lib/ui/settings/sync_widgets.dart`) |
+| One setting, remembered | `prefs['sidebarCollapsed']` in settings.json; every screen (Start, Library, Trash, Calendar, Planner, Remember, Sticky notes) reads it, so collapsing on one keeps it everywhere | `AppSettings.sidebarCollapsed` |
+| Content reflows | The screens already filled what's beside the sidebar, so they take the 192 dp: the week columns, the library's 4 columns, Sticky notes, Remember and the Planner get wider | `AppShell` (`lib/ui/shell.dart`) |
+| Start header (StartCollapsed.png) | **Collapse** beside the greeting; folded: one bar with "Welcome back, Kieth", New note, Notebook, the Template, Import and Scan icons, a line and the expand chevron. Recent shows 2 rows (8) instead of 1. Remembered (`prefs['startCollapsed']`) | `_CollapseButton`, `_SlimHeader` (`start_screen.dart`) |
+| Portrait: the switch | Under 900 dp wide (the window, not the device) | `narrowWidth`, `context.narrow` (`lib/ui/shell.dart`) |
+| Portrait: the library screens (StartPortrait.png, StartPortraitMenu.png) | The 72 dp top bar: ☰, the logo, Search, sync status, Settings. ☰ opens the full sidebar (300 dp) over a scrim; a tap on the scrim closes it. The rail setting doesn't apply in portrait | `AppShell`, `PortraitTopBar` |
+| Portrait: Start | Tiles 5 across, 92 dp tall, with short labels (New note, Notebook, Template, Import, Scan; the full names read aloud); Continue writing with a 250×176 preview; Pinned as a row of 3; Recent in 2 columns, 5 rows (6 collapsed). Folded, the bar says "Hi, Kieth" and keeps New note, Notebook, Template, Import | `start_screen.dart` |
+| Portrait: the library | 2 columns; the title on its own line with the buttons under it (they wrap rather than squeeze it); 24 dp sides | `library_screen.dart` |
+| Portrait: the Planner | Today: the top three and to-dos beside the schedule, with today's notes and Tomorrow under them (side by side they left the schedule 154 dp) | `_TodayView` (`planner_screen.dart`) |
+| Dialogs | In portrait: min(680, screen − 32) wide, 16 dp from the edges. Footer buttons stack (main one on top) when they don't fit | `dialogMaxWidth`, `DialogActions` (`lib/ui/dialogs.dart`) |
+| Library header | **New notebook** sits between Import and New note (Main-rail.png) and, like Start's Notebook tile, goes through `newNotebook` (the Templates dialog until 04c) | `newNotebook` (`new_notebook_dialog.dart`) |
+
+**Judgment calls:**
+- **The sidebar's "Endless" now takes the free width** and the collapse button sits at the end of that row (design: `flex-grow` spacer).
+- **The rail's folder rows are 42 dp** (the design's), so 4 folders, sync and Settings fit in 800 dp; more folders scroll in the middle.
+- **Portrait keeps one Recent card per notebook**: 10 (12 collapsed), as StartPortrait.dc.html.
+
+### Not done yet / known limits
+- Not tried on the tablet: rotating on each library screen, the drawer with a finger, the rail with the S Pen hovering.
+- The Search, Settings and Flashcards screens have their own layouts (no sidebar) and weren't changed for portrait here; they're checked in 04b with the canvas.
+
 ## Storage layout
 
 ```
@@ -1277,6 +1305,8 @@ Also in `<app documents>/Endless/` since Phase 9a: `sync/` (settings.json: Sync 
 - Update 03a: `test/ui/window_view_test.dart` (opening it from the menu on the next page at its place; dragging, staying on screen, locking, resizing to its smallest and largest; opacity; zoom kept to 50–200%; read-only, Pen: window making it writable and the page read-only, and back; picking another page and another spot; swap, the bubble and back, saved in the settings, closed and opened again where it was; Open as split view; saving and the bounds) and 6 goldens (`canvas_view_menu`, `canvas_window`, `canvas_window_dark`, `canvas_window_faded_resized`, `canvas_window_source_picker`, `canvas_window_bubble`).
 
 - Update 03b: `test/ui/logo_test.dart` (the sidebar's mark and its size; About's wordmark and tagline; the strokes match design/logo/; the adaptive icon with its monochrome layer, the background color, the foreground, notification and splash drawables with the logo's paths, the night splash, Android 12's splash theme, and the launcher PNGs) and 1 golden (`settings_about`). The sidebar's mark changed 21 library-screen goldens, regenerated.
+
+- Update 04a: `test/ui/shell_test.dart` (the sidebar folding to the rail and staying folded on another screen, saved in settings.json, and opening again; a rail folder; the rail's labels; Start's header folding and opening, remembered; every library screen in portrait with the top bar and nothing overflowing; ☰ and the scrim; the rail setting ignored in portrait; the dialog width rule; footer buttons stacking). `test/golden/update04_golden_test.dart`: `start_rail`, `calendar_rail`, `library_rail`, `stickies_rail`, `planner_rail`, `remember_rail`, `start_collapsed`, `start_portrait`, `start_portrait_menu`, `start_portrait_collapsed`, `library_portrait`, `calendar_portrait`. Goldens with the sidebar were made again (its new collapse button).
 
 ## Next
 - **Update 03 tablet checklist.** Release build (`flutter build apk --release`, `adb install -r`).

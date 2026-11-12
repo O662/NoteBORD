@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../library/library.dart';
 import '../../state/settings.dart';
-import '../../templates/templates.dart';
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart';
 import '../common.dart';
@@ -12,11 +11,12 @@ import '../dialogs.dart';
 import '../icons.dart';
 import '../routes.dart';
 import '../transfer/transfer_dialog.dart';
-import '../templates/templates_dialog.dart';
 import 'format.dart';
 import 'sidebar.dart';
 import 'new_note_dialog.dart' show newNote;
+import 'new_notebook_dialog.dart';
 import 'widgets.dart';
+import '../shell.dart';
 
 const _sortLabels = {
   LibrarySort.edited: 'Last edited',
@@ -66,9 +66,11 @@ class LibraryScreen extends ConsumerWidget {
     }
 
     final title = trash ? 'Trash' : (inFolder ? folder.last : 'All notebooks');
+    final narrow = context.narrow;
+    final side = narrow ? 24.0 : 40.0;
     return Scaffold(
       body: SafeArea(
-        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child: AppShell(children: [
           AppSidebar(
             selected: trash ? SidebarItem.trash : (inFolder ? null : SidebarItem.all),
             folder: inFolder ? folder : null,
@@ -77,7 +79,7 @@ class LibraryScreen extends ConsumerWidget {
           Expanded(
             child: CustomScrollView(slivers: [
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(40, 30, 40, 0),
+                padding: EdgeInsets.fromLTRB(side, 30, side, 0),
                 sliver: SliverToBoxAdapter(
                   child: _Header(folder: folder, trash: trash, title: title, emptyTrash: lib.trash.isNotEmpty),
                 ),
@@ -92,11 +94,11 @@ class LibraryScreen extends ConsumerWidget {
               else ...[
                 if (inFolder)
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(40, 26, 40, 0),
+                    padding: EdgeInsets.fromLTRB(side, 26, side, 0),
                     sliver: SliverToBoxAdapter(child: _Folders(parent: folder)),
                   ),
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(40, 26, 40, 14),
+                  padding: EdgeInsets.fromLTRB(side, 26, side, 14),
                   sliver: SliverToBoxAdapter(
                     child: Row(children: [
                       Expanded(child: SectionLabel(trash ? 'In the Trash' : 'Notebooks')),
@@ -112,15 +114,16 @@ class LibraryScreen extends ConsumerWidget {
                 ),
                 if (notebooks.isEmpty)
                   SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 40),
+                    padding: EdgeInsets.symmetric(horizontal: side),
                     sliver: SliverToBoxAdapter(child: _Empty(trash: trash, folder: folder)),
                   )
                 else if (settings.libraryView == LibraryView.grid || trash)
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(40, 0, 40, 40),
+                    padding: EdgeInsets.fromLTRB(side, 0, side, 40),
                     sliver: SliverGrid(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 4,
+                      // Portrait: 2 columns (UPDATE_04 §8).
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: narrow ? 2 : 4,
                         crossAxisSpacing: 20,
                         mainAxisSpacing: 22,
                         mainAxisExtent: 206,
@@ -132,7 +135,7 @@ class LibraryScreen extends ConsumerWidget {
                   )
                 else
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(40, 0, 40, 40),
+                    padding: EdgeInsets.fromLTRB(side, 0, side, 40),
                     sliver: SliverList.separated(
                       itemCount: notebooks.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 8),
@@ -161,9 +164,10 @@ class _Header extends ConsumerWidget {
     final c = context.colors;
     final view = ref.watch(settingsProvider.select((s) => s.libraryView));
     final crumbs = trash ? 'Library' : (folder.isEmpty ? 'Library' : 'Folders');
-    return Row(crossAxisAlignment: CrossAxisAlignment.end, spacing: 24, children: [
-      Expanded(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, spacing: 4, children: [
+    // Portrait: the title on its own line and the buttons under it, so
+    // they never squeeze it.
+    final narrow = context.narrow;
+    final titleBlock = Column(crossAxisAlignment: CrossAxisAlignment.start, spacing: 4, children: [
           // "Folders › School › Physics": each part opens that folder.
           Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
             Text(crumbs, style: TextStyle(fontSize: 13, color: c.textMuted)),
@@ -189,11 +193,17 @@ class _Header extends ConsumerWidget {
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontFamily: FontFamilies.serif, fontSize: 46, letterSpacing: -0.92, height: 1.05, color: c.text),
+              style: TextStyle(
+                fontFamily: FontFamilies.serif,
+                fontSize: narrow ? 40 : 46,
+                letterSpacing: -0.92,
+                height: 1.05,
+                color: c.text,
+              ),
             ),
           ),
-        ]),
-      ),
+        ]);
+    final actions = <Widget>[
       if (trash)
         SecondaryButton(
           label: 'Empty trash',
@@ -226,10 +236,20 @@ class _Header extends ConsumerWidget {
           icon: EIcons.notebook,
           height: 46,
           filled: true,
-          onPressed: () => showTemplatesDialog(context, target: TemplateTarget.newNotebook, initial: 'dots', folder: folder),
+          onPressed: () => newNotebook(context, ref, folder: folder),
         ),
         PrimaryButton(label: 'New note', icon: EIcons.plus, height: 46, onPressed: () => newNote(context, ref, folder: folder)),
       ],
+    ];
+    if (narrow) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 14, children: [
+        titleBlock,
+        Wrap(alignment: WrapAlignment.end, spacing: 8, runSpacing: 8, children: actions),
+      ]);
+    }
+    return Row(crossAxisAlignment: CrossAxisAlignment.end, spacing: 24, children: [
+      Expanded(child: titleBlock),
+      ...actions,
     ]);
   }
 }

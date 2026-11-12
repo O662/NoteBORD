@@ -7,21 +7,57 @@ import 'icons.dart';
 // Dialog parts shared by Templates, Password protect and the library
 // (Lock.dc.html: 22 px corners, Newsreader 30 title, 48 dp fields and buttons).
 
+/// Below this width (dp) dialogs use the portrait rule (UPDATE_04 §8).
+/// The same as `narrowWidth` in shell.dart.
+const _narrowWidth = 900.0;
+
+/// The widest a dialog may be on a screen [width] dp wide: in portrait,
+/// min(680, screen − 32) (UPDATE_04 §8); otherwise whatever it asks for,
+/// inside 24 dp margins.
+double dialogMaxWidth(double width) => width < _narrowWidth ? (width - 32).clamp(0, 680).toDouble() : width - 48;
+
 /// Shows [child] as a modal over the scrim.
 Future<T?> showEndlessDialog<T>(BuildContext context, {required WidgetBuilder builder, bool dismissible = true}) =>
     showDialog<T>(
       context: context,
       barrierDismissible: dismissible,
       barrierColor: context.colors.scrim,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.transparent,
-        elevation: 0,
-        insetPadding: const EdgeInsets.all(24),
-        child: builder(context),
-      ),
+      builder: (context) {
+        final width = MediaQuery.sizeOf(context).width;
+        final narrow = width < _narrowWidth;
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          elevation: 0,
+          insetPadding: EdgeInsets.symmetric(horizontal: narrow ? 16 : 24, vertical: 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: dialogMaxWidth(width)),
+            child: builder(context),
+          ),
+        );
+      },
     );
+
+/// A dialog's footer buttons, right-aligned; when they don't fit side by
+/// side (portrait, large text) they stack, the main one on top.
+class DialogActions extends StatelessWidget {
+  const DialogActions({super.key, required this.children, this.spacing = 10});
+
+  /// Left to right; the last is the main one.
+  final List<Widget> children;
+  final double spacing;
+
+  @override
+  Widget build(BuildContext context) => OverflowBar(
+        alignment: MainAxisAlignment.end,
+        overflowAlignment: OverflowBarAlignment.end,
+        overflowDirection: VerticalDirection.up,
+        spacing: spacing,
+        overflowSpacing: 8,
+        children: children,
+      );
+}
 
 /// The dialog surface: title, close button and content.
 class DialogFrame extends StatelessWidget {

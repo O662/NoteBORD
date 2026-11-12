@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Library, notebook not set up</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; display: flex; background: #F6F1E7; overflow: hidden; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<sc-if value="{{ navOpen }}" hint-placeholder-val="{{ true }}">
+<nav aria-label="Library" style="width: 272px; flex-shrink: 0; box-sizing: border-box; padding: 20px 16px; background: #EEE7D8; border-right: 1px solid #DDD4C2; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 6px">
+<svg width="40" height="28" viewBox="8 28 104 72" aria-hidden="true"><g transform="translate(0 4)" fill="none" stroke="#0C0C0C" stroke-linecap="round" stroke-linejoin="round"><path d="M100.84 53.92 C 102.98 57.43, 104 60, 104 64 C 104 74, 97 81, 87 81 C 77 81, 68 73, 60 60" stroke-width="10"/><path d="M60 60 C 52 47, 43 41, 33 41 C 22 41, 15 50, 15 60 C 15 70, 22 79, 33 79 C 43 79, 52 73, 60 60" stroke-width="8"/><path d="M60 60 C 67 47, 77 38, 92 34" stroke-width="9.5"/><path d="M87.7 27.5 L99.0 31.6 L92.3 41.6" stroke-width="9.5"/></g></svg>
+<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 500; letter-spacing: -0.01em; line-height: 1; position: relative; top: 3px">Endless</div>
+<span style="flex-grow: 1"></span><button onClick="{{ toggleNav }}" aria-label="Collapse the sidebar" aria-expanded="true" style="width: 44px; height: 44px; margin-right: -6px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #3D3830"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v16H4z M9 4v16 M16 9l-3 3 3 3"/></svg></button>
+</div>
+
+<a href="Search.dc.html" style="display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; color: #5E574C; font-size: 15px">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+<span>Search notes &amp; handwriting</span>
+</a>
+
+<div style="display: flex; flex-direction: column; gap: 2px">
+<a href="Start.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>
+<span>Home</span>
+</a>
+<button style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border: 0; background: transparent; border-radius: 10px; font-size: 15px; color: #1E1C19; text-align: left">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h12"/></svg>
+<span style="flex-grow: 1">All notebooks</span><span style="font-size: 13px; color: #5E574C">24</span>
+</button>
+<a href="Calendar.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>
+<span>Calendar</span>
+</a>
+<a href="Study.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="14" height="12" rx="2"/><path d="M7 5h12a2 2 0 0 1 2 2v9"/></svg>
+<span style="flex-grow: 1">Flashcards</span><span style="font-size: 12px; font-weight: 700; color: #FFFDF8; background: #B5532A; padding: 1px 7px; border-radius: 999px">5</span>
+</a>
+<a href="Remember.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#E8B730" stroke="#8A6400" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z"/></svg>
+<span style="flex-grow: 1">Remember</span><span style="font-size: 12px; font-weight: 700; color: #5A4000; background: #FBEFC4; padding: 1px 7px; border-radius: 999px">8</span>
+</a>
+<a href="Stickies.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#F6DE7A" stroke="#8A6400" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v10l-6 6H4z"/><path d="M14 20v-6h6" fill="none"/></svg>
+<span style="flex-grow: 1">Sticky notes</span><span style="font-size: 13px; color: #5E574C">21</span>
+</a>
+<button style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border: 0; background: transparent; border-radius: 10px; font-size: 15px; color: #1E1C19; text-align: left">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg>
+<span>Trash</span>
+</button>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 2px">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 0 4px 0 12px">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C">Folders</span>
+<button aria-label="New folder" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #1E1C19; border-radius: 10px">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+</div>
+<button aria-expanded="false" aria-current="page" style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 12px; border: 0; background: #E0D6C2; border-radius: 10px; font-size: 15px; font-weight: 600; color: #1E1C19; text-align: left">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#2B5A8C" fill-opacity="0.16" stroke="#2B5A8C" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+<span>School</span>
+</button>
+<button aria-expanded="false" style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 12px; border: 0; background: transparent; border-radius: 10px; font-size: 15px; color: #1E1C19; text-align: left">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#B5532A" fill-opacity="0.16" stroke="#B5532A" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+<span>Work</span>
+</button>
+<button aria-expanded="false" style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 12px; border: 0; background: transparent; border-radius: 10px; font-size: 15px; color: #1E1C19; text-align: left">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#4E7A52" fill-opacity="0.16" stroke="#4E7A52" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+<span>Personal</span>
+</button>
+<button aria-expanded="false" style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 12px; border: 0; background: transparent; border-radius: 10px; font-size: 15px; color: #1E1C19; text-align: left">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#7A4E73" fill-opacity="0.16" stroke="#7A4E73" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+<span>Sketches</span>
+</button>
+</div>
+
+<div style="flex-grow: 1"></div>
+
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="Sync.dc.html" style="flex-grow: 1; display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 12px; box-sizing: border-box; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3B6E47" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z"/><path d="M9.5 13.5l2 2 3.5-3.5"/></svg>
+<span style="display: flex; flex-direction: column; gap: 1px">
+<span style="font-size: 14px; font-weight: 600">Synced · Google Drive</span>
+<span style="font-size: 12px; color: #5E574C">2 minutes ago</span>
+</span>
+</a>
+<a href="Settings.dc.html" aria-label="Settings" style="width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+</a>
+</div>
+</nav>
+</sc-if>
+<sc-if value="{{ navClosed }}" hint-placeholder-val="{{ false }}">
+<nav aria-label="App, collapsed" style="width: 80px; flex-shrink: 0; box-sizing: border-box; padding: 14px 0 14px; background: #EEE7D8; border-right: 1px solid #DDD4C2; display: flex; flex-direction: column; align-items: center; gap: 2px">
+<button onClick="{{ toggleNav }}" aria-label="Expand the sidebar" aria-expanded="false" style="width: 48px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v16H4z M9 4v16 M13 9l3 3-3 3"/></svg></button>
+<a href="Search.dc.html" aria-label="Search notes and handwriting" style="width: 48px; height: 44px; margin: 4px 0 6px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #FFFDF8; border: 1px solid #DDD4C2; box-sizing: border-box; color: #3D3830"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14z M20 20l-3.5-3.5"/></svg></a>
+<a href="Start.dc.html" style="position: relative; width: 68px; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #1E1C19; font-family: inherit; font-size: 11px; font-weight: 500"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg><span style="line-height: 1">Home</span></a>
+<a href="Main.dc.html" aria-current="page" style="position: relative; width: 68px; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border: 0; border-radius: 12px; background: #E0D6C2; color: #1E1C19; font-family: inherit; font-size: 11px; font-weight: 700"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z M5 18a2 2 0 0 1 2-2h12"/></svg><span style="line-height: 1">Notebooks</span></a>
+<a href="Calendar.dc.html" style="position: relative; width: 68px; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #1E1C19; font-family: inherit; font-size: 11px; font-weight: 500"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v15H4z M4 10h16 M9 3v4 M15 3v4"/></svg><span style="line-height: 1">Calendar</span></a>
+<a href="Study.dc.html" style="position: relative; width: 68px; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #1E1C19; font-family: inherit; font-size: 11px; font-weight: 500"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h14v12H3z M7 5h12a2 2 0 0 1 2 2v9"/></svg><span style="line-height: 1">Cards</span><span style="position: absolute; left: 32px; top: 0; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 5px; display: flex; align-items: center; justify-content: center; border-radius: 999px; background: #B5532A; color: #FFFDF8; font-size: 11px; font-weight: 800; border: 2px solid #EEE7D8">5</span></a>
+<a href="Remember.dc.html" style="position: relative; width: 68px; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #1E1C19; font-family: inherit; font-size: 11px; font-weight: 500"><svg width="22" height="22" viewBox="0 0 24 24" fill="#E8B730" stroke="#8A6400" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z"/></svg><span style="line-height: 1">Remember</span><span style="position: absolute; left: 32px; top: 0; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 5px; display: flex; align-items: center; justify-content: center; border-radius: 999px; background: #C08A00; color: #FFFDF8; font-size: 11px; font-weight: 800; border: 2px solid #EEE7D8">8</span></a>
+<a href="Stickies.dc.html" style="position: relative; width: 68px; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #1E1C19; font-family: inherit; font-size: 11px; font-weight: 500"><svg width="22" height="22" viewBox="0 0 24 24" fill="#F6DE7A" stroke="#8A6400" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v10l-6 6H4z M14 20v-6h6"/></svg><span style="line-height: 1">Stickies</span></a>
+<button type="button" style="position: relative; width: 68px; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #1E1C19; font-family: inherit; font-size: 11px; font-weight: 500"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg><span style="line-height: 1">Trash</span></button>
+<span style="width: 40px; height: 1px; margin: 8px 0; background: #D6CDBA"></span>
+<a href="Main.dc.html" aria-label="School folder" style="width: 48px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 12px"><svg width="20" height="20" viewBox="0 0 24 24" fill="#2B5A8C" fill-opacity="0.16" stroke="#2B5A8C" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></a>
+<a href="Main.dc.html" aria-label="Work folder" style="width: 48px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 12px"><svg width="20" height="20" viewBox="0 0 24 24" fill="#B5532A" fill-opacity="0.16" stroke="#B5532A" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></a>
+<a href="Main.dc.html" aria-label="Personal folder" style="width: 48px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 12px"><svg width="20" height="20" viewBox="0 0 24 24" fill="#4E7A52" fill-opacity="0.16" stroke="#4E7A52" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></a>
+<a href="Main.dc.html" aria-label="Sketches folder" style="width: 48px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 12px"><svg width="20" height="20" viewBox="0 0 24 24" fill="#7A4E73" fill-opacity="0.16" stroke="#7A4E73" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></a>
+<span style="flex-grow: 1"></span>
+<a href="Sync.dc.html" aria-label="Synced with Google Drive 2 minutes ago" style="position: relative; width: 48px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #FFFDF8; border: 1px solid #DDD4C2; box-sizing: border-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3B6E47" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z M9.5 13.5l2 2 3.5-3.5"/></svg></a>
+<a href="Settings.dc.html" aria-label="Settings" style="width: 48px; height: 44px; margin-top: 4px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg></a>
+</nav>
+</sc-if>
+
+<main style="flex-grow: 1; box-sizing: border-box; padding: 30px 40px; display: flex; flex-direction: column; gap: 26px">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 13px; color: #5E574C">Folders › School</div>
+<h1 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 46px; font-weight: 400; letter-spacing: -0.02em; line-height: 1.05">School</h1>
+</div>
+<div style="display: flex; align-items: center; gap: 8px">
+<div role="group" aria-label="View" style="display: flex; padding: 3px; background: #EEE7D8; border-radius: 12px; gap: 2px">
+<button aria-label="Grid view" aria-pressed="true" style="width: 44px; height: 40px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 9px; background: #FFFDF8; color: #1E1C19; box-shadow: 0 1px 2px rgba(30,28,25,0.12)">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>
+</button>
+<button aria-label="List view" aria-pressed="false" style="width: 44px; height: 40px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 9px; background: transparent; color: #5E574C">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>
+</button>
+</div>
+<a href="Export.dc.html" style="display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 16px; border: 1px solid #CFC5B1; border-radius: 12px; background: #FFFDF8; color: #1E1C19; font-size: 15px; font-weight: 500">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 19h14"/></svg>
+Import
+</a>
+<a href="NewNotebook.dc.html" style="display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 16px; border: 1px solid #CFC5B1; border-radius: 12px; background: #FFFDF8; color: #1E1C19; font-size: 15px; font-weight: 500">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h12"/></svg>
+New notebook
+</a>
+<a href="NewNote.dc.html" style="display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 20px; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 15px; font-weight: 600">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+New note
+</a>
+</div>
+</div>
+
+<section style="display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C">Folders</h2>
+<div style="display: flex; gap: 14px">
+<button style="width: 214px; height: 68px; display: flex; align-items: center; gap: 12px; padding: 0 16px; box-sizing: border-box; border: 1px solid #DDD4C2; border-radius: 14px; background: #FFFDF8; text-align: left; color: #1E1C19">
+<svg width="28" height="28" viewBox="0 0 24 24" fill="#2B5A8C" fill-opacity="0.14" stroke="#2B5A8C" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+<span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Physics</span><span style="font-size: 13px; color: #5E574C">4 notebooks</span></span>
+</button>
+<button style="width: 214px; height: 68px; display: flex; align-items: center; gap: 12px; padding: 0 16px; box-sizing: border-box; border: 1px solid #DDD4C2; border-radius: 14px; background: #FFFDF8; text-align: left; color: #1E1C19">
+<svg width="28" height="28" viewBox="0 0 24 24" fill="#2B5A8C" fill-opacity="0.14" stroke="#2B5A8C" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+<span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Calculus</span><span style="font-size: 13px; color: #5E574C">2 notebooks</span></span>
+</button>
+<button style="width: 214px; height: 68px; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 0 16px; box-sizing: border-box; border: 1.5px dashed #BFB49E; border-radius: 14px; background: transparent; color: #5E574C; font-size: 15px; font-weight: 500">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+New folder
+</button>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<h2 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C">Notebooks</h2>
+<button style="display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 8px; border: 0; background: transparent; color: #5E574C; font-size: 14px">
+Last edited
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+</button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px 20px">
+<sc-for list="{{ notebooks }}" as="nb" hint-placeholder-count="6">
+<div style="position: relative">
+<a href="Canvas.dc.html" style="display: flex; flex-direction: column; gap: 10px; color: #1E1C19">
+<div style="position: relative; height: 150px; border: 1px solid #DDD4C2; border-radius: 12px; overflow: hidden; background-color: #FFFDF8; background-image: radial-gradient(#DCD3C1 1.1px, transparent 1.2px); background-size: 14px 14px; box-shadow: 0 1px 0 rgba(30,28,25,0.04), 0 6px 16px -10px rgba(30,28,25,0.25)">
+<div style="position: absolute; left: 0; top: 0; bottom: 0; width: 10px; background: {{ nb.spine }}"></div>
+<sc-if value="{{ nb.unlocked }}" hint-placeholder-val="{{ true }}">
+<svg width="100%" height="150" viewBox="0 0 220 150" preserveAspectRatio="xMinYMin meet" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="position: absolute; left: 0; top: 0">
+<path d="{{ nb.ink }}" stroke="#2A2824" stroke-width="1.8"/>
+<path d="{{ nb.accentPath }}" stroke="{{ nb.spine }}" stroke-width="2.2"/>
+</svg>
+</sc-if>
+<sc-if value="{{ nb.locked }}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: 10px; right: 0; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: rgba(238,231,216,0.85); color: #3D3830">
+<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+<span style="font-size: 13px; font-weight: 600">Locked</span>
+</div>
+</sc-if>
+<sc-if value="{{ nb.notSetUp }}" hint-placeholder-val="{{ false }}">
+<span style="position: absolute; left: 18px; bottom: 8px; display: flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 999px; background: #FBEFC4; color: #5A4000; font-size: 12px; font-weight: 700"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>Not set up</span>
+</sc-if>
+<sc-if value="{{ nb.offline }}" hint-placeholder-val="{{ false }}">
+<span style="position: absolute; right: 8px; bottom: 8px; padding: 3px 8px; border-radius: 999px; background: #F4E3D2; color: #7E3A18; font-size: 12px; font-weight: 600">Waiting to sync</span>
+</sc-if>
+</div>
+<div style="display: flex; flex-direction: column; gap: 3px; padding: 0 2px">
+<span style="font-size: 15px; font-weight: 600">{{ nb.title }}</span>
+<span style="font-size: 13px; color: #5E574C">{{ nb.meta }}</span>
+</div>
+</a>
+<button aria-label="{{ nb.menuLabel }}" aria-expanded="{{ nb.openStr }}" onClick="{{ nb.toggle }}" style="position: absolute; right: 6px; top: 6px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 12px; background: {{ nb.dotsBg }}; color: #1E1C19; box-shadow: 0 1px 3px rgba(30,28,25,0.18)"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+<sc-if value="{{ nb.open }}" hint-placeholder-val="{{ false }}">
+<div role="menu" aria-label="Notebook options" style="position: absolute; right: -150px; top: 54px; z-index: 5; width: 270px; box-sizing: border-box; padding: 6px; display: flex; flex-direction: column; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 16px; box-shadow: 0 24px 48px -20px rgba(30,28,25,0.5)">
+<sc-if value="{{ nb.notSetUp }}" hint-placeholder-val="{{ false }}">
+<a role="menuitem" href="FinishSetup.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 58px; padding: 8px 10px; border-radius: 11px; background: #FBEFC4; color: #1E1C19">
+<span style="width: 34px; height: 34px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #1E1C19; color: #FFFDF8"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg></span>
+<span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 15px; font-weight: 700">Finish setting up</span><span style="font-size: 12px; color: #5A4000">Name, folder, save place, backup</span></span>
+</a>
+<span style="height: 1px; margin: 6px 4px; background: #EEE7D8"></span>
+</sc-if>
+<sc-for list="{{ nb.items }}" as="m" hint-placeholder-count="8">
+<button role="menuitem" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 10px; border: 0; border-radius: 10px; background: transparent; text-align: left; color: {{ m.ink }}; font-size: 15px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ m.icon }}"/></svg>{{ m.label }}</button>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { nav: true, menu: 0 }; }
+  renderVals() {
+    var v = this._rv(), self = this, open = this.state && this.state.nav !== undefined ? this.state.nav : true;
+    v.navOpen = open; v.navClosed = !open;
+    v.toggleNav = function () { self.setState({ nav: !open }); };
+    return v;
+  }
+  _rv() {
+    var self = this, st = this.state;
+    var lines = function (x, y, n) { var s = 'M' + x + ' ' + y + ' q4 -6 8 0'; for (var i = 0; i < n; i++) { s += ' t8 0'; } return s; };
+    var list = [
+        { title: 'Untitled notebook', meta: '1 page · Just now · This tablet', spine: '#8A8378', offline: false, notSetUp: true,
+          ink: lines(30, 44, 9) + ' ' + lines(30, 68, 5), accentPath: 'M30 92 q20 -10 40 0' },
+        { title: 'Physics — Lecture notes', meta: '12 pages · Edited 2h ago', spine: '#2B5A8C', offline: false,
+          ink: lines(30, 40, 8) + ' ' + lines(30, 64, 14) + ' ' + lines(30, 86, 11) + ' ' + lines(30, 108, 13),
+          accentPath: 'M28 50 q46 6 92 -3' },
+        { title: 'Calculus II', meta: '8 pages · Yesterday', spine: '#B5532A', offline: false,
+          ink: 'M36 118 L36 36 M30 112 L186 112 M40 108 q30 -80 60 -40 t60 -50 ' + lines(120, 40, 6),
+          accentPath: 'M150 60 a12 12 0 1 0 1 0' },
+        { title: 'Lab journal', meta: '5 pages · Monday', spine: '#4E7A52', offline: true,
+          ink: lines(30, 38, 10) + ' ' + lines(30, 60, 7) + ' M120 120 L180 120 L180 76 Z M140 104 l14 -8 l6 10 l-14 8 Z',
+          accentPath: 'M30 84 L100 84 M30 84 l8 -5 M30 84 l8 5' },
+        { title: 'Study plan', meta: '1 page · Sep 18', spine: '#7A4E73', offline: false,
+          ink: 'M34 36 h10 v10 h-10 Z ' + lines(52, 42, 9) + ' M34 62 h10 v10 h-10 Z ' + lines(52, 68, 12) + ' M34 88 h10 v10 h-10 Z ' + lines(52, 94, 7),
+          accentPath: 'M35 40 l4 4 l7 -9 M35 66 l4 4 l7 -9' },
+        { title: 'Formula sheet', meta: '2 pages · Sep 12', spine: '#2B5A8C', offline: false,
+          ink: lines(30, 40, 5) + ' ' + lines(110, 40, 6) + ' ' + lines(30, 70, 7) + ' ' + lines(120, 70, 5) + ' ' + lines(30, 100, 6) + ' ' + lines(110, 100, 7),
+          accentPath: 'M24 54 h170 M24 84 h170' },
+        { title: 'Thesis brainstorm', meta: '3 pages · Sep 3', spine: '#B5532A', offline: false, locked: true,
+          ink: 'M110 75 a22 16 0 1 0 1 0 M88 70 L52 44 M132 70 L170 42 M110 92 L110 124 M88 80 L54 110 ' + lines(28, 36, 3) + ' ' + lines(150, 34, 3) + ' ' + lines(28, 118, 3),
+          accentPath: 'M96 76 q14 -8 28 0' }
+    ];
+    return {
+      notebooks: list.map(function (nb, i) {
+        var open = st.menu === i;
+        var items = [
+          { label: 'Rename', icon: 'M4 20h4L19 9l-4-4L4 16z' },
+          { label: 'Move to folder', icon: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M10 13h6 M13 10l3 3-3 3' },
+          { label: 'Duplicate', icon: 'M8 8h11v11H8z M5 16V5h11' },
+          { label: 'Change color', icon: 'M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.6 0-1.2-1-1.4-1-2.4 0-.8.7-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.1-4-7.5-9-7.5z' },
+          { label: 'Print…', icon: 'M7 9V4h10v5 M6 17H4v-6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v6h-2 M7 14h10v6H7z' },
+          { label: 'Share a copy…', icon: 'M12 15V4 M8 8l4-4 4 4 M5 13v6h14v-6' },
+          { label: 'Version history', icon: 'M3 12a9 9 0 1 0 3-6.7 M3 4v5h5 M12 8v4l3 2' },
+          { label: 'Delete', icon: 'M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12', danger: true }
+        ].map(function (m) { return { label: m.label, icon: m.icon, ink: m.danger ? '#A3302A' : '#1E1C19' }; });
+        return Object.assign({}, nb, { locked: !!nb.locked, unlocked: !nb.locked, notSetUp: !!nb.notSetUp, open: open, openStr: open ? 'true' : 'false', items: items,
+          menuLabel: 'Options for ' + nb.title, dotsBg: open ? '#EEE7D8' : 'rgba(255,253,248,0.92)', toggle: function () { self.setState({ menu: open ? -1 : i }); } });
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

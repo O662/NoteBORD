@@ -7,6 +7,7 @@ import '../../sync/cloud.dart';
 import '../../sync/sync_state.dart';
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart';
+import '../common.dart';
 import '../icons.dart';
 import '../library/format.dart';
 
@@ -38,20 +39,7 @@ class SyncStatusCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
-    final sync = ref.watch(syncProvider);
-    final now = ref.read(clockProvider)().toUtc();
-    final s = sync.settings;
-    final last = s.lastSync;
-    final (EIconData icon, Color tint, String title, String sub) = switch (sync.phase) {
-      _ when !s.anyOn => (EIcons.deviceSaved, c.green, 'Saved on this tablet', 'Sync isn’t set up'),
-      SyncPhase.syncing => (EIcons.sync, c.accent, 'Syncing…', sync.cloudNames),
-      SyncPhase.offline => (EIcons.cloudOff, c.textMuted, 'Waiting to sync', 'Offline'),
-      SyncPhase.waitingForWifi => (EIcons.cloudOff, c.textMuted, 'Waiting to sync', 'Waiting for Wi-Fi'),
-      SyncPhase.signedOut => (EIcons.cloudOff, c.clay, 'Sign in again', sync.message ?? sync.cloudNames),
-      SyncPhase.failed => (EIcons.cloudOff, c.clay, 'Couldn’t sync', sync.message ?? 'Tap for details'),
-      SyncPhase.idle when last == null => (EIcons.cloud, c.textMuted, 'Waiting to sync', sync.cloudNames),
-      SyncPhase.idle => (EIcons.cloudCheck, c.green, 'Synced · ${_short(sync)}', _capital(agoPhrase(last!, now))),
-    };
+    final (:icon, :tint, :title, :sub) = syncStatusOf(context, ref);
     return Semantics(
       button: true,
       label: '$title. $sub. Sync and backup settings',
@@ -80,8 +68,64 @@ class SyncStatusCard extends ConsumerWidget {
     );
   }
 
-  static String _short(SyncState s) => s.settings.active.length > 1 ? 'Drive and OneDrive' : s.cloudNames;
-  static String _capital(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+}
+
+String _short(SyncState s) => s.settings.active.length > 1 ? 'Drive and OneDrive' : s.cloudNames;
+String _capital(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
+/// What the sidebar's sync card says (and the collapsed rail's cloud icon).
+({EIconData icon, Color tint, String title, String sub}) syncStatusOf(BuildContext context, WidgetRef ref) {
+  final c = context.colors;
+  final sync = ref.watch(syncProvider);
+  final now = ref.read(clockProvider)().toUtc();
+  final s = sync.settings;
+  final last = s.lastSync;
+  final (EIconData icon, Color tint, String title, String sub) = switch (sync.phase) {
+    _ when !s.anyOn => (EIcons.deviceSaved, c.green, 'Saved on this tablet', 'Sync isn’t set up'),
+    SyncPhase.syncing => (EIcons.sync, c.accent, 'Syncing…', sync.cloudNames),
+    SyncPhase.offline => (EIcons.cloudOff, c.textMuted, 'Waiting to sync', 'Offline'),
+    SyncPhase.waitingForWifi => (EIcons.cloudOff, c.textMuted, 'Waiting to sync', 'Waiting for Wi-Fi'),
+    SyncPhase.signedOut => (EIcons.cloudOff, c.clay, 'Sign in again', sync.message ?? sync.cloudNames),
+    SyncPhase.failed => (EIcons.cloudOff, c.clay, 'Couldn’t sync', sync.message ?? 'Tap for details'),
+    SyncPhase.idle when last == null => (EIcons.cloud, c.textMuted, 'Waiting to sync', sync.cloudNames),
+    SyncPhase.idle => (EIcons.cloudCheck, c.green, 'Synced · ${_short(sync)}', _capital(agoPhrase(last!, now))),
+  };
+  return (icon: icon, tint: tint, title: title, sub: sub);
+}
+
+/// The sync status as one icon (the collapsed sidebar and the portrait top
+/// bar). A tap opens Sync & backup.
+class SyncStatusIcon extends ConsumerWidget {
+  const SyncStatusIcon({super.key, required this.onTap, this.boxed = true, this.size = 48});
+
+  final VoidCallback onTap;
+
+  /// On a white tile with a line (the rail); bare in the top bar.
+  final bool boxed;
+  final double size;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
+    final (:icon, :tint, :title, :sub) = syncStatusOf(context, ref);
+    return ChromeButton(
+      label: '$title. $sub. Sync and backup settings',
+      width: size,
+      height: boxed ? 44 : size,
+      radius: Radii.button,
+      background: boxed ? c.surface : null,
+      onPressed: onTap,
+      child: Container(
+        width: size,
+        height: boxed ? 44 : size,
+        alignment: Alignment.center,
+        decoration: boxed
+            ? BoxDecoration(border: Border.all(color: c.line), borderRadius: BorderRadius.circular(Radii.button))
+            : null,
+        child: EIcon(icon, size: 22, color: tint),
+      ),
+    );
+  }
 }
 
 /// "Waiting to sync" on a cover (Main.dc.html), when the notebook has

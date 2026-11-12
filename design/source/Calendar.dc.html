@@ -17,10 +17,12 @@ button{font-family:inherit;cursor:pointer}
 </helmet>
 <div style="width: 1280px; height: 800px; display: flex; background: #F6F1E7; overflow: hidden; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
 
+<sc-if value="{{ navOpen }}" hint-placeholder-val="{{ true }}">
 <nav aria-label="App" style="width: 272px; flex-shrink: 0; box-sizing: border-box; padding: 22px 16px; background: #EEE7D8; border-right: 1px solid #DDD4C2; display: flex; flex-direction: column; gap: 18px">
 <div style="display: flex; align-items: center; gap: 10px; padding: 0 6px">
 <svg width="40" height="28" viewBox="8 28 104 72" aria-hidden="true"><g transform="translate(0 4)" fill="none" stroke="#0C0C0C" stroke-linecap="round" stroke-linejoin="round"><path d="M100.84 53.92 C 102.98 57.43, 104 60, 104 64 C 104 74, 97 81, 87 81 C 77 81, 68 73, 60 60" stroke-width="10"/><path d="M60 60 C 52 47, 43 41, 33 41 C 22 41, 15 50, 15 60 C 15 70, 22 79, 33 79 C 43 79, 52 73, 60 60" stroke-width="8"/><path d="M60 60 C 67 47, 77 38, 92 34" stroke-width="9.5"/><path d="M87.7 27.5 L99.0 31.6 L92.3 41.6" stroke-width="9.5"/></g></svg>
 <div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 500; letter-spacing: -0.01em; line-height: 1; position: relative; top: 3px">Endless</div>
+<span style="flex-grow: 1"></span><button onClick="{{ toggleNav }}" aria-label="Collapse the sidebar" aria-expanded="true" style="width: 44px; height: 44px; margin-right: -6px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #3D3830"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v16H4z M9 4v16 M16 9l-3 3 3 3"/></svg></button>
 </div>
 <a href="Search.dc.html" style="display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; color: #5E574C; font-size: 15px">
 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
@@ -78,6 +80,28 @@ button{font-family:inherit;cursor:pointer}
 </a>
 </div>
 </nav>
+</sc-if>
+<sc-if value="{{ navClosed }}" hint-placeholder-val="{{ false }}">
+<nav aria-label="App, collapsed" style="width: 80px; flex-shrink: 0; box-sizing: border-box; padding: 14px 0 14px; background: #EEE7D8; border-right: 1px solid #DDD4C2; display: flex; flex-direction: column; align-items: center; gap: 2px">
+<button onClick="{{ toggleNav }}" aria-label="Expand the sidebar" aria-expanded="false" style="width: 48px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #1E1C19"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v16H4z M9 4v16 M13 9l3 3-3 3"/></svg></button>
+<a href="Search.dc.html" aria-label="Search notes and handwriting" style="width: 48px; height: 44px; margin: 4px 0 6px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #FFFDF8; border: 1px solid #DDD4C2; box-sizing: border-box; color: #3D3830"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14z M20 20l-3.5-3.5"/></svg></a>
+<a href="Start.dc.html" style="position: relative; width: 68px; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #1E1C19; font-family: inherit; font-size: 11px; font-weight: 500"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg><span style="line-height: 1">Home</span></a>
+<a href="Main.dc.html" style="position: relative; width: 68px; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #1E1C19; font-family: inherit; font-size: 11px; font-weight: 500"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z M5 18a2 2 0 0 1 2-2h12"/></svg><span style="line-height: 1">Notebooks</span></a>
+<a href="Calendar.dc.html" aria-current="page" style="position: relative; width: 68px; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border: 0; border-radius: 12px; background: #E0D6C2; color: #1E1C19; font-family: inherit; font-size: 11px; font-weight: 700"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v15H4z M4 10h16 M9 3v4 M15 3v4"/></svg><span style="line-height: 1">Calendar</span></a>
+<a href="Study.dc.html" style="position: relative; width: 68px; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #1E1C19; font-family: inherit; font-size: 11px; font-weight: 500"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h14v12H3z M7 5h12a2 2 0 0 1 2 2v9"/></svg><span style="line-height: 1">Cards</span><span style="position: absolute; left: 32px; top: 0; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 5px; display: flex; align-items: center; justify-content: center; border-radius: 999px; background: #B5532A; color: #FFFDF8; font-size: 11px; font-weight: 800; border: 2px solid #EEE7D8">5</span></a>
+<a href="Remember.dc.html" style="position: relative; width: 68px; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #1E1C19; font-family: inherit; font-size: 11px; font-weight: 500"><svg width="22" height="22" viewBox="0 0 24 24" fill="#E8B730" stroke="#8A6400" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z"/></svg><span style="line-height: 1">Remember</span><span style="position: absolute; left: 32px; top: 0; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 5px; display: flex; align-items: center; justify-content: center; border-radius: 999px; background: #C08A00; color: #FFFDF8; font-size: 11px; font-weight: 800; border: 2px solid #EEE7D8">8</span></a>
+<a href="Stickies.dc.html" style="position: relative; width: 68px; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #1E1C19; font-family: inherit; font-size: 11px; font-weight: 500"><svg width="22" height="22" viewBox="0 0 24 24" fill="#F6DE7A" stroke="#8A6400" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v10l-6 6H4z M14 20v-6h6"/></svg><span style="line-height: 1">Stickies</span></a>
+<button type="button" style="position: relative; width: 68px; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #1E1C19; font-family: inherit; font-size: 11px; font-weight: 500"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg><span style="line-height: 1">Trash</span></button>
+<span style="width: 40px; height: 1px; margin: 8px 0; background: #D6CDBA"></span>
+<a href="Main.dc.html" aria-label="School folder" style="width: 48px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 12px"><svg width="20" height="20" viewBox="0 0 24 24" fill="#2B5A8C" fill-opacity="0.16" stroke="#2B5A8C" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></a>
+<a href="Main.dc.html" aria-label="Work folder" style="width: 48px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 12px"><svg width="20" height="20" viewBox="0 0 24 24" fill="#B5532A" fill-opacity="0.16" stroke="#B5532A" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></a>
+<a href="Main.dc.html" aria-label="Personal folder" style="width: 48px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 12px"><svg width="20" height="20" viewBox="0 0 24 24" fill="#4E7A52" fill-opacity="0.16" stroke="#4E7A52" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></a>
+<a href="Main.dc.html" aria-label="Sketches folder" style="width: 48px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 12px"><svg width="20" height="20" viewBox="0 0 24 24" fill="#7A4E73" fill-opacity="0.16" stroke="#7A4E73" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></a>
+<span style="flex-grow: 1"></span>
+<a href="Sync.dc.html" aria-label="Synced with Google Drive 2 minutes ago" style="position: relative; width: 48px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #FFFDF8; border: 1px solid #DDD4C2; box-sizing: border-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3B6E47" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z M9.5 13.5l2 2 3.5-3.5"/></svg></a>
+<a href="Settings.dc.html" aria-label="Settings" style="width: 48px; height: 44px; margin-top: 4px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg></a>
+</nav>
+</sc-if>
 
 <main style="flex-grow: 1; box-sizing: border-box; padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; min-width: 0">
 <div style="display: flex; align-items: center; gap: 10px">
@@ -108,7 +132,7 @@ button{font-family:inherit;cursor:pointer}
 </div>
 
 <div style="flex-grow: 1; display: flex; gap: 14px; min-height: 0">
-<div aria-label="Week of September 21" style="position: relative; width: 684px; height: 652px; flex-shrink: 0; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 14px; overflow: hidden">
+<div aria-label="Week of September 21" style="position: relative; width: {{ weekW }}px; height: 652px; flex-shrink: 0; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 14px; overflow: hidden">
 <div style="position: absolute; left: 46px; right: 0; top: 0; height: 46px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid #EAE3D5">
 <sc-for list="{{ days }}" as="d" hint-placeholder-count="7">
 <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; background: {{ d.bg }}">
@@ -120,16 +144,16 @@ button{font-family:inherit;cursor:pointer}
 <div style="position: absolute; left: 0; top: 46px; width: 46px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #5E574C">all day</div>
 <div style="position: absolute; left: 46px; right: 0; top: 46px; height: 26px; border-bottom: 1px solid #EAE3D5"></div>
 <sc-if value="{{ showDeadlines }}" hint-placeholder-val="{{ true }}">
-<div style="position: absolute; left: 594px; top: 49px; width: 86px; height: 20px; box-sizing: border-box; padding: 0 6px; display: flex; align-items: center; border-radius: 5px; background: #EDE3EC; color: #5F3A59; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden">Problem set 4 due</div>
+<div style="position: absolute; left: {{ dlL }}px; top: 49px; width: {{ evW }}px; height: 20px; box-sizing: border-box; padding: 0 6px; display: flex; align-items: center; border-radius: 5px; background: #EDE3EC; color: #5F3A59; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden">Problem set 4 due</div>
 </sc-if>
 <sc-for list="{{ hours }}" as="h" hint-placeholder-count="10">
 <div style="position: absolute; left: 0; right: 0; top: {{ h.top }}px; height: 58px; border-top: 1px solid #F0EADF">
 <span style="position: absolute; left: 6px; top: 3px; font-size: 11px; color: #5E574C">{{ h.label }}</span>
 </div>
 </sc-for>
-<div style="position: absolute; left: 410px; top: 72px; width: 91px; bottom: 0; background: rgba(43,90,140,0.04)"></div>
+<div style="position: absolute; left: {{ todayL }}px; top: 72px; width: {{ colW }}px; bottom: 0; background: rgba(43,90,140,0.04)"></div>
 <sc-for list="{{ events }}" as="e" hint-placeholder-count="8">
-<button aria-pressed="{{ e.on }}" onClick="{{ e.pick }}" style="position: absolute; left: {{ e.left }}px; top: {{ e.top }}px; width: 86px; height: {{ e.h }}px; box-sizing: border-box; padding: 5px 6px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; border: 0; border-radius: 7px; background: {{ e.bg }}; color: {{ e.fg }}; text-align: left; overflow: hidden; box-shadow: {{ e.ring }}">
+<button aria-pressed="{{ e.on }}" onClick="{{ e.pick }}" style="position: absolute; left: {{ e.left }}px; top: {{ e.top }}px; width: {{ evW }}px; height: {{ e.h }}px; box-sizing: border-box; padding: 5px 6px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; border: 0; border-radius: 7px; background: {{ e.bg }}; color: {{ e.fg }}; text-align: left; overflow: hidden; box-shadow: {{ e.ring }}">
 <span style="font-size: 12px; font-weight: 700; line-height: 1.2">{{ e.title }}</span>
 <span style="font-size: 11px; opacity: 0.85">{{ e.time }}</span>
 <sc-if value="{{ e.hasNote }}" hint-placeholder-val="{{ false }}">
@@ -137,8 +161,8 @@ button{font-family:inherit;cursor:pointer}
 </sc-if>
 </button>
 </sc-for>
-<div aria-label="Now, 1:30 PM" style="position: absolute; left: 406px; top: 390px; width: 95px; height: 2px; background: #C44A3C"></div>
-<div style="position: absolute; left: 402px; top: 386px; width: 10px; height: 10px; border-radius: 999px; background: #C44A3C"></div>
+<div aria-label="Now, 1:30 PM" style="position: absolute; left: {{ nowL }}px; top: 390px; width: {{ nowW }}px; height: 2px; background: #C44A3C"></div>
+<div style="position: absolute; left: {{ dotL }}px; top: 386px; width: 10px; height: 10px; border-radius: 999px; background: #C44A3C"></div>
 </div>
 
 <aside style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 18px; display: flex; flex-direction: column; gap: 14px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 14px">
@@ -202,9 +226,16 @@ button{font-family:inherit;cursor:pointer}
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { sel: 7, panel: 'event', hidden: {} };
+    this.state = { nav: true, sel: 7, panel: 'event', hidden: {} };
   }
   renderVals() {
+    var v = this._rv(), self = this, open = this.state && this.state.nav !== undefined ? this.state.nav : true;
+    v.navOpen = open; v.navClosed = !open;
+    v.toggleNav = function () { self.setState({ nav: !open }); };
+    return v;
+  }
+  _rv() {
+    var WW = this.state.nav === false ? 876 : 684, CW = (WW - 46) / 7;
     var self = this;
     var st = this.state;
     var calDefs = {
@@ -244,12 +275,12 @@ class Component extends DCLogic {
     ev.forEach(function (x, i) {
       if (st.hidden[x.cal]) return;
       var c = calDefs[x.cal], on = st.sel === i && st.panel === 'event';
-      events.push({ title: x.title, time: fmt(x.s) + '–' + fmt(x.e), left: 46 + x.d * 91 + 2, top: 72 + (x.s - 8) * 58 + 1, h: Math.max(26, (x.e - x.s) * 58 - 3), bg: c.bg, fg: c.fg,
+      events.push({ title: x.title, time: fmt(x.s) + '–' + fmt(x.e), left: 46 + x.d * CW + 2, top: 72 + (x.s - 8) * 58 + 1, h: Math.max(26, (x.e - x.s) * 58 - 3), bg: c.bg, fg: c.fg,
         ring: on ? '0 0 0 2px #FFFDF8, 0 0 0 4px ' + c.dot : 'none', on: on ? 'true' : 'false', hasNote: !!x.note,
         pick: function () { self.setState({ sel: i, panel: 'event' }); } });
     });
     var s = ev[st.sel], sc = calDefs[s.cal];
-    return {
+    return { weekW: WW, colW: CW, evW: CW - 5, todayL: 46 + 4 * CW, nowL: 46 + 4 * CW - 4, nowW: CW + 4, dotL: 46 + 4 * CW - 8, dlL: 46 + 6 * CW + 2,
       cals: cals, days: days, hours: hours, events: events,
       showDeadlines: !st.hidden.deadlines,
       panelEvent: st.panel === 'event', panelConnect: st.panel === 'connect',

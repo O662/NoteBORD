@@ -26,6 +26,7 @@ import 'calendar_grid.dart';
 import 'calendar_widgets.dart';
 import 'event_editor.dart';
 import 'feed_dialog.dart';
+import '../shell.dart';
 
 // The calendar (Calendar.png): Day, Week and Month; a chip per calendar to
 // show or hide it, and Connect; the event picked, with its notes ("Open
@@ -157,9 +158,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           // Its dialogs make room for the keyboard; the calendar behind them
           // doesn't shrink (the sidebar can't fit in half a screen).
           resizeToAvoidBottomInset: false,
-          body: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+          body: AppShell(children: [
               const AppSidebar(selected: SidebarItem.calendar),
               Expanded(
                 child: Padding(

@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Finish setting up</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; display: flex; background: #F6F1E7; overflow: hidden; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19">
+
+<nav aria-label="App" style="width: 272px; flex-shrink: 0; box-sizing: border-box; padding: 22px 16px; background: #EEE7D8; border-right: 1px solid #DDD4C2; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 6px">
+<svg width="40" height="28" viewBox="8 28 104 72" aria-hidden="true"><g transform="translate(0 4)" fill="none" stroke="#0C0C0C" stroke-linecap="round" stroke-linejoin="round"><path d="M100.84 53.92 C 102.98 57.43, 104 60, 104 64 C 104 74, 97 81, 87 81 C 77 81, 68 73, 60 60" stroke-width="10"/><path d="M60 60 C 52 47, 43 41, 33 41 C 22 41, 15 50, 15 60 C 15 70, 22 79, 33 79 C 43 79, 52 73, 60 60" stroke-width="8"/><path d="M60 60 C 67 47, 77 38, 92 34" stroke-width="9.5"/><path d="M87.7 27.5 L99.0 31.6 L92.3 41.6" stroke-width="9.5"/></g></svg>
+<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 500; letter-spacing: -0.01em; line-height: 1; position: relative; top: 3px">Endless</div>
+</div>
+<a href="Search.dc.html" style="display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; color: #5E574C; font-size: 15px">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+<span>Search notes &amp; handwriting</span>
+</a>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<a href="Start.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; background: #E0D6C2; font-size: 15px; font-weight: 600; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>
+<span>Home</span>
+</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h12"/></svg>
+<span style="flex-grow: 1">All notebooks</span><span style="font-size: 13px; color: #5E574C">24</span>
+</a>
+<a href="Calendar.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>
+<span>Calendar</span>
+</a>
+<a href="Study.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="14" height="12" rx="2"/><path d="M7 5h12a2 2 0 0 1 2 2v9"/></svg>
+<span style="flex-grow: 1">Flashcards</span><span style="font-size: 12px; font-weight: 700; color: #FFFDF8; background: #B5532A; padding: 1px 7px; border-radius: 999px">5</span>
+</a>
+<a href="Remember.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#E8B730" stroke="#8A6400" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z"/></svg>
+<span style="flex-grow: 1">Remember</span><span style="font-size: 12px; font-weight: 700; color: #5A4000; background: #FBEFC4; padding: 1px 7px; border-radius: 999px">8</span>
+</a>
+<a href="Stickies.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#F6DE7A" stroke="#8A6400" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v10l-6 6H4z"/><path d="M14 20v-6h6" fill="none"/></svg>
+<span style="flex-grow: 1">Sticky notes</span><span style="font-size: 13px; color: #5E574C">21</span>
+</a>
+<button style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border: 0; background: transparent; border-radius: 10px; font-size: 15px; color: #1E1C19; text-align: left">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg>
+<span>Trash</span>
+</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="padding: 0 12px 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C">Folders</span>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#2B5A8C" fill-opacity="0.16" stroke="#2B5A8C" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>School</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#B5532A" fill-opacity="0.16" stroke="#B5532A" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Work</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#4E7A52" fill-opacity="0.16" stroke="#4E7A52" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Personal</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 15px; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#7A4E73" fill-opacity="0.16" stroke="#7A4E73" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Sketches</a>
+</div>
+<div style="flex-grow: 1"></div>
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="Sync.dc.html" style="flex-grow: 1; display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 12px; box-sizing: border-box; background: #FFFDF8; border: 1px solid #DDD4C2; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3B6E47" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z"/><path d="M9.5 13.5l2 2 3.5-3.5"/></svg>
+<span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 14px; font-weight: 600">Synced · Google Drive</span><span style="font-size: 12px; color: #5E574C">2 minutes ago</span></span>
+</a>
+<a href="Settings.dc.html" aria-label="Settings" style="width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+</a>
+</div>
+</nav>
+
+<main aria-hidden="true" style="flex-grow: 1; box-sizing: border-box; padding: 36px 40px; display: flex; flex-direction: column; gap: 20px">
+<span style="font-size: 14px; color: #5E574C">Thursday, September 25</span>
+<span style="font-family: Newsreader, Georgia, serif; font-size: 44px">Welcome back, Kieth</span>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px">
+<span style="height: 100px; border-radius: 16px; background: #1E1C19"></span><span style="height: 100px; border-radius: 16px; background: #FFFDF8; border: 1px solid #DDD4C2"></span><span style="height: 100px; border-radius: 16px; background: #FFFDF8; border: 1px solid #DDD4C2"></span><span style="height: 100px; border-radius: 16px; background: #FFFDF8; border: 1px solid #DDD4C2"></span><span style="height: 100px; border-radius: 16px; background: #FFFDF8; border: 1px solid #DDD4C2"></span>
+</div>
+<span style="height: 220px; border-radius: 18px; background: #FFFDF8; border: 1px solid #DDD4C2"></span>
+</main>
+<div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(30,28,25,0.42)"></div>
+
+
+<sc-if value="{{ open }}" hint-placeholder-val="{{ true }}">
+<section role="dialog" aria-label="{{ heading }}" style="position: absolute; left: 300px; top: 60px; width: 680px; box-sizing: border-box; padding: 22px 26px 20px; display: flex; flex-direction: column; gap: 18px; background: #FFFDF8; border-radius: 22px; box-shadow: 0 30px 60px -24px rgba(0,0,0,0.5)">
+<div style="display: flex; align-items: flex-start; gap: 12px">
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+<h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 30px; font-weight: 400">{{ heading }}</h2>
+<span style="font-size: 14px; color: #5E574C">{{ sub }}</span>
+</div>
+<span style="padding: 5px 10px; border-radius: 999px; background: #EEE7D8; color: #3D3830; font-size: 12px; font-weight: 700; white-space: nowrap">About 10 seconds</span>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; color: #3D3830"><span style="width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #1E1C19; color: #FFFDF8; font-size: 12px">1</span>Name it</span>
+<div style="display: flex; align-items: center; gap: 10px; height: 54px; box-sizing: border-box; padding: 0 8px 0 16px; border: 2px solid #2B5A8C; border-radius: 14px; background: #FFFFFF">
+<input aria-label="Notebook name" value="{{ name }}" onInput="{{ typeName }}" placeholder="Untitled notebook" style="flex-grow: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; font-family: inherit; font-size: 20px; font-weight: 600; color: #1E1C19">
+<div role="radiogroup" aria-label="Cover color" style="display: flex; gap: 0">
+<sc-for list="{{ covers }}" as="c" hint-placeholder-count="5">
+<button role="radio" aria-checked="{{ c.on }}" aria-label="{{ c.label }}" onClick="{{ c.pick }}" style="width: 32px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; background: transparent"><span style="width: 20px; height: 20px; border-radius: 50%; background: {{ c.hex }}; box-shadow: {{ c.ring }}"></span></button>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; color: #3D3830"><span style="width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #1E1C19; color: #FFFDF8; font-size: 12px">2</span>Where should it live?</span>
+<div role="radiogroup" aria-label="Folder" style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{ folders }}" as="f" hint-placeholder-count="5">
+<button role="radio" aria-checked="{{ f.on }}" onClick="{{ f.pick }}" style="height: 40px; display: flex; align-items: center; gap: 7px; padding: 0 12px; border: {{ f.border }}; border-radius: 10px; background: {{ f.bg }}; color: #1E1C19; font-size: 14px; font-weight: {{ f.weight }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="{{ f.hex }}" fill-opacity="0.18" stroke="{{ f.hex }}" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>{{ f.label }}</button>
+</sc-for>
+<button aria-label="New folder" style="width: 44px; height: 40px; display: flex; align-items: center; justify-content: center; padding: 0; border: 1.5px dashed #BFB49E; border-radius: 10px; background: transparent; color: #5E574C"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+</div>
+<div role="radiogroup" aria-label="Save to" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 2px">
+<sc-for list="{{ places }}" as="p" hint-placeholder-count="3">
+<button role="radio" aria-checked="{{ p.on }}" onClick="{{ p.pick }}" style="height: 58px; display: flex; align-items: center; gap: 10px; padding: 0 12px; border: {{ p.border }}; border-radius: 12px; background: {{ p.bg }}; text-align: left; color: #1E1C19">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ p.hex }}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ p.icon }}"/></svg>
+<span style="display: flex; flex-direction: column; gap: 1px; min-width: 0"><span style="font-size: 14px; font-weight: 700; white-space: nowrap">{{ p.label }}</span><span style="font-size: 12px; color: {{ p.noteInk }}; white-space: nowrap">{{ p.note }}</span></span>
+</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; color: #3D3830"><span style="width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #1E1C19; color: #FFFDF8; font-size: 12px">3</span>Back it up?</span>
+<div style="display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 14px; background: {{ bkBg }}; border: 1px solid {{ bkLine }}">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{{ bkInk }}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ bkIcon }}"/></svg>
+<span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 700">{{ bkTitle }}</span><span style="font-size: 13px; color: #3D3830">{{ bkNote }}</span></span>
+<button role="switch" aria-checked="{{ bkStr }}" aria-label="Back up this notebook" onClick="{{ toggleBk }}" style="position: relative; width: 52px; height: 32px; flex-shrink: 0; padding: 0; border: 0; border-radius: 999px; background: {{ swBg }}"><span style="position: absolute; top: 4px; left: {{ swLeft }}; width: 24px; height: 24px; border-radius: 50%; background: #FFFDF8; box-shadow: 0 1px 3px rgba(0,0,0,0.25)"></span></button>
+</div>
+</div>
+
+<div style="display: flex; align-items: center; gap: 10px; padding-top: 4px; border-top: 1px solid #EEE7D8">
+<label style="display: flex; align-items: center; gap: 9px; min-height: 44px; font-size: 13px; color: #3D3830; cursor: pointer; flex-grow: 1"><input type="checkbox" checked="{{ dontAsk }}" onChange="{{ toggleAsk }}" style="width: 18px; height: 18px; margin: 0; accent-color: #2B5A8C">Use these every time and stop asking</label>
+<sc-if value="{{ canSkip }}" hint-placeholder-val="{{ true }}">
+<button onClick="{{ skip }}" style="height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 16px; border: 1px solid #CFC5B1; border-radius: 12px; background: transparent; color: #1E1C19"><span style="font-size: 15px; font-weight: 700">Skip for now</span><span style="font-size: 11px; color: #5E574C">set up later from ⋯</span></button>
+</sc-if>
+<button onClick="{{ create }}" style="height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 20px; border: 0; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 15px; font-weight: 700; white-space: nowrap">{{ cta }}</button>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{ done }}" hint-placeholder-val="{{ false }}">
+<div role="status" style="position: absolute; left: 50%; top: 340px; transform: translateX(-50%); width: 460px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; padding: 20px 22px; border-radius: 18px; background: #FFFDF8; box-shadow: 0 30px 60px -24px rgba(0,0,0,0.5)">
+<span style="font-family: Newsreader, Georgia, serif; font-size: 24px">{{ doneTitle }}</span>
+<span style="font-size: 14px; line-height: 1.45; color: #3D3830">{{ doneBody }}</span>
+<div style="display: flex; gap: 8px; justify-content: flex-end">
+<button onClick="{{ reset }}" style="height: 44px; padding: 0 14px; border: 0; border-radius: 12px; background: transparent; color: #3D3830; font-size: 14px; font-weight: 600">Show the prompt again</button>
+<a href="{{ doneHref }}" style="height: 44px; display: flex; align-items: center; padding: 0 18px; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 14px; font-weight: 700">{{ doneLink }}</a>
+</div>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { mode: 'finish', name: '', cover: '#8A8378', folder: 'none', place: 'tablet', backup: true, dontAsk: false, done: null };
+  }
+  renderVals() {
+    var self = this, st = this.state, finish = st.mode === 'finish';
+    var covers = [['#2B5A8C', 'Blue'], ['#B5532A', 'Rust'], ['#3E7B4F', 'Green'], ['#7A4E73', 'Plum'], ['#D9A21B', 'Gold']].map(function (c) { var on = st.cover === c[0]; return { hex: c[0], label: c[1], on: on ? 'true' : 'false', ring: on ? '0 0 0 2px #FFFFFF, 0 0 0 4px ' + c[0] : 'none', pick: function () { self.setState({ cover: c[0] }); } }; });
+    var folders = [['none', 'No folder', '#8A8378'], ['school', 'School', '#2B5A8C'], ['work', 'Work', '#B5532A'], ['personal', 'Personal', '#4E7A52'], ['sketch', 'Sketches', '#7A4E73']].map(function (f) { var on = st.folder === f[0]; return { label: f[1], hex: f[2], on: on ? 'true' : 'false', border: on ? '2px solid #2B5A8C' : '1px solid #DDD4C2', bg: on ? '#EAF0F6' : '#FFFDF8', weight: on ? 700 : 500, pick: function () { self.setState({ folder: f[0] }); } }; });
+    var P = [
+      { id: 'tablet', label: 'This tablet', note: 'Works offline', icon: 'M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M11 18h2', hex: '#3D3830' },
+      { id: 'drive', label: 'Google Drive', note: 'Connected', icon: 'M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z', hex: '#3E7B4F' },
+      { id: 'onedrive', label: 'OneDrive', note: 'Sign in first', icon: 'M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z', hex: '#2B5A8C', warn: true }
+    ];
+    var places = P.map(function (p) { var on = st.place === p.id; return { label: p.label, note: p.note, icon: p.icon, hex: p.hex, noteInk: p.warn ? '#9A4520' : '#5E574C', on: on ? 'true' : 'false', border: on ? '2px solid #2B5A8C' : '1px solid #DDD4C2', bg: on ? '#EAF0F6' : '#FFFDF8', pick: function () { self.setState({ place: p.id, backup: p.id === 'tablet' ? st.backup : true }); } }; });
+    var cloud = st.place !== 'tablet';
+    var where = { tablet: 'Google Drive', drive: 'Google Drive', onedrive: 'OneDrive' }[st.place];
+    var bk = st.backup;
+    var bkTitle = cloud ? 'Already backed up in ' + where : (bk ? 'Back up to ' + where : 'No backup');
+    var bkNote = cloud ? 'Saved there as you write, with 30 days of version history.' : (bk ? 'A copy is saved there every few minutes. You keep working offline.' : 'Only on this tablet. If the tablet is lost or reset, this notebook is gone.');
+    var nm = st.name.trim() || 'Untitled notebook';
+    var folderName = { none: '', school: 'School › ', work: 'Work › ', personal: 'Personal › ', sketch: 'Sketches › ' }[st.folder];
+    var doneMsg = st.done === 'skip'
+      ? { t: 'Untitled notebook is ready', b: 'It’s on this tablet with no folder and no backup yet. When you have a minute, open ⋯ › Finish setting up. The library shows a “Not set up” tag until you do.', l: 'See it in the library', h: 'LibraryUnset.dc.html' }
+      : { t: nm + ' is ready', b: folderName + nm + ' · ' + (cloud ? 'saved in ' + where : 'on this tablet') + (bk || cloud ? ' · backed up' : ' · not backed up') + (st.dontAsk ? '. New notebooks will use these choices without asking; change that in Settings › New notebooks.' : '.'), l: 'Start writing', h: 'Canvas.dc.html' };
+    return {
+      open: !st.done, done: !!st.done, doneTitle: doneMsg.t, doneBody: doneMsg.b, doneLink: doneMsg.l, doneHref: doneMsg.h, reset: function () { self.setState({ done: null }); },
+      heading: finish ? 'Finish setting up' : 'New notebook', sub: finish ? 'This notebook was made in a hurry. Give it a name, a home and a backup.' : 'Three quick choices. In a rush? Skip and start writing.',
+      name: st.name, typeName: function (e) { self.setState({ name: e.target.value }); },
+      covers: covers, folders: folders, places: places,
+      bkBg: cloud || bk ? '#EEF4EF' : '#FBEFE6', bkLine: cloud || bk ? '#CFE0D2' : '#EBCDB8', bkInk: cloud || bk ? '#3E7B4F' : '#B5532A',
+      bkIcon: cloud || bk ? 'M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z M9 12l2 2 4-4' : 'M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z M12 8v5 M12 16v.5',
+      bkTitle: bkTitle, bkNote: bkNote, bkStr: (bk || cloud) ? 'true' : 'false', swBg: (bk || cloud) ? '#3E7B4F' : '#BFB49E', swLeft: (bk || cloud) ? '24px' : '4px',
+      toggleBk: function () { if (!cloud) self.setState({ backup: !bk }); },
+      dontAsk: st.dontAsk, toggleAsk: function () { self.setState({ dontAsk: !st.dontAsk }); },
+      canSkip: !finish, cta: finish ? 'Save' : 'Create notebook',
+      skip: function () { self.setState({ done: 'skip' }); }, create: function () { self.setState({ done: 'create' }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

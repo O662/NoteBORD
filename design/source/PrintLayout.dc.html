@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Print layout</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Figtree:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F1E7;font-family:Figtree,'Segoe UI',system-ui,sans-serif;color:#1E1C19}
+a{color:#2B5A8C;text-decoration:none}a:hover{color:#1F4570}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; overflow: hidden; display: flex; flex-direction: column; background: #EEE7D8; font-family: Figtree, 'Segoe UI', system-ui, sans-serif; color: #1E1C19; user-select: none">
+
+<header style="height: 68px; flex-shrink: 0; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: #FFFDF8; border-bottom: 1px solid #DDD4C2">
+<a href="Canvas.dc.html" aria-label="Back to the page" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #1E1C19"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+<div style="display: flex; flex-direction: column; gap: 1px">
+<h1 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 24px; font-weight: 400; line-height: 1.1">Print layout</h1>
+<span style="font-size: 13px; color: #5E574C">Physics — Lecture notes › Lecture 3 — Momentum</span>
+</div>
+<span style="flex-grow: 1"></span>
+<span style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: #EEE7D8; font-size: 13px; color: #3D3830"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9l-3 3 3 3M19 9l3 3-3 3M9 5l3-3 3 3M9 19l3 3 3-3"/></svg>Drag a page to move it · drag its corner to resize · pinch to zoom the board</span>
+<div style="display: flex; align-items: center; gap: 2px; margin-left: 8px">
+<button aria-label="Zoom out" style="width: 40px; height: 40px; border: 0; border-radius: 10px; background: transparent; font-size: 20px; color: #3D3830">−</button>
+<span style="width: 48px; text-align: center; font-size: 14px; font-weight: 600">35%</span>
+<button aria-label="Zoom in" style="width: 40px; height: 40px; border: 0; border-radius: 10px; background: transparent; font-size: 20px; color: #3D3830">+</button>
+</div>
+</header>
+
+<div style="flex-grow: 1; min-height: 0; display: flex">
+
+<div aria-label="Board with page frames" onPointerMove="{{ move }}" onPointerUp="{{ up }}" onPointerLeave="{{ up }}" style="position: relative; flex-grow: 1; overflow: hidden; background-color: #F6F1E7; background-image: radial-gradient(#D9D0BE 1px, transparent 1.1px); background-size: 12px 12px; touch-action: none">
+
+<div style="position: absolute; left: 70px; top: 62px; font-family: Caveat, 'Segoe Print', cursive; font-size: 30px; color: #2B5A8C; line-height: 1">Lecture 3 — Momentum</div>
+<div style="position: absolute; left: 72px; top: 112px; width: 270px; font-family: Caveat, 'Segoe Print', cursive; font-size: 22px; line-height: 1.2; color: #1E1C19">p = m · v<br><span style="background: rgba(240,210,90,0.55); border-radius: 3px">total momentum is conserved</span><br>in a closed system</div>
+<svg width="220" height="135" viewBox="0 0 310 190" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="position: absolute; left: 76px; top: 222px"><path d="M10 176 L300 176 L300 36 Z" stroke="#1E1C19" stroke-width="3"/><rect x="145" y="62" width="52" height="34" stroke="#1E1C19" stroke-width="3" transform="rotate(-25.8 170 96)"/><path d="M168 82 L168 156 M161 146 L168 157 L175 146" stroke="#B5532A" stroke-width="3"/><path d="M196 70 L252 43 M240 41 L253 43 L246 54" stroke="#2B5A8C" stroke-width="3"/></svg>
+<div style="position: absolute; left: 72px; top: 384px; width: 170px; font-family: Caveat, 'Segoe Print', cursive; font-size: 24px; line-height: 1.15; color: #2B5A8C">Impulse<br><span style="color: #1E1C19">J = F · Δt = Δp</span></div>
+<div style="position: absolute; left: 250px; top: 392px; width: 92px; height: 74px; box-sizing: border-box; padding: 6px 8px; background: #F8E08E; border-radius: 3px; transform: rotate(-3deg); box-shadow: 0 6px 10px -8px rgba(30,28,25,0.5); font-family: Caveat, 'Segoe Print', cursive; font-size: 16px; line-height: 1.05; color: #3D3020">ask: elastic vs inelastic?</div>
+
+<svg width="370" height="270" viewBox="0 0 370 270" fill="none" stroke-linecap="round" aria-hidden="true" style="position: absolute; left: 440px; top: 78px"><ellipse cx="185" cy="135" rx="70" ry="38" stroke="#1E1C19" stroke-width="2.5"/><path d="M125 112 L60 50 M245 112 L310 50 M128 160 L60 225 M242 160 L310 225" stroke="#5E574C" stroke-width="2"/><circle cx="48" cy="40" r="26" stroke="#2B5A8C" stroke-width="2.2"/><circle cx="322" cy="40" r="26" stroke="#B5532A" stroke-width="2.2"/><circle cx="48" cy="232" r="26" stroke="#3E7B4F" stroke-width="2.2"/><circle cx="322" cy="232" r="26" stroke="#7A4E73" stroke-width="2.2"/></svg>
+<div style="position: absolute; left: 556px; top: 196px; width: 140px; text-align: center; font-family: Caveat, 'Segoe Print', cursive; font-size: 28px; line-height: 1">Collisions</div>
+<div style="position: absolute; left: 446px; top: 106px; width: 76px; text-align: center; font-family: Caveat, 'Segoe Print', cursive; font-size: 15px; color: #2B5A8C">elastic</div>
+<div style="position: absolute; left: 716px; top: 106px; width: 76px; text-align: center; font-family: Caveat, 'Segoe Print', cursive; font-size: 15px; color: #B5532A">inelastic</div>
+<div style="position: absolute; left: 446px; top: 298px; width: 76px; text-align: center; font-family: Caveat, 'Segoe Print', cursive; font-size: 15px; color: #3E7B4F">2D</div>
+<div style="position: absolute; left: 716px; top: 298px; width: 76px; text-align: center; font-family: Caveat, 'Segoe Print', cursive; font-size: 15px; color: #7A4E73">explosions</div>
+
+<div style="position: absolute; left: 452px; top: 410px; width: 360px; display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 2px solid #1E1C19; font-family: Caveat, 'Segoe Print', cursive; font-size: 18px; line-height: 1.5">
+<span style="border-bottom: 1.5px solid #5E574C">type</span><span style="border-bottom: 1.5px solid #5E574C">momentum</span><span style="border-bottom: 1.5px solid #5E574C">KE</span>
+<span>elastic</span><span>kept</span><span>kept</span>
+<span>inelastic</span><span>kept</span><span>lost</span>
+<span>stuck</span><span>kept</span><span>most lost</span>
+</div>
+<div style="position: absolute; left: 640px; top: 590px; width: 200px; font-family: Caveat, 'Segoe Print', cursive; font-size: 22px; color: #5E574C; line-height: 1.1">→ next week:<br>rotation + torque</div>
+
+<sc-for list="{{ missing }}" as="b" hint-placeholder-count="2">
+<div style="position: absolute; left: {{ b.x }}; top: {{ b.y }}; width: {{ b.w }}; height: {{ b.h }}; border-radius: 10px; outline: 2px dashed rgba(181,83,42,0.75); background: rgba(181,83,42,0.07); pointer-events: none"><span style="position: absolute; left: 6px; top: -12px; padding: 2px 8px; border-radius: 999px; background: #B5532A; color: #FFFDF8; font-size: 11px; font-weight: 800; white-space: nowrap">NOT ON A PAGE</span></div>
+</sc-for>
+
+<sc-for list="{{ frames }}" as="f" hint-placeholder-count="2">
+<div role="group" aria-label="{{ f.aria }}" onPointerDown="{{ f.down }}" style="position: absolute; left: {{ f.x }}; top: {{ f.y }}; width: {{ f.w }}; height: {{ f.h }}; box-sizing: border-box; border: {{ f.border }}; border-radius: 4px; background: {{ f.fill }}; box-shadow: {{ f.shadow }}; cursor: move; touch-action: none">
+<span style="position: absolute; left: -2px; top: -30px; height: 26px; display: flex; align-items: center; gap: 6px; padding: 0 10px 0 4px; border-radius: 8px 8px 8px 0; background: {{ f.tabBg }}; color: #FFFDF8; font-size: 12px; font-weight: 700; white-space: nowrap"><span style="width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(255,255,255,0.22); font-size: 12px">{{ f.n }}</span>{{ f.label }}</span>
+<sc-if value="{{ f.sel }}" hint-placeholder-val="{{ true }}">
+<button aria-label="{{ f.delLabel }}" onPointerDown="{{ f.stop }}" onClick="{{ f.del }}" style="position: absolute; right: -16px; top: -16px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; padding: 0; border: 2px solid #FFFDF8; border-radius: 50%; background: #1E1C19; color: #FFFDF8"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+<span aria-label="Resize page" onPointerDown="{{ f.resizeDown }}" style="position: absolute; right: -14px; bottom: -14px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 9px; background: #2B5A8C; border: 2px solid #FFFDF8; cursor: nwse-resize; touch-action: none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFDF8" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M20 10v10H10M20 20L9 9"/></svg></span>
+</sc-if>
+</div>
+</sc-for>
+
+<div style="position: absolute; left: 14px; bottom: 14px; display: flex; gap: 8px">
+<button onClick="{{ addPage }}" style="height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid #CFC5B1; border-radius: 12px; background: #FFFDF8; color: #1E1C19; font-size: 14px; font-weight: 600; box-shadow: 0 6px 16px -12px rgba(30,28,25,0.5)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add a page</button>
+<button onClick="{{ autoFit }}" style="height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid #CFC5B1; border-radius: 12px; background: #FFFDF8; color: #1E1C19; font-size: 14px; font-weight: 600; box-shadow: 0 6px 16px -12px rgba(30,28,25,0.5)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="8" height="10" rx="1"/><rect x="13" y="3" width="8" height="10" rx="1"/><rect x="3" y="15" width="18" height="6" rx="1"/></svg>Lay out pages for me</button>
+</div>
+</div>
+
+<aside aria-label="Print settings" style="width: 340px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; background: #FFFDF8; border-left: 1px solid #DDD4C2">
+<div style="flex-grow: 1; min-height: 0; overflow: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 16px">
+
+<sc-if value="{{ hasMissing }}" hint-placeholder-val="{{ true }}">
+<div role="status" style="display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 14px; background: #FBEFE6; border: 1px solid #EBCDB8">
+<span style="font-size: 14px; font-weight: 700; color: #7E3A18">{{ missingTitle }}</span>
+<span style="font-size: 13px; line-height: 1.4; color: #3D3830">Anything outside the page boxes won’t print. Move a page over it, or add one.</span>
+<button onClick="{{ coverMissing }}" style="align-self: flex-start; height: 40px; padding: 0 12px; border: 0; border-radius: 10px; background: #B5532A; color: #FFFDF8; font-size: 14px; font-weight: 700">Add pages for them</button>
+</div>
+</sc-if>
+<sc-if value="{{ allCovered }}" hint-placeholder-val="{{ false }}">
+<div role="status" style="display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: #EEF4EF; border: 1px solid #CFE0D2; font-size: 14px; font-weight: 600; color: #2F5D3A"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Everything on the board is on a page</div>
+</sc-if>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C">Paper</span>
+<div role="radiogroup" aria-label="Paper size" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 3px; border-radius: 12px; background: #EEE7D8">
+<sc-for list="{{ papers }}" as="p" hint-placeholder-count="2">
+<button role="radio" aria-checked="{{ p.on }}" onClick="{{ p.pick }}" style="height: 40px; border: 0; border-radius: 9px; background: {{ p.bg }}; box-shadow: {{ p.shadow }}; color: #1E1C19; font-size: 14px; font-weight: 600">{{ p.label }}</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C">{{ selHeading }}</span>
+<div style="display: flex; gap: 6px">
+<button onClick="{{ setPortrait }}" aria-pressed="{{ portraitOn }}" style="flex: 1; height: 52px; display: flex; align-items: center; justify-content: center; gap: 8px; border: {{ portraitBorder }}; border-radius: 12px; background: {{ portraitBg }}; color: #1E1C19; font-size: 14px; font-weight: 600"><span style="width: 14px; height: 20px; border: 2px solid currentColor; border-radius: 2px"></span>Portrait</button>
+<button onClick="{{ setLandscape }}" aria-pressed="{{ landscapeOn }}" style="flex: 1; height: 52px; display: flex; align-items: center; justify-content: center; gap: 8px; border: {{ landscapeBorder }}; border-radius: 12px; background: {{ landscapeBg }}; color: #1E1C19; font-size: 14px; font-weight: 600"><span style="width: 20px; height: 14px; border: 2px solid currentColor; border-radius: 2px"></span>Landscape</button>
+</div>
+<span style="font-size: 13px; color: #5E574C">{{ scaleNote }}</span>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C">{{ pagesHeading }}</span>
+<sc-for list="{{ thumbs }}" as="t" hint-placeholder-count="2">
+<button onClick="{{ t.pick }}" aria-pressed="{{ t.on }}" style="display: flex; align-items: center; gap: 12px; padding: 8px; border: {{ t.border }}; border-radius: 12px; background: {{ t.bg }}; text-align: left; color: #1E1C19">
+<span style="position: relative; width: {{ t.tw }}; height: {{ t.th }}; flex-shrink: 0; overflow: hidden; border-radius: 3px; background: #FFFFFF; box-shadow: 0 0 0 1px #DDD4C2, 0 3px 6px -4px rgba(30,28,25,0.4)">
+<sc-for list="{{ t.bits }}" as="b" hint-placeholder-count="3">
+<span style="position: absolute; left: {{ b.x }}; top: {{ b.y }}; width: {{ b.w }}; height: {{ b.h }}; border-radius: 2px; background: {{ b.c }}"></span>
+</sc-for>
+</span>
+<span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 700">Page {{ t.n }}</span><span style="font-size: 12px; color: #5E574C">{{ t.meta }}</span></span>
+</button>
+</sc-for>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5E574C; padding-bottom: 4px">On every page</span>
+<sc-for list="{{ opts }}" as="o" hint-placeholder-count="3">
+<label style="display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; font-size: 14px; color: #1E1C19; cursor: pointer">{{ o.label }}<button role="switch" aria-checked="{{ o.on }}" aria-label="{{ o.label }}" onClick="{{ o.toggle }}" style="position: relative; width: 46px; height: 28px; flex-shrink: 0; padding: 0; border: 0; border-radius: 999px; background: {{ o.bg }}"><span style="position: absolute; top: 3px; left: {{ o.left }}; width: 22px; height: 22px; border-radius: 50%; background: #FFFDF8; box-shadow: 0 1px 3px rgba(0,0,0,0.25)"></span></button></label>
+</sc-for>
+</div>
+</div>
+
+<div style="padding: 12px 18px 16px; border-top: 1px solid #E4DCCB; display: flex; gap: 8px">
+<button onClick="{{ savePdf }}" style="flex: 1; height: 48px; border: 1px solid #CFC5B1; border-radius: 12px; background: transparent; color: #1E1C19; font-size: 15px; font-weight: 600; white-space: nowrap">Save as PDF</button>
+<button onClick="{{ doPrint }}" style="flex: 1; height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 12px; background: #1E1C19; color: #FFFDF8; font-size: 15px; font-weight: 700; white-space: nowrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V4h10v5 M6 17H4v-6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v6h-2 M7 14h10v6H7z"/></svg>{{ printLabel }}</button>
+</div>
+</aside>
+</div>
+
+<sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+<div role="status" style="position: absolute; left: 470px; bottom: 76px; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 12px 14px 12px 18px; border-radius: 14px; background: #1E1C19; color: #FFFDF8; font-size: 14px; white-space: nowrap; box-shadow: 0 16px 30px -16px rgba(0,0,0,0.6)">
+<span>{{ toast }}</span>
+<button onClick="{{ closeToast }}" style="height: 36px; padding: 0 12px; border: 0; border-radius: 9px; background: rgba(255,255,255,0.12); color: #FFFDF8; font-size: 14px; font-weight: 700">OK</button>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      paper: 'A4', sel: 1, toast: '', nextId: 3,
+      frames: [ { id: 1, x: 44, y: 44, w: 318, o: 'portrait' }, { id: 2, x: 420, y: 52, w: 420, o: 'landscape' } ],
+      opts: { header: true, numbers: true, bg: false }
+    };
+    this.drag = null;
+  }
+  renderVals() {
+    var self = this, st = this.state;
+    var R = st.paper === 'A4' ? 1.414 : 1.294;
+    var BLOCKS = [
+      { x: 64, y: 56, w: 280, h: 42, c: '#9DB4CD', name: 'title' },
+      { x: 66, y: 106, w: 270, h: 88, c: '#C9C1B1', name: 'formulas' },
+      { x: 70, y: 218, w: 228, h: 140, c: '#BDB5A5', name: 'diagram' },
+      { x: 66, y: 378, w: 176, h: 66, c: '#9DB4CD', name: 'impulse' },
+      { x: 246, y: 388, w: 100, h: 82, c: '#F1D77F', name: 'sticky' },
+      { x: 436, y: 74, w: 378, h: 278, c: '#C9C1B1', name: 'mind map' },
+      { x: 446, y: 404, w: 372, h: 128, c: '#BDB5A5', name: 'table' },
+      { x: 634, y: 584, w: 200, h: 58, c: '#C9C1B1', name: 'next week' }
+    ];
+    var dims = function (f) { return f.o === 'portrait' ? { w: f.w, h: f.w * R } : { w: f.w, h: f.w / R }; };
+    var inside = function (b, f) { var d = dims(f), cx = b.x + b.w / 2, cy = b.y + b.h / 2; return cx >= f.x && cx <= f.x + d.w && cy >= f.y && cy <= f.y + d.h; };
+    var missingB = BLOCKS.filter(function (b) { return !st.frames.some(function (f) { return inside(b, f); }); });
+    var setFrames = function (fs, extra) { self.setState(Object.assign({ frames: fs }, extra || {})); };
+    var frames = st.frames.map(function (f, i) {
+      var d = dims(f), sel = f.id === st.sel;
+      var pct = Math.round((f.o === 'portrait' ? 318 : 450) / f.w * 100);
+      return {
+        n: i + 1, x: f.x + 'px', y: f.y + 'px', w: d.w + 'px', h: d.h + 'px', sel: sel,
+        aria: 'Page ' + (i + 1), delLabel: 'Remove page ' + (i + 1),
+        label: st.paper + ' · ' + (f.o === 'portrait' ? 'Portrait' : 'Landscape') + ' · ' + pct + '%',
+        border: sel ? '3px solid #2B5A8C' : '2px dashed #5E7EA0', fill: sel ? 'rgba(43,90,140,0.03)' : 'rgba(255,255,255,0.18)',
+        shadow: sel ? '0 0 0 4px rgba(43,90,140,0.15)' : 'none', tabBg: sel ? '#2B5A8C' : '#5E7EA0',
+        down: function (e) { try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) {} self.drag = { id: f.id, mode: 'move', sx: e.clientX, sy: e.clientY, ox: f.x, oy: f.y, ow: f.w }; if (!sel) self.setState({ sel: f.id }); },
+        resizeDown: function (e) { e.stopPropagation(); try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) {} self.drag = { id: f.id, mode: 'size', sx: e.clientX, sy: e.clientY, ox: f.x, oy: f.y, ow: f.w }; },
+        stop: function (e) { e.stopPropagation(); },
+        del: function () { var fs = st.frames.filter(function (g) { return g.id !== f.id; }); setFrames(fs, { sel: fs.length ? fs[0].id : null }); }
+      };
+    });
+    var thumbs = st.frames.map(function (f, i) {
+      var d = dims(f), sel = f.id === st.sel, TW = f.o === 'portrait' ? 46 : 64, sc = TW / d.w;
+      var bits = BLOCKS.filter(function (b) { return inside(b, f); }).map(function (b) { return { x: ((b.x - f.x) * sc) + 'px', y: ((b.y - f.y) * sc) + 'px', w: Math.max(3, b.w * sc) + 'px', h: Math.max(3, b.h * sc) + 'px', c: b.c }; });
+      var names = BLOCKS.filter(function (b) { return inside(b, f); }).map(function (b) { return b.name; });
+      return { n: i + 1, tw: TW + 'px', th: (d.h * sc) + 'px', bits: bits, on: sel ? 'true' : 'false', border: sel ? '2px solid #2B5A8C' : '1px solid #E4DCCB', bg: sel ? '#F3F7FB' : '#FFFDF8',
+        meta: names.length ? names.join(', ') : 'Empty: move it over your notes', pick: function () { self.setState({ sel: f.id }); } };
+    });
+    var cur = st.frames.filter(function (f) { return f.id === st.sel; })[0];
+    var curIdx = st.frames.indexOf(cur);
+    var setO = function (o) { if (!cur) return; setFrames(st.frames.map(function (f) { return f.id === cur.id ? Object.assign({}, f, { o: o, w: o === 'landscape' ? Math.round(f.w * R) : Math.round(f.w / R) }) : f; })); };
+    var addFor = function (blocks) {
+      var fs = st.frames.slice(), id = st.nextId;
+      blocks.forEach(function (b) {
+        if (fs.some(function (f) { return inside(b, f); })) return;
+        var wide = b.w > b.h * 1.2, w = wide ? Math.max(b.w + 40, 300) : Math.max(b.h + 40, 220) / R;
+        var f = { id: id++, x: Math.max(8, b.x - 18), y: Math.max(36, b.y - 18), w: Math.round(wide ? w : Math.max(w, b.w + 36)), o: wide ? 'landscape' : 'portrait' };
+        fs.push(f);
+      });
+      setFrames(fs, { nextId: id, sel: fs[fs.length - 1].id });
+    };
+    var opt = function (k, label) { var on = st.opts[k]; return { label: label, on: on ? 'true' : 'false', bg: on ? '#2B5A8C' : '#BFB49E', left: on ? '21px' : '3px', toggle: function () { var o = Object.assign({}, st.opts); o[k] = !on; self.setState({ opts: o }); } }; };
+    var n = st.frames.length;
+    return {
+      frames: frames, thumbs: thumbs,
+      missing: missingB.map(function (b) { return { x: (b.x - 6) + 'px', y: (b.y - 6) + 'px', w: (b.w + 12) + 'px', h: (b.h + 12) + 'px' }; }),
+      hasMissing: missingB.length > 0, allCovered: missingB.length === 0,
+      missingTitle: missingB.length === 1 ? '1 part of the board isn’t on a page' : missingB.length + ' parts of the board aren’t on a page',
+      coverMissing: function () { addFor(missingB); },
+      papers: ['A4', 'Letter'].map(function (p) { var on = st.paper === p; return { label: p === 'A4' ? 'A4' : 'US Letter', on: on ? 'true' : 'false', bg: on ? '#FFFDF8' : 'transparent', shadow: on ? '0 1px 3px rgba(30,28,25,0.2)' : 'none', pick: function () { self.setState({ paper: p }); } }; }),
+      selHeading: cur ? 'Page ' + (curIdx + 1) : 'Pick a page',
+      portraitOn: cur && cur.o === 'portrait' ? 'true' : 'false', landscapeOn: cur && cur.o === 'landscape' ? 'true' : 'false',
+      portraitBorder: cur && cur.o === 'portrait' ? '2px solid #2B5A8C' : '1px solid #DDD4C2', portraitBg: cur && cur.o === 'portrait' ? '#EAF0F6' : '#FFFDF8',
+      landscapeBorder: cur && cur.o === 'landscape' ? '2px solid #2B5A8C' : '1px solid #DDD4C2', landscapeBg: cur && cur.o === 'landscape' ? '#EAF0F6' : '#FFFDF8',
+      setPortrait: function () { if (cur && cur.o !== 'portrait') setO('portrait'); }, setLandscape: function () { if (cur && cur.o !== 'landscape') setO('landscape'); },
+      scaleNote: cur ? 'Bigger box = smaller writing on paper. This page prints your ink at ' + Math.round((cur.o === 'portrait' ? 318 : 450) / cur.w * 100) + '% of its real size.' : '',
+      pagesHeading: n + (n === 1 ? ' page' : ' pages') + ' · in this order',
+      opts: [opt('header', 'Notebook title and date'), opt('numbers', 'Page numbers'), opt('bg', 'Dot grid background')],
+      printLabel: 'Print ' + n + (n === 1 ? ' page' : ' pages'),
+      addPage: function () { var id = st.nextId; setFrames(st.frames.concat([{ id: id, x: 300, y: 250, w: 260, o: 'portrait' }]), { nextId: id + 1, sel: id }); },
+      autoFit: function () { setFrames([{ id: 1, x: 44, y: 40, w: 318, o: 'portrait' }, { id: 2, x: 420, y: 52, w: 420, o: 'landscape' }, { id: 3, x: 424, y: 384, w: 430, o: 'landscape' }], { sel: 3, nextId: 4 }); },
+      move: function (e) {
+        var d = self.drag; if (!d) return;
+        var dx = e.clientX - d.sx, dy = e.clientY - d.sy;
+        setFrames(st.frames.map(function (f) {
+          if (f.id !== d.id) return f;
+          if (d.mode === 'move') return Object.assign({}, f, { x: Math.round(d.ox + dx), y: Math.round(d.oy + dy) });
+          return Object.assign({}, f, { w: Math.round(Math.min(760, Math.max(140, d.ow + dx))) });
+        }));
+      },
+      up: function () { self.drag = null; },
+      doPrint: function () { self.setState({ toast: 'Sending ' + n + (n === 1 ? ' page' : ' pages') + ' to the printer…' }); },
+      savePdf: function () { self.setState({ toast: 'Saved “Lecture 3 — Momentum.pdf” · ' + n + (n === 1 ? ' page' : ' pages') + ' · searchable handwriting' }); },
+      toast: st.toast, closeToast: function () { self.setState({ toast: '' }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

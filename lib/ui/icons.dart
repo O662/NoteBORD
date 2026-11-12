@@ -257,6 +257,11 @@ abstract final class EIcons {
         'M6.5 6.5A8 8 0 0 1 20 11v1.5'),
   ], strokeWidth: 1.7);
   static final warning = EIconData([_p('M12 3l10 18H2z'), _p('M12 10v5M12 18h.01')], strokeWidth: 1.9);
+  // The sidebar's collapse / expand buttons (Update 04, CalendarRail.dc.html)
+  // and the portrait top bar's menu.
+  static final sidebarCollapse = EIconData([_p('M4 4h16v16H4z M9 4v16 M16 9l-3 3 3 3')]);
+  static final sidebarExpand = EIconData([_p('M4 4h16v16H4z M9 4v16 M13 9l3 3-3 3')]);
+  static final menu = EIconData([_p('M4 7h16M4 12h16M4 17h16')]);
   static final pin = EIconData([_p('M9 4h6l-1 6 3 3H7l3-3z'), _p('M12 13v7')]);
   static final restore = EIconData([_p('M3 12a9 9 0 1 0 3-6.7'), _p('M3 4v5h5')]);
   static final palette = EIconData([
