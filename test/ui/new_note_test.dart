@@ -28,6 +28,34 @@ Future<void> _tap(WidgetTester tester, String label) async {
 void main() {
   setUpAll(loadAppFonts);
 
+  testWidgets('no name: the button is Skip for now; a name makes it Create note', (tester) async {
+    final (store, db) = await sampleLibrary();
+    final c = await pumpApp(tester, store: store, index: db);
+    await tester.tap(find.text('New note').first);
+    await _pump(tester);
+    expect(find.text('Skip for now'), findsOneWidget);
+    expect(find.text('Create note'), findsNothing);
+    await tester.enterText(find.byType(TextField).first, 'Lab 4');
+    await tester.pump();
+    expect(find.text('Create note'), findsOneWidget);
+    expect(find.text('Skip for now'), findsNothing);
+    // Only spaces count as no name.
+    await tester.enterText(find.byType(TextField).first, '   ');
+    await tester.pump();
+    expect(find.text('Skip for now'), findsOneWidget);
+
+    // Skip: "Untitled note" on this tablet, on the paper picked, Not set up.
+    await _tap(tester, 'Grid paper');
+    await _tap(tester, 'Skip for now');
+    expect(find.byType(CanvasScreen), findsOneWidget);
+    expect(find.textContaining('Finish setting up'), findsOneWidget);
+    final made = c.read(libraryProvider).active.firstWhere((n) => n.title == 'Untitled note');
+    expect(made.setupPending, isTrue);
+    expect(made.saveTo, 'device');
+    expect(decodeNotebook(store.notebooks[made.id]!).defaultPaper, Paper.grid);
+    await tester.pump(const Duration(seconds: 5));
+  });
+
   testWidgets('New note: a name, a nested new folder, This tablet only, Grid paper, a cover; "Will be saved as"', (tester) async {
     final (store, db) = await sampleLibrary();
     final c = await pumpApp(tester, store: store, index: db);
@@ -72,6 +100,8 @@ void main() {
     await _tap(tester, 'Folder Work');
     await _tap(tester, 'Lines paper');
     await _tap(tester, 'Make these my defaults');
+    await tester.enterText(find.byType(TextField).first, 'Standup');
+    await tester.pump();
     await _tap(tester, 'Create note');
     final s = c.read(settingsProvider);
     expect(s.defaultFolder, ['Work']);
@@ -103,12 +133,14 @@ void main() {
     expect(find.text('Not connected · you’ll sign in first'), findsNWidgets(2));
     await _tap(tester, 'OneDrive. Not connected · you’ll sign in first');
     expect(find.text('OneDrive › Endless Notebooks › Untitled note'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, 'Optics lab');
+    await tester.pump();
     await _tap(tester, 'Create note');
     await tester.pumpAndSettle();
     final sync = c.read(syncProvider).settings;
     expect(sync.onedrive.active, isTrue);
     expect(sync.google.active, isFalse);
-    final made = c.read(libraryProvider).active.firstWhere((n) => n.title == 'Untitled note');
+    final made = c.read(libraryProvider).active.firstWhere((n) => n.title == 'Optics lab');
     expect(made.saveTo, 'onedrive');
     await tester.pump(const Duration(seconds: 10));
   });
@@ -119,6 +151,8 @@ void main() {
     await tester.tap(find.text('New note').first);
     await _pump(tester);
     await _tap(tester, 'OneDrive. Not connected · you’ll sign in first');
+    await tester.enterText(find.byType(TextField).first, 'Optics lab');
+    await tester.pump();
     await _tap(tester, 'Create note');
     await tester.pumpAndSettle();
     expect(find.text('Can’t connect OneDrive'), findsOneWidget);

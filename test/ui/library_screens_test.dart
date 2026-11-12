@@ -121,12 +121,15 @@ void main() {
     // The New note dialog, in the open folder.
     expect(find.text('Will be saved as'), findsOneWidget);
     expect(find.text('This tablet › Work › Untitled note'), findsOneWidget);
-    await tester.tap(find.bySemanticsLabel('Create note'));
+    // No name: the button is Skip for now (Update 04).
+    await tester.tap(find.bySemanticsLabel('Skip for now'));
     await _pump(tester);
     expect(_screenTitle(tester), 'canvas');
     expect(find.text('Untitled note'), findsOneWidget);
     final created = c.read(libraryProvider).active.where((n) => n.title == 'Untitled note').single;
     expect(created.folder, ['Work']);
+    expect(created.setupPending, isTrue);
+    expect(created.saveTo, 'device');
 
     // Tapping the title renames it.
     await tester.tap(find.text('Untitled note'));

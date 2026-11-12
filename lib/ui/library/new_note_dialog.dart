@@ -12,6 +12,7 @@ import '../../templates/templates.dart' show TemplateTarget;
 import '../../theme/colors.dart';
 import '../../theme/tokens.g.dart' as tokens;
 import '../../theme/tokens.g.dart' show FontFamilies, Radii;
+import '../common.dart' show showNote;
 import '../dialogs.dart';
 import '../icons.dart';
 import '../routes.dart';
@@ -34,7 +35,11 @@ Future<void> newNote(BuildContext context, WidgetRef ref, {List<String> folder =
     return;
   }
   final id = await showEndlessDialog<String>(context, builder: (_) => NewNoteDialog(folder: folder.isNotEmpty ? folder : s.defaultFolder));
-  if (id != null && context.mounted) context.push(Routes.notebook(id, page: 0));
+  if (id == null || !context.mounted) return;
+  context.push(Routes.notebook(id, page: 0));
+  if (ref.read(libraryProvider).byId(id)?.setupPending ?? false) {
+    showNote(context, 'Untitled note is ready. When you have a minute, open More options › Finish setting up.');
+  }
 }
 
 Color? _defaultCover(AppSettings s) {
@@ -99,7 +104,36 @@ class _NewNoteDialogState extends ConsumerState<NewNoteDialog> {
     });
   }
 
+  /// No name yet: the main button is "Skip for now" (Update 04, as in New
+  /// notebook). It makes "Untitled note" at once, in the folder, place and
+  /// paper picked here (on this tablet instead if that cloud would need a
+  /// sign-in first), tagged "Not set up" so Finish setting up is in its
+  /// menus.
+  bool get _skipping => _name.text.trim().isEmpty;
+
+  Future<void> _skip() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final id = await ref.read(libraryProvider.notifier).createNotebook(
+            title: 'Untitled note',
+            folder: _folder,
+            paper: _paper,
+            cover: _cover,
+            saveTo: (_place.cloud == null || ref.read(syncProvider).settings.of(_place.cloud!).active
+                    ? _place
+                    : SaveLocation.device)
+                .name,
+            setupPending: true,
+          );
+      if (mounted) Navigator.of(context).pop(id);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _create() async {
+    if (_skipping) return _skip();
     if (_busy) return;
     setState(() => _busy = true);
     try {
@@ -312,7 +346,11 @@ class _NewNoteDialogState extends ConsumerState<NewNoteDialog> {
             ),
             Row(mainAxisAlignment: MainAxisAlignment.end, spacing: 10, children: [
               SecondaryButton(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
-              PrimaryButton(label: _busy ? 'Creating…' : 'Create note', icon: EIcons.plus, onPressed: _busy ? null : _create),
+              PrimaryButton(
+                label: _busy ? 'Creating…' : (_skipping ? 'Skip for now' : 'Create note'),
+                icon: _skipping ? null : EIcons.plus,
+                onPressed: _busy ? null : _create,
+              ),
             ]),
           ]),
         ),
