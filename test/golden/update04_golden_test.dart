@@ -4,21 +4,24 @@
 // StickiesRail.png, StartPortrait.png, StartPortraitMenu.png,
 // CanvasShortcuts*.png, Canvas-pin-from-menu.png, Canvas-shortcuts-in-use.png,
 // CanvasPortrait*.png, NewNotebook*.png, FinishSetup.png, LibraryUnset*.png,
-// Share.png, History.png, History-naming.png.
+// Share.png, History.png, History-naming.png, Recovery.png, Conflict.png.
 //
 // Regenerate after an intended visual change:
 //   flutter test --update-goldens test/golden
 @Tags(['golden'])
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:endless/app.dart' show routerProvider;
 import 'package:endless/board/codec.dart';
 import 'package:endless/board/model.dart';
+import 'package:endless/board/store.dart';
 import 'package:endless/state/changes.dart' show versionStoreProvider;
 import 'package:endless/state/notebook.dart';
+import 'package:endless/sync/conflicts.dart';
 import 'package:endless/sync/versions.dart';
 import 'package:endless/state/settings.dart';
 import 'package:endless/ui/canvas/shortcuts.dart';
@@ -57,11 +60,19 @@ void _golden(String name, String location, {Size? size, Future<void> Function(Wi
 }
 
 /// The sample notebook on page 3, like the design's canvas screens.
-void _canvas(String name, {Size? size, List<String>? shortcuts, Future<void> Function(WidgetTester t)? setUp}) {
+void _canvas(
+  String name, {
+  Size? size,
+  List<String>? shortcuts,
+  Future<void> Function(WidgetTester t)? setUp,
+  Future<void> Function(MemoryBoardStore store, LoadedNotebook nb)? before,
+}) {
   testWidgets(name, (tester) => _withShadows(() async {
         var settings = AppSettings();
         if (shortcuts != null) settings = settings.withShortcuts(shortcuts);
-        final store = storeWith(sampleNotebook(), settings: settings);
+        final nb = sampleNotebook();
+        final store = storeWith(nb, settings: settings);
+        await before?.call(store, nb);
         await pumpCanvas(tester, store: store, size: size);
         canvasPane.goTo(2);
         await _settle(tester);
@@ -192,5 +203,48 @@ void main() {
   _canvas('history_naming', setUp: (t) async {
     await history(t);
     await t.tap(find.text('Name this version'));
+  });
+
+  // §3: crash recovery, the strokes the journal had and page 3 didn't.
+  _canvas('recovery', before: (store, nb) async {
+    final page = nb.pages[2];
+    final lines = StringBuffer();
+    for (final (x, y) in [(560.0, 620.0), (640.0, 624.0), (720.0, 618.0), (560.0, 680.0), (660.0, 684.0)]) {
+      final s = strokeFrom([Offset(x, y), Offset(x + 30, y - 8), Offset(x + 60, y + 4)]);
+      lines.writeln(jsonEncode({'t': testNow.toUtc().millisecondsSinceEpoch, 'page': page.id, 'item': jsonDecode(s.encoded)}));
+    }
+    await store.appendJournal(nb.notebook.id, lines.toString());
+  });
+
+  // §2: a page changed on two devices.
+  _canvas('conflict', setUp: (t) async {
+    final c = ProviderScope.containerOf(t.element(find.byType(MaterialApp)));
+    final page = c.read(notebookProvider(canvasPane.notebookId)).pageAt(canvasPane.page).page;
+    Uint8List bytes(BoardPage p) => Uint8List.fromList(utf8.encode(encodePage(p)));
+    final ours = [for (var i = 0; i < 3; i++) strokeFrom([Offset(120.0 + i * 40, 620), Offset(150.0 + i * 40, 640)])];
+    final theirs = [for (var i = 0; i < 2; i++) strokeFrom([Offset(560.0 + i * 60, 640), Offset(600.0 + i * 60, 660)])];
+    final versions = c.read(versionStoreProvider);
+    final (o, th) = (await t.runAsync(() async {
+      final o = await versions.keep(canvasPane.notebookId, page.id, bytes(BoardPage(id: page.id, items: [...page.items, ...ours])),
+          reason: VersionReason.sync, device: 'Kieth’s phone');
+      final th = await versions.keep(canvasPane.notebookId, page.id,
+          bytes(BoardPage(id: page.id, items: [...page.items, ...theirs])),
+          reason: VersionReason.remote, device: 'Kieth’s phone');
+      return (o, th);
+    }))!;
+    expect((o, th), isNotNull);
+    unawaited(c.read(conflictsProvider.notifier).add(PageConflict(
+          notebookId: canvasPane.notebookId,
+          pageId: page.id,
+          device: 'Kieth’s phone',
+          theirsAt: testNow.toUtc().subtract(const Duration(minutes: 30)),
+          oursAt: testNow.toUtc().subtract(const Duration(minutes: 10)),
+          ours: o!,
+          theirs: th!,
+        )));
+    await _settle(t);
+    await t.tap(find.text('1 page to check'));
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await _settle(t);
   });
 }

@@ -13,6 +13,7 @@ import 'cloud.dart';
 import 'doc.dart';
 import 'root.dart';
 import 'stamps.dart';
+import 'conflicts.dart';
 import 'versions.dart';
 
 // Copies notebooks between this device and a cloud folder, both ways:
@@ -63,6 +64,10 @@ abstract class SyncHost {
 
   /// Runs [task] with no notebook being opened or saved meanwhile.
   Future<T> exclusive<T>(Future<T> Function() task);
+
+  /// A page was changed here and on another device while one was offline
+  /// (Update 04): it's merged, and both sides are kept as versions.
+  Future<void> pageConflict(PageConflict conflict);
 }
 
 /// What to sync.
@@ -134,7 +139,11 @@ class SyncEngine {
     required this.versions,
     this.options = const SyncOptions(),
     this.worker = runInline,
-  });
+    DateTime Function()? clock,
+  }) : clock = clock ?? DateTime.now;
+
+  /// Now (to tell changes held back by an offline device from fresh ones).
+  final DateTime Function() clock;
 
   final BoardStore store;
   final SyncHost host;
@@ -430,12 +439,14 @@ class SyncEngine {
       if (!prep.changes) return _Outcome(merged);
       if (open) {
         if (_locksDiffer(local, merged)) return const _Outcome.waiting();
-        await _keepVersions(id, local, merged, remoteDevice: _deviceOf(manifest));
+        final kept = await _keepVersions(id, local, merged, remoteDevice: _deviceOf(manifest));
         if (!host.applyOpen(id, local, merged)) return const _Outcome.waiting();
+        await _noteConflicts(id, prep.contested, kept, _deviceOf(manifest));
         return _Outcome(merged, changedHere: true, applied: true);
       }
-      await _keepVersions(id, local, merged, remoteDevice: _deviceOf(manifest));
+      final kept = await _keepVersions(id, local, merged, remoteDevice: _deviceOf(manifest));
       await _write(id, local, merged);
+      await _noteConflicts(id, prep.contested, kept, _deviceOf(manifest));
       return _Outcome(merged, changedHere: true);
     }
 
@@ -599,11 +610,57 @@ class SyncEngine {
 
     final changes = local != null && _differs(local, merged);
     if (local == null || changes) {
-      return _Prepared(known: known, local: local, merged: merged, changes: changes);
+      return _Prepared(
+        known: known,
+        local: local,
+        merged: merged,
+        changes: changes,
+        contested: changes && remoteDoc != null && a.policy == MergePolicy.mergeBoth
+            ? _contested(local, remoteDoc, merged)
+            : const [],
+      );
     }
     // Nothing came in: this is what's sent, as it is.
     known.record(merged);
     return _Prepared(known: known, local: local, merged: merged, changes: false, out: _filesFor(merged));
+  }
+
+  /// Pages both [local] and [remote] changed: the merge differs from each.
+  static List<Contest> _contested(BoardDoc local, BoardDoc remote, BoardDoc merged) => [
+        for (final pid in local.pages.keys)
+          if ((remote.pages[pid], merged.pages[pid]) case (final theirs?, final both?))
+            if (hashJson(both) != hashJson(local.pages[pid]) && hashJson(both) != hashJson(theirs))
+              Contest(
+                pid,
+                theirs,
+                theirsMs: stampMillis(remote.stamps.pages[pid]?.latest ?? ''),
+                oursMs: stampMillis(local.stamps.pages[pid]?.latest ?? ''),
+              ),
+      ];
+
+  /// Pages changed on both devices where the other's changes were held back
+  /// (older than [ConflictRule.heldBack] now): their version is kept beside
+  /// ours, and the page goes on the list to check.
+  Future<void> _noteConflicts(String id, List<Contest> contested, Map<String, String> ours, String? device) async {
+    final now = clock().toUtc();
+    for (final c in contested) {
+      final theirsAt = DateTime.fromMillisecondsSinceEpoch(c.theirsMs, isUtc: true);
+      if (now.difference(theirsAt) < ConflictRule.heldBack) continue;
+      final mine = ours[c.pageId];
+      if (mine == null) continue;
+      final theirs = await versions.keep(id, c.pageId, Uint8List.fromList(utf8.encode(jsonEncode(c.theirs))),
+          reason: VersionReason.remote, device: device);
+      if (theirs == null) continue;
+      await host.pageConflict(PageConflict(
+        notebookId: id,
+        pageId: c.pageId,
+        device: device ?? 'another device',
+        theirsAt: theirsAt,
+        oursAt: DateTime.fromMillisecondsSinceEpoch(c.oursMs, isUtc: true),
+        ours: mine,
+        theirs: theirs,
+      ));
+    }
   }
 
   /// The files of [doc] as the cloud has them: their contents and hashes.
@@ -722,15 +779,18 @@ class SyncEngine {
     return from.sealed.keys.any((k) => !to.sealed.containsKey(k));
   }
 
-  /// Keeps the pages sync is about to change in version history.
-  Future<void> _keepVersions(String id, BoardDoc from, BoardDoc to, {String? remoteDevice}) async {
+  /// Keeps the pages sync is about to change in version history; returns
+  /// the clear pages' version names.
+  Future<Map<String, String>> _keepVersions(String id, BoardDoc from, BoardDoc to, {String? remoteDevice}) async {
+    final kept = <String, String>{};
     for (final pid in from.pageIds) {
       final clear = from.pages[pid];
       if (clear != null) {
         final now = to.pages[pid];
         if (now != null && hashJson(now) == hashJson(clear)) continue;
-        await versions.keep(id, pid, Uint8List.fromList(utf8.encode(jsonEncode(clear))),
+        final name = await versions.keep(id, pid, Uint8List.fromList(utf8.encode(jsonEncode(clear))),
             reason: VersionReason.sync, device: remoteDevice);
+        if (name != null) kept[pid] = name;
       } else {
         final sealed = from.sealed[pid]!;
         final now = to.sealed[pid];
@@ -738,6 +798,7 @@ class SyncEngine {
         await versions.keep(id, pid, sealed, reason: VersionReason.sync, sealed: true, device: remoteDevice);
       }
     }
+    return kept;
   }
 
   /// Writes [to] (merged) over [from] (what's here; null for a notebook
@@ -835,6 +896,17 @@ Map<String, String> _strings(Object? j) => {
 
 /// What [SyncEngine._prepareNotebook] needs: all of it can be sent to
 /// another isolate.
+/// A page both devices changed (see [SyncEngine._contested]): the other
+/// device's version and when each side last changed it.
+class Contest {
+  const Contest(this.pageId, this.theirs, {required this.theirsMs, required this.oursMs});
+
+  final String pageId;
+  final Json theirs;
+  final int theirsMs;
+  final int oursMs;
+}
+
 class _PrepareArgs {
   _PrepareArgs({
     required this.store,
@@ -869,7 +941,11 @@ class _Prepared {
     this.empty = false,
     this.deleted = false,
     this.out,
+    this.contested = const [],
   });
+
+  /// Pages changed here and in the cloud copy (both sides in the merge).
+  final List<Contest> contested;
 
   /// What's known now (the notebook here stamped and recorded).
   final Known known;

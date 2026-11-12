@@ -32,6 +32,7 @@ import 'changes.dart';
 import 'office_docs.dart';
 import 'settings.dart';
 import 'diag.dart';
+import 'journal.dart';
 
 enum SaveStatus { saved, saving, failed }
 
@@ -186,6 +187,11 @@ final loadedNotebookProvider = FutureProvider.autoDispose.family<LoadedNotebook,
   await ref.read(writeQueueProvider).idle;
   final loaded = await store.loadNotebook(id);
   if (loaded == null) throw NotebookNotFound(id);
+  // Strokes that may not have reached their pages (crash recovery): put
+  // back when the notebook opens.
+  final journal = ref.read(strokeJournalProvider);
+  final lost = await journal.read(id);
+  if (lost.isNotEmpty) journal.stash(id, lost);
   return loaded;
 });
 
@@ -244,6 +250,7 @@ class NotebookNotifier extends Notifier<NotebookState> {
   late InkMoments _inkMoments;
   late LocalChanges _changes;
   late VersionStore _versions;
+  late StrokeJournal _journal;
 
   /// The furthest each recording's transcript has got, by item id, so Undo
   /// and Redo (which put back items as they were) don't lose it.
@@ -273,7 +280,10 @@ class NotebookNotifier extends Notifier<NotebookState> {
     _inkMoments = ref.read(inkMomentsProvider);
     _changes = ref.read(localChangesProvider);
     _versions = ref.read(versionStoreProvider);
+    _journal = ref.read(strokeJournalProvider);
     final loaded = ref.watch(loadedNotebookProvider(id)).requireValue;
+    final lost = _journal.take(id);
+    if (lost.isNotEmpty) Future.microtask(() => _recover(lost));
     _lock = loaded.lock == null ? LockFile() : LockFile.fromJson(loaded.lock!);
     _sealed
       ..clear()
@@ -520,6 +530,48 @@ class NotebookNotifier extends Notifier<NotebookState> {
     _push(c);
     _changed(page.id);
     _inkMoments.wrote(id, [stroke]);
+    // Crash recovery; never for a page with a password (it'd be in the clear).
+    if (_keyFor(pageId) == null && !_needsKey(pageId)) _journal.add(id, pageId, stroke);
+  }
+
+  /// Puts back the journal's strokes that its pages don't have (the app
+  /// stopped before they were saved), one undo step a page, and says so
+  /// (Recovery.png). Nothing lost: the journal is just cleared.
+  void _recover(List<JournalEntry> lost) {
+    if (!ref.mounted) return;
+    final byPage = <String, List<Item>>{};
+    for (final e in lost) {
+      final page = _pageById(e.pageId);
+      if (page == null || state.isSealed(e.pageId) || page[e.item.id] != null) continue;
+      if (byPage[e.pageId]?.any((i) => i.id == e.item.id) ?? false) continue;
+      (byPage[e.pageId] ??= []).add(e.item);
+    }
+    if (byPage.isEmpty) {
+      _journal.clear(id);
+      return;
+    }
+    for (final e in byPage.entries) {
+      insertItems(e.key, e.value);
+    }
+    ref.read(recoveryProvider.notifier).set(Recovery(notebookId: id, items: byPage, closedAt: lost.last.at));
+  }
+
+  /// Undo restore: takes the brought-back strokes off again.
+  void undoRecovery(Recovery r) {
+    for (final e in r.items.entries) {
+      removeItems(e.key, [for (final i in e.value) i.id]);
+    }
+    ref.read(recoveryProvider.notifier).set(r.copyWith(undone: true));
+  }
+
+  /// Redo restore.
+  void redoRecovery(Recovery r) {
+    for (final e in r.items.entries) {
+      final page = _pageById(e.key);
+      if (page == null) continue;
+      insertItems(e.key, [for (final i in e.value) if (page[i.id] == null) i]);
+    }
+    ref.read(recoveryProvider.notifier).set(r.copyWith(undone: false));
   }
 
   bool _editable(String pageId) => _pageById(pageId) != null && !state.isSealed(pageId);
@@ -1455,6 +1507,8 @@ class NotebookNotifier extends Notifier<NotebookState> {
     }
     _saveTimer?.cancel();
     _saveWhenLifted = false;
+    // The strokes waiting for the journal go first (crash recovery).
+    unawaited(_journal.flush());
     if (_dirtyPages.isEmpty && !_metaDirty) {
       // An autosave left the cover behind: catch it up.
       if (cover && _coverStale) _refreshCover();
@@ -1534,6 +1588,8 @@ class NotebookNotifier extends Notifier<NotebookState> {
       if (ref.mounted && _dirtyPages.isEmpty && !_metaDirty) {
         state = state.copyWith(saveStatus: SaveStatus.saved);
       }
+      // Everything is in its page: the journal isn't needed (crash recovery).
+      if (_dirtyPages.isEmpty && !_metaDirty) await _journal.clear(nb.id);
     } catch (e, st) {
       debugPrint('Autosave failed: $e\n$st');
       if (ref.mounted) {

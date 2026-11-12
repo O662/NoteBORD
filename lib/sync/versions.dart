@@ -24,7 +24,11 @@ import 'stamps.dart';
 enum VersionReason {
   edit,
   sync,
-  restore;
+  restore,
+
+  /// Another device's version of a page changed on both (Update 04, a page
+  /// to check): kept so either side can be chosen.
+  remote;
 
   static VersionReason parse(String s) => values.where((v) => v.name == s).firstOrNull ?? edit;
 }
@@ -123,8 +127,9 @@ class VersionStore {
   Future<Uint8List?> load(String notebookId, String pageId, String name) => store.loadVersion(notebookId, pageId, name);
 
   /// Keeps [bytes] as a version of the page, unless it's the same as the
-  /// newest one kept.
-  Future<void> keep(
+  /// newest one kept. Returns the version's file name (the newest one's,
+  /// when it's the same).
+  Future<String?> keep(
     String notebookId,
     String pageId,
     Uint8List bytes, {
@@ -139,13 +144,14 @@ class VersionStore {
       final latest = await load(notebookId, pageId, known.first.name);
       if (latest != null) _lastHash[key] = hashBytes(latest);
     }
-    if (_lastHash[key] == hash) return;
+    if (_lastHash[key] == hash) return known.firstOrNull?.name;
     final now = _clock().toUtc();
     final who = device == null ? '' : '-${Uri.encodeComponent(device).replaceAll('.', '%2E')}';
     final name = '${now.millisecondsSinceEpoch}-${reason.name}$who.json${sealed ? '.enc' : ''}';
     await store.saveVersion(notebookId, pageId, name, bytes);
     _lastHash[key] = hash;
     await _thin(notebookId, pageId, [PageVersion.parse(name)!, ...known]);
+    return name;
   }
 
   /// While writing: keeps [bytes] if the last one kept while writing this

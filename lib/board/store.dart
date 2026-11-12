@@ -123,6 +123,16 @@ abstract class BoardStore {
   Future<void> saveFeed(String calendarId, String ics);
   Future<void> deleteFeed(String calendarId);
 
+  /// `journal/<notebookId>.jsonl`: strokes as they're written, one JSON
+  /// line each, until they're saved in their pages (crash recovery, Update
+  /// 04). Append-only; cleared once the pages are saved.
+  Future<void> appendJournal(String notebookId, String lines);
+  Future<String?> loadJournal(String notebookId);
+  Future<void> clearJournal(String notebookId);
+
+  /// The notebooks with a journal that isn't empty.
+  Future<List<String>> listJournals();
+
   /// `sync/<name>.json`: what cloud sync knows (this device only; never in
   /// a notebook or a board file). [json] null deletes it.
   Future<Json?> loadSyncFile(String name);
@@ -388,6 +398,35 @@ class FileBoardStore implements BoardStore {
   Directory get _syncDir => Directory(p.join(root.path, 'sync'));
   File _syncFile(String name) => File(p.join(_syncDir.path, '${p.basename(name)}.json'));
 
+  Directory get _journalDir => Directory(p.join(root.path, 'journal'));
+  File _journal(String id) => File(p.join(_journalDir.path, '${p.basename(id)}.jsonl'));
+
+  @override
+  Future<void> appendJournal(String notebookId, String lines) async {
+    await _journalDir.create(recursive: true);
+    // Append and flush to the disk: the point is to survive a crash.
+    await _journal(notebookId).writeAsString(lines, mode: FileMode.append, flush: true);
+  }
+
+  @override
+  Future<String?> loadJournal(String notebookId) async {
+    final f = _journal(notebookId);
+    if (!await f.exists()) return null;
+    return f.readAsString();
+  }
+
+  @override
+  Future<void> clearJournal(String notebookId) => _deleteIfExists(_journal(notebookId));
+
+  @override
+  Future<List<String>> listJournals() async {
+    if (!await _journalDir.exists()) return [];
+    return [
+      await for (final e in _journalDir.list())
+        if (e is File && e.path.endsWith('.jsonl') && await e.length() > 0) p.basenameWithoutExtension(e.path),
+    ];
+  }
+
   @override
   Future<Json?> loadSyncFile(String name) => _readJson(_syncFile(name));
 
@@ -644,6 +683,25 @@ class MemoryBoardStore implements BoardStore {
   Future<void> deleteFeed(String calendarId) async => feeds.remove(calendarId);
 
   final syncFiles = <String, String>{};
+
+  /// Stroke journals by notebook (crash recovery).
+  final journals = <String, String>{};
+
+  @override
+  Future<void> appendJournal(String notebookId, String lines) async =>
+      journals[notebookId] = (journals[notebookId] ?? '') + lines;
+
+  @override
+  Future<String?> loadJournal(String notebookId) async => journals[notebookId];
+
+  @override
+  Future<void> clearJournal(String notebookId) async => journals.remove(notebookId);
+
+  @override
+  Future<List<String>> listJournals() async => [
+        for (final e in journals.entries)
+          if (e.value.isNotEmpty) e.key,
+      ];
 
   @override
   Future<Json?> loadSyncFile(String name) async {

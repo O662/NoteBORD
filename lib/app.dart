@@ -31,15 +31,23 @@ import 'ui/split/split_screen.dart';
 import 'ui/study/remember_screen.dart';
 import 'ui/study/stickies_screen.dart';
 import 'ui/study/study_screen.dart';
+import 'state/journal.dart' show initialRecoveryProvider;
 
 /// Where the app opens. Tests start straight in a notebook.
 final initialLocationProvider = Provider<String>((ref) => Routes.start);
 
 /// Where the app opens: the Start page, or with Settings › General › Open
-/// to "Last note I was in", that notebook (if it's still there).
+/// to "Last note I was in", that notebook (if it's still there). After an
+/// unexpected exit, the notebook being written in, so its last strokes come
+/// back (Recovery.png).
 String _openingLocation(Ref ref) {
   final location = ref.read(initialLocationProvider);
   final settings = ref.read(settingsProvider);
+  final lost = ref.read(initialRecoveryProvider);
+  if (location == Routes.start && lost != null) {
+    final entry = ref.read(libraryProvider).byId(lost);
+    if (entry != null && !entry.trashed) return Routes.notebook(lost, page: entry.lastPage);
+  }
   final last = settings.lastNotebookId;
   if (location != Routes.start || !settings.openLastNote || last == null) return location;
   final entry = ref.read(libraryProvider).byId(last);

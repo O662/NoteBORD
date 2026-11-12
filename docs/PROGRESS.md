@@ -1190,6 +1190,31 @@ The owner's request (2026-11-11): build Update 04 in full, all 10 sections. Sett
 - A version's name is stored in the clear beside the versions, even for a page with a password (the versions themselves stay sealed).
 - "+2 lines" in the design counts lines of handwriting; Endless counts strokes and other items.
 
+## Update 04e: pages to check (sync conflicts) and crash recovery — built, not yet tried on the tablet (docs/UPDATE_04.md §2, §3)
+
+| Item | Status | Where |
+|---|---|---|
+| When a page goes on the list | Sync still merges at once, item by item ("Merge both", Phase 9a), and never waits. When both this tablet and another device changed a page, and the other's changes are more than a minute older than the moment they arrive (it was offline), the other device's version is kept in version history too (a new reason, `remote`, "Kim’s phone’s version"), beside this tablet's (kept before the merge, as always), and the page is put on this tablet's list of pages to check (`sync/conflicts.json`). Two devices both online get each other's changes within seconds: they just merge | `SyncEngine._contested`, `_noteConflicts`, `ConflictRule.heldBack`, `conflictsProvider` (`lib/sync/conflicts.dart`) |
+| The chip | "1 page to check" / "2 pages to check" in yellow under the title pill; a tap goes to that page (this one if it's on the list) and opens the screen. The toolbar stays below it | `_PagesToCheck`, `_checkPages` (`canvas_screen.dart`) |
+| The screen (Conflict.png) | "This page changed on two devices", the notebook › page and "Kim’s phone was offline while you wrote on this tablet", "1 of 2 pages to check". Two cards: This tablet ("Edited today at 10:42 AM") and the other device ("… · was offline", a phone icon for a phone), each KEEPING (or faded when set aside), its page with what's only on it boxed (green here, blue there), a "moved" tag for items that moved, and "Only here: 3 strokes, and 1 item moved" | `ConflictScreen` (`lib/ui/canvas/conflict_screen.dart`) |
+| What to keep | **Merge both** (RECOMMENDED; the page as sync left it), **Keep this tablet’s**, **Keep the phone’s** (the device's kind from its name, as in the design), **Keep both as pages** (this tablet's here, the other's right after it, "… (Kim’s phone)"). "Whatever you choose, both versions stay in version history for 30 days." **Merge and continue / Keep and continue**, with Undo for the others. **Decide later** keeps the merge and the chip | `ConflictChoice`, `restoreVersion`, `insertPageCopy` |
+| The journal | Each stroke finished is also written to `journal/<notebook>.jsonl` (one JSON line: when, the page, the stroke): at once when 2 s have passed since the last write, else when the save starts (within half a second of the pen lifting) or when the app is paused; cleared when every page is saved. Never for a page with a password | `StrokeJournal` (`lib/state/journal.dart`), `BoardStore.appendJournal` |
+| After an unexpected exit | At launch, the notebook with strokes in its journal opens first; the strokes its pages don't have go back on (one undo step a page; a line cut off by the crash is skipped; nothing twice) | `initialRecoveryProvider`, `NotebookNotifier._recover` |
+| The card (Recovery.png) | "We brought back your last strokes", "Endless closed unexpectedly at 2:14 PM. Everything you wrote up to 2 seconds before is back on this page.", "18 strokes", "2 lines of writing", "Lost: about 2 seconds"; the strokes boxed green with BROUGHT BACK on the page (they follow pan and zoom); **Hide highlights / Show what came back**, **Undo restore / Redo restore**, **Send an anonymous crash report (no notes or handwriting)** (off), **Keep writing** | `RecoveryCard`, `RecoveryPainter` (`lib/ui/canvas/recovery_card.dart`) |
+| Crash report | Ticked, Keep writing opens the share sheet with `endless-crash-report.txt`: the platform, when it closed, how many strokes came back, and the last error's type and stack trace (code locations). Never an error's message (it could quote a note), notes, handwriting, titles or file names. Errors are noted as they happen | `recordError`, `crashReport` (`lib/state/crash_report.dart`), `main.dart` |
+| Portrait on the tablet | `main.dart` locked Endless to landscape since Phase 0, so 04a's and 04b's portrait layouts couldn't show on a tablet: it now turns with the tablet | `main.dart` |
+
+**Judgment calls:**
+- **A minute** tells "the other device was offline" from "both online": changes that arrive more than a minute after they were made were held back. Both devices writing at once while online just merge, as they did.
+- **The journal flushes without a timer**: at the first stroke after 2 s, when a save starts, and on pause. A page is saved within half a second of the pen lifting, so the journal mostly covers a crash during a save; it's also cheap (a line a stroke).
+- **"2 lines of writing"** counts the brought-back strokes by height (strokes that overlap vertically are one line).
+- **The crash report goes through the share sheet** (the owner's choice, 2026-11-11): there's no server.
+
+### Not done yet / known limits
+- Not tried on the tablet: two devices offline and back (needs the cloud client ids, Phase 9a), a real crash (try: write, then force-stop Endless from Android's settings within a second), and rotating every screen.
+- Pages with a password aren't put on the list (they merge whole, as in Phase 9a).
+- A native crash (not a Dart error) leaves no error for the report; it says so.
+
 ## Storage layout
 
 ```
@@ -1388,6 +1413,8 @@ Also in `<app documents>/Endless/` since Phase 9a: `sync/` (settings.json: Sync 
 - Update 04c: `test/ui/new_notebook_test.dart` (notebook.json's `setup`; the choices; Start's New notebook with a name, color, folder and No backup; a cloud that can't be signed in to makes nothing; Skip for now, the canvas ⋯ item, the library's Not set up tag and menu item, Finish setting up and the menu without it afterwards; "Use these every time" and Settings › New notebooks; the prompt in portrait); `test/library/library_test.dart` (Not set up through the index). Goldens: `new_notebook`, `new_notebook_no_backup`, `new_notebook_portrait`, `library_unset`, `library_unset_other_menu`, `finish_setup`; `settings_notebooks` again (the New notebooks rows).
 
 - Update 04d: `test/ui/transfer_test.dart`, Share (the dialog's parts and the locked-page note; a board file without the page with a password; PDF with its options, Image greyed for a notebook and This page's image; Save to tablet through the picker; Google Drive into Shared copies; audio and video left out or kept; a folder's copies); `test/ui/version_history_test.dart` (named versions kept and the others gone after 30 or 7 days, a name taken away; the setting; change summaries and clusters; the screen by day with Show changes, naming, Named only and Save as a new page; portrait); `test/sync/sync_app_test.dart` (Restore and Undo, as before). Goldens: `share_copy`, `share_copy_board`, `history`, `history_naming`; `share` and `settings_notebooks` again.
+
+- Update 04e: `test/sync/conflicts_test.dart` (the other device wrote offline: merged, both kept with the right strokes, on the list; both online: just merged; only the other changed it: nothing; the list round trips); `test/ui/recovery_test.dart` (a torn journal line; strokes journaled and cleared once saved; never for a page with a password; the notebook with a journal opens first; after a crash the strokes come back once each, with the card, Undo and Redo restore, the highlights and an opt-in report without notes; a journal with nothing new; the chip and the conflict screen: Keep the phone's with Undo, Keep both as pages, Decide later and Merge both, device names). Goldens: `recovery`, `conflict`.
 
 ## Next
 - **Update 03 tablet checklist.** Release build (`flutter build apk --release`, `adb install -r`).

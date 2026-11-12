@@ -25,6 +25,7 @@ import '../video/video_files.dart';
 import 'cloud.dart';
 import 'cloud_auth.dart';
 import 'cloud_rest.dart';
+import 'conflicts.dart';
 import 'doc.dart';
 import 'engine.dart';
 import 'stamps.dart';
@@ -631,6 +632,7 @@ class SyncController extends Notifier<SyncState> {
       versions: ref.read(versionStoreProvider),
       // Reading and hashing every page runs away from the pen.
       worker: ref.read(syncWorkerProvider),
+      clock: ref.read(clockProvider),
       options: SyncOptions(
         boardFiles: settings.boardFiles,
         pdfCopy: settings.pdfCopy,
@@ -829,6 +831,9 @@ class _AppHost implements SyncHost {
 
   @override
   bool isOpen(String id) => ref.exists(notebookProvider(id));
+
+  @override
+  Future<void> pageConflict(PageConflict conflict) => ref.read(conflictsProvider.notifier).add(conflict);
 
   @override
   Future<void> flush(String id) async {

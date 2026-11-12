@@ -11,6 +11,7 @@ import '../spelling/my_handwriting.dart';
 import '../study/study_state.dart';
 import '../sync/sync_state.dart';
 import '../templates/templates.dart';
+import 'journal.dart' show initialRecoveryProvider;
 import 'settings.dart';
 
 /// Loads settings, the library (refreshing the index from the `.board`
@@ -28,6 +29,14 @@ Future<List<Override>> bootstrap(BoardStore store, {IndexDb? index, DateTime Fun
   final calendar = CalendarData.fromJson(await store.loadCalendar());
   final planner = PlannerData.fromJson(await store.loadPlanner());
   final sync = await loadSyncSettings(store);
+  // A notebook with strokes in its journal: Endless closed before they
+  // were saved (crash recovery). The one written in last opens.
+  final journals = await store.listJournals();
+  final lost = journals.isEmpty
+      ? null
+      : (library.notebooks.where((n) => journals.contains(n.id)).toList()..sort((a, b) => b.updatedAt.compareTo(a.updatedAt)))
+          .firstOrNull
+          ?.id;
 
   return [
     boardStoreProvider.overrideWithValue(store),
@@ -41,5 +50,6 @@ Future<List<Override>> bootstrap(BoardStore store, {IndexDb? index, DateTime Fun
     initialPlannerProvider.overrideWithValue(planner),
     initialSyncSettingsProvider.overrideWithValue(sync),
     clockProvider.overrideWithValue(clock),
+    initialRecoveryProvider.overrideWithValue(lost),
   ];
 }

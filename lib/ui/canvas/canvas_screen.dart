@@ -9,7 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../board/ids.dart';
 import '../../canvas/canvas_view.dart';
 import '../../canvas/flashcard_mode.dart' show CircledSide;
-import '../../board/model.dart' show ChartItem, OfficeItem, StickyItem, TextItem;
+import '../../board/model.dart' show ChartItem, Item, OfficeItem, StickyItem, TextItem;
 import '../../canvas/ink_canvas.dart';
 import '../../canvas/pane.dart';
 import '../../library/library.dart';
@@ -54,7 +54,11 @@ import 'panels.dart';
 import 'pen_popover.dart';
 import 'recording_pill.dart';
 import 'shortcuts.dart';
-import '../icons.dart' show EIcons;
+import 'recovery_card.dart';
+import '../../state/journal.dart' show recoveryProvider;
+import 'conflict_screen.dart' show showConflict;
+import '../../sync/conflicts.dart';
+import '../icons.dart' show EIcon, EIcons;
 import '../library/new_notebook_dialog.dart' show finishNotebookSetup;
 import '../shell.dart' show LayoutWidth;
 import 'top_bar.dart';
@@ -241,6 +245,9 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
   /// The Your shortcuts panel (CanvasShortcuts.png) is open.
   bool _shortcutsOpen = false;
 
+  /// Recovery's "Show what came back" (on until hidden).
+  bool _recoveryHighlights = true;
+
   /// The floating window view (Window.png), and what it shows.
   late final WindowController _window = WindowController(ref, pane)..addListener(_windowChanged);
 
@@ -393,6 +400,24 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
         _more = false;
         if (_pageLayer != PageLayer.all) _pageLayer = null;
       });
+
+  /// The page to check here if there's one, else the first: go there and
+  /// open the conflict screen.
+  void _checkPages(List<PageConflict> list) {
+    _closeMenus();
+    final nb = ref.read(notebookProvider(pane.notebookId));
+    final here = nb.pages[pane.page.clamp(0, nb.pages.length - 1)].id;
+    final c = list.where((x) => x.pageId == here).firstOrNull ??
+        (list.toList()..sort((a, b) => nb.indexOf(a.pageId).compareTo(nb.indexOf(b.pageId)))).first;
+    final at = nb.indexOf(c.pageId);
+    if (at < 0) {
+      // The page is gone: nothing to check.
+      ref.read(conflictsProvider.notifier).resolve(c.notebookId, c.pageId);
+      return;
+    }
+    if (at != pane.page) pane.goTo(at);
+    showConflict(context, pane, c);
+  }
 
   void _toggleShortcuts() => setState(() {
         _shortcutsOpen = !_shortcutsOpen;
@@ -876,7 +901,14 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     final notebook = ref.read(notebookProvider(pane.notebookId).notifier);
     // Made with Skip for now: ⋯ starts with Finish setting up.
     final setupPending = ref.watch(notebookProvider(pane.notebookId).select((s) => s.notebook.setupPending));
+    // Pages changed on two devices while one was offline (Conflict.png).
+    final toCheck = ref.watch(conflictsProvider.select((list) => [for (final c in list) if (c.notebookId == pane.notebookId) c]));
     final pageId = shown.id;
+    // Strokes brought back after an unexpected exit (Recovery.png).
+    final recovery = ref.watch(recoveryProvider.select((m) => m[pane.notebookId]));
+    final recoveredHere = recovery == null || recovery.undone || !_recoveryHighlights
+        ? const <Item>[]
+        : recovery.items[pageId] ?? const <Item>[];
     final sealed = shown.sealed;
     final shownPage = ref.read(notebookProvider(pane.notebookId)).pageAt(pane.page);
     if (sealed && _board) _board = false;
@@ -903,9 +935,11 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
     final pageMenu = pageBar && (_pageLayer == PageLayer.peek || _pageLayer == PageLayer.menu);
     final blocking = (tools && (_more || (_pinned && _fly != null))) || pageMenu;
     final shortcuts = [for (final id in settings.shortcuts) ?shortcutById(id)];
+    // The pages-to-check chip sits under the title pill; the rail stays below it.
+    final chipRoom = toCheck.isNotEmpty && chrome ? 52.0 : 0.0;
     List<ShortcutTool> railShortcuts(double height, double drop) => shortcuts
         .take(LeftRail.fitting(shortcuts.length, height,
-            allPages: pageBar && _pageLayer == PageLayer.all, minTop: 76 + drop))
+            allPages: pageBar && _pageLayer == PageLayer.all, minTop: 76 + drop + chipRoom))
         .toList();
     // The math keyboard is where the hint would be.
     final hintShown = !sealed && _hint != null && !_popover && !blocking && pane.math.draft == null;
@@ -961,6 +995,12 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                     pageBar ? 16 + PageBar.height + 8 : 16,
                   ),
                 ))),
+              ),
+            ),
+            // Always in the tree; empty without strokes brought back.
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(painter: RecoveryPainter(pane.view, recoveredHere, context.colors)),
               ),
             ),
             if (_spot != null && !sealed)
@@ -1209,7 +1249,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                         box.maxHeight,
                         LeftRail.heightWith(railShortcuts(box.maxHeight, drop).length),
                         allPages: pageBar && _pageLayer == PageLayer.all,
-                        minTop: 76 + drop,
+                        minTop: 76 + drop + chipRoom,
                       ),
                       child: Visibility(
                         visible: !pageMenu,
@@ -1239,6 +1279,15 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                         ),
                       ),
                     ),
+                  // Always in the tree (its siblings after it keep their state).
+                  if (chrome)
+                    Positioned(
+                      left: 12,
+                      top: 70 + drop,
+                      child: toCheck.isEmpty
+                          ? const SizedBox.shrink()
+                          : _PagesToCheck(count: toCheck.length, onTap: () => _checkPages(toCheck)),
+                    ),
                   if (tools && _more)
                     Positioned(
                       right: 12,
@@ -1264,6 +1313,25 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> with TickerProvider
                           caretLeft: 45,
                           onClose: () => setState(() => _popover = false),
                           onComingSoon: _comingSoon,
+                        ),
+                      ),
+                    ),
+                  if (chrome && recovery != null)
+                    Positioned(
+                      top: 96 + drop,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: box.maxWidth * 0.92),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: RecoveryCard(
+                              recovery: recovery,
+                              showing: _recoveryHighlights,
+                              onShowing: (v) => setState(() => _recoveryHighlights = v),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -1370,4 +1438,41 @@ class SpotPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(SpotPainter old) => old.spot != spot || old.colors != colors;
+}
+
+/// "2 pages to check" under the title pill (Update 04, Conflict.png): pages
+/// changed on two devices while one was offline. A tap opens the first.
+class _PagesToCheck extends StatelessWidget {
+  const _PagesToCheck({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final text = count == 1 ? '1 page to check' : '$count pages to check';
+    return Semantics(
+      button: true,
+      label: '$text: changed on two devices',
+      excludeSemantics: true,
+      child: Material(
+        color: c.stickyYellow,
+        borderRadius: BorderRadius.circular(999),
+        elevation: 0,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: onTap,
+          child: Container(
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(mainAxisSize: MainAxisSize.min, spacing: 8, children: [
+              EIcon(EIcons.sync, size: 16, color: c.goldDeep),
+              Text(text, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.goldDeep)),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
 }

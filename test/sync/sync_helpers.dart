@@ -7,6 +7,7 @@ import 'package:endless/board/ids.dart';
 import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
 import 'package:endless/sync/cloud.dart';
+import 'package:endless/sync/conflicts.dart';
 import 'package:endless/sync/doc.dart';
 import 'package:endless/sync/engine.dart';
 import 'package:endless/sync/stamps.dart';
@@ -28,6 +29,7 @@ class Install {
       versions: VersionStore(this.store, clock: () => this.clock()),
       options: options ?? SyncOptions(deviceName: name),
       worker: worker,
+      clock: () => this.clock(),
     );
   }
 
@@ -87,6 +89,12 @@ class TestHost implements SyncHost {
   final BoardStore store;
   final written = <String>[];
   final deleted = <String>[];
+
+  /// Pages to check (changed on both devices while one was offline).
+  final conflicts = <PageConflict>[];
+
+  @override
+  Future<void> pageConflict(PageConflict conflict) async => conflicts.add(conflict);
 
   /// Open notebooks: the changes last put into each.
   final open = <String, BoardDoc?>{};

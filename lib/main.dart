@@ -13,6 +13,7 @@ import 'board/store.dart';
 import 'library/index_db.dart';
 import 'spelling/spelling_state.dart';
 import 'state/bootstrap.dart';
+import 'state/crash_report.dart';
 import 'state/diag.dart';
 import 'state/time_zone.dart';
 
@@ -24,13 +25,24 @@ Future<void> main() async {
   // For the clocks on the page.
   unawaited(readTimeZone());
 
-  // The design is for tablets in landscape. Phones get their own layout later.
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+  // Landscape and portrait (Update 04 §8): every screen switches layout by
+  // the window's width.
+  await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
 
   final docs = await getApplicationDocumentsDirectory();
   final root = Directory(p.join(docs.path, 'Endless'));
   await root.create(recursive: true);
   final store = FileBoardStore(root);
+  // The last error, for the anonymous crash report (its type and stack only).
+  final onFlutterError = FlutterError.onError;
+  FlutterError.onError = (details) {
+    unawaited(recordError(store, details.exception, details.stack));
+    onFlutterError?.call(details);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    unawaited(recordError(store, error, stack));
+    return false;
+  };
   final overrides = await bootstrap(store, index: IndexDb.file(File(p.join(root.path, 'index.sqlite'))));
   // The dictionary is app data, not the user's: it's unpacked outside Endless/.
   final support = await getApplicationSupportDirectory();

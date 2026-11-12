@@ -42,6 +42,7 @@ String versionReason(PageVersion v) => switch (v.reason) {
       VersionReason.edit => 'While writing',
       VersionReason.sync => v.device == null ? 'Before changes from another device' : 'Before changes from ${v.device}',
       VersionReason.restore => 'Before an earlier version was restored',
+      VersionReason.remote => v.device == null ? 'Another device’s version' : '${v.device}’s version',
     };
 
 class VersionHistoryScreen extends ConsumerStatefulWidget {
@@ -137,7 +138,7 @@ class _VersionHistoryState extends ConsumerState<VersionHistoryScreen> {
       changes = changeSummary(added, removed) ?? 'Moved or changed things';
     }
     return switch (v.reason) {
-      VersionReason.sync => [versionReason(v), ?changes].join(' · '),
+      VersionReason.sync || VersionReason.remote => [versionReason(v), ?changes].join(' · '),
       VersionReason.restore => [ 'Before a restore', ?changes].join(' · '),
       VersionReason.edit => changes ?? '…',
     };

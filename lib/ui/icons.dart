@@ -277,6 +277,10 @@ abstract final class EIcons {
   /// Share's "Share sheet" and OneDrive cards (Share.dc.html).
   static final shareSheet = EIconData([_p('M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7 M12 3v12M7 8l5-5 5 5')]);
   static final cloudUp = EIconData([_p('M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z M12 12v4')]);
+  /// The other device on the conflict screen (Conflict.dc.html).
+  static final phone = EIconData([_p('M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M11 18h2')]);
+  /// Recovery's card (Recovery.dc.html): a clock turning back, with a check.
+  static final restoreCheck = EIconData([_p('M3 12a9 9 0 1 0 3-6.7 M3 4v5h5 M9 12l2 2 4-4')]);
   static final pdfDoc = EIconData([_p('M6 3h9l4 4v14H6z M15 3v4h4 M9 13h6M9 17h4')]);
   static final pin = EIconData([_p('M9 4h6l-1 6 3 3H7l3-3z'), _p('M12 13v7')]);
   static final restore = EIconData([_p('M3 12a9 9 0 1 0 3-6.7'), _p('M3 4v5h5')]);
