@@ -1215,6 +1215,27 @@ The owner's request (2026-11-11): build Update 04 in full, all 10 sections. Sett
 - Pages with a password aren't put on the list (they merge whole, as in Phase 9a).
 - A native crash (not a Dart error) leaves no error for the report; it says so.
 
+## Update 04f: Print layout — built, not yet tried on the tablet (docs/UPDATE_04.md §7). **Update 04 is built.**
+
+| Item | Status | Where |
+|---|---|---|
+| Opening it | ⋯ → **Print…** ("Drag page boxes over the board"; also a toolbar shortcut). It replaces the old print dialog | `showPrintLayout` (`lib/ui/transfer/print_layout_screen.dart`) |
+| The board (PrintLayout.png) | The page zoomed out (fitted at first; pinch or − / + to zoom, a finger or the pen drags it) with page-shaped boxes over it, each with its tab "1 A4 · Portrait · 100%". A tap picks one: a solid blue line, × to remove it, the corner handle to resize it (it keeps the paper's shape, 25%–400%). Dragging a box moves it. What's inside a box prints on that sheet, in the boxes' order | `_BoxView`, `_BoardPainter` |
+| Scale | A box is the whole sheet; one page px is one point at 100% (as "Fit" exports), so a bigger box prints smaller: "Bigger box = smaller writing on paper. This page prints your ink at 107% of its real size." | `PrintBox.scale` (`lib/transfer/print_layout.dart`) |
+| Not on a page | Anything whose middle is in no box: clay dashed outline and NOT ON A PAGE; the panel says "2 parts of the board aren’t on a page", "Anything outside the page boxes won’t print…", **Add pages for them** (boxes around them). All covered: "Everything on the board is on a page" in green | `PrintLayout.notCovered`, `addingFor` |
+| Add a page, Lay out pages for me | Add a page puts a real-size portrait box in the middle of what's shown. Lay out pages for me groups what's on the page (things close together share a sheet while they fit at real size), a box each in reading order, landscape for a wide group, shrunk only when a group is bigger than a sheet. A page with no layout yet starts laid out this way | `PrintLayout.auto`, `boxesAround` |
+| The panel | Paper: A4 / US Letter (Letter where it's usual). Page N: Portrait / Landscape (turned around its middle at the same scale). "N pages · in this order" with live thumbnails of what each prints and "9 strokes · 1 image" (or "Empty: move it over your notes"). On every page: Notebook title and date, Page numbers ("2 / 5"), Dot grid background. **Save as PDF** (the file picker) and **Print N pages** (the Android print service) | `_Panel`, `Transfers.printLayoutPdf`, `buildPdf(sheets:, header:, numbers:)` |
+| Saved | Per page in notebook.json (`print`), so printing again reuses it; it syncs with the notebook | `NotebookNotifier.setPrintLayout` |
+| Portrait | The panel goes under the board | `PrintLayoutScreen` |
+
+**Judgment calls:**
+- **Print layout is for the page you're on** (the design's breadcrumb names one page). Printing a whole notebook at once is Export's "Split into A4 / Letter".
+- **An item is on a sheet when its middle is in the box** (as the design does); the sheet itself prints everything its area covers.
+- **The first layout is saved when the screen opens**, so Print again comes back to the same boxes.
+
+### Not done yet / known limits
+- Not tried on the tablet: dragging and resizing boxes with the S Pen and a finger, pinching the board, and the Android print dialog with a real printer.
+
 ## Storage layout
 
 ```
@@ -1416,7 +1437,22 @@ Also in `<app documents>/Endless/` since Phase 9a: `sync/` (settings.json: Sync 
 
 - Update 04e: `test/sync/conflicts_test.dart` (the other device wrote offline: merged, both kept with the right strokes, on the list; both online: just merged; only the other changed it: nothing; the list round trips); `test/ui/recovery_test.dart` (a torn journal line; strokes journaled and cleared once saved; never for a page with a password; the notebook with a journal opens first; after a crash the strokes come back once each, with the card, Undo and Redo restore, the highlights and an opt-in report without notes; a journal with nothing new; the chip and the conflict screen: Keep the phone's with Undo, Keep both as pages, Decide later and Merge both, device names). Goldens: `recovery`, `conflict`.
 
+- Update 04f: `test/ui/print_layout_test.dart` (a box keeps the paper's shape, its scale, turning and limits; what isn't covered and Add pages for them; Lay out pages for me covers everything at real size, near things together, a big group shrunk; the layout round trips and its sheets; ⋯ → Print… end to end: laid out, a page removed, the warning, covered again, landscape, US Letter, printed with one PDF page a box, saved with the notebook; dragging and resizing a box; portrait); `test/ui/transfer_test.dart` (⋯ → Print… → Print). Goldens: `print_layout`, `print_layout_covered`, `print_layout_portrait`; `canvas_more_menu` and `canvas_portrait_more` again (Print…'s description).
+
 ## Next
+- **Update 04 tablet checklist.** Release build (`flutter build apk --release`, `adb install -r`).
+  1. **Rotate.** On Start, the Library, a folder, Calendar (Week, Day, Month), Planner (Today, 3 days, Week), Remember, Sticky notes, Search, Settings, Flashcards, a notebook, Split view, Version history, Print layout and the conflict screen: turn the tablet to portrait and back. Does each switch layout with nothing overlapping or cut off? (Endless was locked to landscape before; it turns now.)
+  2. **Sidebar.** The button by the logo folds it to the rail: labels, the cards and remember badges, folders (tap one), the cloud (tap: Sync & backup), Settings. Go to Calendar and Sticky notes: still folded, and the week columns are wider. Close and reopen Endless: still folded. Expand. In portrait: ☰ opens it as a drawer; tap outside to close.
+  3. **Start header.** Collapse: the slim bar and two rows of Recent; New note, Notebook, Template, Import, Scan from the bar. Reopen Endless: still collapsed.
+  4. **Your shortcuts.** In a notebook: the toolbar has Record audio, PDF and Ruler. Ruler: on (dark), again: off. Open Insert: pin Image; it appears on the toolbar. Fill 6 (the pins grey out). The dashed button: move one up and down, remove one, search "web" and Add, Reset to the default, Done. With All pages open the toolbar sits above the strip; the page preview hides it. Settings › Pen & S Pen › Toolbar shortcuts opens the same panel. In portrait the toolbar is in the middle of the screen.
+  5. **Portrait canvas.** Row 1: title, Share and ⋯; row 2: the tools. The color tray and pen settings open under row 2; the map starts collapsed (the map button opens it).
+  6. **New notebook.** Start → Notebook: name, a color, a folder, This tablet with No backup (the warning), Create. Again: Skip for now: it opens "Untitled notebook". Library: the "Not set up" tag; its menu: Finish setting up (and not on another notebook's menu); finish it. The canvas ⋯ of a skipped one starts with Finish setting up. "Use these every time", then Settings › Notebooks & pages › New notebooks back to Ask.
+  7. **Share a copy.** Notebook as a PDF (searchable, background), a board file without audio and video, This page as an image; with the share sheet and Save to tablet; Google Drive (once the client ids are in: the copy is in Endless Notebooks › Shared copies). A page with a password is named and left out.
+  8. **Version history.** ⋯ → Version history: versions by day, Show changes (ADDED, ERASED LATER), Name this version, Named only, Save as a new page, Restore and Undo. Settings › Notebooks & pages › Keep versions for.
+  9. **Crash recovery.** Write a few strokes and within a second force-stop Endless (Settings › Apps › Endless › Force stop). Open it: the notebook opens with "We brought back your last strokes" (if anything was lost; often the save got there first and nothing is). Hide highlights, Undo restore, Redo restore, tick the crash report and Keep writing: the share sheet has a short text report with no notes in it.
+  10. **Pages to check** (needs two devices and the cloud client ids): write on a page on both while one is offline for a few minutes, then sync both. The other gets "1 page to check"; try each choice, and Decide later.
+  11. **Print layout.** ⋯ → Print…: drag a box with a finger and the S Pen, resize it by its corner (the % changes), remove one (NOT ON A PAGE), Add pages for them, Landscape, US Letter, the three switches, Save as PDF, then Print to a real printer (or Save as PDF in the print dialog). Close and open Print… again: the same boxes.
+  12. Dark mode for all of the above.
 - **Update 03 tablet checklist.** Release build (`flutter build apk --release`, `adb install -r`).
   1. **Window view.** In a notebook of a few pages: Ruler, laser & view → Window view. Drag it by the title bar with a finger and with the S Pen, push it off an edge (some of it stays), lock it and try to drag, resize it from the dark corner.
   2. **Fade and zoom.** Slide the opacity to 25%: the page shows through, the bars stay readable. Pinch inside it and use − and +.

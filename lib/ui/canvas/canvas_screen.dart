@@ -54,6 +54,7 @@ import 'panels.dart';
 import 'pen_popover.dart';
 import 'recording_pill.dart';
 import 'shortcuts.dart';
+import '../transfer/print_layout_screen.dart' show showPrintLayout;
 import 'recovery_card.dart';
 import '../../state/journal.dart' show recoveryProvider;
 import 'conflict_screen.dart' show showConflict;
@@ -98,8 +99,8 @@ void handleMoreItem(BuildContext context, Pane pane, MoreItem item, ValueChanged
       showTransferDialog(context, pane: pane);
     case 'Import':
       showTransferDialog(context, pane: pane, mode: TransferMode.import);
-    case 'Print':
-      printNotebook(context, pane);
+    case 'Print…':
+      showPrintLayout(context, pane);
     case 'Version history':
       showVersionHistory(context, pane);
     case 'Page & paper':

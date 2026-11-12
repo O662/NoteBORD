@@ -279,14 +279,22 @@ Future<Uint8List> buildPdf({
   PdfFontSource fonts = const BundledFonts(),
   void Function(int done, int total)? onProgress,
   bool compress = true,
+  Map<String, List<PdfSheet>>? sheets,
+  String? header,
+  bool numbers = false,
 }) async {
   final doc = PdfDocument(compress: compress);
   PdfInfo(doc, title: title, creator: 'Endless', producer: 'Endless');
   final writer = _PdfWriter(doc, readAsset, fonts, options, loadOffice, typesetMath);
+  // Print layout (Update 04): the page's own boxes, a title line on each
+  // sheet and "2 / 5" under it.
+  final all = [for (final page in pages) for (final s in sheets?[page.id] ?? pdfSheets(page, options)) (page, s)];
+  var n = 0;
   for (final (i, page) in pages.indexed) {
     final runs = options.searchable ? handwriting.runsFor(page) : const <TextRun>[];
-    for (final sheet in pdfSheets(page, options)) {
-      await writer.sheet(page, sheet, runs);
+    for (final sheet in sheets?[page.id] ?? pdfSheets(page, options)) {
+      n++;
+      await writer.sheet(page, sheet, runs, header: header, number: numbers ? '$n / ${all.length}' : null);
     }
     onProgress?.call(i + 1, pages.length);
     // Let the progress show between pages.
@@ -325,7 +333,7 @@ class _PdfWriter {
 
   void _transform(Matrix4 m) => g.setTransform(m);
 
-  Future<void> sheet(BoardPage page, PdfSheet sheet, List<TextRun> runs) async {
+  Future<void> sheet(BoardPage page, PdfSheet sheet, List<TextRun> runs, {String? header, String? number}) async {
     final format = PdfPageFormat(sheet.size.width, sheet.size.height);
     final pdfPage = PdfPage(doc, pageFormat: format);
     final k = sheet.scale, area = sheet.area, clip = sheet.clip;
@@ -366,6 +374,17 @@ class _PdfWriter {
       }
     }
     g.restoreContext();
+    if (header != null || number != null) {
+      final font = await _font(FontFamilies.ui);
+      g.saveContext();
+      g.setFillColor(PdfColor.fromInt(c.textMuted.toARGB32() | 0xFF000000));
+      if (header != null) g.drawString(font, 9, header, 24, format.height - 22);
+      if (number != null) {
+        final w = font.stringMetrics(number).width * 9;
+        g.drawString(font, 9, number, (format.width - w) / 2, 14);
+      }
+      g.restoreContext();
+    }
   }
 
   // Ink.

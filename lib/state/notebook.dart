@@ -1397,6 +1397,28 @@ class NotebookNotifier extends Notifier<NotebookState> {
   /// Whether there are changes not written to the disk yet.
   bool get hasUnsaved => _dirtyPages.isNotEmpty || _metaDirty;
 
+  /// Page [pageId]'s print layout (Update 04), saved in notebook.json.
+  Object? printLayoutJson(String pageId) => (state.notebook.extra['print'] as Map?)?[pageId];
+
+  /// Saves page [pageId]'s print layout with the notebook (null removes it).
+  /// Not an undo step.
+  void setPrintLayout(String pageId, Map<String, Object>? layout) {
+    final all = {...?(state.notebook.extra['print'] as Map?)?.cast<String, Object?>()};
+    if (layout == null) {
+      all.remove(pageId);
+    } else {
+      all[pageId] = layout;
+    }
+    if (all.isEmpty) {
+      state.notebook.extra.remove('print');
+    } else {
+      state.notebook.extra['print'] = all;
+    }
+    _metaDirty = true;
+    _scheduleSave();
+    state = state.copyWith(revision: state.revision + 1, saveStatus: SaveStatus.saving);
+  }
+
   /// Earlier versions of page [pageId], newest first.
   Future<List<PageVersion>> versionsOf(String pageId) => _versions.list(id, pageId);
 

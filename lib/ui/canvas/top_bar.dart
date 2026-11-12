@@ -455,7 +455,7 @@ class MoreItem {
 final List<MoreItem> moreItems = [
   MoreItem('Export', EIcons.exportRow, desc: 'PDF, board file or image', strong: true),
   MoreItem('Import', EIcons.import, desc: 'PDF, images or a board file'),
-  MoreItem('Print', EIcons.print),
+  MoreItem('Print…', EIcons.print, desc: 'Drag page boxes over the board'),
   MoreItem('Password protect', EIcons.lockRow, desc: 'This page or the whole notebook', separatorBefore: true),
   MoreItem('Page & paper', EIcons.pagePaper, desc: 'Dots, lines, grid or blank'),
   MoreItem('Version history', EIcons.history, desc: 'See and restore earlier versions'),

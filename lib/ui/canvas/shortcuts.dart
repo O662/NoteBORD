@@ -119,7 +119,7 @@ final List<ShortcutTool> shortcutCatalog = [
       kind: ShortcutKind.tool, tile: _clayTint, tint: _danger, railLabel: 'Laser pointer'),
   ShortcutTool('split', 'Tools & view', 'Split view', 'Two notes side by side', EIcons.split, railLabel: 'Split view'),
   ShortcutTool('window', 'Tools & view', 'Window view', 'A floating window', EIcons.windowView, railLabel: 'Window view'),
-  ShortcutTool('print', 'Tools & view', 'Print', 'Drag page boxes over the board', EIcons.print, more: 'Print'),
+  ShortcutTool('print', 'Tools & view', 'Print', 'Drag page boxes over the board', EIcons.print, more: 'Print…'),
   ShortcutTool('export', 'Tools & view', 'Export', 'PDF, board file or image', EIcons.export, more: 'Export'),
   ShortcutTool('history', 'Tools & view', 'Version history', 'See and restore earlier versions', EIcons.history,
       more: 'Version history'),

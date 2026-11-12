@@ -476,7 +476,7 @@ void main() {
     final c = await pumpCanvas(tester);
     await tester.tap(byLabel('More options'));
     await tester.pump();
-    for (final item in ['Export', 'Import', 'Print', 'Password protect', 'Page & paper', 'Version history', 'Settings']) {
+    for (final item in ['Export', 'Import', 'Print…', 'Password protect', 'Page & paper', 'Version history', 'Settings']) {
       expect(find.text(item), findsOneWidget, reason: item);
     }
     await tester.tap(find.text('Export'));

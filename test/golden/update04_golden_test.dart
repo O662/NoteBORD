@@ -4,7 +4,8 @@
 // StickiesRail.png, StartPortrait.png, StartPortraitMenu.png,
 // CanvasShortcuts*.png, Canvas-pin-from-menu.png, Canvas-shortcuts-in-use.png,
 // CanvasPortrait*.png, NewNotebook*.png, FinishSetup.png, LibraryUnset*.png,
-// Share.png, History.png, History-naming.png, Recovery.png, Conflict.png.
+// Share.png, History.png, History-naming.png, Recovery.png, Conflict.png,
+// PrintLayout.png.
 //
 // Regenerate after an intended visual change:
 //   flutter test --update-goldens test/golden
@@ -247,4 +248,25 @@ void main() {
     await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await _settle(t);
   });
+
+  // §7: Print layout, with something no page covers.
+  Future<void> printLayout(WidgetTester t, {bool removeLast = true}) async {
+    await t.tap(byLabel('More options'));
+    await _settle(t);
+    await t.tap(find.text('Print…'));
+    await _settle(t);
+    if (!removeLast) return;
+    final last = find.textContaining(RegExp(r'^Page \d+$')).last;
+    await t.tap(last);
+    await _settle(t);
+    await t.tap(find.bySemanticsLabel(RegExp(r'^Remove page')));
+  }
+  _canvas('print_layout',
+      before: (store, nb) async {
+        nb.pages[2].items.add(strokeFrom([const Offset(1100, 900), const Offset(1300, 940)]));
+        await store.savePage(nb.notebook.id, nb.pages[2]);
+      },
+      setUp: printLayout);
+  _canvas('print_layout_covered', setUp: (t) => printLayout(t, removeLast: false));
+  _canvas('print_layout_portrait', size: portraitSize, setUp: (t) => printLayout(t, removeLast: false));
 }

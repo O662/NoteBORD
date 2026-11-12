@@ -26,6 +26,7 @@ import 'files.dart';
 import 'image_export.dart';
 import 'pdf_export.dart';
 import 'pdf_import.dart';
+import 'print_layout.dart';
 
 // Export and import (design/screens/Export.png), between the dialog and the
 // storage, PDF and file code.
@@ -245,6 +246,36 @@ class Transfers {
         }
     }
   }
+
+  /// Print layout (Update 04): page [current] of notebook [notebookId] on
+  /// [layout]'s sheets, with the title line, page numbers and dot grid it
+  /// asks for. Searchable, like any PDF from Endless.
+  Future<ExportFile> printLayoutPdf(String notebookId, {required int current, required PrintLayout layout}) async {
+    final notifier = ref.read(notebookProvider(notebookId).notifier);
+    final nb = ref.read(notebookProvider(notebookId));
+    final page = nb.pageAt(current);
+    if (nb.isSealed(page.id)) throw const ExportProblem('This page is locked. Unlock it to print it.');
+    if (layout.boxes.isEmpty) throw const ExportProblem('Add a page first: nothing would print.');
+    final handwriting = await ref.read(handwritingIndexProvider).pdfText(notebookId, [page.page], private: {
+      if (nb.lockFor(page.id) != null) page.id,
+    });
+    final now = _now.toLocal();
+    final bytes = await buildPdf(
+      handwriting: handwriting,
+      title: nb.notebook.title,
+      pages: [page.page],
+      readAsset: notifier.readAsset,
+      loadOffice: notifier.loadOffice,
+      typesetMath: notifier.mathPictures.load,
+      options: PdfOptions(paper: layout.paper, background: layout.background),
+      sheets: {page.id: layout.sheets()},
+      header: layout.header ? '${nb.notebook.title} · ${now.year}-${_two(now.month)}-${_two(now.day)}' : null,
+      numbers: layout.numbers,
+    );
+    return ExportFile(fileNameFor(_fileTitle(nb.notebook, ExportScope.page, [current]), 'pdf'), bytes, pdfMime);
+  }
+
+  static String _two(int n) => n.toString().padLeft(2, '0');
 
   // Import.
 

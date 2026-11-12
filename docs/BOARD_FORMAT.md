@@ -43,6 +43,8 @@ Locked notebooks and pages store `pages/<pageId>.json.enc` (AES-256-GCM) in plac
 
 `setup` (optional, Update 04) is `"pending"` for a notebook made with **Skip for now** in New notebook: the library tags it "Not set up" and its ⋯ menus start with Finish setting up. Finishing removes the key. It syncs like the other fields.
 
+`print` (optional, Update 04) holds the Print layout of each page that has one, by page id: `{"pg_…": {"paper": "a4", "boxes": [{"x": 44, "y": 40, "w": 595.3, "landscape": true}], "header": true, "numbers": true, "background": false}}`. A box is a whole sheet: its top-left and width in page px (its height follows the paper, turned when `landscape`), one page px to a point at 100%. The boxes print in order.
+
 ## pages/<pageId>.json
 ```json
 {

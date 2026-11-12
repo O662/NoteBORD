@@ -281,6 +281,9 @@ abstract final class EIcons {
   static final phone = EIconData([_p('M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M11 18h2')]);
   /// Recovery's card (Recovery.dc.html): a clock turning back, with a check.
   static final restoreCheck = EIconData([_p('M3 12a9 9 0 1 0 3-6.7 M3 4v5h5 M9 12l2 2 4-4')]);
+  // Print layout (PrintLayout.dc.html): the hint's arrows and "Lay out pages for me".
+  static final move = EIconData([_p('M5 9l-3 3 3 3M19 9l3 3-3 3M9 5l3-3 3 3M9 19l3 3 3-3')]);
+  static final layout = EIconData([_p(_rect(3, 3, 8, 10, 1)), _p(_rect(13, 3, 8, 10, 1)), _p(_rect(3, 15, 18, 6, 1))]);
   static final pdfDoc = EIconData([_p('M6 3h9l4 4v14H6z M15 3v4h4 M9 13h6M9 17h4')]);
   static final pin = EIconData([_p('M9 4h6l-1 6 3 3H7l3-3z'), _p('M12 13v7')]);
   static final restore = EIconData([_p('M3 12a9 9 0 1 0 3-6.7'), _p('M3 4v5h5')]);

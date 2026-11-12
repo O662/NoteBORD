@@ -372,14 +372,17 @@ void main() {
     expect(importKindOf(PickedFile('Attachment', Uint8List.fromList([0x50, 0x4B, 3, 4, 0, 0]))), ImportKind.unknown);
   });
 
-  testWidgets('⋯ → Print sends the notebook to the print dialog', (tester) async {
+  testWidgets('⋯ → Print… lays the page out, and Print sends it to the print dialog', (tester) async {
     final (_, files, _) = await _canvas(tester);
     await tester.tap(byLabel('More options'));
     await tester.pump();
-    await tester.tap(find.text('Print'));
+    await tester.tap(find.text('Print…'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.textContaining(RegExp(r'^Print \d+ pages?$')));
     await tester.pump();
     await settleReal(tester, () => files.printed.isNotEmpty);
-    expect(files.printed.single.name, 'Physics — Lecture notes.pdf');
+    expect(files.printed.single.name, 'Physics — Lecture notes — page 3.pdf');
     final text = latin1.decode(files.printed.single.bytes);
     expect(text, startsWith('%PDF-'));
   });
