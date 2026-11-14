@@ -28,7 +28,10 @@ import 'cloud.dart';
 //
 // Scopes: Google `drive.file` (only files Endless made: not the rest of
 // your Drive; Google rates it non-sensitive); Microsoft `Files.ReadWrite`
-// and `offline_access`.
+// and `offline_access`. Calendar sync (Phase 9c) signs in on its own, with
+// the calendar scopes ([googleCalendarScopes], [microsoftCalendarScopes])
+// and a sign-in kept apart, so the calendar's account can differ from the
+// one notebooks sync with.
 
 /// The client ids this build was made with (empty: not set up). Client
 /// ids aren't secrets, so Endless's own are the defaults; a build can use
@@ -48,6 +51,11 @@ class CloudIds {
 
 const googleScopes = ['https://www.googleapis.com/auth/drive.file'];
 const microsoftScopes = ['Files.ReadWrite', 'User.Read', 'offline_access'];
+const googleCalendarScopes = [
+  'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+  'https://www.googleapis.com/auth/calendar.events',
+];
+const microsoftCalendarScopes = ['Calendars.ReadWrite', 'User.Read', 'offline_access'];
 
 /// Who's signed in.
 @immutable
@@ -85,7 +93,11 @@ abstract class CloudAuth {
 
 /// Google on Android and iOS: Google's own sign-in.
 class GoogleAuth implements CloudAuth {
-  GoogleAuth();
+  GoogleAuth({this.scopes = googleScopes, this.label = 'Google Drive'});
+
+  /// What Endless asks to use, and what that's called ("Google Drive").
+  final List<String> scopes;
+  final String label;
 
   @override
   CloudKind get kind => CloudKind.google;
@@ -102,8 +114,8 @@ class GoogleAuth implements CloudAuth {
   Future<CloudAccount> signIn() async {
     await _ready();
     try {
-      final account = _account = await GoogleSignIn.instance.authenticate(scopeHint: googleScopes);
-      await account.authorizationClient.authorizeScopes(googleScopes);
+      final account = _account = await GoogleSignIn.instance.authenticate(scopeHint: scopes);
+      await account.authorizationClient.authorizeScopes(scopes);
       return CloudAccount(account.email, name: account.displayName);
     } on GoogleSignInException catch (e) {
       throw CloudException(
@@ -128,11 +140,11 @@ class GoogleAuth implements CloudAuth {
   Future<String> token({bool fresh = false}) async {
     await _ready();
     final account = _account ?? await GoogleSignIn.instance.attemptLightweightAuthentication();
-    if (account == null) throw const CloudException(CloudFailure.signedOut, 'Sign in to Google Drive again');
+    if (account == null) throw CloudException(CloudFailure.signedOut, 'Sign in to $label again');
     _account = account;
     if (fresh && _last != null) await GoogleSignIn.instance.authorizationClient.clearAuthorizationToken(accessToken: _last!);
-    final auth = await account.authorizationClient.authorizationForScopes(googleScopes);
-    if (auth == null) throw const CloudException(CloudFailure.signedOut, 'Allow Endless to use Google Drive again');
+    final auth = await account.authorizationClient.authorizationForScopes(scopes);
+    if (auth == null) throw CloudException(CloudFailure.signedOut, 'Allow Endless to use $label again');
     return _last = auth.accessToken;
   }
 
@@ -158,9 +170,18 @@ class _Tokens {
 
 /// Microsoft on Android and iOS: the system browser, through AppAuth.
 class MicrosoftAuth implements CloudAuth {
-  MicrosoftAuth({FlutterSecureStorage? storage, http.Client? client})
-      : _storage = storage ?? const FlutterSecureStorage(),
-        _client = client ?? http.Client();
+  MicrosoftAuth({
+    FlutterSecureStorage? storage,
+    http.Client? client,
+    this.scopes = microsoftScopes,
+    String key = 'endless.cloud.onedrive.refresh',
+    this.label = 'OneDrive',
+  })  : _storage = storage ?? const FlutterSecureStorage(),
+        _client = client ?? http.Client(),
+        _key = key;
+
+  final List<String> scopes;
+  final String label;
 
   @override
   CloudKind get kind => CloudKind.onedrive;
@@ -170,7 +191,7 @@ class MicrosoftAuth implements CloudAuth {
     authorizationEndpoint: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
     tokenEndpoint: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
   );
-  static const _key = 'endless.cloud.onedrive.refresh';
+  final String _key;
 
   final FlutterSecureStorage _storage;
   final http.Client _client;
@@ -187,7 +208,7 @@ class MicrosoftAuth implements CloudAuth {
         CloudIds.microsoft,
         redirect,
         serviceConfiguration: _config,
-        scopes: microsoftScopes,
+        scopes: scopes,
         promptValues: const ['select_account'],
       ));
       _tokens = _Tokens(r.accessToken!, r.accessTokenExpirationDateTime ?? DateTime.now().add(const Duration(minutes: 50)), r.refreshToken);
@@ -214,14 +235,14 @@ class MicrosoftAuth implements CloudAuth {
     final t = _tokens;
     if (!fresh && t != null && t.expires.isAfter(DateTime.now().add(const Duration(minutes: 2)))) return t.access;
     final refresh = t?.refresh ?? await _storage.read(key: _key);
-    if (refresh == null) throw const CloudException(CloudFailure.signedOut, 'Sign in to OneDrive again');
+    if (refresh == null) throw CloudException(CloudFailure.signedOut, 'Sign in to $label again');
     try {
       final r = await _appAuth.token(TokenRequest(
         CloudIds.microsoft,
         redirect,
         serviceConfiguration: _config,
         refreshToken: refresh,
-        scopes: microsoftScopes,
+        scopes: scopes,
       ));
       _tokens = _Tokens(r.accessToken!, r.accessTokenExpirationDateTime ?? DateTime.now().add(const Duration(minutes: 50)),
           r.refreshToken ?? refresh);
@@ -229,7 +250,7 @@ class MicrosoftAuth implements CloudAuth {
       return r.accessToken!;
     } on FlutterAppAuthPlatformException catch (e) {
       if (e.code == 'token_failed' || '${e.message}'.contains('invalid_grant')) {
-        throw const CloudException(CloudFailure.signedOut, 'Sign in to OneDrive again');
+        throw CloudException(CloudFailure.signedOut, 'Sign in to $label again');
       }
       throw CloudException(CloudFailure.offline, e.message ?? 'Couldn’t reach Microsoft');
     }
@@ -255,27 +276,43 @@ Future<CloudAccount> microsoftAccount(http.Client client, String token) async {
 /// Endless at 127.0.0.1 on a port picked then (OAuth for installed apps,
 /// with PKCE).
 class LoopbackAuth implements CloudAuth {
-  LoopbackAuth(this.kind, {FlutterSecureStorage? storage, http.Client? client, Future<bool> Function(Uri)? open})
-      : _storage = storage ?? const FlutterSecureStorage(),
+  LoopbackAuth(
+    this.kind, {
+    FlutterSecureStorage? storage,
+    http.Client? client,
+    Future<bool> Function(Uri)? open,
+    List<String>? scopes,
+    String? key,
+    String? label,
+  })  : _storage = storage ?? const FlutterSecureStorage(),
         _client = client ?? http.Client(),
-        _open = open ?? ((u) => launchUrl(u, mode: LaunchMode.externalApplication));
+        _open = open ?? ((u) => launchUrl(u, mode: LaunchMode.externalApplication)),
+        _scopesGiven = scopes,
+        _keyGiven = key,
+        _label = label ?? kind.label;
 
   @override
   final CloudKind kind;
   final FlutterSecureStorage _storage;
   final http.Client _client;
   final Future<bool> Function(Uri) _open;
+  final List<String>? _scopesGiven;
+  final String? _keyGiven;
+  final String _label;
   _Tokens? _tokens;
 
   bool get _google => kind == CloudKind.google;
   String get _clientId => _google ? CloudIds.googleDesktop : CloudIds.microsoft;
-  String get _key => 'endless.cloud.${kind.name}.refresh';
+  String get _key => _keyGiven ?? 'endless.cloud.${kind.name}.refresh';
   Uri get _authorize => Uri.parse(_google
       ? 'https://accounts.google.com/o/oauth2/v2/auth'
       : 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize');
   Uri get _tokenUri =>
       Uri.parse(_google ? 'https://oauth2.googleapis.com/token' : 'https://login.microsoftonline.com/common/oauth2/v2.0/token');
-  List<String> get _scopes => _google ? [...googleScopes, 'email'] : microsoftScopes;
+  List<String> get _scopes {
+    final given = _scopesGiven ?? (_google ? googleScopes : microsoftScopes);
+    return _google ? [...given, 'email'] : given;
+  }
 
   @override
   String? get notReady => _clientId.isEmpty ? _missing(_google ? 'Google' : 'Microsoft') : null;
@@ -338,7 +375,7 @@ class LoopbackAuth implements CloudAuth {
 
   String _takeTokens(http.Response r, String? oldRefresh) {
     if (r.statusCode == 400 || r.statusCode == 401) {
-      throw CloudException(CloudFailure.signedOut, 'Sign in to ${kind.label} again');
+      throw CloudException(CloudFailure.signedOut, 'Sign in to $_label again');
     }
     if (r.statusCode != 200) throw CloudException(CloudFailure.other, 'Sign-in failed (${r.statusCode})');
     final j = jsonDecode(r.body) as Map;
@@ -370,7 +407,7 @@ class LoopbackAuth implements CloudAuth {
     final t = _tokens;
     if (!fresh && t != null && t.expires.isAfter(DateTime.now().add(const Duration(minutes: 2)))) return t.access;
     final refresh = t?.refresh ?? await _storage.read(key: _key);
-    if (refresh == null) throw CloudException(CloudFailure.signedOut, 'Sign in to ${kind.label} again');
+    if (refresh == null) throw CloudException(CloudFailure.signedOut, 'Sign in to $_label again');
     try {
       final r = await _client.post(_tokenUri, body: {
         'client_id': _clientId,

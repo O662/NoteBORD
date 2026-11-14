@@ -9,7 +9,10 @@ import '../dialogs.dart';
 
 // Adding and changing an event: its title, calendar, day and times, and
 // whether it repeats. Changes to a repeating event apply to every time it
-// happens; Delete asks whether to delete just the one.
+// happens; Delete asks whether to delete just the one. A Google or Outlook
+// event that repeats in a way Endless can't show as its own ("every 2
+// weeks") keeps its repeat ("As set in Google Calendar") unless another is
+// picked; one time of a repeating event changed there stays one time.
 
 /// What happened in the editor.
 enum EventEdit { saved, deleted, deletedOne }
@@ -46,6 +49,9 @@ class _EventEditorState extends ConsumerState<_EventEditor> {
   late TimeOfDay _to = TimeOfDay.fromDateTime(_old?.localEnd ?? (widget.start ?? DateTime.now()).add(const Duration(hours: 1)));
   late final int _days = _old != null && _old!.allDay ? _old!.length.inDays.clamp(1, 365) : 1;
   late RepeatEvery? _repeat = _old?.repeat?.every;
+
+  /// Keeps a Google or Outlook repeat Endless can't show as its own.
+  late bool _custom = _old?.customRepeat ?? false;
 
   @override
   void dispose() {
@@ -96,9 +102,12 @@ class _EventEditorState extends ConsumerState<_EventEditor> {
     }
     final keep = _old?.repeat;
     final repeat = _repeat == null ? null : (keep != null && keep.every == _repeat ? keep : Repeat(_repeat!));
-    final e = _old == null
+    // A new repeat replaces the one Google or Outlook had.
+    final ruleChanged = _old != null && (keep?.every != _repeat || (_old!.customRepeat && !_custom));
+    var e = _old == null
         ? notifier.newEvent(title: _title.text.trim(), start: start, end: end, allDay: _allDay, calendarId: _calendar).copyWith(repeat: () => repeat)
         : _old!.copyWith(title: _title.text.trim(), calendarId: _calendar, start: start, end: end, allDay: _allDay, repeat: () => repeat);
+    if (ruleChanged && e.rule != null) e = e.withExtra({'rule': null});
     notifier.put(e);
     Navigator.of(context).pop((EventEdit.saved, e));
   }
@@ -106,7 +115,7 @@ class _EventEditorState extends ConsumerState<_EventEditor> {
   Future<void> _delete() async {
     final old = _old!;
     final notifier = ref.read(calendarProvider.notifier);
-    if (old.repeat != null) {
+    if (old.repeats && old.seriesOf == null) {
       final which = await showEndlessDialog<bool>(
         context,
         builder: (context) => DialogFrame(
@@ -219,6 +228,7 @@ class _EventEditorState extends ConsumerState<_EventEditor> {
       (RepeatEvery.week, 'Every ${weekdayNames[_day.weekday - 1]}'),
     ];
     final updates = data.calendar(_calendar)?.updates ?? '';
+    final from = data.calendar(_old?.calendarId ?? '')?.updates ?? '';
 
     return DialogFrame(
       title: _old == null ? 'New event' : 'Change event',
@@ -286,19 +296,42 @@ class _EventEditorState extends ConsumerState<_EventEditor> {
               ),
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            spacing: 6,
-            children: [
-              Text('Repeats', style: label),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [for (final (v, text) in repeats) chip(text, v == _repeat, () => setState(() => _repeat = v))],
-              ),
-              if (_old?.repeat != null) Text('Changes apply to every time it repeats.', style: TextStyle(fontSize: 13, color: c.textMuted)),
-            ],
-          ),
+          if (_old?.seriesOf != null)
+            Text('One time of an event that repeats in $from. Changes here change just this time.', style: TextStyle(fontSize: 13, color: c.textMuted))
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 6,
+              children: [
+                Text('Repeats', style: label),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final (v, text) in repeats)
+                      chip(
+                        text,
+                        v == _repeat && !_custom,
+                        () => setState(() {
+                          _repeat = v;
+                          _custom = false;
+                        }),
+                      ),
+                    if (_old?.customRepeat ?? false)
+                      chip(
+                        'As set in ${from.isEmpty ? 'its calendar' : from}',
+                        _custom,
+                        () => setState(() {
+                          _repeat = null;
+                          _custom = true;
+                        }),
+                      ),
+                  ],
+                ),
+                if (_old != null && (_old!.repeat != null || _old!.customRepeat))
+                  Text('Changes apply to every time it repeats.', style: TextStyle(fontSize: 13, color: c.textMuted)),
+              ],
+            ),
           if (!_allDay && _title.text.trim().isNotEmpty && _minutes(_to) <= _minutes(_from))
             Text('It has to end after it starts.', style: TextStyle(fontSize: 13, color: c.danger)),
           Row(

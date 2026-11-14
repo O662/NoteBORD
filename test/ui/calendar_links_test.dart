@@ -62,6 +62,9 @@ Future<void> _settle(WidgetTester tester) async {
 }
 
 Future<void> _tapLabel(WidgetTester tester, String label) async {
+  // The Connect panel scrolls (two accounts above the links).
+  await tester.ensureVisible(find.bySemanticsLabel(label).last);
+  await tester.pump();
   await tester.tap(find.bySemanticsLabel(label).last);
   await _settle(tester);
 }

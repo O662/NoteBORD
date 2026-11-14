@@ -6,6 +6,7 @@ import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
 import 'package:endless/calendar/calendar_model.dart';
 import 'package:endless/calendar/feed_sync.dart' show FeedLinks;
+import 'package:endless/calendar/remote.dart' show CalendarRemote;
 import 'package:endless/canvas/live_items.dart' show liveNow;
 import 'package:endless/planner/planner_model.dart';
 import 'package:endless/state/settings.dart';
@@ -44,6 +45,10 @@ CalendarData calendarSample() => CalendarData(
         CalendarInfo(id: 'personal', name: 'Personal', kind: CalendarKind.google, hue: CalendarHue.green, account: 'sam@gmail.com', remoteId: 'primary'),
         CalendarInfo(id: 'work', name: 'Work', kind: CalendarKind.outlook, hue: CalendarHue.clay, account: 'sam@work.example', remoteId: 'AAMk'),
         CalendarInfo(id: CalendarInfo.deadlinesId, name: 'Note deadlines', kind: CalendarKind.deadlines, hue: CalendarHue.plum),
+      ],
+      accounts: [
+        CalendarAccount(kind: CalendarKind.google, email: 'sam@gmail.com', syncedAt: DateTime(2026, 9, 25, 13, 27).toUtc()),
+        CalendarAccount(kind: CalendarKind.outlook, email: 'sam@work.example', syncedAt: DateTime(2026, 9, 25, 13, 27).toUtc()),
       ],
       events: [
         _ev('ev_phys_mon', 'school', 'Physics lecture', 21, 10, 11.25, notes: const NoteLink('nb_phys', pageId: 'pp_1')),
@@ -183,6 +188,7 @@ Future<ProviderContainer> pumpCalendar(
   bool dark = false,
   FakeFeeds? feeds,
   FeedLinks? feedLinks,
+  CalendarRemote? calendarRemote,
 }) async {
   tester.view.physicalSize = tokens.Sizes.tabletFrame;
   tester.view.devicePixelRatio = 1;
@@ -191,7 +197,7 @@ Future<ProviderContainer> pumpCalendar(
   addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
   liveNow = () => calendarNow;
   addTearDown(() => liveNow = DateTime.now);
-  final overrides = await testOverrides(store ?? calendarStore(), location: location, clock: () => calendarNow, feeds: feeds, feedLinks: feedLinks);
+  final overrides = await testOverrides(store ?? calendarStore(), location: location, clock: () => calendarNow, feeds: feeds, feedLinks: feedLinks, calendarRemote: calendarRemote);
   await tester.pumpWidget(ProviderScope(overrides: overrides, child: const EndlessApp()));
   await tester.pump();
   final c = ProviderScope.containerOf(tester.element(find.byType(EndlessApp)));

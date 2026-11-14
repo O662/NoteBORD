@@ -695,7 +695,7 @@ The owner's request (2026-10-28): the Calendar (Calendar.png) with two-way Googl
 - **The Insert menu's Flashcards and Need to remember now add their widgets**, as 7a planned. Making flashcards and the Need to remember lasso stay in Study & math.
 
 ### Not done yet / known limits
-- **Two-way sync with Google and Outlook isn't built.** Phase 7d shows their calendars from calendar links, view only, instead (the owner's choice, 2026-11-04). The data model is ready for sync (`remoteId`, `etag`, `pending`, `deleted`), and docs/CLOUD_SETUP.md says what's needed from the owner for it.
+- **Two-way sync with Google and Outlook** came in Phase 9c (below). Phase 7d showed their calendars from calendar links, view only, first (the owner's choice, 2026-11-04).
 - **Not tried on the tablet**, in particular writing in the planner's pads, dragging to-dos, and the widgets' buttons with the S Pen.
 - The planner's handwriting (top 3, notes, goals) isn't searchable, and isn't in board files or exports: planner.json is the tablet's.
 - To-dos come from the planner and from decks with cards due. Checklists and Kanban "To do" cards in notebooks (Planner.png's "Study tasks board", "Lab journal, page 2") aren't pulled in yet.
@@ -892,7 +892,7 @@ The owner's request (2026-11-05): Sync settings (Sync.png): Google Drive and/or 
 ### Not done yet / known limits
 - **No client ids yet, so no real Google Drive or OneDrive sync has run.** Everything up to the REST calls is tested; the REST clients themselves have only been checked by reading them against Google's and Microsoft's docs. First real test: the tablet checklist below, once the build has the ids.
 - **Not tried on the tablet.**
-- Two-way **calendar** sync (Phase 9) isn't built; calendars stay read-only links. The sign-in built here is what it will use.
+- Two-way **calendar** sync came in Phase 9c, with this sign-in (its own scopes and refresh token).
 - Sync runs while Endless is open, and once more when you leave it (the owner's choice, 2026-11-05: finish before closing, but nothing in the background at all hours). A notebook changed on another device while this one was closed comes in when Endless next opens.
 - Pulling down the notification shade counts as leaving: with unsynced changes it syncs then (a short "Syncing your notes" notification).
 - A page added on another device while you're on a later page in the same notebook shifts the page you're on (the pane keeps its number, not the page).
@@ -1237,6 +1237,49 @@ The owner's request (2026-11-11): build Update 04 in full, all 10 sections. Sett
 ### Not done yet / known limits
 - Not tried on the tablet: dragging and resizing boxes with the S Pen and a finger, pinching the board, and the Android print dialog with a real printer.
 
+## Phase 9c: two-way sync with Google Calendar and Outlook — built and tested on this PC; real accounts wait for the calendar scopes (Google) and the client id (Microsoft)
+
+The owner's request (2026-11-13): connect Microsoft (Outlook) calendars and add two-way sync, as docs/SPEC.md (Phase 9) and this file planned. **Google needs two console steps, and Microsoft needs its app registration and client id, before real accounts can sign in** (docs/CLOUD_SETUP.md, "Two-way calendar sync"). Until then Connect says sign-in isn't set up (Microsoft), or Google's consent fails, and calendar links keep working. The sync is tested against an in-memory calendar that behaves like Google's and Microsoft's (etags, 412, cancelled times), and the REST clients against canned answers shaped like their docs.
+
+**How it works:**
+- **One Google and one Outlook / Microsoft 365 account.** Connect signs in on its own (the calendar scopes, its own refresh token in secure storage), apart from Drive and OneDrive, so it can be another account. Every calendar the account sees is added (Google: shown as in Google Calendar; holidays and shared calendars too). Those it can't change are **view only** (`readOnly`): their events can still get notes.
+- **A sync** sends what changed here, then reads each calendar again, 6 months back and 18 ahead (as calendar links are). At start, every 15 minutes while Endless is open, 6 seconds after a change here (long enough to Undo a delete), when the Calendar or Planner opens if it's been 5 minutes, and with **Sync now**.
+- **Only what changed is sent.** Each event keeps what Google or Microsoft last had (`base`): the title, the times, the repeat. Changing the title sends the title; notes are never sent.
+- **Both sides changed it:** sent with the version it was read at (If-Match). If it changed there meanwhile (412), it's read again, and each side's changes are kept; where both changed the same part (title, times, repeat), the later change wins. A deletion here loses to a change there made after it. Changed here and deleted there: it's gone.
+- **Repeating events** come back as each time they happen there (Google's single events, Graph's calendar view), so times moved or cancelled there show as they are; the series itself is read for its rule and first time. A time renamed there is an event of its own (as calendar links do), and changing it changes just that time. Every day, weekdays and every week show as Endless's own repeats; **anything else ("every 2 weeks", monthly, 10 times) is kept as it was** ("As set in Google Calendar" in the editor) unless another repeat is picked. **Just this one** takes that time off there too. **Never** makes it a single event (the series is replaced by one).
+- **Moved to another calendar:** out of the old one there, into the new one (or kept only here, for a tablet calendar).
+- **Time zones:** events are sent with the tablet's zone by name (America/Chicago for Google; Central Standard Time for Microsoft), so a weekly 10:00 stays at 10:00 through daylight saving. Android only gives "CST", so the zone is found by matching the tablet's offsets all through this year and next (`lib/calendar/local_zone.dart`).
+
+| Item | Status | Where |
+|---|---|---|
+| Connect (Calendar.png's connect panel) | Each account: "Google · connected", the address, its calendars ("School, Personal"), "Synced 3 min ago" / "Syncing…" / why not (in clay), **Sync now** (or **Sign in**) and **Sign out** (asked first: its calendars and events leave the tablet and stay in Google; changes not sent are lost). Then calendar links, "On this tablet", **Add a Google account** and **Add Outlook / Microsoft 365** (while that one isn't connected; "Signing in…"), Add a calendar link, Add a tablet calendar. "Google and Outlook accounts sync both ways; calendar links are view only." | `_ConnectPanel` (`lib/ui/calendar/calendar_screen.dart`) |
+| The event panel | "Changes here also update Google Calendar.", "Changed here; sent to Google Calendar at the next sync." while it waits, and for a view-only calendar "View only. This Google Calendar calendar can be read with your account, not changed." (no pencil) | `_EventPanel` |
+| The editor | A synced calendar's chip says "School · Google"; "Also changes it in Google Calendar."; "As set in Google Calendar" for a repeat Endless can't show; for one time of a repeating event, "One time of an event that repeats in Google Calendar. Changes here change just this time." Delete asks "Just this one" or "Every time" for any repeating event | `lib/ui/calendar/event_editor.dart` |
+| The sync | Sending (new, changed, deleted, moved, put back with Undo, times taken off), merging on 412, reading, calendars added and gone there, wrong account, offline and signed out, a change refused there (it stays here as it is and the card says why) | `CalendarSync` (`lib/calendar/calendar_sync.dart`) |
+| Google Calendar | API v3: calendarList, events (singleEvents for the times, the series by id), insert, patch with If-Match, delete, instances; `calendar.calendarlist.readonly` and `calendar.events` | `lib/calendar/remote_google.dart` |
+| Outlook | Microsoft Graph v1.0: /me/calendars, calendarView (UTC, paged), the series master, POST, PATCH with If-Match, DELETE, instances; `Calendars.ReadWrite` | `lib/calendar/remote_outlook.dart` |
+| Repeats | Google's RRULE and Graph's recurrence to and from Endless's repeats | `lib/calendar/remote.dart` |
+| Sign-in | The Drive/OneDrive sign-ins take scopes, a key and a name; the calendar's are `calendarAuthFor` (Android: Google's sign-in, Microsoft through the browser; Windows: the browser and 127.0.0.1) | `lib/sync/cloud_auth.dart` |
+| Settings › Calendar | "Endless shows your Google and Outlook calendars. Connect an account to sync both ways; a calendar link is view only." Each synced calendar: "Google · syncs both ways" or "· view only". Add a calendar: "A Google or Outlook account, or a calendar link" | `settings_sections.dart`, `settings_screen.dart` |
+| Accessibility | Each event in the Calendar's grids is its own screen reader item (one event alone in view was read together with the hours) | `calendar_grid.dart` |
+
+**Judgment calls:**
+- **One account each for Google and Outlook**, as the design shows. Connecting another account of the same kind replaces the first (its calendars leave).
+- **Every calendar the account sees is added**, shown or hidden as in Google Calendar (Outlook has no such setting: all shown). Hide one with its chip.
+- **The later change wins** when both sides changed the same part of an event; different parts are both kept. This is "Merge both", as notebooks sync.
+- **A change Google or Microsoft refuses** (say, a calendar that became read-only) isn't retried forever: the event is read again from there, and the card says "Couldn’t send “…”".
+- **"Never" on a repeating event** deletes the series there and adds one event; its notes and reminders stay (same id here).
+- **Time blocked in the planner stays the planner's**, as in 7c.
+
+### Not done yet / known limits
+- **No real Google or Outlook calendar has synced yet.** Google: Calendar API and the two scopes in the console (docs/CLOUD_SETUP.md); Microsoft: the app registration and its client id.
+- On Android, Google's sign-in is shared by the app: with different Google accounts for Drive and the calendar, after a restart the calendar card may ask to sign in again as the right one. Use one Google account for both to avoid it.
+- Events more than 6 months back or 18 months ahead aren't shown (or synced), as for calendar links; an event added here further ahead shows until the next sync, then only in Google or Outlook.
+- Locations, descriptions, attendees, reminders, colors and Meet/Teams links aren't shown or changed (and are kept there: only title, times and repeat are sent).
+- Changing a repeat Endless can't show to a time on another day shows only its first time here until the next sync.
+- Sync runs while Endless is open; nothing syncs in the background while it's closed.
+- Google Testing mode signs out every 7 days (the card says "Sign in again").
+
 ## Storage layout
 
 ```
@@ -1245,7 +1288,7 @@ The owner's request (2026-11-11): build Update 04 in full, all 10 sections. Sett
 ├── handwriting.json               # the handwriting sample for spelling fixes (this device only)
 ├── library.json                   # folders and their colors, in the order they were made
 ├── decks.json                     # flashcard decks
-├── calendar.json                  # calendars and events (this tablet's), calendar links and their events' notes
+├── calendar.json                  # calendars and events (this tablet's, and Google's and Outlook's with what sync needs), calendar links and their events' notes, the connected accounts
 ├── calendars/<calendarId>.ics     # the last copy of each calendar link's file (Phase 7d)
 ├── planner.json                   # to-dos, each day's top 3 and notes, each week's goals
 ├── index.sqlite                   # the library index and search index (caches; rebuilt from the .board files)
@@ -1400,6 +1443,9 @@ Also in `<app documents>/Endless/` since Phase 9a: `sync/` (settings.json: Sync 
   - 8 goldens: `calendar`, `calendar_dark`, `calendar_month`, `planner`, `planner_three`, `planner_week`, `widget_board`, `widget_board_dark`. `test/calendar_samples.dart` is Calendar.png's, Planner.png's and WidgetBoard.png's sample data; the planner's handwriting is the owner's, from the tablet fixture.
 - Phase 7d:
   - `test/calendar/feeds_test.dart`: pasted links, `webcal://`, what isn't one, where a link is from; Google Calendar's file (`test/fixtures/calendar/google_school.ics`): its name, a weekly lecture with Labor Day taken off, a time moved, one renamed (an event of its own) and one cancelled, daylight saving ending, an all-day break, a time in UTC, an escaped comma, the event with no UID skipped, local times in a week, ids the same each read and different per calendar, Windows line ends; Outlook's (`outlook_work.ics`): Windows time zone names, one folded over two lines, a long UID, times taken off, an all-day holiday; every Windows name in the time zone database; a web page refused; repeats only around now; no end and no title; calendar.json keeping a link's calendar and notes but not its events.
+  - `test/calendar/calendar_sync_test.dart` (Phase 9c): connecting (calendars, view-only ones, times, calendar.json round trip); a new event sent, then only its title, then only its times; notes kept and not sent; both sides changed (both kept) and the same part (the later wins, either way); deleted here and there, Undo after it went (added again), deleted here but changed there later (kept); Just this one (that time off there); a new repeating event with a time taken off before it was sent; a repeat Endless can't show kept, its time moved for every time; no longer repeating; moved to a tablet calendar; offline then back; signed out then signing in again; Google signed in as another account; a view-only calendar's notes; a calendar deleted there; signing out; what counts as changed.
+  - `test/calendar/calendar_remote_test.dart` (Phase 9c): Google's calendar list; reading a series with its times, a renamed time, all-day and cancelled; what's sent to add (zone, RRULE), change (only the title, If-Match), 412 and 410; a refusal's message; Outlook's calendar view (paged, UTC, cancelled, all-day) and series master; adding in the tablet's zone (Windows name) and moving a series' start; RRULE and Graph recurrence both ways; the tablet's zone by Windows name, by name, and by offsets (CST, AEST, IST).
+  - `test/ui/calendar_test.dart`: Add a Google account (its calendars, Synced just now, the chip), change an event and sync it, a view-only calendar's event, Sign out (stays in Google).
   - `test/ui/calendar_links_test.dart`: Connect → Add a calendar link with a `webcal://` link, named by the calendar, the link in (fake) secure storage and not in calendar.json, the file kept; its events in the week (a day taken off, all-day), Before an event's time; the event panel view only, Start notes, the notes kept when it's read again with a new event; offline keeping what it had; wrong links (not a link, a sign-in page, offline), the same link twice, Refresh (and offline on its card), Remove; at start the copy shown offline, then read again.
   - `test/ui/calendar_test.dart`: Connect has Add a calendar link, not the account buttons.
   - 1 golden: `calendar_connect` (two links, one read, one offline). `FakeFeeds` in `test/helpers.dart` stands in for the network.
@@ -1441,6 +1487,13 @@ Also in `<app documents>/Endless/` since Phase 9a: `sync/` (settings.json: Sync 
 - Update 04f: `test/ui/print_layout_test.dart` (a box keeps the paper's shape, its scale, turning and limits; what isn't covered and Add pages for them; Lay out pages for me covers everything at real size, near things together, a big group shrunk; the layout round trips and its sheets; ⋯ → Print… end to end: laid out, a page removed, the warning, covered again, landscape, US Letter, printed with one PDF page a box, saved with the notebook; dragging and resizing a box; portrait); `test/ui/transfer_test.dart` (⋯ → Print… → Print). Goldens: `print_layout`, `print_layout_covered`, `print_layout_portrait`; `canvas_more_menu` and `canvas_portrait_more` again (Print…'s description).
 
 ## Next
+- **Phase 9c tablet checklist** (two-way calendar sync). First the console steps in docs/CLOUD_SETUP.md ("Two-way calendar sync"): Google Calendar API and the two calendar scopes; for Outlook, the app registration and its client id. Then a release build (`flutter build apk --release --dart-define=MICROSOFT_CLIENT_ID=…`), `adb install -r`.
+  1. **Connect Google.** Calendar → Connect → Add a Google account; allow the calendar. The card: your address, your calendars, "Synced just now"; each calendar's chip; holidays or shared calendars view only (no pencil).
+  2. **Here to there.** + Event in a Google calendar; within about 10 s it's in Google Calendar (web or phone). Change its title, then its time; delete one; make one repeat every Friday and delete just one Friday. Check each in Google Calendar.
+  3. **There to here.** In Google Calendar add an event, change one, delete one, and make one repeat every 2 weeks; in Endless, Sync now (or wait 15 minutes, or reopen the Calendar after 5): each shows. The every-2-weeks one: the editor says "As set in Google Calendar"; change its title and check it still repeats every 2 weeks there.
+  4. **Both at once.** Turn on airplane mode; change an event's time in Endless ("Offline…" on the card). Change its title in Google Calendar. Airplane mode off, Sync now: both changes are on both sides.
+  5. **Outlook** (once the client id is in): the same with Add Outlook / Microsoft 365, a work or school account if you have one (its admin may have to approve Endless), and Outlook on the web.
+  6. **Notes and reminders.** Start notes on a Google event, Remember → Before an event on it; move it in Google Calendar: the reminder follows. Sign out: the calendars leave the tablet and stay in Google.
 - **Update 04 tablet checklist.** Release build (`flutter build apk --release`, `adb install -r`).
   1. **Rotate.** On Start, the Library, a folder, Calendar (Week, Day, Month), Planner (Today, 3 days, Week), Remember, Sticky notes, Search, Settings, Flashcards, a notebook, Split view, Version history, Print layout and the conflict screen: turn the tablet to portrait and back. Does each switch layout with nothing overlapping or cut off? (Endless was locked to landscape before; it turns now.)
   2. **Sidebar.** The button by the logo folds it to the rail: labels, the cards and remember badges, folders (tap one), the cloud (tap: Sync & backup), Settings. Go to Calendar and Sticky notes: still folded, and the week columns are wider. Close and reopen Endless: still folded. Expand. In portrait: ☰ opens it as a drawer; tap outside to close.

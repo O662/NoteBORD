@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'calendar/calendar_model.dart' show parseDay;
+import 'calendar/calendar_sync.dart';
 import 'calendar/feed_sync.dart';
 import 'canvas/pane.dart';
 import 'library/library.dart';
@@ -186,6 +187,8 @@ class _EndlessAppState extends ConsumerState<EndlessApp> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(ref.read(feedSyncProvider.notifier).start());
+      // Google and Outlook calendars sync both ways, if one is connected.
+      if (ref.read(autoCalendarSyncProvider)) unawaited(ref.read(calendarSyncProvider.notifier).start());
       // Cloud sync (if it's set up) starts a moment after the app does.
       ref.read(syncProvider.notifier).start();
       // A board file opened with Endless from another app is imported.

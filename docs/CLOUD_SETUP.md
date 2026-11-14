@@ -1,8 +1,26 @@
 # Setting up Google and Microsoft for Endless
 
-**Phase 9a (2026-11-05): cloud sync with Google Drive and OneDrive needs this too.** The steps are the same project and the same app registration as for calendar sync below, with a few additions. They're in the next section; Parts 1 and 2 below say how to make the project and the registration.
+## Two-way calendar sync (Phase 9c, built 2026-11-13): what's left to do
 
-## Cloud sync: Google Drive and OneDrive
+Calendar → Connect → **Add a Google account** / **Add Outlook / Microsoft 365** signs in and syncs both ways. It uses the same Google project and Microsoft app registration as Drive and OneDrive, with the calendar scopes added. Until they're added, signing in fails at Google's or Microsoft's consent screen, and calendar links (view only) keep working.
+
+**Google** (the "Endless" project is already set up for Drive; about 5 minutes):
+1. <https://console.cloud.google.com> → project **Endless** → **APIs & Services → Library** → **Google Calendar API** → **Enable**.
+2. **Google Auth Platform → Data access → Add or remove scopes** → filter "calendar" → tick `https://www.googleapis.com/auth/calendar.calendarlist.readonly` and `https://www.googleapis.com/auth/calendar.events` → **Update** → **Save**. Both are *Sensitive*.
+3. **Audience → Test users**: make sure every Google address you'll connect is listed (the project is still in Testing).
+4. Nothing to send: the Web client id is already built in, and the Windows Desktop client's id and secret are already in `config/cloud_secrets.json`.
+
+With sensitive scopes, Testing mode signs everyone out every 7 days (the card says "Sign in again"). **Audience → Publish app** stops that, with a "Google hasn't verified this app" warning at sign-in (**Advanced → Go to Endless**) and a cap of 100 people, until the app is verified (see "What it costs" below).
+
+**Microsoft** (not set up yet: the owner's Outlook.com account was a guest in Texas A&M's directory; see "Set up so far" below). Once you can reach <https://entra.microsoft.com>:
+1. Part 2 below, steps 2a and 2b.1–2b.3: a tenant, then **New registration** "Endless" for **Any Entra ID Tenant + Personal Microsoft accounts**. Copy the **Application (client) ID**.
+2. **Authentication → Add a platform → Mobile and desktop applications** → custom redirect URI `com.endless.endless://auth` → **Configure**; add `http://localhost` there too for Windows. **Allow public client flows → Yes** → **Save**. (Skip step 2b.4's Android `msauth://` platform: Endless doesn't use it.)
+3. **API permissions → Add a permission → Microsoft Graph → Delegated**: `Calendars.ReadWrite`, `Files.ReadWrite`, `offline_access` (`User.Read` is there already). No admin consent needed for your own account.
+4. **Send me the Application (client) ID.** It goes into builds as `--dart-define=MICROSOFT_CLIENT_ID=…` (or I can make it the default, like Google's Web client id).
+
+## Cloud sync: Google Drive and OneDrive (Phase 9a)
+
+**Phase 9a (2026-11-05): cloud sync with Google Drive and OneDrive needs this too.** The steps are the same project and the same app registration as for calendar sync below, with a few additions. They're in the next section; Parts 1 and 2 below say how to make the project and the registration.
 
 Settings › Sync & backup → **Connect** signs in. Until the build has the client ids, Connect says sign-in isn't set up yet, and everything else keeps working on the tablet.
 
@@ -34,7 +52,8 @@ For Windows: `flutter build windows --dart-define-from-file=config/cloud_secrets
 - **Google Desktop client secret** (Windows only): the console shows it once, when it's made. Copy it then.
 - **Microsoft**: Endless has no client secret, so nothing expires on that side.
 - **Signing in, for people using Endless.** On Android, Google sign-in rides on the Google account already on the tablet: sign in once; it lasts until access is removed in the Google account's settings, or the account leaves the tablet. On Windows, a refresh token: it lasts until unused for 6 months or revoked. Microsoft: a refresh token that lasts 90 days and renews each time it's used, so opening Endless now and then keeps it; a password change or "sign out everywhere" means signing in again. In Endless: Settings › Sync & backup → Change folder → **Use another account** switches accounts.
-- **Testing mode (Google)**: while the project's audience is "Testing", Google signs everyone out every 7 days and only listed test users can sign in. With only `drive.file` (non-sensitive), **Publish app** removes both without verification. (Two-way calendar sync later adds sensitive calendar scopes; then the "unverified app" warning and the 100-user cap apply until it's verified.)
+- **Testing mode (Google)**: while the project's audience is "Testing", Google signs everyone out every 7 days and only listed test users can sign in. With only `drive.file` (non-sensitive), **Publish app** removes both without verification. Two-way calendar sync (Phase 9c) adds the sensitive calendar scopes, so once they're added the "unverified app" warning and the 100-user cap apply until it's verified.
+- **Calendar sign-ins are their own.** Connecting a calendar account signs in apart from Drive and OneDrive (its own scopes, its own refresh token in secure storage), so the calendar account can be another one. On Android, Google's sign-in is shared by the whole app: if the Drive and calendar accounts differ, after a restart the calendar card may say "Signed in to Google as … Sign in again as …"; use the same Google account for both to avoid it.
 
 **Costs.** The Drive API and Microsoft Graph are free for this use. Notebooks count against your own Drive or OneDrive storage (15 GB free on Google, 5 GB on OneDrive); big videos moved there count too.
 
@@ -46,7 +65,7 @@ Everything below is for **Endless on Android** (package `com.endless.endless`). 
 
 The planner and a calendar kept on the tablet work without any of this.
 
-**Not needed yet.** For now Endless shows Google and Outlook calendars from their calendar links, view only (Phase 7d, the owner's choice on 2026-11-04): Calendar → Connect → **Add a calendar link**, and paste the calendar's private iCal (.ics) address. That needs no Google Cloud project, no Microsoft app registration and no card, and costs nothing. This guide is for two-way sync, later.
+**Calendar links still work without any of this** (Phase 7d): Calendar → Connect → **Add a calendar link**, and paste the calendar's private iCal (.ics) address, view only. That needs no Google Cloud project, no Microsoft app registration and no card. This guide is for two-way sync (Phase 9c); the short version for what's left is at the top.
 
 - **Google Calendar** (on the web; the phone app doesn't show it): Settings → pick the calendar under "Settings for my calendars" → **Integrate calendar** → **Secret address in iCal format** → copy. If the link is ever shared by mistake, **Reset** there makes a new one; add the new one in Endless.
 - **Outlook.com / Outlook on the web:** Settings → Calendar → **Shared calendars** → **Publish a calendar** → pick the calendar and **Can view all details** → **Publish** → copy the **ICS** link. A work or school Microsoft 365 account may have publishing turned off by its admin.
@@ -143,6 +162,6 @@ App registrations live in a Microsoft Entra **tenant** (a directory). Use whiche
 - Microsoft **Application (client) ID** (step 2b.3)
 - Optional, for Windows: the Google **Desktop client ID and secret** (step 1.9), and confirm you added `http://localhost` (step 2b.5)
 
-Client IDs aren't secrets. They go into `lib/calendar/cloud_ids.dart`. The desktop secret goes in as a build setting (`--dart-define`), not in the code.
+Client IDs aren't secrets. They're read in `lib/sync/cloud_auth.dart` (`CloudIds`): Google's Web client id is built in, the others come in at build time (`--dart-define`). The desktop secret goes in as a build setting from `config/cloud_secrets.json`, not in the code.
 
 Sources: Google's OAuth docs on Testing-mode refresh tokens ([OAuth 2.0](https://developers.google.com/identity/protocols/oauth2)), unverified apps ([Help](https://support.google.com/cloud/answer/7454865)) and sensitive-scope verification ([guide](https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification)); Microsoft's [Register an app in Microsoft Entra ID](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app) and [Entra ID Free](https://azure.microsoft.com/free/entra-id). Checked 2026-10-28.

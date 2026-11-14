@@ -336,6 +336,8 @@ class EventBlock extends StatelessWidget {
     final c = context.colors;
     final k = eventColors(o, data, c);
     return Semantics(
+      // Its own node: one event alone isn't read with the hours.
+      container: true,
       button: true,
       selected: selected,
       label: '${o.event.title}, ${spanLabel(o)}${o.event.notes != null ? ', has notes' : ''}',
@@ -404,6 +406,8 @@ class _AllDayChip extends StatelessWidget {
     final c = context.colors;
     final k = eventColors(o, data, c);
     return Semantics(
+      // Its own node: one event alone isn't read with the hours.
+      container: true,
       button: true,
       selected: selected,
       label: '${o.event.title}, ${o.allDay ? 'all day' : spanLabel(o)}',
@@ -593,6 +597,8 @@ class _MonthChip extends StatelessWidget {
     final k = eventColors(o, data, c);
     final text = o.allDay ? o.event.title : '${hm(o.start)} ${o.event.title}';
     return Semantics(
+      // Its own node: one event alone isn't read with the hours.
+      container: true,
       button: true,
       selected: selected,
       label: '${o.event.title}, ${spanLabel(o)}',

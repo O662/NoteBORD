@@ -13,7 +13,8 @@ import 'deadlines.dart';
 
 // The calendars and their events (calendar.json), and the deadlines read
 // from notes. Every change is saved at once. Events in Google and Outlook
-// calendars are marked `pending` when changed here, for sync to send.
+// calendars are marked `pending` when changed here, for calendar sync
+// (calendar_sync.dart) to send.
 
 /// A new tablet starts with one calendar of its own and the note deadlines.
 const defaultCalendars = [
@@ -28,6 +29,47 @@ CalendarData withDefaults(CalendarData data) {
   if (!calendars.any((c) => c.editable)) calendars.insert(0, defaultCalendars.first);
   if (!calendars.any((c) => c.kind == CalendarKind.deadlines)) calendars.add(defaultCalendars.last);
   return data.copyWith(calendars: calendars);
+}
+
+/// The next color no calendar in [data] has yet (they repeat once all are
+/// used).
+CalendarHue nextHueOf(CalendarData data) {
+  final used = {for (final cal in data.calendars) cal.hue};
+  return CalendarHue.values.where((h) => !used.contains(h)).firstOrNull ?? CalendarHue.values[used.length % CalendarHue.values.length];
+}
+
+/// [data] with calendar [c] added (before the note deadlines).
+CalendarData withCalendar(CalendarData data, CalendarInfo c) => data.copyWith(
+  calendars: [
+    ...data.calendars.where((x) => x.kind != CalendarKind.deadlines),
+    c,
+    ...data.calendars.where((x) => x.kind == CalendarKind.deadlines),
+  ],
+);
+
+/// A synced repeating event's times after it changed from [old] to [e]:
+/// moved to its new time of day and length when only those changed; null
+/// (worked out from its repeat until Google or Outlook gives them again)
+/// when its days or repeat changed.
+List<EventTime>? movedTimes(CalEvent old, CalEvent e) {
+  final times = old.times;
+  if (times == null || e.allDay != old.allDay || e.ruleKey != old.ruleKey || (e.repeat == null && !e.customRepeat)) return null;
+  if (dayOf(e.localStart) != dayOf(old.localStart)) return null;
+  final sameTime = e.allDay
+      ? e.length.inDays == old.length.inDays
+      : e.localStart.hour == old.localStart.hour && e.localStart.minute == old.localStart.minute && e.length == old.length;
+  if (sameTime) return times;
+  return [
+    for (final t in times)
+      if (e.allDay)
+        (start: t.start, end: addDays(t.start, e.length.inDays))
+      else
+        () {
+          final d = dayOf(t.start);
+          final s = DateTime(d.year, d.month, d.day, e.localStart.hour, e.localStart.minute).toUtc();
+          return (start: s, end: s.add(e.length));
+        }(),
+  ];
 }
 
 /// calendar.json as the app started (bootstrap loads it).
@@ -56,11 +98,19 @@ class Calendars extends Notifier<CalendarData> {
 
   bool _synced(String calendarId) => state.calendar(calendarId)?.synced ?? false;
   bool _viewOnly(String calendarId) => state.calendar(calendarId)?.viewOnly ?? false;
+  bool _readOnly(String calendarId) => state.calendar(calendarId)?.readOnly ?? false;
 
   /// Adds [e], or changes the event with its id. For an event from a
   /// calendar link, only its notes change (Start notes): it's read again
   /// from the link, so its notes are kept apart, in [CalendarData.links].
+  /// So too for a calendar that Google or Outlook won't let this account
+  /// change. A change to a Google or Outlook event is marked to send.
   void put(CalEvent e) {
+    if (_readOnly(e.calendarId)) {
+      final i = state.events.indexWhere((x) => x.id == e.id);
+      if (i >= 0) _set(state.copyWith(events: [...state.events]..[i] = state.events[i].copyWith(notes: () => e.notes)));
+      return;
+    }
     if (_viewOnly(e.calendarId)) {
       final i = state.events.indexWhere((x) => x.id == e.id);
       if (i < 0) return;
@@ -73,8 +123,12 @@ class Calendars extends Notifier<CalendarData> {
       _set(state.copyWith(events: [...state.events]..[i] = state.events[i].copyWith(notes: () => e.notes), links: links));
       return;
     }
-    final stamped = e.copyWith(updatedAt: _now, pending: _synced(e.calendarId) || e.pending);
     final i = state.events.indexWhere((x) => x.id == e.id);
+    final old = i < 0 ? null : state.events[i];
+    final syncs = _synced(e.calendarId) || e.remoteId != null;
+    var x = e;
+    if (old != null && old.times != null && identical(e.times, old.times)) x = x.copyWith(times: () => movedTimes(old, e));
+    final stamped = x.copyWith(updatedAt: _now, pending: syncs || e.pending);
     _set(state.copyWith(events: i < 0 ? [...state.events, stamped] : ([...state.events]..[i] = stamped)));
   }
 
@@ -93,18 +147,43 @@ class Calendars extends Notifier<CalendarData> {
     );
   }
 
-  /// Takes one time a repeating event happens off the calendar.
+  /// Takes one time a repeating event happens off the calendar. For a
+  /// Google or Outlook event, that time is taken off there too.
   void skip(Occurrence o) {
-    final r = o.event.repeat;
-    if (r == null) return delete(o.event.id);
-    put(o.event.copyWith(repeat: () => r.copyWith(skip: {...r.skip, dayKey(dayOf(o.start))})));
+    final e = state.events.where((x) => x.id == o.event.id).firstOrNull ?? o.event;
+    final day = dayKey(dayOf(o.start));
+    final r = e.repeat;
+    if (_synced(e.calendarId) || e.remoteId != null) {
+      if (_readOnly(e.calendarId)) return;
+      if (e.times == null && r == null) return delete(e.id);
+      var x = e.withExtra({
+        'cancel': [...{...e.cancel, day}],
+      });
+      if (e.times case final ts?) {
+        x = x.copyWith(times: () => [for (final t in ts) if (dayKey(e.allDay ? t.start : dayOf(t.start)) != day) t]);
+      } else {
+        x = x.copyWith(repeat: () => r!.copyWith(skip: {...r.skip, day}));
+      }
+      final i = state.events.indexWhere((y) => y.id == e.id);
+      _set(state.copyWith(events: [...state.events]..[i] = x.copyWith(updatedAt: _now, pending: true)));
+      return;
+    }
+    if (r == null) return delete(e.id);
+    put(e.copyWith(repeat: () => r.copyWith(skip: {...r.skip, day})));
   }
 
-  /// Puts back an event deleted a moment ago (Undo).
+  /// Puts back an event deleted a moment ago (Undo). A Google or Outlook
+  /// event whose deletion may have been sent is added there again if it's
+  /// gone.
   void restore(CalEvent e) {
-    final i = state.events.indexWhere((x) => x.id == e.id);
-    _set(state.copyWith(events: i < 0 ? [...state.events, e] : ([...state.events]..[i] = e)));
+    final x = e.remoteId != null && _synced(e.calendarId) ? e.withExtra({'restored': true}).copyWith(pending: true, updatedAt: _now) : e;
+    final i = state.events.indexWhere((y) => y.id == e.id);
+    _set(state.copyWith(events: i < 0 ? [...state.events, x] : ([...state.events]..[i] = x)));
   }
+
+  /// A change made by calendar sync (calendar_sync.dart), to the data as it
+  /// is now.
+  void apply(CalendarData Function(CalendarData) f) => _set(f(state));
 
   void toggle(String calendarId) =>
       _set(state.copyWith(calendars: [for (final c in state.calendars) c.id == calendarId ? c.copyWith(shown: !c.shown) : c]));
@@ -113,25 +192,14 @@ class Calendars extends Notifier<CalendarData> {
   CalendarInfo addCalendar(String name, CalendarHue hue) => _add(CalendarInfo(id: newId('cal', now: _now), name: name.trim(), hue: hue));
 
   /// The next color no calendar has yet (they repeat once all are used).
-  CalendarHue get nextHue {
-    final used = {for (final cal in state.calendars) cal.hue};
-    return CalendarHue.values.where((h) => !used.contains(h)).firstOrNull ?? CalendarHue.values[used.length % CalendarHue.values.length];
-  }
+  CalendarHue get nextHue => nextHueOf(state);
 
   /// A calendar read from a link (feed_sync.dart adds it, then its events).
   CalendarInfo addFeed({required String id, required String name, required FeedFrom from, required DateTime fetchedAt}) =>
       _add(CalendarInfo(id: id, name: name.trim(), kind: CalendarKind.feed, hue: nextHue, from: from, fetchedAt: fetchedAt.toUtc()));
 
   CalendarInfo _add(CalendarInfo c) {
-    _set(
-      state.copyWith(
-        calendars: [
-          ...state.calendars.where((x) => x.kind != CalendarKind.deadlines),
-          c,
-          ...state.calendars.where((x) => x.kind == CalendarKind.deadlines),
-        ],
-      ),
-    );
+    _set(withCalendar(state, c));
     return c;
   }
 

@@ -10,6 +10,7 @@ import '../../board/model.dart';
 import '../../calendar/calendar_format.dart';
 import '../../calendar/calendar_model.dart';
 import '../../calendar/calendar_state.dart';
+import '../../calendar/calendar_sync.dart';
 import '../../calendar/feed_sync.dart';
 import '../../library/library.dart';
 import '../../planner/planner_model.dart';
@@ -57,9 +58,12 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
     _minute = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
     });
-    // The schedule shows calendar links too: read them again if they're old.
+    // The schedule shows calendar links and Google and Outlook calendars
+    // too: read them again if they're old.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(ref.read(feedSyncProvider.notifier).refreshAll());
+      if (!mounted) return;
+      unawaited(ref.read(feedSyncProvider.notifier).refreshAll());
+      unawaited(ref.read(calendarSyncProvider.notifier).refreshAll());
     });
   }
 

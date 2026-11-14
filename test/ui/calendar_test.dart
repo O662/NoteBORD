@@ -7,6 +7,7 @@ import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
 import 'package:endless/calendar/calendar_model.dart';
 import 'package:endless/calendar/calendar_state.dart';
+import 'package:endless/calendar/calendar_sync.dart';
 import 'package:endless/canvas/pane.dart';
 import 'package:endless/canvas/widget_items.dart';
 import 'package:endless/planner/planner_model.dart';
@@ -22,6 +23,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../calendar/fake_remote.dart';
 import '../calendar_samples.dart';
 import '../helpers.dart';
 
@@ -187,6 +189,64 @@ void main() {
       expect(club.kind, CalendarKind.local);
       expect(_calendar(c).calendars.last.kind, CalendarKind.deadlines, reason: 'the deadlines stay last');
       expect(find.bySemanticsLabel('Club, This tablet'), findsOneWidget);
+      await _done(tester);
+    });
+
+    testWidgets('Add a Google account: its calendars sync both ways; Sign out', (tester) async {
+      final remote = FakeRemote()
+        ..now = calendarNow.toUtc()
+        ..addCalendar('kim@gmail.com', 'Classes', primary: true)
+        ..addCalendar('holidays', 'Holidays', canEdit: false);
+      remote.add('kim@gmail.com', 'Office hours', DateTime(2026, 9, 24, 15), DateTime(2026, 9, 24, 16));
+      // The sample tablet, without its Google and Outlook accounts.
+      final store = calendarStore();
+      store.calendar!.remove('accounts');
+      (store.calendar!['calendars'] as List).removeWhere((x) => const ['google', 'outlook'].contains((x as Map)['kind']));
+      (store.calendar!['events'] as List).removeWhere((e) => const ['school', 'personal', 'work'].contains((e as Map)['calendar']));
+      final c = await pumpCalendar(tester, Routes.calendar, store: store, calendarRemote: remote);
+      await _tapLabel(tester, 'Connect calendars');
+      expect(find.bySemanticsLabel('Add Outlook / Microsoft 365'), findsOneWidget);
+      await _tapLabel(tester, 'Add a Google account');
+      expect(find.text('Google · connected'), findsOneWidget);
+      expect(find.text('kim@gmail.com'), findsOneWidget);
+      expect(find.text('Classes, Holidays'), findsOneWidget);
+      expect(find.text('Synced just now'), findsOneWidget);
+      expect(find.bySemanticsLabel('Add a Google account'), findsNothing);
+      expect(find.text('Google and Outlook accounts sync both ways; calendar links are view only. Note deadlines come from dates you write in notes.'), findsOneWidget);
+      expect(find.bySemanticsLabel('Classes, Google'), findsOneWidget);
+
+      // Changed here, sent there.
+      await _tapLabel(tester, 'Office hours, 3:00–4:00');
+      expect(find.text('Changes here also update Google Calendar.'), findsOneWidget);
+      await _tapLabel(tester, 'Change event');
+      await tester.enterText(find.byType(TextField).first, 'Office hours, room 4');
+      await tester.pump();
+      expect(find.text('Also changes it in Google Calendar.'), findsOneWidget);
+      await _tapLabel(tester, 'Save');
+      await _tapLabel(tester, 'Office hours, room 4, 3:00–4:00');
+      expect(find.text('Changed here; sent to Google Calendar at the next sync.'), findsOneWidget);
+      await c.read(calendarSyncProvider.notifier).sync();
+      await _settle(tester);
+      expect(remote.find('Office hours, room 4'), isNotNull);
+      expect(find.text('Changes here also update Google Calendar.'), findsOneWidget);
+
+      // A view-only calendar's event has no pencil.
+      remote.add('holidays', 'Fall break', DateTime(2026, 9, 23), DateTime(2026, 9, 24), allDay: true);
+      await c.read(calendarSyncProvider.notifier).sync();
+      await _settle(tester);
+      await _tapLabel(tester, 'Fall break, all day');
+      expect(find.bySemanticsLabel('Change event'), findsNothing);
+      expect(find.text('View only. This Google Calendar calendar can be read with your account, not changed.'), findsOneWidget);
+
+      await _tapLabel(tester, 'Connect calendars');
+      await _tapLabel(tester, 'Sign out');
+      expect(find.text('Sign out of kim@gmail.com?'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('Sign out').last);
+      await _settle(tester);
+      expect(_calendar(c).accounts, isEmpty);
+      expect(_calendar(c).calendars.where((x) => x.synced), isEmpty);
+      expect(find.bySemanticsLabel('Add a Google account'), findsOneWidget);
+      expect(remote.find('Office hours, room 4'), isNotNull, reason: 'it stays in Google');
       await _done(tester);
     });
   });

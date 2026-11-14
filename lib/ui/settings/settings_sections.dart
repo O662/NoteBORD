@@ -40,7 +40,7 @@ enum SettingsSection {
   themes('Themes & dark mode', 'Changes apply everywhere: library, pages, widgets and menus.'),
   notify('Notifications', 'Choose what Endless may remind you about.'),
   calendar('Calendar',
-      'Endless shows your Google and Outlook events. Two-way sync, where changes in Endless go back to your calendar, is coming later.'),
+      'Endless shows your Google and Outlook calendars. Connect an account to sync both ways; a calendar link is view only.'),
   storage('Storage', 'What Endless keeps on this tablet.'),
   privacy('Privacy & security', 'Your notes stay on this tablet and in your own cloud. Endless has no server of its own that stores them.'),
   about('About', 'Endless · a notebook that never runs out of paper.');
@@ -416,6 +416,7 @@ List<SettingDef> calendarRows(WidgetRef ref) {
           cal.name.isEmpty ? 'Calendar' : cal.name,
           switch ((cal.kind, cal.from)) {
             (CalendarKind.local, _) => 'On this tablet',
+            (CalendarKind.google || CalendarKind.outlook, _) => '${cal.source} · ${cal.readOnly ? 'view only' : 'syncs both ways'}',
             (_, FeedFrom.google) => 'Google · read-only',
             (_, FeedFrom.outlook) => 'Outlook · read-only',
             _ => 'Calendar link · read-only',

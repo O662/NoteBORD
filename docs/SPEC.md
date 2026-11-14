@@ -94,8 +94,8 @@ Each feature names the screen that shows it (`design/screens/<Name>.png`, with s
 
 ## Phase 7: Widgets, planning and study
 - **Calendar:** month, week and day views. Shows **Google and Outlook** calendars, and each calendar can be toggled. Events link to notes ("Open notes", template). **[Calendar]**
-  - **For now, calendar sync is read-only: calendar links, view only** (the owner's choice, 2026-11-04). Paste a calendar's private iCal (.ics) address; its events show and refresh, nothing is sent back, and no account or cloud project is needed.
-  - **Deferred to Phase 9: two-way sync** with Google and Outlook sign-in (setup in docs/CLOUD_SETUP.md). Nothing in Phase 7 or 8 writes to Google or Outlook.
+  - **Calendar links, view only** (Phase 7d, the owner's choice, 2026-11-04). Paste a calendar's private iCal (.ics) address; its events show and refresh, nothing is sent back, and no account or cloud project is needed.
+  - **Two-way sync** with a Google account and an Outlook / Microsoft 365 account *(Phase 9c, built 2026-11-13)*: sign in from Connect; the account's calendars show, and events added, changed or deleted on either side reach the other (setup in docs/CLOUD_SETUP.md).
 - **Planner:** Today, 3 days or Week. Top 3 today, a to-do list (drag onto the schedule to block time), the schedule, and notes for today. **[Planner]**
 - **Widgets on the page:** calendar, planner, flashcards and remember, all live, resizable and movable. **[WidgetBoard]**
 - **Flashcards:**
@@ -122,7 +122,7 @@ Each feature names the screen that shows it (`design/screens/<Name>.png`, with s
   - *(Phase 8b)* For now, large videos (over 100 MB) stay on the tablet and the page keeps a link; moving them to Google Drive comes with Phase 9. Trim keeps where to start and stop (the file isn't cut).
 
 ## Phase 9: Cloud, sharing and collaboration
-- **Two-way calendar sync** with Google Calendar and Outlook (deferred from Phase 7, where calendars are read-only links): sign in, edit events in Endless and send the changes back. **[Calendar]**
+- **Two-way calendar sync** with Google Calendar and Outlook (deferred from Phase 7, where calendars are read-only links): sign in, edit events in Endless and send the changes back. **[Calendar]** *(Phase 9c, built 2026-11-13; real accounts wait for the calendar scopes and the Microsoft client id)*
 - **Sync settings:** *(Phase 9a, built 2026-11-05)*
   - Google Drive and/or OneDrive, with a chosen folder.
   - What syncs: board files, optional PDF copy, images and PDFs.

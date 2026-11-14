@@ -244,7 +244,7 @@ class _SectionRows extends ConsumerWidget {
             for (final d in calendarRows(ref)) SettingRowView(d),
             SettingsRowView(
               label: 'Add a calendar',
-              desc: 'A Google or Outlook calendar link',
+              desc: 'A Google or Outlook account, or a calendar link',
               trailing: SettingsButton(label: 'Add', onPressed: () => context.push(Routes.calendar)),
             ),
           ])

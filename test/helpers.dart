@@ -9,8 +9,11 @@ import 'package:endless/board/ids.dart';
 import 'package:endless/board/lock.dart';
 import 'package:endless/board/model.dart';
 import 'package:endless/board/store.dart';
+import 'package:endless/calendar/calendar_model.dart' show CalendarKind;
+import 'package:endless/calendar/calendar_sync.dart';
 import 'package:endless/calendar/feed_sync.dart';
 import 'package:endless/calendar/feeds.dart';
+import 'package:endless/calendar/remote.dart' show CalendarRemote;
 import 'package:endless/canvas/page_runtime.dart';
 import 'package:endless/canvas/pane.dart';
 import 'package:endless/library/index_db.dart';
@@ -25,6 +28,7 @@ import 'package:endless/state/notebook.dart';
 import 'package:endless/state/office_docs.dart';
 import 'package:endless/state/photos.dart';
 import 'package:endless/state/settings.dart';
+import 'package:endless/sync/cloud.dart' show CloudException, CloudFailure, CloudKind;
 import 'package:endless/study/reminders.dart';
 import 'package:endless/theme/tokens.g.dart' as tokens;
 import 'package:endless/transfer/board_file.dart' show ImportProblem;
@@ -38,6 +42,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+
+import 'calendar/fake_remote.dart';
+import 'sync/sync_app_helpers.dart' show FakeAuth;
 
 /// Finds a chrome button by its accessible label.
 Finder byLabel(String label) => find.byWidgetPredicate((w) => w is ChromeButton && w.label == label);
@@ -157,6 +164,8 @@ Future<List<Override>> testOverrides(
   DateTime Function()? clock,
   FakeFeeds? feeds,
   FeedLinks? feedLinks,
+  CalendarRemote? calendarRemote,
+  String calendarEmail = 'kim@gmail.com',
   bool autoSync = false,
 }) async {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -182,6 +191,14 @@ Future<List<Override>> testOverrides(
     feedFetcherProvider.overrideWithValue(feeds ?? FakeFeeds()),
     feedLinksProvider.overrideWithValue(feedLinks ?? MemoryFeedLinks()),
     feedReaderProvider.overrideWithValue((text, id, now) async => readFeed(text, id, now)),
+    // Google and Outlook calendars sync when a test asks (CalendarSync.sync).
+    autoCalendarSyncProvider.overrideWithValue(false),
+    // Google and Outlook are never reached from a test: an in-memory
+    // calendar (offline unless a test brings one) and a sign-in that works.
+    calendarRemoteProvider.overrideWith((ref, kind) => calendarRemote ?? (FakeRemote()..failWith = const CloudException(CloudFailure.offline, 'test'))),
+    calendarAuthProvider.overrideWith(
+      (ref, kind) => kind == CalendarKind.google ? FakeAuth(CloudKind.google, email: calendarEmail) : FakeAuth(CloudKind.onedrive, email: 'kim@outlook.com'),
+    ),
     // Cloud sync runs when a test asks (SyncController.syncNow).
     autoSyncProvider.overrideWithValue(autoSync),
     // A sync's slow work runs on the test's own isolate.
